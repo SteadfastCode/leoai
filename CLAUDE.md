@@ -148,7 +148,10 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Dashboard UX — sticky header, jump FABs, collapsible sidebar, markdown in Leo bubbles
 - ✅ Widget dark mode — CSS custom properties, follows prefers-color-scheme automatically
 - ✅ Multi-entity test harness (test.html — Dosie Dough, Burk Digital, Tomato Pie Cafe, dark mode toggle)
-- ⬜ Stripe integration
+- ✅ Stripe billing integration — checkout session, customer portal, webhooks (checkout.session.completed, subscription updated/deleted, invoice.payment_failed). Entity model has full billing fields. Billing.vue dashboard page with plan/usage card and upgrade cards.
+- ✅ Free tier quota enforcement — 100 msg/month cap, 402 response, widget handles gracefully with Leo-voiced message
+- ✅ Quota warning notifications — owner alerted at 50/75/90% and on limit hit (configurable thresholds + alert channels: email/SMS). Resets each billing period. Dashboard Settings > Usage Alerts UI.
+- ⬜ Stripe price IDs + env vars need to be created and filled in (.env.example documents them)
 - ⬜ OneSignal integration
 - ⬜ Church & Ministry Mode (prompt engineering + pastoral review)
 - ⬜ LeoRefresh scheduler
