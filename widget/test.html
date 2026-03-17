@@ -54,10 +54,33 @@
     #page-title { color: #1e293b; font-size: 28px; margin-bottom: 8px; }
     #page-subtitle { font-size: 15px; }
     #page-hint { margin-top: 24px; font-size: 13px; opacity: 0.6; }
+
+    /* Dark mode toggle */
+    #dark-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #374151;
+      font-size: 13px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    body.dark { background: #0f172a; color: #e2e8f0; }
+    body.dark #entity-tabs { background: #1e293b; border-color: #334155; }
+    body.dark .tab { background: #1e293b; border-color: #334155; color: #94a3b8; }
+    body.dark .tab:hover { background: #334155; }
+    body.dark .tab.active { background: #0f172a; color: #f1f5f9; border-color: #334155; }
+    body.dark #page-title { color: #f1f5f9; }
+    body.dark #dark-toggle { background: #1e293b; border-color: #334155; color: #e2e8f0; }
   </style>
 </head>
 <body>
 
+  <button id="dark-toggle">🌙 Dark mode</button>
   <div id="entity-tabs"></div>
 
   <div id="page-content">
@@ -111,6 +134,13 @@
       script.setAttribute('data-domain', entity.domain);
       document.body.appendChild(script);
     }
+
+    // Dark mode toggle
+    const darkToggle = document.getElementById('dark-toggle');
+    darkToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      darkToggle.textContent = document.body.classList.contains('dark') ? '☀️ Light mode' : '🌙 Dark mode';
+    });
 
     // Init first entity display
     document.getElementById('page-title').textContent = entities[0].name;
