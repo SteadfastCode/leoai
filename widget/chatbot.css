@@ -1,4 +1,29 @@
+/* ─── Design tokens ───────────────────────────────────────────────── */
 #leo-widget {
+  --leo-accent:           #2563eb;
+  --leo-accent-hover:     #1d4ed8;
+  --leo-accent-subtle:    rgba(37, 99, 235, 0.06);
+  --leo-accent-border:    rgba(37, 99, 235, 0.35);
+
+  --leo-bg:               #ffffff;
+  --leo-bg-subtle:        #f8fafc;
+  --leo-bg-hover:         #f1f5f9;
+  --leo-border:           #e2e8f0;
+
+  --leo-text:             #1e293b;
+  --leo-text-muted:       #475569;
+  --leo-text-faint:       #64748b;
+
+  --leo-msg-assistant-bg:   #f1f5f9;
+  --leo-msg-assistant-text: #1e293b;
+  --leo-msg-owner-bg:       #dcfce7;
+  --leo-msg-owner-text:     #166534;
+  --leo-msg-owner-border:   #16a34a;
+
+  --leo-input-bg:         #ffffff;
+  --leo-input-border:     #cbd5e1;
+  --leo-code-bg:          #e2e8f0;
+
   position: fixed;
   bottom: 24px;
   right: 24px;
@@ -6,11 +31,35 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+@media (prefers-color-scheme: dark) {
+  #leo-widget {
+    --leo-bg:               #1e2433;
+    --leo-bg-subtle:        #252d3e;
+    --leo-bg-hover:         rgba(255, 255, 255, 0.06);
+    --leo-border:           rgba(255, 255, 255, 0.1);
+
+    --leo-text:             #e2e8f0;
+    --leo-text-muted:       #94a3b8;
+    --leo-text-faint:       #64748b;
+
+    --leo-msg-assistant-bg:   #2d3748;
+    --leo-msg-assistant-text: #e2e8f0;
+    --leo-msg-owner-bg:       #14532d;
+    --leo-msg-owner-text:     #bbf7d0;
+    --leo-msg-owner-border:   #16a34a;
+
+    --leo-input-bg:         #252d3e;
+    --leo-input-border:     rgba(255, 255, 255, 0.15);
+    --leo-code-bg:          rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ─── Bubble ──────────────────────────────────────────────────────── */
 #leo-bubble {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--leo-accent);
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -26,7 +75,7 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
-/* Drawer */
+/* ─── Drawer ──────────────────────────────────────────────────────── */
 #leo-drawer {
   position: fixed;
   bottom: 90px;
@@ -35,7 +84,7 @@
   max-width: calc(100vw - 48px);
   height: 480px;
   max-height: calc(100vh - 120px);
-  background: #fff;
+  background: var(--leo-bg);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   display: flex;
@@ -45,11 +94,11 @@
 
 #leo-drawer[hidden] { display: none; }
 
-/* Resize handle */
+/* ─── Resize handle ───────────────────────────────────────────────── */
 #leo-resize-handle {
   height: 10px;
   cursor: ns-resize;
-  background: #2563eb;
+  background: var(--leo-accent);
   flex-shrink: 0;
   border-radius: 16px 16px 0 0;
   position: relative;
@@ -60,7 +109,7 @@
   display: block;
   width: 32px;
   height: 3px;
-  background: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 2px;
   position: absolute;
   top: 50%;
@@ -70,12 +119,12 @@
 }
 
 #leo-resize-handle:hover::after {
-  background: rgba(255,255,255,0.8);
+  background: rgba(255, 255, 255, 0.8);
 }
 
-/* Header */
+/* ─── Header ──────────────────────────────────────────────────────── */
 #leo-header {
-  background: #2563eb;
+  background: var(--leo-accent);
   color: #fff;
   padding: 12px 14px;
   display: flex;
@@ -110,13 +159,13 @@
 
 #leo-header-actions button:hover {
   opacity: 1;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
 }
 
-/* Three-dot menu */
+/* ─── Three-dot menu ──────────────────────────────────────────────── */
 #leo-menu {
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--leo-bg);
+  border-bottom: 1px solid var(--leo-border);
   flex-shrink: 0;
 }
 
@@ -128,14 +177,14 @@
   border: none;
   text-align: left;
   font-size: 13px;
-  color: #374151;
+  color: var(--leo-text);
   cursor: pointer;
   transition: background 0.1s;
 }
 
-.leo-menu-item:hover { background: #f1f5f9; }
+.leo-menu-item:hover { background: var(--leo-bg-hover); }
 
-/* Consent screen */
+/* ─── Consent screen ──────────────────────────────────────────────── */
 #leo-consent {
   flex: 1;
   overflow-y: auto;
@@ -147,19 +196,19 @@
 #leo-consent-title {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--leo-text);
   margin-bottom: 8px;
 }
 
 #leo-consent-intro {
   font-size: 13px;
-  color: #475569;
+  color: var(--leo-text-muted);
   margin-bottom: 10px;
 }
 
 #leo-consent-points {
   font-size: 13px;
-  color: #334155;
+  color: var(--leo-text);
   padding-left: 18px;
   margin-bottom: 14px;
   line-height: 1.6;
@@ -168,7 +217,7 @@
 #leo-consent-details-btn {
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--leo-accent);
   font-size: 12px;
   cursor: pointer;
   padding: 0;
@@ -177,12 +226,12 @@
 }
 
 #leo-consent-details {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--leo-bg-subtle);
+  border: 1px solid var(--leo-border);
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 12px;
-  color: #475569;
+  color: var(--leo-text-muted);
   line-height: 1.6;
   margin-bottom: 14px;
 }
@@ -206,23 +255,23 @@
 #leo-consent-decline {
   flex: 1;
   padding: 9px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--leo-border);
   border-radius: 8px;
-  background: #fff;
-  color: #64748b;
+  background: var(--leo-bg);
+  color: var(--leo-text-faint);
   font-size: 13px;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-#leo-consent-decline:hover { background: #f1f5f9; }
+#leo-consent-decline:hover { background: var(--leo-bg-hover); }
 
 #leo-consent-accept {
   flex: 2;
   padding: 9px;
   border: none;
   border-radius: 8px;
-  background: #2563eb;
+  background: var(--leo-accent);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -230,9 +279,9 @@
   transition: background 0.15s;
 }
 
-#leo-consent-accept:hover { background: #1d4ed8; }
+#leo-consent-accept:hover { background: var(--leo-accent-hover); }
 
-/* Messages */
+/* ─── Messages ────────────────────────────────────────────────────── */
 #leo-messages {
   flex: 1;
   overflow-y: auto;
@@ -252,25 +301,25 @@
 }
 
 .leo-msg--user {
-  background: #2563eb;
+  background: var(--leo-accent);
   color: #fff;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
 }
 
 .leo-msg--assistant {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: var(--leo-msg-assistant-bg);
+  color: var(--leo-msg-assistant-text);
   align-self: flex-start;
   border-bottom-left-radius: 4px;
 }
 
 .leo-msg--owner_reply {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--leo-msg-owner-bg);
+  color: var(--leo-msg-owner-text);
   align-self: flex-start;
   border-bottom-left-radius: 4px;
-  border-left: 3px solid #16a34a;
+  border-left: 3px solid var(--leo-msg-owner-border);
 }
 
 .leo-msg--typing {
@@ -278,16 +327,14 @@
   font-style: italic;
 }
 
-/* Markdown styles inside assistant messages */
-.leo-markdown p {
-  margin: 0 0 6px;
-}
+/* ─── Markdown ────────────────────────────────────────────────────── */
+.leo-markdown p { margin: 0 0 6px; }
 .leo-markdown p:last-child { margin-bottom: 0; }
 .leo-markdown br { display: block; margin: 4px 0; content: ''; }
 .leo-markdown strong { font-weight: 600; }
 .leo-markdown em { font-style: italic; }
 .leo-markdown code {
-  background: #e2e8f0;
+  background: var(--leo-code-bg);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
@@ -299,7 +346,7 @@
 }
 .leo-markdown li { margin-bottom: 2px; }
 
-/* Interactive option buttons */
+/* ─── Interactive option buttons ──────────────────────────────────── */
 .leo-options {
   display: flex;
   flex-wrap: wrap;
@@ -317,9 +364,9 @@
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.06);
-  border: 1.5px solid rgba(37, 99, 235, 0.35);
+  color: var(--leo-accent);
+  background: var(--leo-accent-subtle);
+  border: 1.5px solid var(--leo-accent-border);
   border-radius: 18px;
   padding: 6px 14px 6px 9px;
   cursor: pointer;
@@ -327,15 +374,15 @@
               color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .leo-option-btn:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--leo-accent);
+  border-color: var(--leo-accent);
   color: #fff;
   box-shadow: 0 2px 10px rgba(37, 99, 235, 0.28);
   transform: translateY(-1px);
 }
 .leo-option-btn.leo-option-selected {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--leo-accent);
+  border-color: var(--leo-accent);
   color: #fff;
 }
 .leo-option-btn:active {
@@ -362,36 +409,39 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* Badge on interactive user messages in history */
+/* ─── Interactive badge ───────────────────────────────────────────── */
 .leo-interactive-badge {
   margin-left: 4px;
   font-size: 10px;
   opacity: 0.55;
 }
 
-/* Input row */
+/* ─── Input row ───────────────────────────────────────────────────── */
 #leo-input-row {
   display: flex;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--leo-border);
   flex-shrink: 0;
 }
 
 #leo-input {
   flex: 1;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--leo-input-border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   outline: none;
+  background: var(--leo-input-bg);
+  color: var(--leo-text);
   transition: border-color 0.15s;
 }
 
-#leo-input:focus { border-color: #2563eb; }
+#leo-input:focus { border-color: var(--leo-accent); }
+#leo-input::placeholder { color: var(--leo-text-faint); }
 
 #leo-send {
-  background: #2563eb;
+  background: var(--leo-accent);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -402,5 +452,5 @@
   transition: background 0.15s;
 }
 
-#leo-send:hover { background: #1d4ed8; }
+#leo-send:hover { background: var(--leo-accent-hover); }
 #leo-send:disabled { background: #94a3b8; cursor: not-allowed; }
