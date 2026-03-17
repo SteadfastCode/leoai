@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { sessionExpired, lastKnownEmail } from './session'
 
-const api = axios.create({ baseURL: 'http://localhost:3002' })
+const api = axios.create({ baseURL: 'http://localhost:3001' })
 
 // Attach access token to every request
 api.interceptors.request.use((config) => {
@@ -20,7 +20,7 @@ api.interceptors.response.use(
       original._retry = true
       try {
         if (!refreshing) {
-          refreshing = axios.post('http://localhost:3002/auth/refresh', {
+          refreshing = axios.post('http://localhost:3001/auth/refresh', {
             refreshToken: localStorage.getItem('leo_refresh_token'),
           }).then((r) => {
             localStorage.setItem('leo_access_token', r.data.accessToken)
