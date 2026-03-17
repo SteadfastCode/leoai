@@ -22,7 +22,7 @@ const conversationSchema = new mongoose.Schema(
     lastTopic: String,
     lastActiveAt: { type: Date, default: Date.now },
     handoffPending: { type: Boolean, default: false },
-    pendingQuestions: [{ type: String }],
+    pendingQuestions: [{ text: { type: String }, askedAt: { type: Date, default: Date.now }, _id: false }],
   },
   { timestamps: true }
 );

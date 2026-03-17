@@ -63,7 +63,7 @@ onMounted(async () => {
     const { data } = await getConversation(props.domain, route.params.id)
     conversation.value = data
     addToKb.value = props.entity?.autoAddRepliesToKb ?? false
-    checkedQuestions.value = [...(data.pendingQuestions || [])]
+    checkedQuestions.value = [...(data.pendingQuestions || []).map((q) => q.text)]
   } finally {
     loading.value = false
     await nextTick()
@@ -86,7 +86,7 @@ async function sendReply() {
       addToKb: addToKb.value,
     })
     conversation.value = data.conversation
-    checkedQuestions.value = [...(data.conversation.pendingQuestions || [])]
+    checkedQuestions.value = [...(data.conversation.pendingQuestions || []).map((q) => q.text)]
     snackbarMsg.value = data.addedToKb ? 'Reply sent and added to knowledge base' : 'Reply sent'
     snackbarColor.value = 'success'
     replyText.value = ''
@@ -236,14 +236,18 @@ function formatDate(d) {
             <div class="mb-3">
               <v-checkbox
                 v-for="q in conversation.pendingQuestions"
-                :key="q"
+                :key="q.text"
                 v-model="checkedQuestions"
-                :label="q"
-                :value="q"
+                :value="q.text"
                 density="compact"
                 hide-details
                 color="primary"
-              />
+              >
+                <template #label>
+                  <span>{{ q.text }}</span>
+                  <span class="text-caption text-medium-emphasis ml-2">{{ new Date(q.askedAt).toLocaleString() }}</span>
+                </template>
+              </v-checkbox>
             </div>
           </template>
 

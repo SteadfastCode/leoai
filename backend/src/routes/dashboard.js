@@ -121,7 +121,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
     // Remove answered questions from pendingQuestions, reset handoffPending if all answered
     if (answeredQuestions?.length) {
       conversation.pendingQuestions = (conversation.pendingQuestions || []).filter(
-        (q) => !answeredQuestions.includes(q)
+        (q) => !answeredQuestions.includes(q.text)
       );
     }
     if (!conversation.pendingQuestions?.length) {
