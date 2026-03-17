@@ -1,0 +1,14 @@
+node_modules/
+.env
+*.log
+.DS_Store
+
+# Yarn is used — ignore npm lockfile
+package-lock.json
+
+# Build output
+dist/
+build/
+
+# Local Claude Code settings (machine-specific permissions)
+.claude/settings.local.json

@@ -1,0 +1,72 @@
+Time Saved Using AI — LeoAI Project Log
+========================================
+Started: March 2026
+Developer: Daniel, Steadfast Code, Lititz PA
+Context: Building in spare time while working full-time and raising a family.
+         A few hours a day, evenings and weekends.
+
+---
+
+SESSION 1 — March 12, 2026
+---------------------------
+What was built:
+  - Full backend scaffolding (Express, Mongoose, MongoDB)
+  - RAG pipeline (scraper, chunker, retrieval)
+  - Vector embeddings (Voyage AI) with smart rescrape (hash-based diffing)
+  - Claude API integration with full system prompt injection
+  - Temporal context injection (timestamps, returning visitor awareness)
+  - Deduplication of scraped chunks
+  - Retry logic with exponential backoff for rate limits
+  - Vanilla JS chat widget shell
+  - MongoDB Atlas Vector Search integration
+  - Naming architecture decisions (Entity vs Business, etc.)
+
+Estimated time for an experienced backend developer who knows all these
+technologies: 2-3 weeks at 40hrs/week.
+
+Estimated time for Daniel building solo with AI assistance for questions,
+but coding manually: 3-6 months at 40hrs/week.
+
+Estimated time for Daniel building in spare time (few hours/day after work
+and family): 6-12 months of evenings and weekends. Possibly longer.
+
+What actually happened: ~1 day.
+
+---
+
+Key insight:
+The real value isn't just speed. It's architectural decisions made correctly
+on the first pass — vector embeddings over keyword matching, hash-based
+diffing for rescrapes, proper separation of concerns in the service layer.
+These are the calls that come from experience. Getting them right upfront
+instead of refactoring later is where the time savings compound most.
+
+The emotional toll of solo learning is real too. Nights spent stuck on
+something small, making no visible progress, deciding whether the sacrifice
+is worth it — that's where passion projects die. AI removes that wall.
+
+---
+
+Running Total: ~6-12 months of evenings/weekends saved in session 1 alone.
+
+---
+
+SESSION 2 — March 13, 2026
+---------------------------
+What was built/decided:
+  - Vector embeddings (Voyage AI) fully replacing keyword RAG
+  - Smart rescrape with hash-based page diffing
+  - PDF scraping support (menus, schedules, bulletins)
+  - Binary content filtering (prevented garbage data from being embedded)
+  - Chunk deduplication and size optimization (500 → 1500 chars)
+  - Retry logic with exponential backoff for Voyage rate limits
+  - Renamed Business → Entity throughout codebase
+  - Tested end-to-end on Dosie Dough (Lititz, PA) — accurate, no hallucinations
+  - Identified two-pass scraping strategy (axios → Puppeteer fallback)
+  - Planned site navigation / deep linking feature
+  - Planned widget QoL improvements (markdown rendering, expandable drawer, three-dot menu, animated Leo)
+  - Identified PDF staleness limitation and third-party ordering platform scraping strategy
+
+Estimated additional time saved this session: 2-3 months of evenings/weekends.
+
+Running Total: ~8-15 months of evenings/weekends saved across both sessions.

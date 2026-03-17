@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leo Widget Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      min-height: 100vh;
+    }
+
+    /* Tab bar */
+    #entity-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 16px 24px 0;
+      background: #fff;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .tab {
+      padding: 10px 20px;
+      border: 1px solid #e2e8f0;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .tab:hover { background: #e2e8f0; }
+    .tab.active {
+      background: #fff;
+      color: #1e293b;
+      border-bottom: 2px solid #fff;
+      margin-bottom: -2px;
+    }
+
+    /* Page content */
+    #page-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 53px);
+      text-align: center;
+      color: #64748b;
+      padding: 40px;
+    }
+    #page-title { color: #1e293b; font-size: 28px; margin-bottom: 8px; }
+    #page-subtitle { font-size: 15px; }
+    #page-hint { margin-top: 24px; font-size: 13px; opacity: 0.6; }
+  </style>
+</head>
+<body>
+
+  <div id="entity-tabs"></div>
+
+  <div id="page-content">
+    <div>
+      <h1 id="page-title"></h1>
+      <p id="page-subtitle"></p>
+      <p id="page-hint">Leo widget is in the bottom-right corner.</p>
+    </div>
+  </div>
+
+  <link rel="stylesheet" href="./chatbot.css" />
+
+  <script>
+    const entities = [
+      { name: 'Dosie Dough',  domain: 'dosiedough.com',  subtitle: 'Fresh bagels, baked goods & coffee — Lititz, PA' },
+      { name: 'Burk Digital', domain: 'burkdigital.com', subtitle: 'Digital marketing & web solutions' },
+      { name: 'Tomato Pie Cafe', domain: 'tomatopiecafe.net', subtitle: 'Quaint cafe, food & coffee — Lititz, PA' },
+    ];
+
+    let currentDomain = entities[0].domain;
+    window.LEO_BACKEND_URL = 'http://localhost:3002';
+
+    // Build tabs
+    const tabBar = document.getElementById('entity-tabs');
+    entities.forEach((entity, i) => {
+      const tab = document.createElement('button');
+      tab.className = 'tab' + (i === 0 ? ' active' : '');
+      tab.textContent = entity.name;
+      tab.addEventListener('click', () => switchEntity(entity, tab));
+      tabBar.appendChild(tab);
+    });
+
+    function switchEntity(entity, activeTab) {
+      if (entity.domain === currentDomain) return;
+      currentDomain = entity.domain;
+
+      // Update tabs
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      activeTab.classList.add('active');
+
+      // Update page content
+      document.getElementById('page-title').textContent = entity.name;
+      document.getElementById('page-subtitle').textContent = entity.subtitle;
+
+      // Reload widget with new domain
+      const old = document.getElementById('leo-widget');
+      if (old) old.remove();
+
+      const script = document.createElement('script');
+      script.src = './chatbot.js?v=' + Date.now();
+      script.setAttribute('data-domain', entity.domain);
+      document.body.appendChild(script);
+    }
+
+    // Init first entity display
+    document.getElementById('page-title').textContent = entities[0].name;
+    document.getElementById('page-subtitle').textContent = entities[0].subtitle;
+  </script>
+
+  <script src="./chatbot.js" data-domain="dosiedough.com"></script>
+</body>
+</html>

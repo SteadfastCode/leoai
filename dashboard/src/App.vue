@@ -1,0 +1,297 @@
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useTheme } from 'vuetify'
+import { startAuthentication } from '@simplewebauthn/browser'
+import { getEntities } from './lib/api'
+import api from './lib/api'
+import { user, isAuthenticated, login, logout, persist } from './lib/auth'
+import { sessionExpired, lastKnownEmail } from './lib/session'
+
+const router = useRouter()
+const theme  = useTheme()
+
+// ---------------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------------
+const isDark = computed(() => theme.global.name.value === 'dark')
+function toggleTheme() {
+  const next = isDark.value ? 'light' : 'dark'
+  theme.global.name.value = next
+  localStorage.setItem('leo_dashboard_theme', next)
+}
+
+// ---------------------------------------------------------------------------
+// Entity / nav state
+// ---------------------------------------------------------------------------
+const entities      = ref([])
+const selectedDomain = ref(localStorage.getItem('leo_dashboard_domain') || '')
+const drawer        = ref(true)
+const rail          = ref(false)
+
+const navItems = [
+  { title: 'Overview',       icon: 'mdi-view-dashboard', to: '/overview' },
+  { title: 'Conversations',  icon: 'mdi-chat',           to: '/conversations' },
+  { title: 'Knowledge Base', icon: 'mdi-database',       to: '/knowledge' },
+  { title: 'Settings',       icon: 'mdi-cog',            to: '/settings' },
+]
+
+async function loadEntities() {
+  try {
+    const { data } = await getEntities()
+    entities.value = data
+    if (!selectedDomain.value && data.length) {
+      selectedDomain.value = data[0].domain
+    }
+    localStorage.setItem('leo_dashboard_domain', selectedDomain.value)
+  } catch { /* handled by api interceptor */ }
+}
+
+onMounted(() => {
+  if (isAuthenticated.value) loadEntities()
+})
+
+// Reload entities when the user logs in (covers post-expiry re-auth)
+watch(isAuthenticated, (val) => {
+  if (val && !entities.value.length) loadEntities()
+})
+
+function selectEntity(domain) {
+  selectedDomain.value = domain
+  localStorage.setItem('leo_dashboard_domain', domain)
+  router.push('/overview')
+}
+
+const selectedEntity = () => entities.value.find(e => e.domain === selectedDomain.value)
+
+// ---------------------------------------------------------------------------
+// Logout
+// ---------------------------------------------------------------------------
+async function handleLogout() {
+  await logout()
+  router.replace('/login')
+}
+
+// ---------------------------------------------------------------------------
+// Layout visibility
+// Keep the layout chrome rendered when the session has just expired so that
+// the re-auth dialog can appear over the existing page without losing state.
+// Only hide it for a genuine unauthenticated state (first visit / logout).
+// ---------------------------------------------------------------------------
+const showLayout = computed(() => isAuthenticated.value || sessionExpired.value)
+
+// ---------------------------------------------------------------------------
+// Session-expired re-auth dialog
+// ---------------------------------------------------------------------------
+const reAuthEmail    = computed({
+  get: () => lastKnownEmail.value,
+  set: (v) => { lastKnownEmail.value = v },
+})
+const reAuthPassword = ref('')
+const reAuthLoading  = ref(false)
+const reAuthError    = ref('')
+
+async function handleReAuth() {
+  reAuthError.value = ''
+  reAuthLoading.value = true
+  try {
+    await login(reAuthEmail.value, reAuthPassword.value)
+    reAuthPassword.value = ''
+    sessionExpired.value = false
+  } catch (err) {
+    reAuthError.value = err.response?.data?.error || 'Sign-in failed'
+  } finally {
+    reAuthLoading.value = false
+  }
+}
+
+async function handleReAuthPasskey() {
+  reAuthError.value = ''
+  reAuthLoading.value = true
+  try {
+    const { data: options } = await api.get('/auth/passkey/login-options', {
+      params: { email: reAuthEmail.value },
+    })
+    const assertion = await startAuthentication(options)
+    const { data } = await api.post('/auth/passkey/login-verify', {
+      email: reAuthEmail.value,
+      body: assertion,
+    })
+    persist(data.accessToken, data.refreshToken, data.user)
+    sessionExpired.value = false
+  } catch (err) {
+    reAuthError.value = err.response?.data?.error || 'Passkey sign-in failed'
+  } finally {
+    reAuthLoading.value = false
+  }
+}
+</script>
+
+<template>
+  <v-app>
+    <!-- ── Authenticated layout chrome ── -->
+    <template v-if="showLayout">
+      <v-navigation-drawer v-model="drawer" :rail="rail" permanent width="240">
+        <div class="pa-3 d-flex align-center sidebar-border-bottom" :class="rail ? 'justify-center' : 'gap-2'">
+          <span style="font-size: 22px; flex-shrink: 0">🦁</span>
+          <span v-if="!rail" class="text-high-emphasis" style="font-weight: 700; font-size: 16px; flex: 1">LeoAI</span>
+          <v-btn
+            :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+            size="x-small"
+            variant="text"
+            :title="rail ? 'Expand sidebar' : 'Collapse sidebar'"
+            @click="rail = !rail"
+          />
+        </div>
+
+        <div v-if="!rail" class="pa-3 sidebar-border-bottom">
+          <v-select
+            :model-value="selectedDomain"
+            :items="entities"
+            item-title="name"
+            item-value="domain"
+            label="Entity"
+            density="compact"
+            variant="outlined"
+            hide-details
+            @update:model-value="selectEntity"
+          />
+        </div>
+
+        <v-list nav density="compact" class="pt-2">
+          <v-list-item
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            :prepend-icon="item.icon"
+            :title="item.title"
+            rounded="lg"
+            active-color="primary"
+          />
+        </v-list>
+
+        <template #append>
+          <div v-if="user" class="pa-3 sidebar-border-top">
+            <div class="d-flex align-center" :class="rail ? 'justify-center' : 'justify-space-between'">
+              <template v-if="!rail">
+                <div>
+                  <div class="text-body-2 font-weight-medium">{{ user.name }}</div>
+                  <div class="text-caption text-medium-emphasis">
+                    {{ user.memberships?.[0]?.roles?.[0] ?? '' }}
+                  </div>
+                </div>
+              </template>
+              <v-btn icon="mdi-logout" size="small" variant="text" title="Sign out" @click="handleLogout" />
+            </div>
+          </div>
+          <div v-if="!rail" class="pa-3 text-caption text-medium-emphasis sidebar-border-top">
+            Powered by Steadfast Code
+          </div>
+        </template>
+      </v-navigation-drawer>
+
+      <v-main>
+        <router-view :domain="selectedDomain" :entity="selectedEntity()" />
+      </v-main>
+
+      <!-- Dark mode toggle -->
+      <v-btn
+        :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
+        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        size="40"
+        variant="tonal"
+        color="primary"
+        style="position: fixed; top: 16px; right: 16px; z-index: 1000; border-radius: 50%"
+        @click="toggleTheme"
+      />
+    </template>
+
+    <!-- ── Unauthenticated: full-screen router-view (Login page) ── -->
+    <template v-else>
+      <v-main>
+        <router-view />
+      </v-main>
+    </template>
+
+    <!-- ── Session-expired re-auth dialog ── -->
+    <v-dialog v-model="sessionExpired" persistent max-width="400" :scrim="true">
+      <v-card rounded="xl" elevation="4">
+        <v-card-text class="pa-8">
+          <div class="d-flex align-center justify-center gap-2 mb-6">
+            <span style="font-size: 28px">🦁</span>
+            <span style="font-weight: 700; font-size: 20px">LeoAI</span>
+          </div>
+
+          <div class="text-h6 font-weight-bold mb-1 text-center">Session expired</div>
+          <div class="text-body-2 text-medium-emphasis text-center mb-6">
+            Please sign in again to continue.
+          </div>
+
+          <v-alert v-if="reAuthError" type="error" variant="tonal" density="compact" class="mb-4">
+            {{ reAuthError }}
+          </v-alert>
+
+          <form @submit.prevent="handleReAuth">
+            <v-text-field
+              v-model="reAuthEmail"
+              label="Email"
+              type="email"
+              autocomplete="email"
+              variant="outlined"
+              density="comfortable"
+              class="mb-3"
+              hide-details="auto"
+              required
+            />
+            <v-text-field
+              v-model="reAuthPassword"
+              label="Password"
+              type="password"
+              autocomplete="current-password"
+              variant="outlined"
+              density="comfortable"
+              class="mb-4"
+              hide-details="auto"
+            />
+            <v-btn
+              type="submit"
+              color="primary"
+              block
+              size="large"
+              :loading="reAuthLoading"
+              class="mb-3"
+            >
+              Sign in
+            </v-btn>
+          </form>
+
+          <div class="d-flex align-center gap-3 mb-3">
+            <v-divider />
+            <span class="text-caption text-medium-emphasis text-no-wrap">or</span>
+            <v-divider />
+          </div>
+
+          <v-btn
+            variant="outlined"
+            block
+            size="large"
+            prepend-icon="mdi-fingerprint"
+            :loading="reAuthLoading"
+            @click="handleReAuthPasskey"
+          >
+            Sign in with passkey
+          </v-btn>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+  </v-app>
+</template>
+
+<style scoped>
+.sidebar-border-bottom {
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.sidebar-border-top {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+</style>
