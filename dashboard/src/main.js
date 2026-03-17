@@ -12,6 +12,7 @@ import Conversations from './views/Conversations.vue'
 import ConversationDetail from './views/ConversationDetail.vue'
 import KnowledgeBase from './views/KnowledgeBase.vue'
 import Settings from './views/Settings.vue'
+import Billing from './views/Billing.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -51,6 +52,7 @@ const router = createRouter({
     { path: '/conversations/:id', component: ConversationDetail },
     { path: '/knowledge', component: KnowledgeBase },
     { path: '/settings', component: Settings },
+    { path: '/billing', component: Billing },
   ],
 })
 

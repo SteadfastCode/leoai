@@ -56,3 +56,7 @@ export const getPages         = (domain)       => api.get(`/api/dashboard/entiti
 export const updateEntity     = (domain, data) => api.patch(`/api/dashboard/entities/${domain}`, data)
 export const triggerScrape    = (data)         => api.post('/scrape', data)
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
+
+export const getBilling            = (domain)       => api.get(`/api/billing/${domain}`)
+export const createCheckoutSession = (domain, plan) => api.post(`/api/billing/${domain}/checkout`, { plan })
+export const createPortalSession   = (domain)       => api.post(`/api/billing/${domain}/portal`)

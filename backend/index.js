@@ -9,6 +9,8 @@ const chatRoutes = require('./src/routes/chat');
 const scrapeRoutes = require('./src/routes/scrape');
 const dashboardRoutes = require('./src/routes/dashboard');
 const authRoutes = require('./src/routes/auth');
+const billingRoutes = require('./src/routes/billing');
+const webhookRoutes = require('./src/routes/webhooks');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,6 +18,10 @@ const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+
+// Stripe webhook needs raw body — register BEFORE express.json()
+app.use('/webhooks/stripe', webhookRoutes);
+
 app.use(express.json());
 
 // Attach io to app so route handlers can emit events
@@ -25,6 +31,7 @@ app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
 app.use('/scrape', scrapeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/billing', billingRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

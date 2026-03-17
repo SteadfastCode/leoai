@@ -23,6 +23,24 @@ const entitySchema = new mongoose.Schema(
       default: 'free',
     },
     messageCount: { type: Number, default: 0 },
+    // Billing — Stripe
+    stripeCustomerId: { type: String },
+    stripeSubscriptionId: { type: String },
+    subscriptionStatus: {
+      type: String,
+      enum: ['active', 'trialing', 'past_due', 'canceled', 'none'],
+      default: 'none',
+    },
+    currentPeriodStart: { type: Date },
+    currentPeriodEnd: { type: Date },
+    // Usage tracking — per billing period (free tier: 100/month, payg: metered)
+    messageCountThisPeriod: { type: Number, default: 0 },
+    billingPeriodResetAt: { type: Date },
+    // Quota warning notifications
+    quotaWarningThresholds: { type: [Number], default: [50, 75, 90] },
+    quotaAlertChannels: { type: [String], default: ['email'] }, // 'email', 'sms', or both
+    notifiedThresholds: { type: [Number], default: [] },
+    quotaExceededNotified: { type: Boolean, default: false },
     lastScrapedAt: { type: Date },
   },
   { timestamps: true }

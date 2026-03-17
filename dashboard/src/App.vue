@@ -34,6 +34,7 @@ const navItems = [
   { title: 'Conversations',  icon: 'mdi-chat',           to: '/conversations' },
   { title: 'Knowledge Base', icon: 'mdi-database',       to: '/knowledge' },
   { title: 'Settings',       icon: 'mdi-cog',            to: '/settings' },
+  { title: 'Billing',        icon: 'mdi-credit-card',    to: '/billing' },
 ]
 
 async function loadEntities() {
