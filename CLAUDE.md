@@ -29,7 +29,7 @@ Built by Daniel, Steadfast Code, Lititz PA. *Colossians 3:23*
 | Hosting | Vercel (frontend), backend TBD |
 | Local DB | MongoDB Community Server (localhost:27017) |
 | Package Manager | Yarn |
-| Repo | GitHub (eckerdj7/SteadfastCode) |
+| Repo | GitHub (steadfastcode/leoai) — private |
 
 ---
 
@@ -146,7 +146,8 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Dashboard — Overview, Conversations, Knowledge Base, Settings (Vue 3 + Vuetify)
 - ✅ Auth — JWT (15min access / 7day refresh), bcrypt (cost 12), passkeys (SimpleWebAuthn), RBAC, multi-entity memberships[], silent refresh, session-expired dialog
 - ✅ Dashboard UX — sticky header, jump FABs, collapsible sidebar, markdown in Leo bubbles
-- ✅ Multi-entity test harness (test.html — Dosie Dough, Burk Digital, Tomato Pie Cafe)
+- ✅ Widget dark mode — CSS custom properties, follows prefers-color-scheme automatically
+- ✅ Multi-entity test harness (test.html — Dosie Dough, Burk Digital, Tomato Pie Cafe, dark mode toggle)
 - ⬜ Stripe integration
 - ⬜ OneSignal integration
 - ⬜ Church & Ministry Mode (prompt engineering + pastoral review)
@@ -159,9 +160,13 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 
 ## Known Issues (Fix Before Ship)
 
-**lastTopic stores last user message, not actual topic** — Returning visitor greeting says things like "Last time we talked about 'Yes!'" because `lastTopic` is just set to `message` (the raw last user input). Should instead be a short summary derived from the last ~10 messages of the conversation.
+**lastTopic stores raw last user message, not actual topic** — Returning visitor greeting says things like "Last time we talked about 'Yes!'" because `lastTopic` is set to the raw last user message. Should be a short summary derived from recent conversation context.
 
-Fix: fire-and-forget Haiku call after each chat response — pass the last 10 messages and ask for a one-phrase topic summary, store result as `lastTopic`. Call should be non-blocking (never delay the chat response). Skip update if conversation is fewer than 2 exchanges (no real topic yet).
+Fix: fire-and-forget Haiku call after each chat response — pass the last ~10 messages and ask for a one-phrase topic summary, store result as `lastTopic`. Non-blocking, never delays chat response. Skip if conversation is fewer than 2 exchanges.
+
+**Leo offers to add questions to handoff after they've already been answered** — If a visitor previously had questions forwarded and the owner already replied (clearing `handoffPending`), Leo still offers "should I add that to the questions I'm already sending?" on the next unanswerable question. Leo has no awareness of whether the previous handoff cycle was resolved.
+
+Fix: inject handoff state into Claude's context on every chat call — pass `handoffPending` (bool) and `pendingQuestions.length` so Leo knows whether there's an active open handoff or if the slate is clean. When `handoffPending` is false, Leo should treat it as a fresh handoff, not an addition.
 
 ---
 
