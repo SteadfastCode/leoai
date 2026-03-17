@@ -4,7 +4,7 @@ const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const { retrieveContext } = require('../services/rag');
 const { chat } = require('../services/claude');
-const { sendHandoffNotification } = require('../services/notifications');
+const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 
 const HANDOFF_RE = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
 const OPTIONS_RE  = /\[OPTIONS:\s*([^\]]+)\]\s*$/;
@@ -30,6 +30,8 @@ router.post('/', async (req, res) => {
     // Reset monthly counter if the billing period has rolled over
     if (entity.billingPeriodResetAt && now >= entity.billingPeriodResetAt) {
       entity.messageCountThisPeriod = 0;
+      entity.notifiedThresholds = [];
+      entity.quotaExceededNotified = false;
       entity.billingPeriodResetAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
     }
     // Initialise reset date on first message if not set
@@ -39,6 +41,16 @@ router.post('/', async (req, res) => {
 
     const FREE_TIER_LIMIT = 100;
     if (entity.plan === 'free' && entity.messageCountThisPeriod >= FREE_TIER_LIMIT) {
+      // Notify owner once when the limit is first hit
+      if (!entity.quotaExceededNotified) {
+        entity.quotaExceededNotified = true;
+        entity.save().catch((err) => console.error('Entity save error (quota exceeded):', err));
+        sendQuotaExceededNotification({
+          entity,
+          messageCountThisPeriod: entity.messageCountThisPeriod,
+          limit: FREE_TIER_LIMIT,
+        }).catch((err) => console.error('Quota exceeded notification error:', err));
+      }
       return res.status(402).json({
         error: 'quota_exceeded',
         message: 'Free plan limit reached (100 messages/month). Upgrade to keep the conversation going.',
@@ -115,6 +127,26 @@ router.post('/', async (req, res) => {
     // Increment usage counters
     entity.messageCount = (entity.messageCount || 0) + 1;
     entity.messageCountThisPeriod = (entity.messageCountThisPeriod || 0) + 1;
+
+    // Fire quota warning notifications for free tier when thresholds are crossed
+    if (entity.plan === 'free') {
+      const thresholds = entity.quotaWarningThresholds?.length ? entity.quotaWarningThresholds : [50, 75, 90];
+      const alreadyNotified = entity.notifiedThresholds || [];
+      const newlyHit = thresholds.filter((t) => {
+        const triggerAt = Math.ceil(FREE_TIER_LIMIT * t / 100);
+        return entity.messageCountThisPeriod >= triggerAt && !alreadyNotified.includes(t);
+      });
+      if (newlyHit.length) {
+        entity.notifiedThresholds = [...alreadyNotified, ...newlyHit];
+        const highestHit = Math.max(...newlyHit);
+        sendQuotaWarning({
+          entity,
+          threshold: highestHit,
+          messageCountThisPeriod: entity.messageCountThisPeriod,
+          limit: FREE_TIER_LIMIT,
+        }).catch((err) => console.error('Quota warning notification error:', err));
+      }
+    }
 
     await Promise.all([conversation.save(), entity.save()]);
 

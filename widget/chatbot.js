@@ -498,7 +498,9 @@
       const data = await res.json();
       setLoading(false);
 
-      if (data.reply) {
+      if (res.status === 402) {
+        appendMessage('assistant', "I've reached my monthly message limit and need a little break! 😅 I've let the team know — they can upgrade the plan to keep our conversation going. Sorry for the interruption!");
+      } else if (data.reply) {
         appendMessage('assistant', data.reply);
         if (data.options?.length) renderOptions(data.options);
       } else {
