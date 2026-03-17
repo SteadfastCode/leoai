@@ -25,6 +25,28 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Entity not found' });
     }
 
+    // --- Quota check & usage tracking ---
+    const now = new Date();
+    // Reset monthly counter if the billing period has rolled over
+    if (entity.billingPeriodResetAt && now >= entity.billingPeriodResetAt) {
+      entity.messageCountThisPeriod = 0;
+      entity.billingPeriodResetAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    }
+    // Initialise reset date on first message if not set
+    if (!entity.billingPeriodResetAt) {
+      entity.billingPeriodResetAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    }
+
+    const FREE_TIER_LIMIT = 100;
+    if (entity.plan === 'free' && entity.messageCountThisPeriod >= FREE_TIER_LIMIT) {
+      return res.status(402).json({
+        error: 'quota_exceeded',
+        message: 'Free plan limit reached (100 messages/month). Upgrade to keep the conversation going.',
+        messageCountThisPeriod: entity.messageCountThisPeriod,
+        plan: entity.plan,
+      });
+    }
+
     let conversation = await Conversation.findOne({ sessionToken, domain });
 
     const { context: ragContext, sources } = await retrieveContext(domain, message);
@@ -63,29 +85,50 @@ router.post('/', async (req, res) => {
     if (handoffMatch) {
       const question = handoffMatch[1].trim();
       if (!conversation.pendingQuestions) conversation.pendingQuestions = [];
-      conversation.pendingQuestions.push(question);
+      conversation.pendingQuestions.push({ text: question, askedAt: new Date() });
+      conversation.handoffPending = true;
 
-      if (!conversation.handoffPending) {
-        // First handoff in this cycle — notify owner
-        conversation.handoffPending = true;
-        if (entity.ownerPhone || entity.ownerEmail) {
+      if (entity.ownerPhone || entity.ownerEmail) {
+        // Atomic test-and-set: only the request that transitions handoffPending false→true
+        // fires the notification, preventing race-condition duplicate alerts.
+        // New conversations (not yet in DB) can't race — treat as first handoff directly.
+        const isFirstHandoff = conversation.isNew
+          ? true
+          : !!(await Conversation.findOneAndUpdate(
+              { sessionToken, domain, handoffPending: { $ne: true } },
+              { $set: { handoffPending: true } }
+            ));
+
+        if (isFirstHandoff) {
           sendHandoffNotification({
             entity,
             reason: question,
-            pendingQuestions: conversation.pendingQuestions,
+            pendingQuestions: conversation.pendingQuestions.map((q) => q.text),
             sessionToken,
             conversationId: conversation._id,
             lastMessage: message,
           }).catch((err) => console.error('Handoff notification error:', err));
         }
       }
-      // If handoffPending is already true, Leo will tell the visitor it's been added —
-      // no duplicate notification fires
     }
 
-    await conversation.save();
+    // Increment usage counters
+    entity.messageCount = (entity.messageCount || 0) + 1;
+    entity.messageCountThisPeriod = (entity.messageCountThisPeriod || 0) + 1;
 
-    res.json({ reply, sessionToken, handoffTriggered: !!handoffMatch, options });
+    await Promise.all([conversation.save(), entity.save()]);
+
+    res.json({
+      reply,
+      sessionToken,
+      handoffTriggered: !!handoffMatch,
+      options,
+      usage: {
+        messageCountThisPeriod: entity.messageCountThisPeriod,
+        plan: entity.plan,
+        limitThisPeriod: entity.plan === 'free' ? FREE_TIER_LIMIT : null,
+      },
+    });
   } catch (err) {
     console.error('Chat error:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
