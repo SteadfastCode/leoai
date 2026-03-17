@@ -159,10 +159,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 
 ## Known Issues (Fix Before Ship)
 
-**Duplicate handoff notifications** — Two emails fire on first handoff even for one question. `handoffPending` flag race condition — two requests check before either writes. Fix: atomic `findOneAndUpdate` with conditional to set flag in a single operation.
-
-**Pending questions cumulating** — When user adds a question to existing pending ones, Leo's `[HANDOFF_REQUESTED]` reason includes all prior questions → duplicate/overlapping entries in dashboard.
-Fix: system prompt update (reason = new question only) + `pendingQuestions[]` schema change to `[{ text: String, askedAt: Date }]`. Schema migration required for existing string arrays.
+None currently open.
 
 ---
 
