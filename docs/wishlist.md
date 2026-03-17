@@ -167,6 +167,19 @@ Not MVP. Meaningful differentiator, on-brand. Budget design time post-launch.
 
 ---
 
+## Leo-Guided Alert Preference Setup
+
+During Leo-guided onboarding, after Leo has collected both email and phone number, ask the user which channels they want for quota usage alerts: both, email only, SMS only, or none.
+
+**Logic:**
+- If only email provided → default email only, no need to ask
+- If only phone provided → default SMS only, no need to ask
+- If both provided → Leo asks: *"Got it! For usage alerts — like when Leo's getting close to the monthly message limit — would you like those by email, SMS, or both? Or I can skip them entirely."*
+
+**Implementation note:** The `quotaAlertChannels` field already exists on Entity. The guided setup just needs to write it during onboarding. No backend changes needed — just the Leo-guided onboarding flow.
+
+---
+
 ## Leo Accounts (Phase 2)
 
 Optional end-user accounts enabling cross-site recognition. Visitor with Leo account is greeted by name on any Leo-enabled site: *"Fancy seeing you here, Daniel!"*

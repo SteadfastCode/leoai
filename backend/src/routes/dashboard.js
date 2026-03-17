@@ -30,17 +30,21 @@ router.get('/entities/:domain/stats', async (req, res) => {
   try {
     const { domain } = req.params;
 
-    const [entity, chunkCount, pageCount, conversationCount, recentConversations] = await Promise.all([
+    const [entity, chunkCount, pageCount, conversationCount, messageAgg] = await Promise.all([
       Entity.findOne({ domain }),
       Chunk.countDocuments({ domain }),
       ScrapedPage.countDocuments({ domain }),
       Conversation.countDocuments({ domain }),
-      Conversation.find({ domain }).sort({ lastActiveAt: -1 }).limit(5).select('messages lastActiveAt'),
+      Conversation.aggregate([
+        { $match: { domain } },
+        { $project: { count: { $size: '$messages' } } },
+        { $group: { _id: null, total: { $sum: '$count' } } },
+      ]),
     ]);
 
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
 
-    const totalMessages = recentConversations.reduce((sum, c) => sum + c.messages.length, 0);
+    const totalMessages = messageAgg[0]?.total ?? 0;
 
     res.json({
       entity,
@@ -48,7 +52,7 @@ router.get('/entities/:domain/stats', async (req, res) => {
         chunkCount,
         pageCount,
         conversationCount,
-        totalMessages: entity.messageCount || totalMessages,
+        totalMessages,
         lastScrapedAt: entity.lastScrapedAt,
       },
     });
@@ -163,7 +167,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 // PATCH /api/dashboard/entities/:domain — update entity settings (owner only)
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
-    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'churchModeEnabled', 'churchConfig'];
+    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'churchModeEnabled', 'churchConfig', 'quotaWarningThresholds', 'quotaAlertChannels'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });

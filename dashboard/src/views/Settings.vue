@@ -19,8 +19,16 @@ watch(() => props.entity, (e) => {
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
     churchConfig: { ...e.churchConfig },
+    quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
+    quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
   }
 }, { immediate: true })
+
+const QUOTA_THRESHOLD_OPTIONS = [
+  { value: 50, label: '50% (50 messages)' },
+  { value: 75, label: '75% (75 messages)' },
+  { value: 90, label: '90% (90 messages)' },
+]
 
 const timezones = [
   'America/New_York', 'America/Chicago', 'America/Denver',
@@ -82,6 +90,48 @@ async function save() {
         />
         <div class="text-caption text-medium-emphasis mt-1">
           When enabled, every reply you send from the dashboard is immediately embedded into Leo's knowledge base. You can still override this per reply.
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <v-card rounded="lg" elevation="0" border class="mb-4">
+      <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Usage Alerts</v-card-title>
+      <v-card-text class="pt-4">
+        <div class="text-body-2 text-medium-emphasis mb-3">
+          Get notified by SMS and email before Leo hits the free plan limit (100 messages/month). Uncheck any you don't want.
+        </div>
+        <v-checkbox
+          v-for="opt in QUOTA_THRESHOLD_OPTIONS"
+          :key="opt.value"
+          v-model="form.quotaWarningThresholds"
+          :value="opt.value"
+          :label="opt.label"
+          color="primary"
+          hide-details
+          density="compact"
+          class="mb-1"
+        />
+        <div class="text-body-2 text-medium-emphasis mt-5 mb-2">Alert delivery</div>
+        <v-checkbox
+          v-model="form.quotaAlertChannels"
+          value="email"
+          label="Email"
+          color="primary"
+          hide-details
+          density="compact"
+          class="mb-1"
+        />
+        <v-checkbox
+          v-model="form.quotaAlertChannels"
+          value="sms"
+          label="SMS"
+          color="primary"
+          hide-details
+          density="compact"
+          class="mb-1"
+        />
+        <div class="text-caption text-medium-emphasis mt-3">
+          Only applies to the free plan. Uses the phone and email configured in Handoff Notifications above. Uncheck both to disable usage alerts entirely.
         </div>
       </v-card-text>
     </v-card>

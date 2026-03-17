@@ -51,6 +51,113 @@ async function sendSms(toNumber, body) {
 }
 
 async function sendEmail(toAddress, businessName, reason, lastMessage, conversationLink, shortSession) {
+  const subject = `${businessName} — Leo needs your help`;
+  const text = [
+    `Hey! Leo flagged a conversation that needs a human.`,
+    ``,
+    `Business: ${businessName}`,
+    `Reason: ${reason}`,
+    `Last message: "${lastMessage}"`,
+    ``,
+    `View the full conversation: ${conversationLink}`,
+    `Session: ${shortSession}`,
+    ``,
+    `— LeoAI by Steadfast Code`,
+  ].join('\n');
+  await sendEmailRaw(toAddress, subject, text);
+}
+
+async function sendQuotaWarning({ entity, threshold, messageCountThisPeriod, limit }) {
+  const channels = entity.quotaAlertChannels || ['email'];
+  if (!channels.length) return;
+
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
+  const billingLink  = `${dashboardUrl}/#/billing`;
+  const remaining    = limit - messageCountThisPeriod;
+
+  const tasks = [];
+
+  if (channels.includes('sms') && entity.ownerPhone) {
+    const smsBody = [
+      `🦁 LeoAI usage alert — ${entity.name}`,
+      `Leo has used ${threshold}% of your free plan (${messageCountThisPeriod}/${limit} messages).`,
+      `${remaining} messages remaining this month.`,
+      `Upgrade to keep Leo running: ${billingLink}`,
+    ].join('\n');
+    tasks.push({ label: 'SMS', promise: sendSms(entity.ownerPhone, smsBody) });
+  }
+
+  if (channels.includes('email') && entity.ownerEmail) {
+    const subject = `${entity.name} — Leo is at ${threshold}% of your free plan`;
+    const text = [
+      `Hey! Just a heads-up from LeoAI.`,
+      ``,
+      `${entity.name}'s Leo has used ${threshold}% of the free plan this month.`,
+      `Messages used: ${messageCountThisPeriod} of ${limit}`,
+      `Messages remaining: ${remaining}`,
+      ``,
+      `If Leo runs out, visitors will see a message letting them know Leo is temporarily unavailable.`,
+      `Upgrade to Infinity (unlimited, $20/month) to keep the conversation going:`,
+      `${billingLink}`,
+      ``,
+      `— LeoAI by Steadfast Code`,
+    ].join('\n');
+    tasks.push({ label: 'email', promise: sendEmailRaw(entity.ownerEmail, subject, text) });
+  }
+
+  const results = await Promise.allSettled(tasks.map((t) => t.promise));
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`Quota warning ${tasks[i].label} failed for ${entity.domain}:`, r.reason?.message || r.reason);
+    }
+  });
+}
+
+async function sendQuotaExceededNotification({ entity, messageCountThisPeriod, limit }) {
+  const channels = entity.quotaAlertChannels || ['email'];
+  if (!channels.length) return;
+
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
+  const billingLink  = `${dashboardUrl}/#/billing`;
+
+  const tasks = [];
+
+  if (channels.includes('sms') && entity.ownerPhone) {
+    const smsBody = [
+      `🦁 LeoAI — ${entity.name} hit the free plan limit`,
+      `Leo has reached ${limit} messages this month and is now paused for visitors.`,
+      `Upgrade now to restore service: ${billingLink}`,
+    ].join('\n');
+    tasks.push({ label: 'SMS', promise: sendSms(entity.ownerPhone, smsBody) });
+  }
+
+  if (channels.includes('email') && entity.ownerEmail) {
+    const subject = `Action needed — ${entity.name}'s Leo has hit the monthly limit`;
+    const text = [
+      `Hey! Important notice from LeoAI.`,
+      ``,
+      `${entity.name}'s Leo has reached the free plan limit of ${limit} messages this month.`,
+      ``,
+      `Leo is currently unavailable to visitors until the plan is upgraded or the month resets.`,
+      `Visitors are seeing a friendly message letting them know Leo is temporarily paused.`,
+      ``,
+      `Upgrade to Infinity (unlimited, $20/month) to restore service immediately:`,
+      `${billingLink}`,
+      ``,
+      `— LeoAI by Steadfast Code`,
+    ].join('\n');
+    tasks.push({ label: 'email', promise: sendEmailRaw(entity.ownerEmail, subject, text) });
+  }
+
+  const results = await Promise.allSettled(tasks.map((t) => t.promise));
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`Quota exceeded ${tasks[i].label} failed for ${entity.domain}:`, r.reason?.message || r.reason);
+    }
+  });
+}
+
+async function sendEmailRaw(toAddress, subject, text) {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !toAddress) return;
 
@@ -63,23 +170,7 @@ async function sendEmail(toAddress, businessName, reason, lastMessage, conversat
     tls: isLocalhost ? { rejectUnauthorized: false } : undefined,
   });
 
-  await transporter.sendMail({
-    from: SMTP_FROM || SMTP_USER,
-    to: toAddress,
-    subject: `${businessName} — Leo needs your help`,
-    text: [
-      `Hey! Leo flagged a conversation that needs a human.`,
-      ``,
-      `Business: ${businessName}`,
-      `Reason: ${reason}`,
-      `Last message: "${lastMessage}"`,
-      ``,
-      `View the full conversation: ${conversationLink}`,
-      `Session: ${shortSession}`,
-      ``,
-      `— LeoAI by Steadfast Code`,
-    ].join('\n'),
-  });
+  await transporter.sendMail({ from: SMTP_FROM || SMTP_USER, to: toAddress, subject, text });
 }
 
-module.exports = { sendHandoffNotification };
+module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification };
