@@ -4,6 +4,37 @@ Post-MVP concepts. Nothing here is a commitment. Add freely.
 
 ---
 
+## Overview — Usage Panel Enhancements
+
+Upgrade the message count display on the dashboard Overview from a raw number to a smart usage panel.
+
+**Display format (fraction):**
+- Free: `63 / 100`
+- Pay-as-you-go: `332 / 500` (next threshold — see below)
+- Infinity: `332 / ∞`
+
+**Burn rate projection (free tier):**
+Linear projection based on days elapsed in billing period vs. messages used. Color coded:
+- 🟢 Green — projected to finish well under limit (> 10% headroom)
+- 🟡 Yellow — projected to land within 10% of the limit (either side)
+- 🔴 Red — projected to exceed limit before period ends
+- ⚫ Gray — fewer than 3 days into period, "Not enough data yet" — burn rate too noisy
+
+**Pay-as-you-go projection:**
+No hard limit, so instead show projected monthly cost based on current burn rate. The "limit" shown in the fraction is the *next milestone threshold* (the next tier where retroactive discounting kicks in). Add a small note: e.g., *"At this rate you'll hit the 500-message tier — that saves you $X retroactively."* Turns the projection into a positive nudge rather than a warning.
+
+**Infinity plan:**
+No projection or color coding. Just show usage with the ∞ symbol. On-brand, clean.
+
+**Also show:**
+- Messages remaining (free tier): e.g., "37 remaining"
+- Quota reset date: pulled from `billingPeriodResetAt` on Entity
+
+**Info icon (ⓘ) on the panel:**
+Tooltip explaining: color thresholds, that projections are based on current daily average, and reset date context.
+
+---
+
 ## Pastoral Handoff Threshold (Church Mode — High Priority)
 
 Leo is not a counselor. When a conversation needs a human shepherd, he hands off warmly.
