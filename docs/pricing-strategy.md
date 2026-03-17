@@ -42,6 +42,43 @@ Small businesses and churches need entirely separate campaigns. Different messag
 
 ---
 
+## ⚠️ PAYG & Infinity Plan Pricing — Needs Rebuild Before Launch
+
+The current pricing was designed before Claude API costs were factored in. It's not viable as-is.
+
+**The math:**
+- Claude Sonnet per message: ~3,000 input tokens + ~200 output tokens ≈ **$0.01-0.012 in API costs alone**
+- PAYG at $0.01/message: at or below break-even before any infrastructure or margin
+- Infinity at $20/month: breaks even only if avg usage stays under ~1,500-2,000 messages/month — likely not realistic for active businesses
+
+**Do not finalize or advertise pricing until:**
+1. **Tiered model routing is built** (Haiku for simple queries, Sonnet for complex) — blended cost could drop to ~$0.002-0.003/message at a 70/30 split, which changes everything
+2. **Alpha usage data is in** — real message volume per entity determines what Infinity needs to cost
+3. **Semantic response cache is evaluated** — 40% cache hit rate at Haiku rephrase cost further reduces blended cost
+
+**Likely direction:**
+- PAYG: raise to $0.03-0.05/message (still cheap vs. alternatives, actually sustainable)
+- Infinity: raise floor to $35-40/month, or restructure around message volume tiers
+- Milestone retroactive discounting mechanic is still a differentiator — keep it, adjust the numbers
+
+**The marketing site pricing grid must come down immediately** — see note below.
+
+---
+
+## ⚠️ Marketing Site — Remove Pricing Grid Now
+
+The detailed pricing grid on steadfastcode.tech needs to come down before any real traffic hits it. The numbers are based on pre-API assumptions and will need to change.
+
+**Replace with simple messaging (already decided):**
+- Lead with: *"Start free. Pay as you grow. Never more than you need."*
+- Secondary: *"Free to start • Simple pay-as-you-go • Unlimited plans available"*
+- No specific dollar amounts, no grid — just enough to signal it's accessible
+- "Pricing" CTA takes them to a waitlist or contact form until numbers are finalized
+
+This is a marketing site task, not a backend task — but flag it before any alpha outreach begins.
+
+---
+
 ## Free Tier Limit — Revisit at Alpha
 
 The 100 message free tier is likely a 2-3 week runway for most real implementations, not a full month. Rough math: a small local business site with modest traffic generates ~2-5 chatbot conversations/day at 3-6 messages each = 300-400+ messages/month. Even a quiet site (~1 conversation/day) hits ~120/month.
