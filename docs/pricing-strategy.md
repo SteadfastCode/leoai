@@ -42,6 +42,22 @@ Small businesses and churches need entirely separate campaigns. Different messag
 
 ---
 
+## Free Tier Limit — Revisit at Alpha
+
+The 100 message free tier is likely a 2-3 week runway for most real implementations, not a full month. Rough math: a small local business site with modest traffic generates ~2-5 chatbot conversations/day at 3-6 messages each = 300-400+ messages/month. Even a quiet site (~1 conversation/day) hits ~120/month.
+
+**100 messages functions as a trial tier, not a sustainable free plan.** That's a valid strategy (Intercom, Tidio use the same playbook) but should be intentional, not accidental.
+
+**Alpha testing plan:** Test with a mix of high-traffic and low-traffic businesses. Capture per-entity:
+- Messages per conversation (avg session depth)
+- Conversations per day
+- What % of entities would stay under 100 / 250 / 500
+- Whether free→PAYG transition causes friction or churn
+
+Set the permanent free tier limit based on that data, not guesswork. At $0.009/message in API costs, 500 free messages costs ~$4.50/month — still manageable if it meaningfully improves conversion.
+
+---
+
 ## Pricing Rationale
 
 **Pay-as-you-go** is intentionally low-margin. Accessibility for struggling small businesses is a core value, not just a marketing line. Real revenue comes from Infinity Plans and premium add-ons.
