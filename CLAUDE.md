@@ -159,7 +159,9 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 
 ## Known Issues (Fix Before Ship)
 
-None currently open.
+**lastTopic stores last user message, not actual topic** — Returning visitor greeting says things like "Last time we talked about 'Yes!'" because `lastTopic` is just set to `message` (the raw last user input). Should instead be a short summary derived from the last ~10 messages of the conversation.
+
+Fix: fire-and-forget Haiku call after each chat response — pass the last 10 messages and ask for a one-phrase topic summary, store result as `lastTopic`. Call should be non-blocking (never delay the chat response). Skip update if conversation is fewer than 2 exchanges (no real topic yet).
 
 ---
 
