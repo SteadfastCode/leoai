@@ -35,10 +35,14 @@ app.use('/api/billing', billingRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Visitors join a room named after their session token
 io.on('connection', (socket) => {
+  // Visitors join a room by session token (for owner → visitor replies)
   socket.on('join', (sessionToken) => {
     socket.join(sessionToken);
+  });
+  // Dashboard clients join a room by domain (for visitor → team notifications)
+  socket.on('join_domain', (domain) => {
+    socket.join(`domain:${domain}`);
   });
 });
 

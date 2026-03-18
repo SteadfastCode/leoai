@@ -3,7 +3,7 @@ const router = express.Router();
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const { retrieveContext } = require('../services/rag');
-const { chat } = require('../services/claude');
+const { chat, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 
 const HANDOFF_RE = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
@@ -91,7 +91,6 @@ router.post('/', async (req, res) => {
     conversation.messages.push(userMsg);
     conversation.messages.push({ role: 'assistant', content: reply });
     conversation.lastActiveAt = new Date();
-    conversation.lastTopic = message.length > 120 ? message.slice(0, 120) + '…' : message;
 
     // Accumulate pending questions, only notify owner on the first handoff
     if (handoffMatch) {
@@ -149,6 +148,33 @@ router.post('/', async (req, res) => {
     }
 
     await Promise.all([conversation.save(), entity.save()]);
+
+    // Notify dashboard clients watching this domain
+    const io = req.app.get('io');
+    io.to(`domain:${domain}`).emit('new_message', {
+      conversationId: conversation._id,
+      sessionToken,
+      domain,
+      lastMessage: message.slice(0, 120),
+      messageCount: conversation.messages.length,
+      lastActiveAt: conversation.lastActiveAt,
+      handoffPending: conversation.handoffPending,
+    });
+    if (handoffMatch) {
+      io.to(`domain:${domain}`).emit('handoff_requested', {
+        conversationId: conversation._id,
+        sessionToken,
+        domain,
+        question: handoffMatch[1].trim(),
+      });
+    }
+
+    // Fire-and-forget lastTopic summarization — skip on first exchange (< 4 messages)
+    if (conversation.messages.length >= 4) {
+      summarizeTopic(conversation.messages)
+        .then((topic) => Conversation.findByIdAndUpdate(conversation._id, { lastTopic: topic }))
+        .catch((err) => console.error('lastTopic summarization error:', err));
+    }
 
     res.json({
       reply,
