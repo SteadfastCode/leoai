@@ -157,20 +157,36 @@ async function sendQuotaExceededNotification({ entity, messageCountThisPeriod, l
   });
 }
 
-async function sendEmailRaw(toAddress, subject, text) {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !toAddress) return;
+// Singleton transporter — created once on first use and reused for all sends.
+// Creating a new transporter per call opens and tears down a TCP+SMTP connection
+// each time; if the server sends 250 OK but the connection drops before nodemailer
+// reads it, nodemailer retries and the SMTP server delivers a duplicate.
+let _transporter = null;
+
+function getTransporter() {
+  if (_transporter) return _transporter;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
 
   const isLocalhost = SMTP_HOST === '127.0.0.1' || SMTP_HOST === 'localhost';
-  const transporter = nodemailer.createTransport({
+  _transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: isLocalhost ? { rejectUnauthorized: false } : undefined,
+    pool: true,
+    maxConnections: 1,
   });
+  return _transporter;
+}
 
-  await transporter.sendMail({ from: SMTP_FROM || SMTP_USER, to: toAddress, subject, text });
+async function sendEmailRaw(toAddress, subject, text) {
+  if (!toAddress) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transporter.sendMail({ from, to: toAddress, subject, text });
 }
 
 module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw };
