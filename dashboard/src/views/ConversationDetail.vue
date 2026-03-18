@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getConversation, postOwnerReply } from '../lib/api'
+import { newMessageTick } from '../lib/socket'
 
 const props = defineProps(['domain', 'entity'])
 const route = useRoute()
@@ -16,6 +17,16 @@ const snackbarMsg  = ref('')
 const snackbarColor = ref('success')
 const addToKb      = ref(false)
 const checkedQuestions = ref([])
+
+// Silently refresh this conversation when a new message arrives
+watch(newMessageTick, async () => {
+  if (!conversation.value) return
+  const { data } = await getConversation(props.domain, route.params.id)
+  const wasAtBottom = atBottom.value
+  conversation.value = data
+  checkedQuestions.value = [...(data.pendingQuestions || []).map((q) => q.text)]
+  if (wasAtBottom) { await nextTick(); jumpToBottom() }
+})
 
 // ---------------------------------------------------------------------------
 // Scroll behavior — sticky header fade + jump buttons
