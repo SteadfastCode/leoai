@@ -1,12 +1,14 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
+const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 
 const MAX_PAGES = 50;
 const CHUNK_SIZE = 1500; // characters per chunk — large enough for semantic meaning, small enough for precision
 const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
+const THIN_CONTENT_THRESHOLD = 300; // chars — below this, assume JS rendering is needed
 
 // URL patterns that indicate high-change pages
 const HIGH_PRIORITY_PATTERNS = [
@@ -22,7 +24,27 @@ function hashContent(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
-async function fetchPage(url) {
+async function fetchPageWithPuppeteer(url, browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+    const result = await page.evaluate(() => {
+      ['nav', 'footer', 'script', 'style', 'noscript', 'header'].forEach((tag) => {
+        document.querySelectorAll(tag).forEach((el) => el.remove());
+      });
+      const text = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+      const links = [...document.querySelectorAll('a[href]')]
+        .map((a) => a.getAttribute('href'))
+        .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:'));
+      return { text, links };
+    });
+    return result;
+  } finally {
+    await page.close();
+  }
+}
+
+async function fetchPage(url, browser) {
   const response = await axios.get(url, {
     timeout: 10000,
     responseType: 'arraybuffer',
@@ -64,6 +86,16 @@ async function fetchPage(url) {
     }
   });
 
+  // Pass 2 — thin content likely means JS rendering is needed
+  if (text.length < THIN_CONTENT_THRESHOLD && browser) {
+    console.log(`Thin content on ${url} (${text.length} chars) — retrying with Puppeteer`);
+    try {
+      return await fetchPageWithPuppeteer(url, browser);
+    } catch (err) {
+      console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
+    }
+  }
+
   return { text, links };
 }
 
@@ -97,30 +129,35 @@ async function scrapeSite(baseUrl) {
   const queue = [baseUrl];
   const pageData = []; // { url, text, hash }
   const baseDomain = new URL(baseUrl).hostname;
+  const browser = await puppeteer.launch({ headless: true });
 
-  while (queue.length > 0 && visited.size < MAX_PAGES) {
-    const url = queue.shift();
-    if (visited.has(url)) continue;
-    visited.add(url);
+  try {
+    while (queue.length > 0 && visited.size < MAX_PAGES) {
+      const url = queue.shift();
+      if (visited.has(url)) continue;
+      visited.add(url);
 
-    try {
-      const { text, links } = await fetchPage(url);
-      pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
+      try {
+        const { text, links } = await fetchPage(url, browser);
+        pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
 
-      for (const link of links) {
-        try {
-          const resolved = new URL(link, baseUrl).href;
-          const h = new URL(resolved).hostname;
-          if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-            queue.push(resolved);
+        for (const link of links) {
+          try {
+            const resolved = new URL(link, baseUrl).href;
+            const h = new URL(resolved).hostname;
+            if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
+              queue.push(resolved);
+            }
+          } catch {
+            // invalid URL, skip
           }
-        } catch {
-          // invalid URL, skip
         }
+      } catch (err) {
+        console.warn(`Skipping ${url}: ${err.message}`);
       }
-    } catch (err) {
-      console.warn(`Skipping ${url}: ${err.message}`);
     }
+  } finally {
+    await browser.close();
   }
 
   return await embedPageData(pageData);
@@ -134,36 +171,41 @@ async function rescrapeSite(baseUrl, storedPages) {
   const changedPages = [];
   const unchangedUrls = [];
   const baseDomain = new URL(baseUrl).hostname;
+  const browser = await puppeteer.launch({ headless: true });
 
-  while (queue.length > 0 && visited.size < MAX_PAGES) {
-    const url = queue.shift();
-    if (visited.has(url)) continue;
-    visited.add(url);
+  try {
+    while (queue.length > 0 && visited.size < MAX_PAGES) {
+      const url = queue.shift();
+      if (visited.has(url)) continue;
+      visited.add(url);
 
-    try {
-      const { text, links } = await fetchPage(url);
-      const hash = hashContent(text);
+      try {
+        const { text, links } = await fetchPage(url, browser);
+        const hash = hashContent(text);
 
-      if (storedHashMap.get(url) !== hash) {
-        changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
-      } else {
-        unchangedUrls.push(url);
-      }
-
-      for (const link of links) {
-        try {
-          const resolved = new URL(link, baseUrl).href;
-          const h = new URL(resolved).hostname;
-          if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-            queue.push(resolved);
-          }
-        } catch {
-          // invalid URL, skip
+        if (storedHashMap.get(url) !== hash) {
+          changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
+        } else {
+          unchangedUrls.push(url);
         }
+
+        for (const link of links) {
+          try {
+            const resolved = new URL(link, baseUrl).href;
+            const h = new URL(resolved).hostname;
+            if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
+              queue.push(resolved);
+            }
+          } catch {
+            // invalid URL, skip
+          }
+        }
+      } catch (err) {
+        console.warn(`Skipping ${url}: ${err.message}`);
       }
-    } catch (err) {
-      console.warn(`Skipping ${url}: ${err.message}`);
     }
+  } finally {
+    await browser.close();
   }
 
   const embeddedChunks = changedPages.length > 0 ? await embedPageData(changedPages) : [];
