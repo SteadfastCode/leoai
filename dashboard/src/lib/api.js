@@ -31,15 +31,15 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${newToken}`
         return api(original)
       } catch {
-        // Refresh failed — capture email for re-auth dialog, then clear storage
-        try {
-          const stored = localStorage.getItem('leo_user')
-          if (stored) lastKnownEmail.value = JSON.parse(stored).email || ''
-        } catch { /* ignore */ }
-        localStorage.removeItem('leo_access_token')
-        localStorage.removeItem('leo_refresh_token')
-        localStorage.removeItem('leo_user')
-        sessionExpired.value = true
+        // Refresh failed — only fire session-expired if the user had an active session
+        const stored = localStorage.getItem('leo_user')
+        if (stored) {
+          try { lastKnownEmail.value = JSON.parse(stored).email || '' } catch { /* ignore */ }
+          localStorage.removeItem('leo_access_token')
+          localStorage.removeItem('leo_refresh_token')
+          localStorage.removeItem('leo_user')
+          sessionExpired.value = true
+        }
       }
     }
     return Promise.reject(err)

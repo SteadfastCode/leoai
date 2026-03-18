@@ -47,6 +47,10 @@ async function handlePasswordLogin() {
 
 async function handlePasskeyLogin() {
   error.value = ''
+  if (!email.value) {
+    error.value = 'Enter your email first, then sign in with your passkey'
+    return
+  }
   loading.value = true
   try {
     const { data: options } = await api.get('/auth/passkey/login-options', {

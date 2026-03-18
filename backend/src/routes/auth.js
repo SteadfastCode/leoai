@@ -238,7 +238,7 @@ router.post('/passkey/login-verify', async (req, res) => {
       expectedRPID: RP_ID,
       credential: {
         id: passkey.credentialID,
-        publicKey: passkey.credentialPublicKey,
+        publicKey: Buffer.from(passkey.credentialPublicKey),
         counter: passkey.counter,
         transports: passkey.transports,
       },
