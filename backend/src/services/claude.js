@@ -111,7 +111,7 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
 }
 
 // Fire-and-forget topic summarization using Haiku — called after each chat response.
-// Returns a short phrase (3-5 words) describing what the conversation is about.
+// Returns a comma-separated list of specific topics discussed (used in returning visitor greeting).
 async function summarizeTopic(messages) {
   const transcript = messages
     .slice(-10)
@@ -124,15 +124,15 @@ async function summarizeTopic(messages) {
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 30,
+    max_tokens: 60,
     messages: [
       {
         role: 'user',
-        content: `Complete this sentence with 2-5 specific words: "Last time we chatted about ___"
+        content: `List the specific topics discussed in this conversation as a short comma-separated list (2-5 items, 2-4 words each).
 
-Be specific — name the actual subject (e.g. "Sunday brunch hours", "gluten-free bagel options", "parking near the shop", "weekend service times").
-Never say generic things like "store information", "customer questions", or "general inquiries".
-No punctuation. No quotes. Lowercase only.
+Be specific — name the actual subjects (e.g. "gluten-free bagel options, Sunday brunch hours, parking near the shop").
+Never use generic terms like "store information", "customer questions", or "general inquiries".
+Lowercase only. No punctuation except commas.
 
 Conversation:
 ${transcript}`,
@@ -140,7 +140,7 @@ ${transcript}`,
     ],
   });
 
-  return response.content[0].text.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
+  return response.content[0].text.trim().toLowerCase().replace(/[^a-z0-9 ,]/g, '');
 }
 
 module.exports = { chat, summarizeTopic };
