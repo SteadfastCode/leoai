@@ -55,6 +55,14 @@ function buildSystemPrompt(entity, conversation) {
     prompt += `\nThis visitor last chatted with you on: ${lastChatAt}`;
   }
 
+  // Inject handoff state so Leo knows whether there's an active open handoff
+  if (conversation?.handoffPending) {
+    const count = conversation.pendingQuestions?.length || 1;
+    prompt += `\nHandoff status: ACTIVE — ${count} question${count !== 1 ? 's' : ''} already forwarded to the team and awaiting reply. Do NOT start a new handoff cycle. If the visitor raises another unanswerable question, let them know it will be added to the existing list already sent to the team.`;
+  } else {
+    prompt += `\nHandoff status: NONE — no open handoff. If you cannot answer a question, treat it as a fresh start and follow the normal handoff flow.`;
+  }
+
   return prompt;
 }
 
@@ -102,4 +110,37 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
   return response.content[0].text;
 }
 
-module.exports = { chat };
+// Fire-and-forget topic summarization using Haiku — called after each chat response.
+// Returns a short phrase (3-5 words) describing what the conversation is about.
+async function summarizeTopic(messages) {
+  const transcript = messages
+    .slice(-10)
+    .map((m) => {
+      const role = m.role === 'owner_reply' ? 'team' : m.role;
+      const content = typeof m.content === 'string' ? m.content : m.interactiveData?.selected || '';
+      return `${role}: ${content}`;
+    })
+    .join('\n');
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 30,
+    messages: [
+      {
+        role: 'user',
+        content: `Complete this sentence with 2-5 specific words: "Last time we chatted about ___"
+
+Be specific — name the actual subject (e.g. "Sunday brunch hours", "gluten-free bagel options", "parking near the shop", "weekend service times").
+Never say generic things like "store information", "customer questions", or "general inquiries".
+No punctuation. No quotes. Lowercase only.
+
+Conversation:
+${transcript}`,
+      },
+    ],
+  });
+
+  return response.content[0].text.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
+}
+
+module.exports = { chat, summarizeTopic };
