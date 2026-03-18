@@ -57,9 +57,11 @@ export const updateEntity     = (domain, data) => api.patch(`/api/dashboard/enti
 export const triggerScrape    = (data)         => api.post('/scrape', data)
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
 
-export const getBilling            = (domain)       => api.get(`/api/billing/${domain}`)
-export const createCheckoutSession = (domain, plan) => api.post(`/api/billing/${domain}/checkout`, { plan })
-export const createPortalSession   = (domain)       => api.post(`/api/billing/${domain}/portal`)
+export const getBilling                = (domain)       => api.get(`/api/billing/${domain}`)
+export const createCheckoutSession     = (domain, plan) => api.post(`/api/billing/${domain}/checkout`, { plan })
+export const createPortalSession       = (domain)       => api.post(`/api/billing/${domain}/portal`)
+export const createLeoRefreshCheckout  = (domain)       => api.post(`/api/billing/${domain}/leorefresh/checkout`)
+export const cancelLeoRefresh          = (domain)       => api.post(`/api/billing/${domain}/leorefresh/cancel`)
 
 export const getTeam         = (domain)           => api.get(`/api/dashboard/entities/${domain}/team`)
 export const removeMember    = (domain, userId)   => api.delete(`/api/dashboard/entities/${domain}/team/${userId}`)

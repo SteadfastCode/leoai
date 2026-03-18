@@ -41,12 +41,19 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
           entity.stripeCustomerId = session.customer;
         }
 
-        if (session.mode === 'payment') {
+        if (session.metadata?.addon === 'leorefresh') {
+          // LeoRefresh add-on subscription
+          if (session.subscription) {
+            entity.leoRefreshEnabled        = true;
+            entity.leoRefreshSubscriptionId = session.subscription;
+            if (session.customer) entity.stripeCustomerId = session.customer;
+          }
+        } else if (session.mode === 'payment') {
           // Lifetime deal
           entity.plan = 'lifetime';
           entity.subscriptionStatus = 'active';
         } else if (session.mode === 'subscription' && session.subscription) {
-          // Subscription — fetch full sub to get period dates
+          // Main plan subscription — fetch full sub to get period dates
           const sub = await stripe.subscriptions.retrieve(session.subscription);
           entity.stripeSubscriptionId = sub.id;
           entity.subscriptionStatus   = sub.status;
@@ -83,9 +90,16 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
         const entity = await Entity.findOne({ domain });
         if (!entity) break;
 
-        entity.subscriptionStatus   = 'canceled';
-        entity.plan                 = 'free';
-        entity.stripeSubscriptionId = null;
+        if (sub.metadata?.addon === 'leorefresh') {
+          // LeoRefresh add-on cancelled
+          entity.leoRefreshEnabled        = false;
+          entity.leoRefreshSubscriptionId = null;
+        } else {
+          // Main plan cancelled
+          entity.subscriptionStatus   = 'canceled';
+          entity.plan                 = 'free';
+          entity.stripeSubscriptionId = null;
+        }
         await entity.save();
         break;
       }

@@ -171,8 +171,8 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 // PATCH /api/dashboard/entities/:domain — update entity settings (owner only)
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
-    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels'];
-    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'leoRefreshEnabled'];
+    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'leoRefreshHour', 'leoRefreshFrequency'];
+    const superadminOnly = ['churchModeEnabled', 'churchConfig'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (isSuperAdmin(req.user)) {
       Object.assign(updates, Object.fromEntries(Object.entries(req.body).filter(([k]) => superadminOnly.includes(k))));

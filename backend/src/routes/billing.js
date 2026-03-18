@@ -12,6 +12,10 @@ const PLAN_PRICES = {
   lifetime:         process.env.STRIPE_PRICE_LIFETIME,
 };
 
+const ADDON_PRICES = {
+  leorefresh: process.env.STRIPE_PRICE_LEOREFRESH,
+};
+
 // Middleware: verify caller has access to this domain
 async function requireEntityAccess(req, res, next) {
   const { domain } = req.params;
@@ -29,7 +33,8 @@ router.get('/:domain', requireAuth, requireEntityAccess, async (req, res) => {
   try {
     const entity = await Entity.findOne({ domain }).select(
       'plan subscriptionStatus stripeCustomerId stripeSubscriptionId ' +
-      'currentPeriodStart currentPeriodEnd messageCountThisPeriod billingPeriodResetAt messageCount'
+      'currentPeriodStart currentPeriodEnd messageCountThisPeriod billingPeriodResetAt messageCount ' +
+      'leoRefreshEnabled leoRefreshSubscriptionId leoRefreshHour leoRefreshFrequency leoRefreshLastRun'
     );
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
 
@@ -43,6 +48,10 @@ router.get('/:domain', requireAuth, requireEntityAccess, async (req, res) => {
       messageCount: entity.messageCount || 0,
       limitThisPeriod: entity.plan === 'free' ? 100 : null,
       hasStripeCustomer: !!entity.stripeCustomerId,
+      leoRefreshEnabled: entity.leoRefreshEnabled,
+      leoRefreshHour: entity.leoRefreshHour ?? 3,
+      leoRefreshFrequency: entity.leoRefreshFrequency ?? 'daily',
+      leoRefreshLastRun: entity.leoRefreshLastRun,
     });
   } catch (err) {
     console.error('Billing GET error:', err);
@@ -89,6 +98,65 @@ router.post('/:domain/checkout', requireAuth, requireEntityAccess, async (req, r
   } catch (err) {
     console.error('Checkout error:', err);
     res.status(500).json({ error: 'Could not create checkout session.' });
+  }
+});
+
+// POST /api/billing/:domain/leorefresh/checkout — subscribe to LeoRefresh add-on
+router.post('/:domain/leorefresh/checkout', requireAuth, requireEntityAccess, async (req, res) => {
+  const { domain } = req.params;
+  const priceId = ADDON_PRICES.leorefresh;
+  if (!priceId) return res.status(500).json({ error: 'LeoRefresh price not configured' });
+
+  try {
+    const entity = await Entity.findOne({ domain });
+    if (!entity) return res.status(404).json({ error: 'Entity not found' });
+
+    if (entity.leoRefreshEnabled) {
+      return res.status(409).json({ error: 'LeoRefresh is already active' });
+    }
+
+    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    const customerParams = entity.stripeCustomerId
+      ? { customer: entity.stripeCustomerId }
+      : { customer_email: req.user.email };
+
+    const session = await stripe.checkout.sessions.create({
+      ...customerParams,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl}/#/settings?domain=${domain}&leorefresh=activated`,
+      cancel_url:  `${appUrl}/#/settings?domain=${domain}`,
+      metadata: { domain, addon: 'leorefresh' },
+      subscription_data: { metadata: { domain, addon: 'leorefresh' } },
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('LeoRefresh checkout error:', err);
+    res.status(500).json({ error: 'Could not create checkout session.' });
+  }
+});
+
+// POST /api/billing/:domain/leorefresh/cancel — cancel LeoRefresh subscription
+router.post('/:domain/leorefresh/cancel', requireAuth, requireEntityAccess, async (req, res) => {
+  const { domain } = req.params;
+  try {
+    const entity = await Entity.findOne({ domain });
+    if (!entity) return res.status(404).json({ error: 'Entity not found' });
+
+    if (!entity.leoRefreshSubscriptionId) {
+      return res.status(400).json({ error: 'No active LeoRefresh subscription found' });
+    }
+
+    // Cancel at period end so they keep access through the billing period
+    await stripe.subscriptions.update(entity.leoRefreshSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    res.json({ ok: true, message: 'LeoRefresh will cancel at the end of the current billing period.' });
+  } catch (err) {
+    console.error('LeoRefresh cancel error:', err);
+    res.status(500).json({ error: 'Could not cancel LeoRefresh.' });
   }
 });
 

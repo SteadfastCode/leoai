@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
-import { updateEntity } from '../lib/api'
+import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh } from '../lib/api'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
@@ -10,6 +10,8 @@ const form = ref({})
 const saving = ref(false)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
+const leoRefreshLoading = ref(false)
+const cancellingLeoRefresh = ref(false)
 
 watch(() => props.entity, (e) => {
   if (e) form.value = {
@@ -22,7 +24,8 @@ watch(() => props.entity, (e) => {
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
     churchConfig: { ...e.churchConfig },
-    leoRefreshEnabled: e.leoRefreshEnabled ?? false,
+    leoRefreshHour: e.leoRefreshHour ?? 3,
+    leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
   }
@@ -69,10 +72,42 @@ const QUOTA_THRESHOLD_OPTIONS = [
   { value: 90, label: '90% (90 messages)' },
 ]
 
+const hourOptions = Array.from({ length: 24 }, (_, h) => {
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return { value: h, label: `${display}:00 ${ampm} UTC` }
+})
+
 const timezones = [
   'America/New_York', 'America/Chicago', 'America/Denver',
   'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu',
 ]
+
+async function enableLeoRefresh() {
+  leoRefreshLoading.value = true
+  try {
+    const { data } = await createLeoRefreshCheckout(props.domain)
+    window.location.href = data.url
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Could not start checkout'
+    snackbar.value = true
+    leoRefreshLoading.value = false
+  }
+}
+
+async function disableLeoRefresh() {
+  cancellingLeoRefresh.value = true
+  try {
+    await cancelLeoRefresh(props.domain)
+    snackbarMsg.value = 'LeoRefresh will cancel at the end of the billing period.'
+    snackbar.value = true
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Could not cancel LeoRefresh'
+    snackbar.value = true
+  } finally {
+    cancellingLeoRefresh.value = false
+  }
+}
 
 async function save() {
   saving.value = true
@@ -240,17 +275,85 @@ async function save() {
             </template>
           </v-card-text>
         </v-card>
-
-        <v-card rounded="lg" elevation="0" border>
-          <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">LeoRefresh</v-card-title>
-          <v-card-text class="pt-4">
-            <v-switch v-model="form.leoRefreshEnabled" label="Enable daily rescrape" color="primary" hide-details />
-            <div class="text-caption text-medium-emphasis mt-2">
-              When enabled, Leo automatically rescrapes this site every night at 3 AM UTC and re-embeds any pages that have changed. Recommended for businesses with frequently updated content (menus, events, hours).
-            </div>
-          </v-card-text>
-        </v-card>
       </template>
+
+      <!-- LeoRefresh — visible to all owners, payment-gated via Stripe -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-2 d-flex align-center gap-2">
+          LeoRefresh
+          <v-chip v-if="entity?.leoRefreshEnabled" size="x-small" color="success" variant="tonal" class="ml-1">Active</v-chip>
+          <v-chip v-else size="x-small" color="default" variant="tonal" class="ml-1">$10/mo add-on</v-chip>
+        </v-card-title>
+        <v-card-text class="pt-0">
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Leo automatically rescrapes your site and re-embeds any changed pages on a schedule you control.
+            Recommended for businesses with frequently updated content — menus, events, hours, product listings.
+          </div>
+
+          <!-- Not subscribed -->
+          <template v-if="!entity?.leoRefreshEnabled">
+            <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+              <strong>$10/month</strong>, billed separately. Cancel anytime from the billing portal.
+            </v-alert>
+            <v-btn
+              color="primary"
+              variant="tonal"
+              prepend-icon="mdi-refresh-auto"
+              :loading="leoRefreshLoading"
+              @click="enableLeoRefresh"
+            >
+              Enable LeoRefresh
+            </v-btn>
+          </template>
+
+          <!-- Subscribed — show advanced options -->
+          <template v-else>
+            <div class="text-body-2 font-weight-medium mb-3">Schedule</div>
+            <div class="d-flex gap-3 align-center mb-4 flex-wrap">
+              <v-select
+                v-model="form.leoRefreshFrequency"
+                :items="[{ title: 'Daily', value: 'daily' }, { title: 'Weekly', value: 'weekly' }]"
+                item-title="title"
+                item-value="value"
+                label="Frequency"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="max-width: 140px"
+              />
+              <v-select
+                v-model="form.leoRefreshHour"
+                :items="hourOptions"
+                item-title="label"
+                item-value="value"
+                label="Time (UTC)"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="max-width: 180px"
+              />
+            </div>
+            <div class="text-caption text-medium-emphasis mb-4">
+              Times are in UTC.
+              <template v-if="entity?.leoRefreshLastRun">
+                Last run: {{ new Date(entity.leoRefreshLastRun).toLocaleString() }}.
+              </template>
+              <template v-else>
+                Not yet run.
+              </template>
+            </div>
+            <v-btn
+              size="small"
+              variant="text"
+              color="error"
+              :loading="cancellingLeoRefresh"
+              @click="disableLeoRefresh"
+            >
+              Cancel LeoRefresh
+            </v-btn>
+          </template>
+        </v-card-text>
+      </v-card>
     </div>
 
     <v-btn color="primary" :loading="saving" @click="save">Save Changes</v-btn>

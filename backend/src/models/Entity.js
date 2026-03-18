@@ -43,6 +43,10 @@ const entitySchema = new mongoose.Schema(
     quotaExceededNotified: { type: Boolean, default: false },
     lastScrapedAt: { type: Date },
     leoRefreshEnabled: { type: Boolean, default: false },
+    leoRefreshSubscriptionId: { type: String },
+    leoRefreshHour: { type: Number, default: 3, min: 0, max: 23 },
+    leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' },
+    leoRefreshLastRun: { type: Date },
   },
   { timestamps: true }
 );
