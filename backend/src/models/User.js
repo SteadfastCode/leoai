@@ -34,7 +34,9 @@ const userSchema = new mongoose.Schema(
     showNameInReplies: { type: Boolean, default: false },
     passkeys:          [passkeySchema],
     refreshTokens:     [refreshTokenSchema],
-    currentChallenge:  { type: String }, // ephemeral WebAuthn challenge
+    currentChallenge:       { type: String }, // ephemeral WebAuthn challenge
+    passwordResetToken:     { type: String },
+    passwordResetExpiresAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -13,6 +13,25 @@ const loading = ref(false)
 const error = ref('')
 const supportsPasskeys = browserSupportsWebAuthn()
 
+const showForgot = ref(false)
+const forgotEmail = ref('')
+const forgotLoading = ref(false)
+const forgotSent = ref(false)
+const forgotError = ref('')
+
+async function handleForgotPassword() {
+  forgotError.value = ''
+  forgotLoading.value = true
+  try {
+    await api.post('/auth/forgot-password', { email: forgotEmail.value })
+    forgotSent.value = true
+  } catch (err) {
+    forgotError.value = err.response?.data?.error || 'Something went wrong'
+  } finally {
+    forgotLoading.value = false
+  }
+}
+
 async function handlePasswordLogin() {
   error.value = ''
   loading.value = true
@@ -71,6 +90,42 @@ async function handlePasskeyLogin() {
             {{ error }}
           </v-alert>
 
+          <!-- Forgot password panel -->
+          <template v-if="showForgot">
+            <template v-if="forgotSent">
+              <v-alert type="success" variant="tonal" density="compact" class="mb-4">
+                Check your email for a reset link.
+              </v-alert>
+            </template>
+            <template v-else>
+              <v-alert v-if="forgotError" type="error" variant="tonal" density="compact" class="mb-4">
+                {{ forgotError }}
+              </v-alert>
+              <form @submit.prevent="handleForgotPassword">
+                <v-text-field
+                  v-model="forgotEmail"
+                  label="Email"
+                  type="email"
+                  variant="outlined"
+                  density="comfortable"
+                  class="mb-4"
+                  hide-details="auto"
+                  required
+                />
+                <v-btn type="submit" color="primary" block size="large" :loading="forgotLoading" class="mb-3">
+                  Send reset link
+                </v-btn>
+              </form>
+            </template>
+            <div class="text-center">
+              <v-btn variant="text" size="small" @click="showForgot = false; forgotSent = false; forgotError = ''">
+                Back to sign in
+              </v-btn>
+            </div>
+          </template>
+
+          <!-- Normal sign-in form -->
+          <template v-else>
           <form @submit.prevent="handlePasswordLogin">
             <v-text-field
               v-model="email"
@@ -92,9 +147,14 @@ async function handlePasskeyLogin() {
               autocomplete="current-password"
               variant="outlined"
               density="comfortable"
-              class="mb-4"
+              class="mb-1"
               hide-details="auto"
             />
+            <div class="text-right mb-3">
+              <v-btn variant="text" size="small" @click="showForgot = true; forgotEmail = email">
+                Forgot password?
+              </v-btn>
+            </div>
 
             <v-btn
               type="submit"
@@ -126,6 +186,7 @@ async function handlePasskeyLogin() {
               Sign in with passkey
             </v-btn>
           </template>
+          </template><!-- end v-else (normal sign-in) -->
         </v-card-text>
     </v-card>
   </div>

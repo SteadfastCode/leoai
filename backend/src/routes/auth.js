@@ -9,8 +9,10 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 
+const crypto = require('crypto');
 const User = require('../models/User');
 const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET } = require('../middleware/auth');
+const { sendEmailRaw } = require('../services/notifications');
 
 const RP_NAME = 'LeoAI Dashboard';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -253,6 +255,66 @@ router.post('/passkey/login-verify', async (req, res) => {
     await user.save();
 
     res.json({ accessToken, refreshToken, user: safeUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Password reset
+// ---------------------------------------------------------------------------
+
+// POST /auth/forgot-password — send reset link if email exists
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email is required' });
+
+  try {
+    const user = await User.findOne({ email });
+    // Always respond 200 to avoid leaking whether email is registered
+    if (!user || !user.hashedPassword) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = token;
+    user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    const dashboardOrigin = process.env.DASHBOARD_ORIGIN || 'http://localhost:5173';
+    const resetUrl = `${dashboardOrigin}/#/reset-password?token=${token}`;
+
+    await sendEmailRaw(
+      user.email,
+      'Reset your LeoAI password',
+      `Hi ${user.name},\n\nClick the link below to reset your password. This link expires in 1 hour.\n\n${resetUrl}\n\nIf you didn't request this, you can ignore this email.`
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /auth/reset-password — set new password using token
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  try {
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+    if (!user) return res.status(400).json({ error: 'Reset link is invalid or has expired' });
+
+    user.hashedPassword = await bcrypt.hash(password, 12);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiresAt = undefined;
+    // Invalidate all existing refresh tokens on password reset
+    user.refreshTokens = [];
+    await user.save();
+
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

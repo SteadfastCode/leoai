@@ -173,4 +173,4 @@ async function sendEmailRaw(toAddress, subject, text) {
   await transporter.sendMail({ from: SMTP_FROM || SMTP_USER, to: toAddress, subject, text });
 }
 
-module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification };
+module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw };
