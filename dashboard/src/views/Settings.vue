@@ -226,7 +226,7 @@ async function save() {
         </v-card-text>
       </v-card>
 
-      <v-card rounded="lg" elevation="0" border class="settings-grid-full">
+      <v-card rounded="lg" elevation="0" border>
         <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Church & Ministry Mode</v-card-title>
         <v-card-text class="pt-4">
           <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-4" />
@@ -254,9 +254,6 @@ async function save() {
   align-items: start;
 }
 
-.settings-grid-full {
-  grid-column: 1 / -1;
-}
 
 .passkey-name-input {
   min-width: 200px;
