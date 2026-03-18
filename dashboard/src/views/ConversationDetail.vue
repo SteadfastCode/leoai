@@ -80,13 +80,15 @@ async function sendReply() {
   if (!replyText.value.trim()) return
   sending.value = true
   try {
-    const { data } = await postOwnerReply(props.domain, route.params.id, {
+    await postOwnerReply(props.domain, route.params.id, {
       replyText: replyText.value.trim(),
       answeredQuestions: checkedQuestions.value,
       addToKb: addToKb.value,
     })
-    conversation.value = data.conversation
-    checkedQuestions.value = [...(data.conversation.pendingQuestions || []).map((q) => q.text)]
+    // Re-fetch for a guaranteed-fresh state — avoids Mongoose doc serialization ambiguity
+    const { data: fresh } = await getConversation(props.domain, route.params.id)
+    conversation.value = fresh
+    checkedQuestions.value = [...(fresh.pendingQuestions || []).map((q) => q.text)]
     snackbarMsg.value = data.addedToKb ? 'Reply sent and added to knowledge base' : 'Reply sent'
     snackbarColor.value = 'success'
     replyText.value = ''
