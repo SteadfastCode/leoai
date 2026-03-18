@@ -175,8 +175,6 @@ function getTransporter() {
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: isLocalhost ? { rejectUnauthorized: false } : undefined,
-    pool: true,
-    maxConnections: 1,
   });
   return _transporter;
 }
