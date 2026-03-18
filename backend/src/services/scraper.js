@@ -6,9 +6,22 @@ const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 
 const MAX_PAGES = 500;
+const CONCURRENCY = 5; // pages fetched in parallel per batch
 const CHUNK_SIZE = 1500; // characters per chunk — large enough for semantic meaning, small enough for precision
 const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
 const THIN_CONTENT_THRESHOLD = 300; // chars — below this, assume JS rendering is needed
+
+// Use hostname + pathname as the canonical key — strips query params that are
+// navigation context (category_id, cp, si, etc.) so the same product isn't
+// fetched multiple times just because it appears under different category URLs
+function urlKey(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    return u.hostname + u.pathname;
+  } catch {
+    return urlStr;
+  }
+}
 
 // URL patterns that indicate high-change pages
 const HIGH_PRIORITY_PATTERNS = [
@@ -151,40 +164,46 @@ async function scrapeSite(baseUrl, opts = {}) {
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
-      const url = queue.shift();
-      if (visited.has(url)) continue;
-      visited.add(url);
-
-      try {
-        const { text, links, usedPuppeteer } = await fetchPage(url, browser);
-        pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
-
-        if (io && domain) {
-          io.to(`domain:${domain}`).emit('scrape_progress', {
-            url,
-            chars: text.length,
-            usedPuppeteer,
-            pagesVisited: visited.size,
-          });
+      // Take up to CONCURRENCY unvisited URLs from the front of the queue
+      const batch = [];
+      while (batch.length < CONCURRENCY && queue.length > 0 && visited.size + batch.length < MAX_PAGES) {
+        const url = queue.shift();
+        const key = urlKey(url);
+        if (!visited.has(key)) {
+          visited.add(key);
+          batch.push(url);
         }
-
-        for (const link of links) {
-          try {
-            const resolved = new URL(link, url).href;
-            const h = new URL(resolved).hostname;
-            if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-              // Prioritize subdomain pages — put them at the front so they don't get
-              // crowded out by the long tail of main-site pagination/archive links
-              if (h !== baseDomain) queue.unshift(resolved);
-              else queue.push(resolved);
-            }
-          } catch {
-            // invalid URL, skip
-          }
-        }
-      } catch (err) {
-        console.warn(`Skipping ${url}: ${err.message}`);
       }
+      if (batch.length === 0) break;
+
+      await Promise.all(batch.map(async (url) => {
+        try {
+          const { text, links, usedPuppeteer } = await fetchPage(url, browser);
+          pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
+
+          if (io && domain) {
+            io.to(`domain:${domain}`).emit('scrape_progress', {
+              url,
+              chars: text.length,
+              usedPuppeteer,
+              pagesVisited: visited.size,
+            });
+          }
+
+          for (const link of links) {
+            try {
+              const resolved = new URL(link, url).href;
+              const h = new URL(resolved).hostname;
+              if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
+                if (h !== baseDomain) queue.unshift(resolved);
+                else queue.push(resolved);
+              }
+            } catch { /* invalid URL, skip */ }
+          }
+        } catch (err) {
+          console.warn(`Skipping ${url}: ${err.message}`);
+        }
+      }));
     }
   } finally {
     await browser.close();
@@ -198,7 +217,8 @@ async function scrapeSite(baseUrl, opts = {}) {
 async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const { io, domain } = opts;
   const startedAt = Date.now();
-  const storedHashMap = new Map(storedPages.map((p) => [p.url, p.contentHash]));
+  // Key stored hashes by urlKey (hostname+pathname) to match normalization
+  const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
   const visited = new Set();
   const queue = [baseUrl];
   const changedPages = [];
@@ -208,46 +228,52 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
-      const url = queue.shift();
-      if (visited.has(url)) continue;
-      visited.add(url);
-
-      try {
-        const { text, links, usedPuppeteer } = await fetchPage(url, browser);
-        const hash = hashContent(text);
-
-        if (storedHashMap.get(url) !== hash) {
-          changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
-        } else {
-          unchangedUrls.push(url);
+      // Take up to CONCURRENCY unvisited URLs from the front of the queue
+      const batch = [];
+      while (batch.length < CONCURRENCY && queue.length > 0 && visited.size + batch.length < MAX_PAGES) {
+        const url = queue.shift();
+        const key = urlKey(url);
+        if (!visited.has(key)) {
+          visited.add(key);
+          batch.push(url);
         }
-
-        if (io && domain) {
-          io.to(`domain:${domain}`).emit('scrape_progress', {
-            url,
-            chars: text.length,
-            usedPuppeteer,
-            pagesVisited: visited.size,
-          });
-        }
-
-        for (const link of links) {
-          try {
-            const resolved = new URL(link, url).href;
-            const h = new URL(resolved).hostname;
-            if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-              // Prioritize subdomain pages — put them at the front so they don't get
-              // crowded out by the long tail of main-site pagination/archive links
-              if (h !== baseDomain) queue.unshift(resolved);
-              else queue.push(resolved);
-            }
-          } catch {
-            // invalid URL, skip
-          }
-        }
-      } catch (err) {
-        console.warn(`Skipping ${url}: ${err.message}`);
       }
+      if (batch.length === 0) break;
+
+      await Promise.all(batch.map(async (url) => {
+        try {
+          const { text, links, usedPuppeteer } = await fetchPage(url, browser);
+          const hash = hashContent(text);
+
+          if (storedHashMap.get(urlKey(url)) !== hash) {
+            changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
+          } else {
+            unchangedUrls.push(url);
+          }
+
+          if (io && domain) {
+            io.to(`domain:${domain}`).emit('scrape_progress', {
+              url,
+              chars: text.length,
+              usedPuppeteer,
+              pagesVisited: visited.size,
+            });
+          }
+
+          for (const link of links) {
+            try {
+              const resolved = new URL(link, url).href;
+              const h = new URL(resolved).hostname;
+              if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
+                if (h !== baseDomain) queue.unshift(resolved);
+                else queue.push(resolved);
+              }
+            } catch { /* invalid URL, skip */ }
+          }
+        } catch (err) {
+          console.warn(`Skipping ${url}: ${err.message}`);
+        }
+      }));
     }
   } finally {
     await browser.close();
