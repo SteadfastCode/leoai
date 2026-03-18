@@ -4,6 +4,27 @@ Post-MVP concepts. Nothing here is a commitment. Add freely.
 
 ---
 
+## Handoff Filtering — What Gets Forwarded to the Team
+
+Leo should be discerning about what questions actually get forwarded. Several related capabilities:
+
+**Leo-side discretion:** Leo already uses judgment, but explicit guidance would help. Some things should never be forwarded (spam, abuse, nonsensical inputs). Others are ambiguous.
+
+**Tolerance slider (per entity):** How lenient Leo is about forwarding borderline questions. Low tolerance = only clearly unanswerable questions go to the team. High tolerance = forward anything uncertain. Default somewhere in the middle.
+
+**Do-not-relay list (per entity):** Business owner maintains a list of question types Leo won't forward. E.g., "competitor comparisons," "salary questions," "political topics." Leo responds warmly: *"That's not something the team is able to help with, but here's what I can do..."*
+
+**Dashboard workflow when owner doesn't want to answer:**
+- Owner can write their own reply (always available)
+- Or: dashboard suggests auto-denial phrasing (Leo-voiced, warm)
+- Or: one-click "Don't relay this type" → adds to do-not-relay list going forward
+
+**Aggressive users:** Leo needs guidance on handling combative or hostile visitors. Warm but firm. Doesn't escalate, doesn't capitulate. Probably a system prompt addition (non-configurable floor), with a Church Mode variant that's more pastoral.
+
+**Note:** Tolerance slider and do-not-relay list require UI in dashboard Settings, a new entity field, and prompt changes. Not trivial. Log for post-alpha.
+
+---
+
 ## Overview — Usage Panel Enhancements
 
 Upgrade the message count display on the dashboard Overview from a raw number to a smart usage panel.
