@@ -78,9 +78,9 @@
     body.dark #dark-toggle { background: #1e293b; border-color: #334155; color: #e2e8f0; }
   </style>
 </head>
-<body>
+<body class="dark">
 
-  <button id="dark-toggle">🌙 Dark mode</button>
+  <button id="dark-toggle">☀️ Light mode</button>
   <div id="entity-tabs"></div>
 
   <div id="page-content">
@@ -101,7 +101,7 @@
     ];
 
     let currentDomain = entities[0].domain;
-    window.LEO_BACKEND_URL = 'http://localhost:3002';
+    window.LEO_BACKEND_URL = 'http://localhost:3001';
 
     // Build tabs
     const tabBar = document.getElementById('entity-tabs');
