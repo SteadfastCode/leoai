@@ -29,7 +29,12 @@ watch(() => props.domain, () => { page.value = 1; load() }, { immediate: true })
 watch(page, load)
 
 // Refresh the list silently when a new message arrives for this domain
-onMounted(() => { socket.on('new_message', load) })
+onMounted(() => {
+  socket.on('new_message', (data) => {
+    console.log('[Leo socket] new_message', data)
+    load()
+  })
+})
 onUnmounted(() => { socket.off('new_message', load) })
 
 function formatDate(d) {

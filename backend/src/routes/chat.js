@@ -9,6 +9,18 @@ const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification
 const HANDOFF_RE = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
 const OPTIONS_RE  = /\[OPTIONS:\s*([^\]]+)\]\s*$/;
 
+// Returns Jaccard similarity (0–1) between two strings based on word sets.
+// Used to suppress near-duplicate handoff questions Leo rephrases across turns.
+function questionSimilarity(a, b) {
+  const words = (s) => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean));
+  const wa = words(a);
+  const wb = words(b);
+  const intersection = [...wa].filter((w) => wb.has(w)).length;
+  const union = new Set([...wa, ...wb]).size;
+  return union === 0 ? 1 : intersection / union;
+}
+const DUPLICATE_THRESHOLD = 0.6;
+
 const PAGE_SIZE = 20;
 
 // POST /chat — send a message
@@ -96,7 +108,10 @@ router.post('/', async (req, res) => {
     if (handoffMatch) {
       const question = handoffMatch[1].trim();
       if (!conversation.pendingQuestions) conversation.pendingQuestions = [];
-      conversation.pendingQuestions.push({ text: question, askedAt: new Date() });
+      const isDuplicate = conversation.pendingQuestions.some(
+        (q) => questionSimilarity(question, q.text) >= DUPLICATE_THRESHOLD
+      );
+      if (!isDuplicate) conversation.pendingQuestions.push({ text: question, askedAt: new Date() });
       conversation.handoffPending = true;
 
       if (entity.ownerPhone || entity.ownerEmail) {
