@@ -251,7 +251,10 @@ async function save() {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
   gap: 16px;
-  align-items: start;
+}
+
+.settings-grid > * {
+  align-self: start;
 }
 
 
