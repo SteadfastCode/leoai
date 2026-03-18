@@ -110,7 +110,8 @@ async function scrapeSite(baseUrl) {
       for (const link of links) {
         try {
           const resolved = new URL(link, baseUrl).href;
-          if (new URL(resolved).hostname === baseDomain && !visited.has(resolved)) {
+          const h = new URL(resolved).hostname;
+          if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
             queue.push(resolved);
           }
         } catch {
@@ -152,7 +153,8 @@ async function rescrapeSite(baseUrl, storedPages) {
       for (const link of links) {
         try {
           const resolved = new URL(link, baseUrl).href;
-          if (new URL(resolved).hostname === baseDomain && !visited.has(resolved)) {
+          const h = new URL(resolved).hostname;
+          if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
             queue.push(resolved);
           }
         } catch {
