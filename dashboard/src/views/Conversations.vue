@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getConversations } from '../lib/api'
+import { socket } from '../lib/socket'
 
 const props = defineProps(['domain'])
 const router = useRouter()
@@ -26,6 +27,10 @@ async function load() {
 
 watch(() => props.domain, () => { page.value = 1; load() }, { immediate: true })
 watch(page, load)
+
+// Refresh the list silently when a new message arrives for this domain
+onMounted(() => { socket.on('new_message', load) })
+onUnmounted(() => { socket.off('new_message', load) })
 
 function formatDate(d) {
   return new Date(d).toLocaleString()

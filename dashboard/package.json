@@ -13,6 +13,7 @@
     "@mdi/font": "^7.4.47",
     "@simplewebauthn/browser": "^13.3.0",
     "axios": "^1.13.6",
+    "socket.io-client": "^4.8.3",
     "vue": "^3.5.30",
     "vue-router": "^4.0.0",
     "vuetify": "^3.7.0"

@@ -7,9 +7,23 @@ import { getEntities } from './lib/api'
 import api from './lib/api'
 import { user, isAuthenticated, login, logout, persist } from './lib/auth'
 import { sessionExpired, lastKnownEmail } from './lib/session'
+import { socket, joinDomain } from './lib/socket'
 
 const router = useRouter()
 const theme  = useTheme()
+
+// ---------------------------------------------------------------------------
+// Real-time — Socket.io
+// ---------------------------------------------------------------------------
+const handoffSnackbar = ref(false)
+const handoffMsg      = ref('')
+const handoffConvId   = ref('')
+
+socket.on('handoff_requested', ({ conversationId, question }) => {
+  handoffConvId.value = conversationId
+  handoffMsg.value    = question
+  handoffSnackbar.value = true
+})
 
 // ---------------------------------------------------------------------------
 // Theme
@@ -49,17 +63,28 @@ async function loadEntities() {
 }
 
 onMounted(() => {
-  if (isAuthenticated.value) loadEntities()
+  if (isAuthenticated.value) {
+    loadEntities()
+    socket.connect()
+    if (selectedDomain.value) joinDomain(selectedDomain.value)
+  }
 })
 
-// Reload entities when the user logs in (covers post-expiry re-auth)
+// Reload entities and connect socket when the user logs in
 watch(isAuthenticated, (val) => {
-  if (val && !entities.value.length) loadEntities()
+  if (val) {
+    if (!entities.value.length) loadEntities()
+    socket.connect()
+    if (selectedDomain.value) joinDomain(selectedDomain.value)
+  } else {
+    socket.disconnect()
+  }
 })
 
 function selectEntity(domain) {
   selectedDomain.value = domain
   localStorage.setItem('leo_dashboard_domain', domain)
+  joinDomain(domain)
   router.push('/overview')
 }
 
@@ -213,6 +238,27 @@ async function handleReAuthPasskey() {
         <router-view />
       </v-main>
     </template>
+
+    <!-- ── Handoff alert ── -->
+    <v-snackbar
+      v-model="handoffSnackbar"
+      color="warning"
+      timeout="8000"
+      location="top right"
+      multi-line
+    >
+      <div class="text-body-2 font-weight-bold mb-1">🚨 Visitor needs help</div>
+      <div class="text-body-2">{{ handoffMsg }}</div>
+      <template #actions>
+        <v-btn
+          variant="text"
+          @click="router.push(`/conversations/${handoffConvId}`); handoffSnackbar = false"
+        >
+          View
+        </v-btn>
+        <v-btn variant="text" @click="handoffSnackbar = false">Dismiss</v-btn>
+      </template>
+    </v-snackbar>
 
     <!-- ── Session-expired re-auth dialog ── -->
     <v-dialog v-model="sessionExpired" persistent max-width="400" :scrim="true">
