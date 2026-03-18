@@ -163,10 +163,10 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ⬜ Stripe price IDs + env vars need to be created and filled in (.env.example documents them)
 - ⬜ OneSignal integration
 - ⬜ Church & Ministry Mode (prompt engineering + pastoral review)
-- ⬜ LeoRefresh scheduler
-- ⬜ Passkey registration UI (backend ready)
-- ⬜ User invite flow / team management UI
-- ⬜ Password reset flow
+- ✅ LeoRefresh scheduler — node-cron, 3 AM UTC daily, sequential per-entity rescrape
+- ✅ Passkey registration UI — Settings > Security card; name field, register/delete; discoverable login (no email)
+- ✅ User invite / team management — Team.vue (members list, pending invites, invite form), AcceptInvite.vue (new + existing user paths), full backend (Invite model, team endpoints, invite accept/validate routes)
+- ✅ Password reset flow — forgot-password email link, reset-password token validation, ResetPassword.vue
 
 ---
 

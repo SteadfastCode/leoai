@@ -12,6 +12,12 @@ export const isSuperAdmin = computed(() =>
   _user.value?.memberships?.some((m) => m.roles?.includes('superadmin')) ?? false
 )
 
+export function isOwnerOf(domain) {
+  if (isSuperAdmin.value) return true
+  const m = _user.value?.memberships?.find((m) => m.entityDomain === domain)
+  return m?.roles?.includes('owner') ?? false
+}
+
 function persist(accessToken, refreshToken, userData) {
   _accessToken.value = accessToken
   _refreshToken.value = refreshToken

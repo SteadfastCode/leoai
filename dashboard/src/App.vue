@@ -47,6 +47,7 @@ const navItems = [
   { title: 'Overview',       icon: 'mdi-view-dashboard', to: '/overview' },
   { title: 'Conversations',  icon: 'mdi-chat',           to: '/conversations' },
   { title: 'Knowledge Base', icon: 'mdi-database',       to: '/knowledge' },
+  { title: 'Team',           icon: 'mdi-account-group',  to: '/team' },
   { title: 'Settings',       icon: 'mdi-cog',            to: '/settings' },
   { title: 'Billing',        icon: 'mdi-credit-card',    to: '/billing' },
 ]

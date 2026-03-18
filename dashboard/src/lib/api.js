@@ -60,3 +60,11 @@ export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/e
 export const getBilling            = (domain)       => api.get(`/api/billing/${domain}`)
 export const createCheckoutSession = (domain, plan) => api.post(`/api/billing/${domain}/checkout`, { plan })
 export const createPortalSession   = (domain)       => api.post(`/api/billing/${domain}/portal`)
+
+export const getTeam         = (domain)           => api.get(`/api/dashboard/entities/${domain}/team`)
+export const removeMember    = (domain, userId)   => api.delete(`/api/dashboard/entities/${domain}/team/${userId}`)
+export const getInvites      = (domain)           => api.get(`/api/dashboard/entities/${domain}/invites`)
+export const sendInvite      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/invites`, data)
+export const cancelInvite    = (domain, inviteId) => api.delete(`/api/dashboard/entities/${domain}/invites/${inviteId}`)
+export const getInviteInfo   = (token)            => api.get(`/auth/invite/${token}`)
+export const acceptInvite    = (token, data)      => api.post(`/auth/invite/${token}/accept`, data)

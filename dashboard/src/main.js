@@ -14,6 +14,8 @@ import KnowledgeBase from './views/KnowledgeBase.vue'
 import Settings from './views/Settings.vue'
 import Billing from './views/Billing.vue'
 import ResetPassword from './views/ResetPassword.vue'
+import Team from './views/Team.vue'
+import AcceptInvite from './views/AcceptInvite.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -49,12 +51,14 @@ const router = createRouter({
     { path: '/', redirect: '/overview' },
     { path: '/login', component: Login, meta: { public: true } },
     { path: '/reset-password', component: ResetPassword, meta: { public: true } },
+    { path: '/accept-invite/:token', component: AcceptInvite, meta: { public: true } },
     { path: '/overview', component: Overview },
     { path: '/conversations', component: Conversations },
     { path: '/conversations/:id', component: ConversationDetail },
     { path: '/knowledge', component: KnowledgeBase },
     { path: '/settings', component: Settings },
     { path: '/billing', component: Billing },
+    { path: '/team', component: Team },
   ],
 })
 

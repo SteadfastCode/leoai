@@ -11,6 +11,7 @@ const {
 
 const crypto = require('crypto');
 const User = require('../models/User');
+const Invite = require('../models/Invite');
 const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET } = require('../middleware/auth');
 const { sendEmailRaw } = require('../services/notifications');
 
@@ -176,7 +177,7 @@ router.post('/passkey/register-verify', requireAuth(), async (req, res) => {
     const { registrationInfo } = verification;
     const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
     user.passkeys.push({
-      credentialID: Buffer.from(credential.id).toString('base64url'),
+      credentialID: credential.id,
       credentialPublicKey: Buffer.from(credential.publicKey),
       counter: credential.counter,
       deviceType: credentialDeviceType,
@@ -333,6 +334,85 @@ router.post('/reset-password', async (req, res) => {
     await user.save();
 
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Invite acceptance (public)
+// ---------------------------------------------------------------------------
+
+// GET /auth/invite/:token — validate token, return invite details
+router.get('/invite/:token', async (req, res) => {
+  try {
+    const invite = await Invite.findOne({
+      token: req.params.token,
+      acceptedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!invite) return res.status(404).json({ error: 'Invite not found or expired' });
+
+    const Entity = require('../models/Entity');
+    const entity = await Entity.findOne({ domain: invite.domain });
+    const existingUser = await User.findOne({ email: invite.email });
+
+    res.json({
+      email: invite.email,
+      role: invite.role,
+      domain: invite.domain,
+      entityName: entity?.name || invite.domain,
+      needsAccount: !existingUser,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /auth/invite/:token/accept — accept invite
+// New users: provide name + password. Existing users: membership is added automatically.
+router.post('/invite/:token/accept', async (req, res) => {
+  try {
+    const invite = await Invite.findOne({
+      token: req.params.token,
+      acceptedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!invite) return res.status(404).json({ error: 'Invite not found or expired' });
+
+    let user = await User.findOne({ email: invite.email });
+
+    if (user) {
+      // Existing user — just add membership if not already present
+      const alreadyMember = user.memberships.some((m) => m.entityDomain === invite.domain);
+      if (!alreadyMember) {
+        user.memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] });
+        await user.save();
+      }
+    } else {
+      // New user — name and password required
+      const { name, password } = req.body;
+      if (!name || !password) return res.status(400).json({ error: 'name and password are required' });
+      if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+      user = await User.create({
+        name,
+        email: invite.email,
+        hashedPassword: await bcrypt.hash(password, 12),
+        memberships: [{ entityDomain: invite.domain, roles: [invite.role], permissions: [] }],
+      });
+    }
+
+    invite.acceptedAt = new Date();
+    await invite.save();
+
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+    user.refreshTokens = user.refreshTokens.filter((t) => t.expiresAt > new Date());
+    user.refreshTokens.push({ token: refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
+    await user.save();
+
+    res.json({ accessToken, refreshToken, user: safeUser(user) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
