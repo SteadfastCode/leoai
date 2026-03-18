@@ -45,9 +45,13 @@ Built by Daniel, Steadfast Code, Lititz PA. *Colossians 3:23*
 Scrape → chunk (1500 chars) → embed (Voyage AI `voyage-3-lite`) → store in MongoDB → Atlas Vector Search (cosine similarity) at query time.
 
 **Decisions to preserve:**
-- **Vector embeddings over keyword matching** — keyword fails on natural queries ("what do you sell?"). Query expansion via Haiku was tested and rejected: costs more, worse results. Embedding cost: ~$0.07/scrape, negligible at query time.
-- **Two-pass scraping (planned, pre-launch):** Pass 1 = axios + cheerio. If content is thin → Pass 2 = Puppeteer (JS rendering). Required for React/Vue/Webflow/Squarespace sites, which are common for small businesses.
+- **Vector embeddings over keyword matching** — keyword fails on natural queries ("what do you sell?"). Query expansion via Haiku was tested and rejected: costs more, worse results. Embedding cost: ~$0.0015 per scrape at current scale, negligible at query time.
+- **Two-pass scraping:** Pass 1 = axios + cheerio. If content < 300 chars → Pass 2 = Puppeteer (JS rendering). Required for React/Vue/Webflow/Square Online/Squarespace sites. Puppeteer waits for `body.innerText > 100 chars` after networkidle2 to handle loading overlays. Only removes `script/style/noscript` (not nav/header/footer — JS frameworks render real content there).
+- **Subdomain crawling:** Follows links to subdomains (e.g. `shop.example.com`) as part of the same KB. Subdomain links are prioritized (unshifted) in the queue so they aren't crowded out by main-site pagination.
+- **URL normalization:** Uses `hostname + pathname` as the dedup key — strips query params so the same product appearing under multiple category context URLs (Square's `category_id`, `cp`, `si`, etc.) is only fetched once.
+- **Parallel fetching:** Pages fetched in batches of 5 concurrently (`CONCURRENCY = 5`). ~5x speedup vs sequential. Harvest Lane Farm Market (534 pages, Square shop subdomain) scrapes in ~7 minutes.
 - **Smart rescrape:** Hash-based diffing — only re-embeds changed pages. **Exception: PDFs must always be re-fetched** (same URL, changed content is undetectable by hash alone).
+- **MAX_PAGES = 500** — sites with shop subdomains need room. 50 was too small.
 
 ---
 
@@ -136,6 +140,11 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Vector embeddings (Voyage AI voyage-3-lite) — replaced keyword RAG
 - ✅ Atlas Vector Search index configured
 - ✅ Smart rescrape with hash-based diffing
+- ✅ Two-pass scraping with Puppeteer fallback for JS-rendered pages
+- ✅ Subdomain crawling (shop subdomains included in same KB)
+- ✅ URL normalization — dedup by hostname+pathname, strips context query params
+- ✅ Parallel page fetching (CONCURRENCY=5, ~5x speedup)
+- ✅ Live scrape feed in dashboard KB page with per-page progress + duration
 - ✅ /chat endpoint — full system prompt, RAG context, conversation history
 - ✅ Widget — bubble, drawer, markdown rendering, drag-to-resize, three-dot menu
 - ✅ Privacy consent screen (per-domain localStorage)
