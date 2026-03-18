@@ -47,19 +47,14 @@ async function handlePasswordLogin() {
 
 async function handlePasskeyLogin() {
   error.value = ''
-  if (!email.value) {
-    error.value = 'Enter your email first, then sign in with your passkey'
-    return
-  }
   loading.value = true
   try {
-    const { data: options } = await api.get('/auth/passkey/login-options', {
-      params: { email: email.value },
-    })
-    const assertion = await startAuthentication(options)
+    const { data: options } = await api.get('/auth/passkey/login-options')
+    const { challengeToken, ...authOptions } = options
+    const assertion = await startAuthentication(authOptions)
     const { data } = await api.post('/auth/passkey/login-verify', {
-      email: email.value,
       body: assertion,
+      challengeToken,
     })
     persist(data.accessToken, data.refreshToken, data.user)
     router.replace('/overview')

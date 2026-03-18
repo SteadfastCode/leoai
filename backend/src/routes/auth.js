@@ -193,29 +193,19 @@ router.post('/passkey/register-verify', requireAuth(), async (req, res) => {
   }
 });
 
-// GET /auth/passkey/login-options?email= — start passkey authentication ceremony
+// GET /auth/passkey/login-options — discoverable credential flow (no email needed)
 router.get('/passkey/login-options', async (req, res) => {
   try {
-    const { email } = req.query;
-    const user = email ? await User.findOne({ email }) : null;
-
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       userVerification: 'preferred',
-      allowCredentials: user?.passkeys.map((p) => ({
-        id: p.credentialID,
-        transports: p.transports,
-      })) || [],
+      allowCredentials: [], // let the OS/browser present available passkeys
     });
 
-    // Store challenge on user if we know who they are, otherwise use session
-    // For simplicity: require email for passkey login
-    if (user) {
-      user.currentChallenge = options.challenge;
-      await user.save();
-    }
-
-    res.json(options);
+    // Store challenge in a short-lived signed token so we can verify it
+    // without a server-side session. Embed it in the response.
+    const challengeToken = jwt.sign({ challenge: options.challenge }, JWT_SECRET, { expiresIn: '5m' });
+    res.json({ ...options, challengeToken });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -224,8 +214,21 @@ router.get('/passkey/login-options', async (req, res) => {
 // POST /auth/passkey/login-verify
 router.post('/passkey/login-verify', async (req, res) => {
   try {
-    const { email, body } = req.body;
-    const user = await User.findOne({ email });
+    const { body, challengeToken } = req.body;
+
+    // Recover challenge from signed token (stateless — no session or per-user storage needed)
+    let expectedChallenge;
+    try {
+      const payload = jwt.verify(challengeToken, JWT_SECRET);
+      expectedChallenge = payload.challenge;
+    } catch {
+      return res.status(400).json({ error: 'Challenge expired or invalid — try again' });
+    }
+
+    // Identify user from userHandle (set to user._id during registration)
+    if (!body.response?.userHandle) return res.status(401).json({ error: 'No user handle in response' });
+    const userId = Buffer.from(body.response.userHandle, 'base64url').toString('utf8');
+    const user = await User.findById(userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
 
     const passkey = user.passkeys.find((p) => p.credentialID === body.id);
@@ -233,7 +236,7 @@ router.post('/passkey/login-verify', async (req, res) => {
 
     const verification = await verifyAuthenticationResponse({
       response: body,
-      expectedChallenge: user.currentChallenge,
+      expectedChallenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
       credential: {
