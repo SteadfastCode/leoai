@@ -42,6 +42,7 @@ const entitySchema = new mongoose.Schema(
     notifiedThresholds: { type: [Number], default: [] },
     quotaExceededNotified: { type: Boolean, default: false },
     lastScrapedAt: { type: Date },
+    leoRefreshEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

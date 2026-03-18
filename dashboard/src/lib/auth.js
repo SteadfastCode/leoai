@@ -8,6 +8,9 @@ const _refreshToken = ref(localStorage.getItem('leo_refresh_token') || '')
 export const user = computed(() => _user.value)
 export const isAuthenticated = computed(() => !!_accessToken.value && !!_user.value)
 export const accessToken = computed(() => _accessToken.value)
+export const isSuperAdmin = computed(() =>
+  _user.value?.memberships?.some((m) => m.roles?.includes('superadmin')) ?? false
+)
 
 function persist(accessToken, refreshToken, userData) {
   _accessToken.value = accessToken

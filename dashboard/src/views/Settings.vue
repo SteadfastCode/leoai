@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { updateEntity } from '../lib/api'
-import { user, refreshUser } from '../lib/auth'
+import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
@@ -22,6 +22,7 @@ watch(() => props.entity, (e) => {
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
     churchConfig: { ...e.churchConfig },
+    leoRefreshEnabled: e.leoRefreshEnabled ?? false,
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
   }
@@ -226,18 +227,30 @@ async function save() {
         </v-card-text>
       </v-card>
 
-      <v-card rounded="lg" elevation="0" border>
-        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Church & Ministry Mode</v-card-title>
-        <v-card-text class="pt-4">
-          <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-4" />
-          <template v-if="form.churchModeEnabled">
-            <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
-            <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
-            <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
-            <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
-          </template>
-        </v-card-text>
-      </v-card>
+      <template v-if="isSuperAdmin">
+        <v-card rounded="lg" elevation="0" border>
+          <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Church & Ministry Mode</v-card-title>
+          <v-card-text class="pt-4">
+            <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-4" />
+            <template v-if="form.churchModeEnabled">
+              <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
+              <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
+              <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
+              <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
+            </template>
+          </v-card-text>
+        </v-card>
+
+        <v-card rounded="lg" elevation="0" border>
+          <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">LeoRefresh</v-card-title>
+          <v-card-text class="pt-4">
+            <v-switch v-model="form.leoRefreshEnabled" label="Enable daily rescrape" color="primary" hide-details />
+            <div class="text-caption text-medium-emphasis mt-2">
+              When enabled, Leo automatically rescrapes this site every night at 3 AM UTC and re-embeds any pages that have changed. Recommended for businesses with frequently updated content (menus, events, hours).
+            </div>
+          </v-card-text>
+        </v-card>
+      </template>
     </div>
 
     <v-btn color="primary" :loading="saving" @click="save">Save Changes</v-btn>
@@ -248,13 +261,14 @@ async function save() {
 
 <style scoped>
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-  gap: 16px;
+  columns: 4 420px;
+  column-gap: 16px;
 }
 
 .settings-grid > * {
-  align-self: start;
+  break-inside: avoid;
+  width: 100%;
+  margin-bottom: 16px;
 }
 
 
