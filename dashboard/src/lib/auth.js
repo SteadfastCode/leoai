@@ -47,4 +47,11 @@ export async function refreshAccessToken() {
   return data.accessToken
 }
 
+export async function refreshUser() {
+  const { data } = await api.get('/auth/me')
+  _user.value = data
+  localStorage.setItem('leo_user', JSON.stringify(data))
+  return data
+}
+
 export { persist, clear }

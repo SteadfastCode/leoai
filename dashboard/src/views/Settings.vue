@@ -1,6 +1,9 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { updateEntity } from '../lib/api'
+import { user, refreshUser } from '../lib/auth'
+import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
 const form = ref({})
@@ -23,6 +26,41 @@ watch(() => props.entity, (e) => {
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
   }
 }, { immediate: true })
+
+// Passkeys
+const supportsPasskeys = browserSupportsWebAuthn()
+const passkeyName = ref('')
+const addingPasskey = ref(false)
+const passkeyError = ref('')
+const removingPasskey = ref('')
+
+async function addPasskey() {
+  passkeyError.value = ''
+  addingPasskey.value = true
+  try {
+    const { data: options } = await api.get('/auth/passkey/register-options')
+    const registration = await startRegistration(options)
+    await api.post('/auth/passkey/register-verify', { body: registration, passkeyName: passkeyName.value || 'Passkey' })
+    passkeyName.value = ''
+    await refreshUser()
+  } catch (err) {
+    passkeyError.value = err.response?.data?.error || err.message || 'Registration failed'
+  } finally {
+    addingPasskey.value = false
+  }
+}
+
+async function removePasskey(credentialID) {
+  removingPasskey.value = credentialID
+  try {
+    await api.delete(`/auth/passkey/${encodeURIComponent(credentialID)}`)
+    await refreshUser()
+  } catch (err) {
+    passkeyError.value = err.response?.data?.error || 'Remove failed'
+  } finally {
+    removingPasskey.value = ''
+  }
+}
 
 const QUOTA_THRESHOLD_OPTIONS = [
   { value: 50, label: '50% (50 messages)' },
@@ -146,6 +184,64 @@ async function save() {
           <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
           <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
         </template>
+      </v-card-text>
+    </v-card>
+
+    <v-card v-if="supportsPasskeys" rounded="lg" elevation="0" border class="mb-4">
+      <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Security — Passkeys</v-card-title>
+      <v-card-text class="pt-4">
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          Passkeys let you sign in with Face ID, Touch ID, or your device PIN — no password needed.
+        </div>
+
+        <v-alert v-if="passkeyError" type="error" variant="tonal" density="compact" class="mb-3" closable @click:close="passkeyError = ''">
+          {{ passkeyError }}
+        </v-alert>
+
+        <!-- Registered passkeys list -->
+        <div v-if="user?.passkeys?.length" class="mb-4">
+          <div
+            v-for="pk in user.passkeys"
+            :key="pk.credentialID"
+            class="d-flex align-center gap-3 py-2"
+            style="border-bottom: 1px solid rgba(0,0,0,0.06)"
+          >
+            <v-icon size="20" color="primary">mdi-fingerprint</v-icon>
+            <span class="text-body-2 flex-grow-1">{{ pk.name }}</span>
+            <v-btn
+              size="small"
+              variant="text"
+              color="error"
+              :loading="removingPasskey === pk.credentialID"
+              @click="removePasskey(pk.credentialID)"
+            >
+              Remove
+            </v-btn>
+          </div>
+        </div>
+        <div v-else class="text-body-2 text-medium-emphasis mb-4">No passkeys registered yet.</div>
+
+        <!-- Add passkey -->
+        <div class="d-flex gap-3 align-center">
+          <v-text-field
+            v-model="passkeyName"
+            label="Passkey name (optional)"
+            variant="outlined"
+            density="compact"
+            hide-details
+            style="max-width: 220px"
+            placeholder="e.g. MacBook Touch ID"
+          />
+          <v-btn
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-plus"
+            :loading="addingPasskey"
+            @click="addPasskey"
+          >
+            Add passkey
+          </v-btn>
+        </div>
       </v-card-text>
     </v-card>
 

@@ -260,6 +260,20 @@ router.post('/passkey/login-verify', async (req, res) => {
   }
 });
 
+// DELETE /auth/passkey/:credentialId — remove a registered passkey
+router.delete('/passkey/:credentialId', requireAuth(), async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const before = user.passkeys.length;
+    user.passkeys = user.passkeys.filter((p) => p.credentialID !== req.params.credentialId);
+    if (user.passkeys.length === before) return res.status(404).json({ error: 'Passkey not found' });
+    await user.save();
+    res.json({ ok: true, passkeys: user.passkeys.map((p) => ({ credentialID: p.credentialID, name: p.name })) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Password reset
 // ---------------------------------------------------------------------------
