@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 
-const MAX_PAGES = 50;
+const MAX_PAGES = 500;
 const CHUNK_SIZE = 1500; // characters per chunk — large enough for semantic meaning, small enough for precision
 const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
 const THIN_CONTENT_THRESHOLD = 300; // chars — below this, assume JS rendering is needed
@@ -32,13 +32,18 @@ async function fetchPageWithPuppeteer(url, browser) {
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
 
-    // Some JS-rendered sites show a loading overlay after networkidle2 — wait for it to clear
+    // Wait for meaningful content — handles JS frameworks that render after networkidle2
     try {
-      await page.waitForSelector('.loading-view', { hidden: true, timeout: 8000 });
-    } catch { /* no loading overlay, or it never appeared — carry on */ }
+      await page.waitForFunction(
+        () => (document.body?.innerText || '').trim().length > 100,
+        { timeout: 15000, polling: 500 }
+      );
+    } catch { /* timed out — extract whatever is there */ }
 
     const result = await page.evaluate(() => {
-      ['nav', 'footer', 'script', 'style', 'noscript', 'header'].forEach((tag) => {
+      // Only remove script/style/noscript — JS frameworks (Square, Webflow, etc.)
+      // often render real content inside nav/header/footer so we leave those alone
+      ['script', 'style', 'noscript'].forEach((tag) => {
         document.querySelectorAll(tag).forEach((el) => el.remove());
       });
       const text = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
@@ -152,10 +157,13 @@ async function scrapeSite(baseUrl) {
 
         for (const link of links) {
           try {
-            const resolved = new URL(link, baseUrl).href;
+            const resolved = new URL(link, url).href;
             const h = new URL(resolved).hostname;
             if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-              queue.push(resolved);
+              // Prioritize subdomain pages — put them at the front so they don't get
+              // crowded out by the long tail of main-site pagination/archive links
+              if (h !== baseDomain) queue.unshift(resolved);
+              else queue.push(resolved);
             }
           } catch {
             // invalid URL, skip
@@ -200,10 +208,13 @@ async function rescrapeSite(baseUrl, storedPages) {
 
         for (const link of links) {
           try {
-            const resolved = new URL(link, baseUrl).href;
+            const resolved = new URL(link, url).href;
             const h = new URL(resolved).hostname;
             if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(resolved)) {
-              queue.push(resolved);
+              // Prioritize subdomain pages — put them at the front so they don't get
+              // crowded out by the long tail of main-site pagination/archive links
+              if (h !== baseDomain) queue.unshift(resolved);
+              else queue.push(resolved);
             }
           } catch {
             // invalid URL, skip
