@@ -5,6 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 
+const { startLeoRefreshScheduler } = require('./src/services/leoRefresh');
 const chatRoutes = require('./src/routes/chat');
 const scrapeRoutes = require('./src/routes/scrape');
 const dashboardRoutes = require('./src/routes/dashboard');
@@ -51,6 +52,7 @@ mongoose
   .then(() => {
     console.log('Connected to MongoDB');
     server.listen(PORT, () => console.log(`LeoAI backend running on port ${PORT}`));
+    startLeoRefreshScheduler(io);
   })
   .catch((err) => {
     console.error('MongoDB connection failed:', err.message);
