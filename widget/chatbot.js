@@ -92,6 +92,7 @@
         </div>
       </div>
       <div id="leo-messages"></div>
+      <div id="leo-offline-msg" hidden>⚠️ Connection lost — you can still type, Leo will send your messages once he's back.</div>
       <div id="leo-input-row">
         <input id="leo-input" type="text" placeholder="Ask me anything..." autocomplete="off" />
         <button id="leo-send" aria-label="Send">Send</button>
@@ -110,8 +111,80 @@
   const consentEl    = document.getElementById('leo-consent');
   const messagesEl   = document.getElementById('leo-messages');
   const inputRow     = document.getElementById('leo-input-row');
-  const input     = document.getElementById('leo-input');
-  const sendBtn   = document.getElementById('leo-send');
+  const input      = document.getElementById('leo-input');
+  const sendBtn    = document.getElementById('leo-send');
+  const offlineMsg = document.getElementById('leo-offline-msg');
+
+  // --- Backend health checks & message queue ---
+  let isOnline     = true;
+  let healthTimer  = null;
+  let restoreTimer = null;
+  let backoffMs    = 5000;
+  let messageQueue = []; // queued while offline: [{ message, interactivePayload }]
+  const BACKOFF_CAP = 30000;
+  const ONLINE_POLL = 30000;
+  const RESTORE_MS  = 2600; // must match CSS animation duration
+
+  function updateOfflineBanner() {
+    const count = messageQueue.length;
+    offlineMsg.textContent = count > 0
+      ? `⚠️ Connection lost — ${count} message${count > 1 ? 's' : ''} queued and will send once Leo's back.`
+      : '⚠️ Connection lost — you can still type, Leo will send your messages once he\'s back.';
+  }
+
+  function setConnectionStatus(online) {
+    if (online === isOnline) return;
+    isOnline = online;
+    if (online) {
+      backoffMs = 5000;
+      clearTimeout(restoreTimer);
+      inputRow.classList.remove('leo-input-row--offline');
+      drawer.classList.remove('leo-drawer--offline');
+      drawer.classList.add('leo-drawer--restored');
+      offlineMsg.textContent = '✓ Connection restored!';
+      offlineMsg.classList.add('leo-offline-msg--restored');
+      offlineMsg.hidden = false;
+      restoreTimer = setTimeout(() => {
+        offlineMsg.hidden = true;
+        offlineMsg.classList.remove('leo-offline-msg--restored');
+        drawer.classList.remove('leo-drawer--restored');
+      }, RESTORE_MS);
+      // Drain queued messages — combine into one so Leo responds once
+      if (messageQueue.length) {
+        const combined = messageQueue.splice(0).map(q => q.message).join('\n\n');
+        sendMessage(combined, null, true);
+      }
+    } else {
+      clearTimeout(restoreTimer);
+      drawer.classList.remove('leo-drawer--restored');
+      offlineMsg.classList.remove('leo-offline-msg--restored');
+      drawer.classList.add('leo-drawer--offline');
+      inputRow.classList.add('leo-input-row--offline');
+      updateOfflineBanner();
+      offlineMsg.hidden = false;
+    }
+  }
+
+  async function checkHealth() {
+    clearTimeout(healthTimer);
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 5000);
+      const res  = await fetch(`${BACKEND_URL}/health`, { signal: ctrl.signal });
+      clearTimeout(tid);
+      setConnectionStatus(res.ok);
+      if (res.ok) {
+        healthTimer = setTimeout(checkHealth, ONLINE_POLL);
+      } else {
+        backoffMs = Math.min(backoffMs * 2, BACKOFF_CAP);
+        healthTimer = setTimeout(checkHealth, backoffMs);
+      }
+    } catch {
+      setConnectionStatus(false);
+      backoffMs = Math.min(backoffMs * 2, BACKOFF_CAP);
+      healthTimer = setTimeout(checkHealth, backoffMs);
+    }
+  }
 
   // --- Consent ---
   const CONSENT_KEY = `leo_consent_${domain}`;
@@ -252,6 +325,7 @@
     const isHidden = drawer.hidden;
     drawer.hidden = !isHidden;
     if (isHidden) {
+      checkHealth();
       if (!hasConsented()) {
         showConsent();
       } else {
@@ -473,13 +547,22 @@
 
   // --- Send a message ---
   // text: optional pre-formed text (from option buttons); interactivePayload: metadata
-  async function sendMessage(text, interactivePayload = null) {
+  // alreadyRendered: true when draining the offline queue (user bubble already in chat)
+  async function sendMessage(text, interactivePayload = null, alreadyRendered = false) {
     const message = text ?? input.value.trim();
     if (!message) return;
 
     clearActiveOptions();
     if (!text) input.value = '';
-    appendMessage('user', message, interactivePayload);
+    if (!alreadyRendered) appendMessage('user', message, interactivePayload);
+
+    // If offline, queue and show in chat optimistically — will send on reconnect
+    if (!isOnline) {
+      messageQueue.push({ message, interactivePayload });
+      updateOfflineBanner();
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -508,7 +591,9 @@
       }
     } catch {
       setLoading(false);
-      appendMessage('assistant', "I'm having trouble connecting right now. Please try again in a moment!");
+      messageQueue.push({ message, interactivePayload });
+      setConnectionStatus(false);
+      checkHealth();
     }
   }
 

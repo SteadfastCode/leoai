@@ -454,3 +454,67 @@
 
 #leo-send:hover { background: var(--leo-accent-hover); }
 #leo-send:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* ─── Offline / connection error ──────────────────────────────────── */
+@keyframes leo-error-glow {
+  0%, 100% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18); }
+  50%       { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 0 18px 6px rgba(239, 68, 68, 0.38); }
+}
+
+@keyframes leo-restore-glow {
+  0%   { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 0 18px 6px rgba(34, 197, 94, 0.5);
+         border-color: rgba(34, 197, 94, 0.55); }
+  100% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+         border-color: transparent; }
+}
+
+@keyframes leo-msg-fade {
+  0%, 60% { opacity: 1; }
+  100%     { opacity: 0; }
+}
+
+#leo-drawer.leo-drawer--offline {
+  border: 1.5px solid rgba(239, 68, 68, 0.45);
+  animation: leo-error-glow 2s ease-in-out infinite;
+}
+
+#leo-drawer.leo-drawer--restored {
+  border: 1.5px solid transparent;
+  animation: leo-restore-glow 2.5s ease-out forwards;
+}
+
+#leo-input-row.leo-input-row--offline {
+  border-top-color: rgba(239, 68, 68, 0.2);
+}
+
+#leo-offline-msg {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #dc2626;
+  text-align: center;
+  line-height: 1.4;
+  padding: 5px 14px;
+  border-top: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+#leo-offline-msg.leo-offline-msg--restored {
+  color: #16a34a;
+  border-top-color: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.04);
+  animation: leo-msg-fade 2.5s ease-out forwards;
+}
+
+@media (prefers-color-scheme: dark) {
+  #leo-drawer.leo-drawer--offline {
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+  #leo-offline-msg {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.08);
+  }
+  #leo-offline-msg.leo-offline-msg--restored {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.08);
+  }
+}
