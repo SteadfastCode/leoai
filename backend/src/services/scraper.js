@@ -27,7 +27,16 @@ function hashContent(text) {
 async function fetchPageWithPuppeteer(url, browser) {
   const page = await browser.newPage();
   try {
+    // Mimic a real browser to avoid bot detection
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+
+    // Some JS-rendered sites show a loading overlay after networkidle2 — wait for it to clear
+    try {
+      await page.waitForSelector('.loading-view', { hidden: true, timeout: 8000 });
+    } catch { /* no loading overlay, or it never appeared — carry on */ }
+
     const result = await page.evaluate(() => {
       ['nav', 'footer', 'script', 'style', 'noscript', 'header'].forEach((tag) => {
         document.querySelectorAll(tag).forEach((el) => el.remove());
