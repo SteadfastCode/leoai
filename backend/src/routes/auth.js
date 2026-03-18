@@ -174,12 +174,13 @@ router.post('/passkey/register-verify', requireAuth(), async (req, res) => {
     if (!verification.verified) return res.status(400).json({ error: 'Passkey verification failed' });
 
     const { registrationInfo } = verification;
+    const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
     user.passkeys.push({
-      credentialID: registrationInfo.credentialID,
-      credentialPublicKey: Buffer.from(registrationInfo.credentialPublicKey),
-      counter: registrationInfo.counter,
-      deviceType: registrationInfo.credentialDeviceType,
-      backedUp: registrationInfo.credentialBackedUp,
+      credentialID: Buffer.from(credential.id).toString('base64url'),
+      credentialPublicKey: Buffer.from(credential.publicKey),
+      counter: credential.counter,
+      deviceType: credentialDeviceType,
+      backedUp: credentialBackedUp,
       transports: body.response.transports || [],
       name: passkeyName || 'Passkey',
     });
@@ -235,9 +236,9 @@ router.post('/passkey/login-verify', async (req, res) => {
       expectedChallenge: user.currentChallenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
-      authenticator: {
-        credentialID: passkey.credentialID,
-        credentialPublicKey: passkey.credentialPublicKey,
+      credential: {
+        id: passkey.credentialID,
+        publicKey: passkey.credentialPublicKey,
         counter: passkey.counter,
         transports: passkey.transports,
       },
