@@ -52,6 +52,7 @@ async function fetchPageWithPuppeteer(url, browser) {
         .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:'));
       return { text, links };
     });
+    console.log(`Puppeteer: ${url} — ${result.text.length} chars`);
     return result;
   } finally {
     await page.close();
@@ -71,7 +72,7 @@ async function fetchPage(url, browser) {
   if (contentType.includes('application/pdf')) {
     const pdf = await pdfParse(response.data);
     const text = pdf.text.replace(/\s+/g, ' ').trim();
-    return { text, links: [] };
+    return { text, links: [], usedPuppeteer: false };
   }
 
   // Skip images and other binary types
@@ -104,13 +105,14 @@ async function fetchPage(url, browser) {
   if (text.length < THIN_CONTENT_THRESHOLD && browser) {
     console.log(`Thin content on ${url} (${text.length} chars) — retrying with Puppeteer`);
     try {
-      return await fetchPageWithPuppeteer(url, browser);
+      const puppeteerResult = await fetchPageWithPuppeteer(url, browser);
+      return { ...puppeteerResult, usedPuppeteer: true };
     } catch (err) {
       console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
     }
   }
 
-  return { text, links };
+  return { text, links, usedPuppeteer: false };
 }
 
 function chunkText(text, url) {
@@ -138,7 +140,9 @@ function chunkText(text, url) {
 }
 
 // Full scrape — crawls entire site, embeds all chunks
-async function scrapeSite(baseUrl) {
+async function scrapeSite(baseUrl, opts = {}) {
+  const { io, domain } = opts;
+  const startedAt = Date.now();
   const visited = new Set();
   const queue = [baseUrl];
   const pageData = []; // { url, text, hash }
@@ -152,8 +156,17 @@ async function scrapeSite(baseUrl) {
       visited.add(url);
 
       try {
-        const { text, links } = await fetchPage(url, browser);
+        const { text, links, usedPuppeteer } = await fetchPage(url, browser);
         pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
+
+        if (io && domain) {
+          io.to(`domain:${domain}`).emit('scrape_progress', {
+            url,
+            chars: text.length,
+            usedPuppeteer,
+            pagesVisited: visited.size,
+          });
+        }
 
         for (const link of links) {
           try {
@@ -177,11 +190,14 @@ async function scrapeSite(baseUrl) {
     await browser.close();
   }
 
-  return await embedPageData(pageData);
+  const chunks = await embedPageData(pageData);
+  return { chunks, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed
-async function rescrapeSite(baseUrl, storedPages) {
+async function rescrapeSite(baseUrl, storedPages, opts = {}) {
+  const { io, domain } = opts;
+  const startedAt = Date.now();
   const storedHashMap = new Map(storedPages.map((p) => [p.url, p.contentHash]));
   const visited = new Set();
   const queue = [baseUrl];
@@ -197,13 +213,22 @@ async function rescrapeSite(baseUrl, storedPages) {
       visited.add(url);
 
       try {
-        const { text, links } = await fetchPage(url, browser);
+        const { text, links, usedPuppeteer } = await fetchPage(url, browser);
         const hash = hashContent(text);
 
         if (storedHashMap.get(url) !== hash) {
           changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
         } else {
           unchangedUrls.push(url);
+        }
+
+        if (io && domain) {
+          io.to(`domain:${domain}`).emit('scrape_progress', {
+            url,
+            chars: text.length,
+            usedPuppeteer,
+            pagesVisited: visited.size,
+          });
         }
 
         for (const link of links) {
@@ -235,6 +260,7 @@ async function rescrapeSite(baseUrl, storedPages) {
     changedUrls: changedPages.map((p) => p.url),
     unchangedUrls,
     pageHashUpdates: changedPages.map((p) => ({ url: p.url, hash: p.hash, priority: p.priority })),
+    durationMs: Date.now() - startedAt,
   };
 }
 
