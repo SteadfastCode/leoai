@@ -34,7 +34,7 @@ function requireAuth(permission = null) {
     }
 
     const user = await User.findById(payload.sub).select(
-      '-hashedPassword -refreshTokens -passkeys -currentChallenge'
+      '-hashedPassword -refreshTokens -currentChallenge'
     );
     if (!user) return res.status(401).json({ error: 'User not found' });
 
