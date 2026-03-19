@@ -75,17 +75,39 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
     ? `\n\nSource pages this content came from:\n${sources.map((s) => `- ${s}`).join('\n')}`
     : '';
 
-  const contextContent = ragContext
-    ? `Here is the ONLY information you are allowed to use when answering the next question. It comes directly from ${entity.name}'s website.\n\nCRITICAL RULES:\n- Only state facts that are explicitly present in this content.\n- Do NOT infer, extrapolate, or fill gaps with what seems reasonable.\n- Do NOT use the entity's name or any outside knowledge to guess at products, services, or details not mentioned here.\n- If the answer is not clearly present in this content, say so honestly and offer to connect the visitor with someone who can help.\n\n${ragContext}${sourceNote}`
-    : `No relevant content was found in ${entity.name}'s website data for this query. Do NOT infer, guess, or assume anything — not from the business name, not from general knowledge, not from what seems reasonable. Ask a clarifying question or let the visitor know you don't have that information and offer to connect them with someone who does.`;
+  let contextContent;
+  let contextAck;
+
+  if (entity.churchModeEnabled) {
+    // Church mode: entity-specific content is available for church questions, but
+    // Leo must also be free to draw on built-in biblical/theological knowledge.
+    if (ragContext) {
+      contextContent =
+        `Here is content from ${entity.name}'s website that may be relevant to the visitor's question:\n\n${ragContext}${sourceNote}\n\n` +
+        `Use this website content for questions specific to ${entity.name} — their schedule, programs, staff, events, location, contact info, and ministry details.\n` +
+        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge — do not limit yourself to the website content for those topics.`;
+      contextAck =
+        `Understood. I'll use the website content for ${entity.name}-specific questions, and my own biblical and theological knowledge for Scripture, history, and apologetics questions.`;
+    } else {
+      contextContent =
+        `No content from ${entity.name}'s website matched this query. ` +
+        `For questions about the church specifically (hours, events, staff, programs), let the visitor know you don't have that detail and offer to connect them with the team. ` +
+        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge and answer fully.`;
+      contextAck =
+        `Understood. No church-specific content found — I'll answer biblical and theological questions from my own knowledge, and offer a handoff for church-specific details I don't have.`;
+    }
+  } else {
+    // Standard mode: KB is the only source of truth.
+    contextContent = ragContext
+      ? `Here is the ONLY information you are allowed to use when answering the next question. It comes directly from ${entity.name}'s website.\n\nCRITICAL RULES:\n- Only state facts that are explicitly present in this content.\n- Do NOT infer, extrapolate, or fill gaps with what seems reasonable.\n- Do NOT use the entity's name or any outside knowledge to guess at products, services, or details not mentioned here.\n- If the answer is not clearly present in this content, say so honestly and offer to connect the visitor with someone who can help.\n\n${ragContext}${sourceNote}`
+      : `No relevant content was found in ${entity.name}'s website data for this query. Do NOT infer, guess, or assume anything — not from the business name, not from general knowledge, not from what seems reasonable. Ask a clarifying question or let the visitor know you don't have that information and offer to connect them with someone who does.`;
+    contextAck = ragContext
+      ? 'Understood. I will only state facts explicitly present in that content and will not fill any gaps with inference or assumption.'
+      : 'Understood — I have no relevant website content for this query. I will not guess or infer. I will ask a clarifying question or offer a handoff.';
+  }
 
   messages.push({ role: 'user', content: contextContent });
-  messages.push({
-    role: 'assistant',
-    content: ragContext
-      ? 'Understood. I will only state facts explicitly present in that content and will not fill any gaps with inference or assumption.'
-      : 'Understood — I have no relevant website content for this query. I will not guess or infer. I will ask a clarifying question or offer a handoff.',
-  });
+  messages.push({ role: 'assistant', content: contextAck });
 
   // Append conversation history — map owner_reply to assistant so Claude API accepts it
   if (conversation?.messages?.length) {
