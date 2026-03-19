@@ -34,7 +34,9 @@ watch(() => props.domain, () => {
 
 // Live feed — socket events
 function onScrapeProgress(event) {
-  if (event.url.includes(props.domain)) {
+  const activeDomain = localStorage.getItem('leo_active_crawl_domain') || props.domain
+  if (event.url.includes(activeDomain) || event.url.includes(props.domain)) {
+    if (!scraping.value) scraping.value = true
     const host = (() => { try { return new URL(event.url).hostname } catch { return '' } })()
     const path = (() => { try { return new URL(event.url).pathname.slice(0, 55) } catch { return event.url.slice(0, 55) } })()
     const isSubdomain = host && !host.startsWith('www.') && host !== props.domain
@@ -52,6 +54,7 @@ function onScrapeProgress(event) {
 
 function onScrapeComplete(event) {
   scraping.value = false
+  localStorage.removeItem('leo_active_crawl_domain')
   scrapeResult.value = event
   snackbarMsg.value = event.durationFormatted
     ? `Scrape complete in ${event.durationFormatted} — ${event.pagesChanged ?? event.pagesScraped} pages updated`
@@ -63,6 +66,16 @@ function onScrapeComplete(event) {
 onMounted(() => {
   socket.on('scrape_progress', onScrapeProgress)
   socket.on('scrape_complete', onScrapeComplete)
+
+  // If a superadmin crawl was in progress before a refresh, rejoin that room
+  // so progress events resume. scraping state will be set by the first arriving event.
+  if (isSuperAdmin.value) {
+    const activeDomain = localStorage.getItem('leo_active_crawl_domain')
+    if (activeDomain) {
+      socket.emit('join_domain', activeDomain)
+      scraping.value = true
+    }
+  }
 })
 onUnmounted(() => {
   socket.off('scrape_progress', onScrapeProgress)
@@ -88,6 +101,9 @@ async function crawlNewSite() {
   scraping.value = true
   scrapeResult.value = null
   scrapeLog.value = []
+  localStorage.setItem('leo_active_crawl_domain', newSiteDomain.value)
+  // Join the new domain's socket room so progress events arrive
+  socket.emit('join_domain', newSiteDomain.value)
   try {
     await triggerScrape({
       domain: newSiteDomain.value,
@@ -98,6 +114,7 @@ async function crawlNewSite() {
     newSitePanel.value = false
   } catch {
     scraping.value = false
+    localStorage.removeItem('leo_active_crawl_domain')
     snackbarMsg.value = 'Crawl failed — check backend logs'
     snackbar.value = true
   }
@@ -132,7 +149,7 @@ function formatDate(d) {
   <div class="pa-6">
     <div class="d-flex align-center justify-space-between mb-1">
       <div class="text-h5 font-weight-bold">Knowledge Base</div>
-      <div class="d-flex gap-3">
+      <div class="d-flex" style="gap: 16px">
         <v-btn
           v-if="isSuperAdmin"
           variant="tonal"
@@ -159,7 +176,7 @@ function formatDate(d) {
       <v-card v-if="isSuperAdmin && newSitePanel" rounded="lg" elevation="0" border class="mb-4">
         <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Crawl New Site</v-card-title>
         <v-card-text class="pt-4">
-          <div class="d-flex gap-4 flex-wrap align-start">
+          <div class="d-flex flex-wrap align-start" style="gap: 20px">
             <v-text-field
               v-model="newSiteUrl"
               label="Site URL"
