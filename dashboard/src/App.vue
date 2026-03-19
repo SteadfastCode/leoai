@@ -203,6 +203,15 @@ async function handleReAuthPasskey() {
         </v-list>
 
         <template #append>
+          <div class="pa-3 sidebar-border-top d-flex" :class="rail ? 'justify-center' : 'justify-end'">
+            <v-btn
+              :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
+              :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+              size="small"
+              variant="text"
+              @click="toggleTheme"
+            />
+          </div>
           <div v-if="user" class="pa-3 sidebar-border-top">
             <div class="d-flex align-center" :class="rail ? 'justify-center' : 'justify-space-between'">
               <template v-if="!rail">
@@ -226,16 +235,6 @@ async function handleReAuthPasskey() {
         <router-view :domain="selectedDomain" :entity="selectedEntity()" />
       </v-main>
 
-      <!-- Dark mode toggle -->
-      <v-btn
-        :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
-        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-        size="40"
-        variant="tonal"
-        color="primary"
-        style="position: fixed; top: 16px; right: 16px; z-index: 1000; border-radius: 50%"
-        @click="toggleTheme"
-      />
     </template>
 
     <!-- ── Unauthenticated: full-screen router-view (Login page) ── -->

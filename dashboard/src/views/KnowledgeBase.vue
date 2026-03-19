@@ -132,7 +132,7 @@ function formatDate(d) {
   <div class="pa-6">
     <div class="d-flex align-center justify-space-between mb-1">
       <div class="text-h5 font-weight-bold">Knowledge Base</div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-3">
         <v-btn
           v-if="isSuperAdmin"
           variant="tonal"
@@ -159,7 +159,7 @@ function formatDate(d) {
       <v-card v-if="isSuperAdmin && newSitePanel" rounded="lg" elevation="0" border class="mb-4">
         <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Crawl New Site</v-card-title>
         <v-card-text class="pt-4">
-          <div class="d-flex gap-3 flex-wrap align-start">
+          <div class="d-flex gap-4 flex-wrap align-start">
             <v-text-field
               v-model="newSiteUrl"
               label="Site URL"
