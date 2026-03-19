@@ -56,17 +56,23 @@ const entityNavItems = [
 
 const adminNavItems = [
   { title: 'Crawls', icon: 'mdi-web-sync', to: '/crawls' },
+  { title: 'Chat', icon: 'mdi-chat-outline', to: '/chat-preview' },
 ]
 
 async function loadEntities() {
   try {
     const { data } = await getEntities()
-    entities.value = data
-    if (!selectedDomain.value && data.length) {
-      selectedDomain.value = data[0].domain
+    entities.value = [...data].sort((a, b) => a.name.localeCompare(b.name))
+    if (!selectedDomain.value && entities.value.length) {
+      selectedDomain.value = entities.value[0].domain
     }
     localStorage.setItem('leo_dashboard_domain', selectedDomain.value)
   } catch { /* handled by api interceptor */ }
+}
+
+function onEntityUpdated(updated) {
+  const idx = entities.value.findIndex(e => e.domain === updated.domain)
+  if (idx !== -1) entities.value[idx] = updated
 }
 
 onMounted(() => {
@@ -269,7 +275,7 @@ async function handleReAuthPasskey() {
       </v-navigation-drawer>
 
       <v-main>
-        <router-view :domain="selectedDomain" :entity="selectedEntity()" />
+        <router-view :domain="selectedDomain" :entity="selectedEntity()" :entities-list="entities" @entity-updated="onEntityUpdated" />
       </v-main>
 
     </template>

@@ -122,6 +122,36 @@
   background: rgba(255, 255, 255, 0.8);
 }
 
+/* ─── Width resize handle ─────────────────────────────────────────── */
+#leo-resize-width-handle {
+  position: absolute;
+  left: 0;
+  top: 10px; /* below the height handle */
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 10;
+  border-radius: 0 0 0 16px;
+}
+
+#leo-resize-width-handle::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.0);
+  border-radius: 2px;
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  transform: translateY(-50%);
+  transition: background 0.15s;
+}
+
+#leo-resize-width-handle:hover::after {
+  background: rgba(37, 99, 235, 0.45);
+}
+
 /* ─── Header ──────────────────────────────────────────────────────── */
 #leo-header {
   background: var(--leo-accent);
@@ -289,6 +319,24 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+}
+
+#leo-messages::-webkit-scrollbar { width: 4px; }
+#leo-messages::-webkit-scrollbar-track { background: transparent; }
+#leo-messages::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 4px;
+}
+#leo-messages::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.6); }
+
+@media (prefers-color-scheme: dark) {
+  #leo-messages {
+    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  }
+  #leo-messages::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); }
+  #leo-messages::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
 }
 
 .leo-msg {

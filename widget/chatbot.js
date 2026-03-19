@@ -51,6 +51,7 @@
     </button>
     <div id="leo-drawer" role="dialog" aria-label="Leo Chat" hidden>
       <div id="leo-resize-handle"></div>
+      <div id="leo-resize-width-handle"></div>
       <div id="leo-header">
         <span id="leo-header-title">🦁 Leo</span>
         <div id="leo-header-actions">
@@ -105,7 +106,8 @@
   const bubble       = document.getElementById('leo-bubble');
   const drawer       = document.getElementById('leo-drawer');
   const closeBtn     = document.getElementById('leo-close');
-  const resizeHandle = document.getElementById('leo-resize-handle');
+  const resizeHandle      = document.getElementById('leo-resize-handle');
+  const widthResizeHandle = document.getElementById('leo-resize-width-handle');
   const menuBtn      = document.getElementById('leo-menu-btn');
   const menu         = document.getElementById('leo-menu');
   const consentEl    = document.getElementById('leo-consent');
@@ -255,6 +257,10 @@
       hasMoreHistory = data.hasMore;
       if (!before && data.entityConfig) {
         linksOpenInNewTab = data.entityConfig.linksOpenInNewTab ?? true;
+        if (data.entityConfig.name) {
+          const titleEl = document.getElementById('leo-header-title');
+          if (titleEl) titleEl.textContent = '🦁 ' + data.entityConfig.name;
+        }
       }
 
       // Preserve scroll position when prepending
@@ -359,6 +365,30 @@
       const delta = startY - e.clientY;
       const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + delta));
       drawer.style.height = newHeight + 'px';
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  // --- Width resize handle ---
+  const MIN_WIDTH = 260;
+  const MAX_WIDTH = Math.min(600, window.innerWidth - 32);
+
+  widthResizeHandle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = drawer.offsetWidth;
+
+    function onMouseMove(e) {
+      const delta = startX - e.clientX; // dragging left expands width
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+      drawer.style.width = newWidth + 'px';
     }
 
     function onMouseUp() {

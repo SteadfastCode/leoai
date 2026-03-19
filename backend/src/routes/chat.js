@@ -222,7 +222,7 @@ router.get('/history', async (req, res) => {
       Entity.findOne({ domain }).select('linksOpenInNewTab'),
     ]);
 
-    const entityConfig = { linksOpenInNewTab: entity?.linksOpenInNewTab ?? true };
+    const entityConfig = { linksOpenInNewTab: entity?.linksOpenInNewTab ?? true, name: entity?.name || '' };
 
     if (!conversation || !conversation.messages.length) {
       return res.json({ messages: [], hasMore: false, entityConfig });

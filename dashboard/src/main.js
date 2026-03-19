@@ -17,6 +17,7 @@ import ResetPassword from './views/ResetPassword.vue'
 import Team from './views/Team.vue'
 import AcceptInvite from './views/AcceptInvite.vue'
 import Crawls from './views/Crawls.vue'
+import Chat from './views/Chat.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -61,6 +62,7 @@ const router = createRouter({
     { path: '/billing', component: Billing },
     { path: '/team', component: Team },
     { path: '/crawls', component: Crawls },
+    { path: '/chat-preview', component: Chat },
   ],
 })
 

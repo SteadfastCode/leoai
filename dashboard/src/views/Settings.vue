@@ -6,6 +6,7 @@ import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
+const emit = defineEmits(['entity-updated'])
 const form = ref({})
 const saving = ref(false)
 const snackbar = ref(false)
@@ -132,7 +133,8 @@ async function disableLeoRefresh() {
 async function save() {
   saving.value = true
   try {
-    await updateEntity(props.domain, form.value)
+    const { data } = await updateEntity(props.domain, form.value)
+    emit('entity-updated', data)
     snackbarMsg.value = 'Settings saved'
     snackbar.value = true
   } catch {
@@ -297,23 +299,25 @@ async function save() {
         <v-card rounded="lg" elevation="0" border>
           <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Church & Ministry Mode</v-card-title>
           <v-card-text class="pt-4">
-            <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-4" />
-            <template v-if="form.churchModeEnabled">
-              <v-btn
-                size="small"
-                variant="tonal"
-                prepend-icon="mdi-database-search"
-                :loading="extractingChurchConfig"
-                class="mb-4"
-                @click="populateChurchConfigFromKb"
-              >
-                Populate from Knowledge Base
-              </v-btn>
-              <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
-              <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
-              <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
-              <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
-            </template>
+            <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-2" />
+            <Transition name="church-expand">
+              <div v-if="form.churchModeEnabled" class="church-config-fields">
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  prepend-icon="mdi-database-search"
+                  :loading="extractingChurchConfig"
+                  class="mb-4"
+                  @click="populateChurchConfigFromKb"
+                >
+                  Populate from Knowledge Base
+                </v-btn>
+                <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
+                <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
+                <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
+                <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
+              </div>
+            </Transition>
           </v-card-text>
         </v-card>
       </template>
@@ -415,9 +419,27 @@ async function save() {
   margin-bottom: 16px;
 }
 
-
 .passkey-name-input {
   min-width: 200px;
   flex: 1;
+}
+
+/* Church config expand/collapse animation */
+.church-config-fields {
+  overflow: hidden;
+  padding-top: 8px;
+}
+
+.church-expand-enter-active,
+.church-expand-leave-active {
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+  max-height: 900px;
+  overflow: hidden;
+}
+
+.church-expand-enter-from,
+.church-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
 }
 </style>
