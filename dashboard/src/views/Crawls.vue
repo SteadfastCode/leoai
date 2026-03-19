@@ -107,7 +107,7 @@ const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) 
 </script>
 
 <template>
-  <div class="pa-6" style="max-width: 860px">
+  <div class="pa-6">
     <div class="d-flex align-center justify-space-between mb-6">
       <div class="text-h5 font-weight-bold">Crawls</div>
       <v-btn
@@ -178,6 +178,7 @@ const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) 
           <v-icon v-else-if="crawl.result?.success" size="16" color="success" class="flex-shrink-0">mdi-check-circle</v-icon>
           <v-icon v-else size="16" color="error" class="flex-shrink-0">mdi-alert-circle</v-icon>
           <span>{{ crawl.name }}</span>
+          <span class="text-medium-emphasis font-weight-regular" style="font-size: 12px; padding: 0 4px">·</span>
           <span class="text-caption text-medium-emphasis font-weight-regular">{{ crawl.domain }}</span>
           <v-chip size="x-small" variant="tonal" :color="crawl.mode === 'full' ? 'primary' : 'default'" class="ml-1">
             {{ crawl.mode === 'full' ? 'full crawl' : 'rescrape' }}

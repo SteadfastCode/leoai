@@ -62,7 +62,7 @@ function setMinimized(domain, val) {
       Test Leo as a visitor would experience it. Open multiple entity chats at once.
     </div>
 
-    <div class="d-flex align-center gap-3 mb-4">
+    <div class="d-flex align-center mb-6" style="gap: 16px">
       <v-autocomplete
         v-model="addDomain"
         :items="availableEntities"
@@ -70,14 +70,15 @@ function setMinimized(domain, val) {
         item-value="domain"
         label="Select entity"
         variant="outlined"
-        density="compact"
+        density="comfortable"
         hide-details
         clearable
-        style="max-width: 320px"
+        style="max-width: 340px"
         no-data-text="All entities already open"
       />
       <v-btn
         color="primary"
+        size="large"
         prepend-icon="mdi-chat-plus-outline"
         :disabled="!addDomain"
         @click="openChat(addDomain)"

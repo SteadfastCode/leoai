@@ -30,7 +30,15 @@ const loading       = ref(false)
 const historyLoaded = ref(false)
 const confirmClear  = ref(false)
 const messagesEl    = ref(null)
-const bodyHeight    = ref(360) // px — user-resizable
+
+// ── Persistent sizing ──────────────────────────────────────────────────────
+const SIZE_KEY = `leo_admin_chat_size_${props.domain}`
+function loadSize() {
+  try { return JSON.parse(localStorage.getItem(SIZE_KEY) || '{}') } catch { return {} }
+}
+const saved     = loadSize()
+const bodyHeight  = ref(saved.height || 360)
+const windowWidth = ref(saved.width  || 288)
 
 // ── Scroll ─────────────────────────────────────────────────────────────────
 function scrollToBottom() {
@@ -106,11 +114,15 @@ function clearChat() {
 }
 
 // ── Resize (height) ────────────────────────────────────────────────────────
+// Save size to localStorage whenever either dimension changes
+watch([bodyHeight, windowWidth], () => {
+  localStorage.setItem(SIZE_KEY, JSON.stringify({ height: bodyHeight.value, width: windowWidth.value }))
+})
+
 const MIN_H = 200
 const MAX_H = () => window.innerHeight - 160
 const MIN_W = 220
 const MAX_W = () => Math.min(600, window.innerWidth - 32)
-const windowWidth = ref(288)
 
 function onResizeMousedown(e) {
   e.preventDefault()
@@ -171,30 +183,27 @@ function renderContent(text) {
         <span style="font-size: 15px; flex-shrink: 0">🦁</span>
         <span class="chat-window-title text-truncate">{{ entityName || domain }}</span>
       </div>
-      <div class="d-flex align-center">
+      <div class="chat-header-actions">
         <v-btn
           icon="mdi-trash-can-outline"
-          size="x-small"
+          size="small"
           variant="text"
           color="white"
-          density="compact"
           title="Clear conversation"
           @click.stop="confirmClear = !confirmClear"
         />
         <v-btn
           :icon="minimized ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-          size="x-small"
+          size="small"
           variant="text"
           color="white"
-          density="compact"
           @click.stop="emit('update:minimized', !minimized)"
         />
         <v-btn
           icon="mdi-close"
-          size="x-small"
+          size="small"
           variant="text"
           color="white"
-          density="compact"
           title="Close (history saved)"
           @click.stop="emit('close')"
         />
@@ -294,12 +303,19 @@ function renderContent(text) {
 .chat-window-header {
   background: #2563eb;
   color: #fff;
-  padding: 7px 6px 7px 10px;
+  padding: 6px 4px 6px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
   flex-shrink: 0;
 }
 
