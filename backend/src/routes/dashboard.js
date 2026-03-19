@@ -8,7 +8,9 @@ const ScrapedPage = require('../models/ScrapedPage');
 const Invite = require('../models/Invite');
 const User = require('../models/User');
 const { embedTexts } = require('../services/embeddings');
+const { retrieveContext } = require('../services/rag');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
+const Anthropic = require('@anthropic-ai/sdk');
 const { PERMISSIONS } = require('../models/Permission');
 const { sendEmailRaw } = require('../services/notifications');
 
@@ -181,6 +183,57 @@ router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async 
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
     res.json(entity);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Church config extraction from KB (superadmin only)
+// ---------------------------------------------------------------------------
+
+// POST /api/dashboard/entities/:domain/church-config/extract
+router.post('/entities/:domain/church-config/extract', async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const { context } = await retrieveContext(
+      req.params.domain,
+      'mission statement beliefs statement of faith denominational distinctives pastoral tone core values'
+    );
+
+    if (!context) return res.status(404).json({ error: 'No knowledge base content found for this entity.' });
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `You are helping configure a church chatbot. Extract the following from the church website content below. Return ONLY a valid JSON object with these exact keys (use empty string if not found):
+- missionStatement: the church's mission or purpose statement
+- statementOfFaith: core doctrinal beliefs or statement of faith
+- denominationalDistinctives: denomination, theological tradition, or distinctive beliefs
+- pastoralToneNotes: tone/style of communication (e.g. warm and conversational, liturgical, charismatic)
+
+Website content:
+${context}
+
+JSON:`,
+      }],
+    });
+
+    let extracted = {};
+    try {
+      const text = message.content[0].text.trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    } catch {
+      return res.status(500).json({ error: 'Could not parse extracted content. Try again or fill in manually.' });
+    }
+
+    res.json(extracted);
+  } catch (err) {
+    console.error('Church config extraction error:', err);
     res.status(500).json({ error: err.message });
   }
 });

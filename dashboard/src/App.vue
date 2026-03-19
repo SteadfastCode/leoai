@@ -102,6 +102,10 @@ function selectEntity(domain) {
   router.push('/overview')
 }
 
+watch(navLayer, (val) => {
+  router.push(val === 'admin' ? '/crawls' : '/overview')
+})
+
 const selectedEntity = () => entities.value.find(e => e.domain === selectedDomain.value)
 
 // ---------------------------------------------------------------------------

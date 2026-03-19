@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
-import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh } from '../lib/api'
+import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig } from '../lib/api'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
@@ -12,6 +12,7 @@ const snackbar = ref(false)
 const snackbarMsg = ref('')
 const leoRefreshLoading = ref(false)
 const cancellingLeoRefresh = ref(false)
+const extractingChurchConfig = ref(false)
 
 watch(() => props.entity, (e) => {
   if (e) form.value = {
@@ -82,6 +83,24 @@ const timezones = [
   'America/New_York', 'America/Chicago', 'America/Denver',
   'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu',
 ]
+
+async function populateChurchConfigFromKb() {
+  extractingChurchConfig.value = true
+  try {
+    const { data } = await extractChurchConfig(props.domain)
+    if (data.missionStatement)        form.value.churchConfig.missionStatement        = data.missionStatement
+    if (data.statementOfFaith)        form.value.churchConfig.statementOfFaith        = data.statementOfFaith
+    if (data.denominationalDistinctives) form.value.churchConfig.denominationalDistinctives = data.denominationalDistinctives
+    if (data.pastoralToneNotes)       form.value.churchConfig.pastoralToneNotes       = data.pastoralToneNotes
+    snackbarMsg.value = 'Fields populated from knowledge base — review and save'
+    snackbar.value = true
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Could not extract from knowledge base'
+    snackbar.value = true
+  } finally {
+    extractingChurchConfig.value = false
+  }
+}
 
 async function enableLeoRefresh() {
   leoRefreshLoading.value = true
@@ -268,6 +287,16 @@ async function save() {
           <v-card-text class="pt-4">
             <v-switch v-model="form.churchModeEnabled" label="Enable Church & Ministry Mode" color="primary" hide-details class="mb-4" />
             <template v-if="form.churchModeEnabled">
+              <v-btn
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-database-search"
+                :loading="extractingChurchConfig"
+                class="mb-4"
+                @click="populateChurchConfigFromKb"
+              >
+                Populate from Knowledge Base
+              </v-btn>
               <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
               <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
               <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
