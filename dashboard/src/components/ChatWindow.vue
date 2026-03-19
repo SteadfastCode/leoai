@@ -108,6 +108,9 @@ function clearChat() {
 // ── Resize (height) ────────────────────────────────────────────────────────
 const MIN_H = 200
 const MAX_H = () => window.innerHeight - 160
+const MIN_W = 220
+const MAX_W = () => Math.min(600, window.innerWidth - 32)
+const windowWidth = ref(288)
 
 function onResizeMousedown(e) {
   e.preventDefault()
@@ -117,6 +120,23 @@ function onResizeMousedown(e) {
   function onMove(e) {
     const delta = startY - e.clientY          // drag up → taller
     bodyHeight.value = Math.min(MAX_H(), Math.max(MIN_H, startH + delta))
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+function onWidthResizeMousedown(e) {
+  e.preventDefault()
+  const startX = e.clientX
+  const startW = windowWidth.value
+
+  function onMove(e) {
+    const delta = startX - e.clientX   // drag left → wider (window anchored to right)
+    windowWidth.value = Math.min(MAX_W(), Math.max(MIN_W, startW + delta))
   }
   function onUp() {
     document.removeEventListener('mousemove', onMove)
@@ -140,7 +160,10 @@ function renderContent(text) {
 </script>
 
 <template>
-  <div class="chat-window" :class="{ 'chat-window--minimized': minimized }">
+  <div class="chat-window" :class="{ 'chat-window--minimized': minimized }" :style="{ width: windowWidth + 'px' }">
+
+    <!-- ── Left-edge width resize handle ── -->
+    <div class="chat-width-handle" @mousedown="onWidthResizeMousedown" />
 
     <!-- ── Header ── -->
     <div class="chat-window-header" @click="emit('update:minimized', !minimized)">
@@ -228,7 +251,7 @@ function renderContent(text) {
 
 <style scoped>
 .chat-window {
-  width: 288px;
+  /* width driven by windowWidth ref via inline :style */
   display: flex;
   flex-direction: column;
   border-radius: 10px 10px 0 0;
@@ -236,6 +259,35 @@ function renderContent(text) {
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.22);
   background: rgb(var(--v-theme-surface));
   flex-shrink: 0;
+  position: relative;
+}
+
+/* ── Left-edge width resize handle ── */
+.chat-width-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 10;
+}
+
+.chat-width-handle::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 28px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.chat-width-handle:hover::after {
+  background: rgba(37, 99, 235, 0.5);
 }
 
 /* ── Header ── */
