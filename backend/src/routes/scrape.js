@@ -4,6 +4,7 @@ const Entity = require('../models/Entity');
 const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
+const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 
 function formatDuration(ms) {
   const s = Math.round(ms / 1000);
@@ -11,8 +12,14 @@ function formatDuration(ms) {
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth(), async (req, res) => {
   const { domain, url, name, timezone, rescrape } = req.body;
+
+  // Superadmins can crawl any domain. Owners can only rescrape their own domain.
+  if (!isSuperAdmin(req.user)) {
+    const hasMembership = req.user.memberships?.some((m) => m.entityDomain === domain);
+    if (!hasMembership) return res.status(403).json({ error: 'Forbidden' });
+  }
 
   if (!domain || !url || !name) {
     return res.status(400).json({ error: 'domain, url, and name are required' });

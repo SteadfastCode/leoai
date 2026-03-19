@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { getPages, triggerScrape, getStats } from '../lib/api'
+import { isSuperAdmin } from '../lib/auth'
 import { socket } from '../lib/socket'
 
 const props = defineProps(['domain', 'entity'])
@@ -68,6 +69,40 @@ onUnmounted(() => {
   socket.off('scrape_complete', onScrapeComplete)
 })
 
+// Superadmin — crawl any site
+const newSiteUrl  = ref('')
+const newSiteName = ref('')
+const newSitePanel = ref(false)
+
+const newSiteDomain = computed(() => {
+  try {
+    const h = new URL(newSiteUrl.value).hostname
+    return h.startsWith('www.') ? h.slice(4) : h
+  } catch {
+    return ''
+  }
+})
+
+async function crawlNewSite() {
+  if (!newSiteDomain.value || !newSiteName.value) return
+  scraping.value = true
+  scrapeResult.value = null
+  scrapeLog.value = []
+  try {
+    await triggerScrape({
+      domain: newSiteDomain.value,
+      url: newSiteUrl.value,
+      name: newSiteName.value,
+      rescrape: false,
+    })
+    newSitePanel.value = false
+  } catch {
+    scraping.value = false
+    snackbarMsg.value = 'Crawl failed — check backend logs'
+    snackbar.value = true
+  }
+}
+
 async function rescrape() {
   if (!props.entity) return
   scraping.value = true
@@ -97,16 +132,71 @@ function formatDate(d) {
   <div class="pa-6">
     <div class="d-flex align-center justify-space-between mb-1">
       <div class="text-h5 font-weight-bold">Knowledge Base</div>
-      <v-btn
-        color="primary"
-        prepend-icon="mdi-refresh"
-        :loading="scraping"
-        @click="rescrape"
-      >
-        Rescrape
-      </v-btn>
+      <div class="d-flex gap-2">
+        <v-btn
+          v-if="isSuperAdmin"
+          variant="tonal"
+          prepend-icon="mdi-plus"
+          :disabled="scraping"
+          @click="newSitePanel = !newSitePanel"
+        >
+          Crawl New Site
+        </v-btn>
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-refresh"
+          :loading="scraping"
+          @click="rescrape"
+        >
+          Rescrape
+        </v-btn>
+      </div>
     </div>
-    <div class="text-body-2 text-secondary mb-6">{{ pages.length }} pages tracked</div>
+    <div class="text-body-2 text-secondary mb-4">{{ pages.length }} pages tracked</div>
+
+    <!-- Superadmin: crawl any new site -->
+    <v-expand-transition>
+      <v-card v-if="isSuperAdmin && newSitePanel" rounded="lg" elevation="0" border class="mb-4">
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Crawl New Site</v-card-title>
+        <v-card-text class="pt-4">
+          <div class="d-flex gap-3 flex-wrap align-start">
+            <v-text-field
+              v-model="newSiteUrl"
+              label="Site URL"
+              placeholder="https://example.com"
+              variant="outlined"
+              density="compact"
+              hide-details="auto"
+              style="min-width: 260px; flex: 2"
+            />
+            <v-text-field
+              v-model="newSiteName"
+              label="Entity Name"
+              placeholder="Example Business"
+              variant="outlined"
+              density="compact"
+              hide-details="auto"
+              style="min-width: 200px; flex: 1"
+            />
+            <div class="d-flex flex-column gap-1">
+              <v-btn
+                color="primary"
+                variant="tonal"
+                prepend-icon="mdi-web"
+                :disabled="!newSiteDomain || !newSiteName || scraping"
+                :loading="scraping"
+                @click="crawlNewSite"
+              >
+                Start Crawl
+              </v-btn>
+              <div v-if="newSiteDomain" class="text-caption text-medium-emphasis text-center">
+                domain: {{ newSiteDomain }}
+              </div>
+            </div>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-expand-transition>
 
     <!-- Live scrape feed -->
     <v-card v-if="scraping || scrapeLog.length" rounded="lg" elevation="0" border class="mb-4">
