@@ -9,7 +9,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'update:minimized'])
 
-// Persist session token per domain so history survives navigation
+// ── Session token ──────────────────────────────────────────────────────────
+// Stored per-domain so closing and reopening resumes the same conversation.
 const SESSION_KEY = `leo_admin_preview_${props.domain}`
 function getSessionToken() {
   let token = localStorage.getItem(SESSION_KEY)
@@ -21,20 +22,28 @@ function getSessionToken() {
 }
 const sessionToken = ref(getSessionToken())
 
-const messages = ref([])
-const inputText = ref('')
-const sending = ref(false)
-const loading = ref(true)
-const messagesEl = ref(null)
-const confirmClear = ref(false)
+// ── State ──────────────────────────────────────────────────────────────────
+const messages      = ref([])
+const inputText     = ref('')
+const sending       = ref(false)
+const loading       = ref(false)
+const historyLoaded = ref(false)
+const confirmClear  = ref(false)
+const messagesEl    = ref(null)
+const bodyHeight    = ref(360) // px — user-resizable
 
+// ── Scroll ─────────────────────────────────────────────────────────────────
 function scrollToBottom() {
   nextTick(() => {
     if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight
   })
 }
 
-async function loadHistory() {
+// ── Lazy history load ──────────────────────────────────────────────────────
+// Only fires on first expand — restored/minimized windows don't pre-fetch.
+async function loadHistoryOnce() {
+  if (historyLoaded.value) return
+  historyLoaded.value = true
   loading.value = true
   try {
     const { data } = await api.get('/chat/history', {
@@ -46,12 +55,18 @@ async function loadHistory() {
   scrollToBottom()
 }
 
-onMounted(loadHistory)
-
-watch(() => props.minimized, (val) => {
-  if (!val) scrollToBottom()
+onMounted(() => {
+  if (!props.minimized) loadHistoryOnce()
 })
 
+watch(() => props.minimized, (val) => {
+  if (!val) {
+    loadHistoryOnce()
+    scrollToBottom()
+  }
+})
+
+// ── Send ───────────────────────────────────────────────────────────────────
 async function send() {
   const msg = inputText.value.trim()
   if (!msg || sending.value) return
@@ -68,7 +83,10 @@ async function send() {
     messages.value.push({ role: 'assistant', content: data.reply })
     scrollToBottom()
   } catch (err) {
-    messages.value.push({ role: 'assistant', content: '⚠️ ' + (err.response?.data?.message || 'Something went wrong.') })
+    messages.value.push({
+      role: 'assistant',
+      content: '⚠️ ' + (err.response?.data?.message || 'Something went wrong.'),
+    })
     scrollToBottom()
   } finally {
     sending.value = false
@@ -79,6 +97,7 @@ function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
 }
 
+// ── Clear ──────────────────────────────────────────────────────────────────
 function clearChat() {
   localStorage.removeItem(SESSION_KEY)
   sessionToken.value = getSessionToken()
@@ -86,6 +105,28 @@ function clearChat() {
   confirmClear.value = false
 }
 
+// ── Resize (height) ────────────────────────────────────────────────────────
+const MIN_H = 200
+const MAX_H = () => window.innerHeight - 160
+
+function onResizeMousedown(e) {
+  e.preventDefault()
+  const startY   = e.clientY
+  const startH   = bodyHeight.value
+
+  function onMove(e) {
+    const delta = startY - e.clientY          // drag up → taller
+    bodyHeight.value = Math.min(MAX_H(), Math.max(MIN_H, startH + delta))
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+// ── Markdown render ────────────────────────────────────────────────────────
 function renderContent(text) {
   return text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -100,7 +141,8 @@ function renderContent(text) {
 
 <template>
   <div class="chat-window" :class="{ 'chat-window--minimized': minimized }">
-    <!-- Header -->
+
+    <!-- ── Header ── -->
     <div class="chat-window-header" @click="emit('update:minimized', !minimized)">
       <div class="d-flex align-center gap-2 flex-1 min-width-0">
         <span style="font-size: 15px; flex-shrink: 0">🦁</span>
@@ -113,8 +155,8 @@ function renderContent(text) {
           variant="text"
           color="white"
           density="compact"
-          title="Clear chat"
-          @click.stop="confirmClear = true"
+          title="Clear conversation"
+          @click.stop="confirmClear = !confirmClear"
         />
         <v-btn
           :icon="minimized ? 'mdi-chevron-up' : 'mdi-chevron-down'"
@@ -130,22 +172,24 @@ function renderContent(text) {
           variant="text"
           color="white"
           density="compact"
+          title="Close (history saved)"
           @click.stop="emit('close')"
         />
       </div>
     </div>
 
-    <!-- Confirm clear overlay -->
+    <!-- ── Confirm clear ── -->
     <div v-if="confirmClear && !minimized" class="chat-confirm-clear">
-      <div class="text-body-2 font-weight-medium mb-3">Clear this conversation?</div>
-      <div class="d-flex gap-2">
+      <span class="text-body-2">Clear this conversation?</span>
+      <div class="d-flex gap-2 mt-2">
         <v-btn size="small" color="error" variant="tonal" @click="clearChat">Clear</v-btn>
         <v-btn size="small" variant="text" @click="confirmClear = false">Cancel</v-btn>
       </div>
     </div>
 
-    <!-- Body — use v-show so it stays mounted (preserves scroll) when minimized -->
-    <div v-show="!minimized" class="chat-window-body">
+    <!-- ── Resize handle + body (v-show keeps mounted so scroll position survives minimize) ── -->
+    <div v-show="!minimized" class="chat-resize-handle" @mousedown="onResizeMousedown" />
+    <div v-show="!minimized" class="chat-window-body" :style="{ height: bodyHeight + 'px' }">
       <div ref="messagesEl" class="chat-window-messages">
         <div v-if="loading" class="chat-status-msg">Loading…</div>
         <div v-else-if="!messages.length" class="chat-status-msg">
@@ -164,6 +208,7 @@ function renderContent(text) {
           <div class="chat-msg-bubble chat-msg-bubble--typing">···</div>
         </div>
       </div>
+
       <div class="chat-window-input">
         <input
           v-model="inputText"
@@ -177,6 +222,7 @@ function renderContent(text) {
         </button>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -190,9 +236,9 @@ function renderContent(text) {
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.22);
   background: rgb(var(--v-theme-surface));
   flex-shrink: 0;
-  /* No transition on width here — minimized only hides the body */
 }
 
+/* ── Header ── */
 .chat-window-header {
   background: #2563eb;
   color: #fff;
@@ -205,6 +251,31 @@ function renderContent(text) {
   flex-shrink: 0;
 }
 
+/* ── Resize handle — strip between header and body ── */
+.chat-resize-handle {
+  height: 8px;
+  cursor: ns-resize;
+  background: #2563eb;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-resize-handle::after {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.15s;
+}
+
+.chat-resize-handle:hover::after {
+  background: rgba(255, 255, 255, 0.75);
+}
+
 .chat-window-title {
   font-size: 13px;
   font-weight: 600;
@@ -212,18 +283,20 @@ function renderContent(text) {
   min-width: 0;
 }
 
+/* ── Confirm clear ── */
 .chat-confirm-clear {
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: rgb(var(--v-theme-surface));
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   text-align: center;
 }
 
+/* ── Body ── */
 .chat-window-body {
   display: flex;
   flex-direction: column;
-  /* Fixed total body height so window never grows past this */
-  height: 360px;
+  overflow: hidden; /* clip rounded corners of messages area */
+  /* height set via inline :style binding */
 }
 
 .chat-window-messages {
@@ -233,7 +306,7 @@ function renderContent(text) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 0; /* critical for flex children to scroll */
+  min-height: 0;
   background: rgb(var(--v-theme-background));
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
@@ -248,11 +321,12 @@ function renderContent(text) {
 
 .chat-status-msg {
   text-align: center;
-  padding: 16px 8px;
+  padding: 20px 8px;
   font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.45);
+  color: rgba(var(--v-theme-on-surface), 0.4);
 }
 
+/* ── Messages ── */
 .chat-msg { display: flex; }
 .chat-msg--user { justify-content: flex-end; }
 .chat-msg--assistant,
@@ -290,6 +364,7 @@ function renderContent(text) {
   opacity: 0.45;
 }
 
+/* ── Input ── */
 .chat-window-input {
   display: flex;
   align-items: center;
