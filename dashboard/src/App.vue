@@ -71,6 +71,11 @@ onMounted(() => {
   }
 })
 
+// Refresh entity list when a full crawl completes (new site may have been added)
+socket.on('scrape_complete', (event) => {
+  if (event.success && event.mode === 'full') loadEntities()
+})
+
 // Reload entities and connect socket when the user logs in
 watch(isAuthenticated, (val) => {
   if (val) {
