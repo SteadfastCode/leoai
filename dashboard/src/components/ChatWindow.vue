@@ -9,14 +9,24 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'update:minimized'])
 
-// Unique session per window (admin testing — don't share with real visitor sessions)
-const sessionToken = 'admin_preview_' + props.domain + '_' + Math.random().toString(36).slice(2)
+// Persist session token per domain so history survives navigation
+const SESSION_KEY = `leo_admin_preview_${props.domain}`
+function getSessionToken() {
+  let token = localStorage.getItem(SESSION_KEY)
+  if (!token) {
+    token = 'admin_preview_' + props.domain + '_' + Math.random().toString(36).slice(2)
+    localStorage.setItem(SESSION_KEY, token)
+  }
+  return token
+}
+const sessionToken = ref(getSessionToken())
 
 const messages = ref([])
 const inputText = ref('')
 const sending = ref(false)
 const loading = ref(true)
 const messagesEl = ref(null)
+const confirmClear = ref(false)
 
 function scrollToBottom() {
   nextTick(() => {
@@ -24,14 +34,19 @@ function scrollToBottom() {
   })
 }
 
-onMounted(async () => {
+async function loadHistory() {
+  loading.value = true
   try {
-    const { data } = await api.get('/chat/history', { params: { domain: props.domain, sessionToken } })
+    const { data } = await api.get('/chat/history', {
+      params: { domain: props.domain, sessionToken: sessionToken.value },
+    })
     messages.value = data.messages || []
   } catch { /* empty history is fine */ }
   loading.value = false
   scrollToBottom()
-})
+}
+
+onMounted(loadHistory)
 
 watch(() => props.minimized, (val) => {
   if (!val) scrollToBottom()
@@ -45,7 +60,11 @@ async function send() {
   scrollToBottom()
   sending.value = true
   try {
-    const { data } = await api.post('/chat', { domain: props.domain, sessionToken, message: msg })
+    const { data } = await api.post('/chat', {
+      domain: props.domain,
+      sessionToken: sessionToken.value,
+      message: msg,
+    })
     messages.value.push({ role: 'assistant', content: data.reply })
     scrollToBottom()
   } catch (err) {
@@ -60,8 +79,14 @@ function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
 }
 
+function clearChat() {
+  localStorage.removeItem(SESSION_KEY)
+  sessionToken.value = getSessionToken()
+  messages.value = []
+  confirmClear.value = false
+}
+
 function renderContent(text) {
-  // Basic markdown: bold, italic, links, code
   return text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
@@ -78,10 +103,19 @@ function renderContent(text) {
     <!-- Header -->
     <div class="chat-window-header" @click="emit('update:minimized', !minimized)">
       <div class="d-flex align-center gap-2 flex-1 min-width-0">
-        <span style="font-size: 16px; flex-shrink: 0">🦁</span>
-        <span class="text-body-2 font-weight-medium text-truncate">{{ entityName || domain }}</span>
+        <span style="font-size: 15px; flex-shrink: 0">🦁</span>
+        <span class="chat-window-title text-truncate">{{ entityName || domain }}</span>
       </div>
-      <div class="d-flex align-center gap-1">
+      <div class="d-flex align-center">
+        <v-btn
+          icon="mdi-trash-can-outline"
+          size="x-small"
+          variant="text"
+          color="white"
+          density="compact"
+          title="Clear chat"
+          @click.stop="confirmClear = true"
+        />
         <v-btn
           :icon="minimized ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           size="x-small"
@@ -101,12 +135,21 @@ function renderContent(text) {
       </div>
     </div>
 
-    <!-- Body (hidden when minimized) -->
-    <template v-if="!minimized">
+    <!-- Confirm clear overlay -->
+    <div v-if="confirmClear && !minimized" class="chat-confirm-clear">
+      <div class="text-body-2 font-weight-medium mb-3">Clear this conversation?</div>
+      <div class="d-flex gap-2">
+        <v-btn size="small" color="error" variant="tonal" @click="clearChat">Clear</v-btn>
+        <v-btn size="small" variant="text" @click="confirmClear = false">Cancel</v-btn>
+      </div>
+    </div>
+
+    <!-- Body — use v-show so it stays mounted (preserves scroll) when minimized -->
+    <div v-show="!minimized" class="chat-window-body">
       <div ref="messagesEl" class="chat-window-messages">
-        <div v-if="loading" class="text-center py-4 text-medium-emphasis text-caption">Loading…</div>
-        <div v-else-if="!messages.length" class="text-center py-4 text-medium-emphasis text-caption">
-          Start a conversation
+        <div v-if="loading" class="chat-status-msg">Loading…</div>
+        <div v-else-if="!messages.length" class="chat-status-msg">
+          Start a conversation with Leo
         </div>
         <div
           v-for="(msg, i) in messages"
@@ -129,41 +172,58 @@ function renderContent(text) {
           :disabled="sending"
           @keydown="onKeydown"
         />
-        <button class="chat-send" :disabled="sending || !inputText.trim()" @click="send">
-          <v-icon size="16">mdi-send</v-icon>
+        <button class="chat-send-btn" :disabled="sending || !inputText.trim()" @click="send">
+          <v-icon size="15">mdi-send</v-icon>
         </button>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .chat-window {
-  width: 280px;
+  width: 288px;
   display: flex;
   flex-direction: column;
-  border-radius: 12px 12px 0 0;
+  border-radius: 10px 10px 0 0;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.22);
   background: rgb(var(--v-theme-surface));
   flex-shrink: 0;
-  transition: width 0.2s ease;
-}
-
-.chat-window--minimized {
-  width: 220px;
+  /* No transition on width here — minimized only hides the body */
 }
 
 .chat-window-header {
   background: #2563eb;
   color: #fff;
-  padding: 8px 10px;
+  padding: 7px 6px 7px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
+}
+
+.chat-window-title {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-confirm-clear {
+  padding: 12px 14px;
+  background: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  text-align: center;
+}
+
+.chat-window-body {
+  display: flex;
+  flex-direction: column;
+  /* Fixed total body height so window never grows past this */
+  height: 360px;
 }
 
 .chat-window-messages {
@@ -173,8 +233,24 @@ function renderContent(text) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  height: 320px;
+  min-height: 0; /* critical for flex children to scroll */
   background: rgb(var(--v-theme-background));
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+}
+
+.chat-window-messages::-webkit-scrollbar { width: 4px; }
+.chat-window-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-window-messages::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+}
+
+.chat-status-msg {
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
 }
 
 .chat-msg { display: flex; }
@@ -183,7 +259,7 @@ function renderContent(text) {
 .chat-msg--owner_reply { justify-content: flex-start; }
 
 .chat-msg-bubble {
-  max-width: 80%;
+  max-width: 82%;
   padding: 7px 10px;
   border-radius: 12px;
   font-size: 13px;
@@ -210,8 +286,8 @@ function renderContent(text) {
 }
 
 .chat-msg-bubble--typing {
-  letter-spacing: 2px;
-  opacity: 0.5;
+  letter-spacing: 3px;
+  opacity: 0.45;
 }
 
 .chat-window-input {
@@ -221,6 +297,7 @@ function renderContent(text) {
   padding: 6px 8px;
   gap: 6px;
   background: rgb(var(--v-theme-surface));
+  flex-shrink: 0;
 }
 
 .chat-input {
@@ -233,9 +310,9 @@ function renderContent(text) {
   min-width: 0;
 }
 
-.chat-input::placeholder { color: rgba(var(--v-theme-on-surface), 0.4); }
+.chat-input::placeholder { color: rgba(var(--v-theme-on-surface), 0.38); }
 
-.chat-send {
+.chat-send-btn {
   background: #2563eb;
   border: none;
   border-radius: 50%;
@@ -250,8 +327,8 @@ function renderContent(text) {
   transition: opacity 0.15s;
 }
 
-.chat-send:disabled { opacity: 0.4; cursor: default; }
-.chat-send:not(:disabled):hover { opacity: 0.85; }
+.chat-send-btn:disabled { opacity: 0.38; cursor: default; }
+.chat-send-btn:not(:disabled):hover { opacity: 0.82; }
 
 .min-width-0 { min-width: 0; }
 </style>

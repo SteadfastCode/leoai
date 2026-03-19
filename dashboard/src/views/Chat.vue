@@ -1,11 +1,37 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import ChatWindow from '../components/ChatWindow.vue'
 
 const props = defineProps(['domain', 'entity', 'entitiesList'])
 
-const openChats = ref([]) // [{ domain, name, minimized }]
+const STORAGE_KEY = 'leo_admin_open_chats'
+
+// Restore persisted open chats
+function loadPersistedChats() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
+
+const openChats = ref(loadPersistedChats()) // [{ domain, name, minimized }]
 const addDomain = ref('')
+
+// Persist whenever openChats changes
+watch(openChats, (val) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+}, { deep: true })
+
+// When entitiesList loads, backfill any names that may have been saved as domain only
+watch(() => props.entitiesList, (list) => {
+  if (!list?.length) return
+  openChats.value.forEach(chat => {
+    if (!chat.name || chat.name === chat.domain) {
+      const match = list.find(e => e.domain === chat.domain)
+      if (match) chat.name = match.name
+    }
+  })
+}, { immediate: true })
 
 const availableEntities = computed(() =>
   (props.entitiesList || []).filter(e => !openChats.value.some(c => c.domain === e.domain))
@@ -63,9 +89,13 @@ function setMinimized(domain, val) {
     <div v-if="!openChats.length" class="text-body-2 text-medium-emphasis mt-8 text-center" style="opacity: 0.5">
       No chats open — pick an entity above to start
     </div>
+
+    <div v-else class="text-caption text-medium-emphasis">
+      {{ openChats.length }} chat{{ openChats.length !== 1 ? 's' : '' }} open — visible at the bottom of the screen
+    </div>
   </div>
 
-  <!-- Messenger-style tray fixed at bottom -->
+  <!-- Messenger-style tray fixed at bottom-right -->
   <Teleport to="body">
     <div class="chat-tray">
       <ChatWindow
@@ -92,7 +122,7 @@ function setMinimized(domain, val) {
   right: 16px;
   display: flex;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
   z-index: 200;
   pointer-events: none;
 }
