@@ -17,6 +17,7 @@ const entitySchema = new mongoose.Schema(
     ownerEmail: { type: String, default: '' },
     autoAddRepliesToKb: { type: Boolean, default: false },
     offerHandoffBeforeContact: { type: Boolean, default: true },
+    linksOpenInNewTab: { type: Boolean, default: true },
     plan: {
       type: String,
       enum: ['free', 'payg', 'infinity', 'lifetime'],

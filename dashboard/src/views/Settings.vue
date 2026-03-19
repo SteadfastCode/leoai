@@ -25,6 +25,7 @@ watch(() => props.entity, (e) => {
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
     churchConfig: { ...e.churchConfig },
+    linksOpenInNewTab: e.linksOpenInNewTab ?? true,
     leoRefreshHour: e.leoRefreshHour ?? 3,
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
@@ -184,6 +185,17 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-1">
             When enabled, every reply you send from the dashboard is immediately embedded into Leo's knowledge base. You can still override this per reply.
+          </div>
+          <v-switch
+            v-model="form.linksOpenInNewTab"
+            label="Leo opens links in new tabs"
+            color="primary"
+            hide-details
+            density="compact"
+            class="mt-4"
+          />
+          <div class="text-caption text-medium-emphasis mt-1">
+            When enabled, any links Leo shares open in a new browser tab instead of navigating away from the current page.
           </div>
         </v-card-text>
       </v-card>

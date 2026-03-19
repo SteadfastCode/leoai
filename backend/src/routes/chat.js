@@ -217,9 +217,15 @@ router.get('/history', async (req, res) => {
   }
 
   try {
-    const conversation = await Conversation.findOne({ sessionToken, domain });
+    const [conversation, entity] = await Promise.all([
+      Conversation.findOne({ sessionToken, domain }),
+      Entity.findOne({ domain }).select('linksOpenInNewTab'),
+    ]);
+
+    const entityConfig = { linksOpenInNewTab: entity?.linksOpenInNewTab ?? true };
+
     if (!conversation || !conversation.messages.length) {
-      return res.json({ messages: [], hasMore: false });
+      return res.json({ messages: [], hasMore: false, entityConfig });
     }
 
     // Find unseen owner replies before filtering/paginating
@@ -246,6 +252,7 @@ router.get('/history', async (req, res) => {
       hasMore,
       lastTopic: conversation.lastTopic || null,
       unseenOwnerReplies: unseenReplies.map((m) => m.content),
+      entityConfig,
     });
   } catch (err) {
     console.error('History error:', err);

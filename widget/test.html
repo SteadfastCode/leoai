@@ -94,38 +94,35 @@
   <link rel="stylesheet" href="./chatbot.css" />
 
   <script>
-    const entities = [
-      { name: 'Dosie Dough',  domain: 'dosiedough.com',  subtitle: 'Fresh bagels, baked goods & coffee — Lititz, PA' },
-      { name: 'Burk Digital', domain: 'burkdigital.com', subtitle: 'Digital marketing & web solutions' },
-      { name: 'Tomato Pie Cafe', domain: 'tomatopiecafe.net', subtitle: 'Quaint cafe, food & coffee — Lititz, PA' },
-    ];
+    const BACKEND = 'http://localhost:3001';
+    window.LEO_BACKEND_URL = BACKEND;
 
-    let currentDomain = entities[0].domain;
-    window.LEO_BACKEND_URL = 'http://localhost:3001';
+    let currentDomain = null;
 
-    // Build tabs
-    const tabBar = document.getElementById('entity-tabs');
-    entities.forEach((entity, i) => {
-      const tab = document.createElement('button');
-      tab.className = 'tab' + (i === 0 ? ' active' : '');
-      tab.textContent = entity.name;
-      tab.addEventListener('click', () => switchEntity(entity, tab));
-      tabBar.appendChild(tab);
-    });
+    function buildTabs(entities) {
+      const tabBar = document.getElementById('entity-tabs');
+      tabBar.innerHTML = '';
+      entities.forEach((entity, i) => {
+        const tab = document.createElement('button');
+        tab.className = 'tab' + (i === 0 ? ' active' : '');
+        tab.textContent = entity.name;
+        tab.addEventListener('click', () => switchEntity(entity, tab));
+        tabBar.appendChild(tab);
+      });
 
-    function switchEntity(entity, activeTab) {
-      if (entity.domain === currentDomain) return;
+      if (entities.length) switchEntity(entities[0], tabBar.firstChild, true);
+    }
+
+    function switchEntity(entity, activeTab, force = false) {
+      if (!force && entity.domain === currentDomain) return;
       currentDomain = entity.domain;
 
-      // Update tabs
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       activeTab.classList.add('active');
 
-      // Update page content
       document.getElementById('page-title').textContent = entity.name;
-      document.getElementById('page-subtitle').textContent = entity.subtitle;
+      document.getElementById('page-subtitle').textContent = entity.domain;
 
-      // Reload widget with new domain
       const old = document.getElementById('leo-widget');
       if (old) old.remove();
 
@@ -135,6 +132,24 @@
       document.body.appendChild(script);
     }
 
+    async function loadEntities() {
+      const token = localStorage.getItem('leo_access_token');
+      if (token) {
+        try {
+          const res = await fetch(`${BACKEND}/api/dashboard/entities`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.length) { buildTabs(data); return; }
+          }
+        } catch { /* fall through to hint */ }
+      }
+      document.getElementById('page-title').textContent = 'No entities loaded';
+      document.getElementById('page-subtitle').textContent = 'Log in to the dashboard first, then refresh this page.';
+      document.getElementById('page-hint').textContent = '';
+    }
+
     // Dark mode toggle
     const darkToggle = document.getElementById('dark-toggle');
     darkToggle.addEventListener('click', () => {
@@ -142,11 +157,7 @@
       darkToggle.textContent = document.body.classList.contains('dark') ? '☀️ Light mode' : '🌙 Dark mode';
     });
 
-    // Init first entity display
-    document.getElementById('page-title').textContent = entities[0].name;
-    document.getElementById('page-subtitle').textContent = entities[0].subtitle;
+    loadEntities();
   </script>
-
-  <script src="./chatbot.js" data-domain="dosiedough.com"></script>
 </body>
 </html>

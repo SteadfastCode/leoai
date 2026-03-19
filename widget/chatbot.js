@@ -237,6 +237,7 @@
   let oldestTimestamp = null;
   let loadingHistory = false;
   let hasMoreHistory = false;
+  let linksOpenInNewTab = true; // updated from entityConfig on first history load
 
   async function loadHistory(before = null) {
     if (loadingHistory) return;
@@ -252,6 +253,9 @@
       if (!data.messages?.length) return;
 
       hasMoreHistory = data.hasMore;
+      if (!before && data.entityConfig) {
+        linksOpenInNewTab = data.entityConfig.linksOpenInNewTab ?? true;
+      }
 
       // Preserve scroll position when prepending
       const prevHeight = messagesEl.scrollHeight;
@@ -417,6 +421,11 @@
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
     // Inline code `code`
     html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    // Markdown links [text](url)
+    const linkTarget = linksOpenInNewTab ? ' target="_blank" rel="noopener noreferrer"' : '';
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, `<a href="$2"${linkTarget}>$1</a>`);
+    // Bare URLs not already inside an href
+    html = html.replace(/(?<!href=")(https?:\/\/[^\s<"]+)/g, `<a href="$1"${linkTarget}>$1</a>`);
 
     // Convert lines to paragraphs / lists
     const lines = html.split('\n');
