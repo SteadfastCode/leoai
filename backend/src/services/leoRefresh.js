@@ -3,6 +3,7 @@ const Entity = require('../models/Entity');
 const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
 const { rescrapeSite } = require('./scraper');
+const { makeBroadcastIo } = require('../utils/broadcastIo');
 
 const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
 
@@ -28,7 +29,7 @@ async function runRefreshForEntity(entity, io) {
 
   try {
     const storedPages = await ScrapedPage.find({ domain });
-    const opts = { io, domain };
+    const opts = { io: makeBroadcastIo(io, domain), domain };
     const result = await rescrapeSite(url, storedPages, opts);
 
     if (result.embeddedChunks.length > 0) {

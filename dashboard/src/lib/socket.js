@@ -13,10 +13,12 @@ export const socketConnected = ref(false)
 export const newMessageTick = ref(0)
 
 let _domain = ''
+let _superadmin = false
 
 socket.on('connect', () => {
   socketConnected.value = true
   if (_domain) socket.emit('join_domain', _domain)
+  if (_superadmin) socket.emit('join_superadmin')
 })
 
 socket.on('disconnect', () => { socketConnected.value = false })
@@ -26,4 +28,9 @@ socket.on('new_message', () => { newMessageTick.value++ })
 export function joinDomain(domain) {
   _domain = domain
   if (domain && socket.connected) socket.emit('join_domain', domain)
+}
+
+export function joinSuperadmin() {
+  _superadmin = true
+  if (socket.connected) socket.emit('join_superadmin')
 }

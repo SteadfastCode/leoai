@@ -55,6 +55,7 @@ export const getConversation  = (domain, id)   => api.get(`/api/dashboard/entiti
 export const getPages         = (domain)       => api.get(`/api/dashboard/entities/${domain}/pages`)
 export const updateEntity     = (domain, data) => api.patch(`/api/dashboard/entities/${domain}`, data)
 export const triggerScrape    = (data)         => api.post('/scrape', data)
+export const getActiveScrapes = ()             => api.get('/scrape/active')
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
 
 export const getBilling                = (domain)       => api.get(`/api/billing/${domain}`)

@@ -5,9 +5,9 @@ import { useTheme } from 'vuetify'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { getEntities } from './lib/api'
 import api from './lib/api'
-import { user, isAuthenticated, login, logout, persist } from './lib/auth'
+import { user, isAuthenticated, isSuperAdmin, login, logout, persist } from './lib/auth'
 import { sessionExpired, lastKnownEmail } from './lib/session'
-import { socket, joinDomain } from './lib/socket'
+import { socket, joinDomain, joinSuperadmin } from './lib/socket'
 
 const router = useRouter()
 const theme  = useTheme()
@@ -43,13 +43,19 @@ const selectedDomain = ref(localStorage.getItem('leo_dashboard_domain') || '')
 const drawer        = ref(true)
 const rail          = ref(false)
 
-const navItems = [
+const navLayer = ref('entity') // 'entity' | 'admin'
+
+const entityNavItems = [
   { title: 'Overview',       icon: 'mdi-view-dashboard', to: '/overview' },
   { title: 'Conversations',  icon: 'mdi-chat',           to: '/conversations' },
   { title: 'Knowledge Base', icon: 'mdi-database',       to: '/knowledge' },
   { title: 'Team',           icon: 'mdi-account-group',  to: '/team' },
   { title: 'Settings',       icon: 'mdi-cog',            to: '/settings' },
   { title: 'Billing',        icon: 'mdi-credit-card',    to: '/billing' },
+]
+
+const adminNavItems = [
+  { title: 'Crawls', icon: 'mdi-web-sync', to: '/crawls' },
 ]
 
 async function loadEntities() {
@@ -68,6 +74,7 @@ onMounted(() => {
     loadEntities()
     socket.connect()
     if (selectedDomain.value) joinDomain(selectedDomain.value)
+    if (isSuperAdmin.value) joinSuperadmin()
   }
 })
 
@@ -82,6 +89,7 @@ watch(isAuthenticated, (val) => {
     if (!entities.value.length) loadEntities()
     socket.connect()
     if (selectedDomain.value) joinDomain(selectedDomain.value)
+    if (isSuperAdmin.value) joinSuperadmin()
   } else {
     socket.disconnect()
   }
@@ -176,31 +184,56 @@ async function handleReAuthPasskey() {
           />
         </div>
 
-        <div v-if="!rail" class="pa-3 sidebar-border-bottom">
-          <v-select
-            :model-value="selectedDomain"
-            :items="entities"
-            item-title="name"
-            item-value="domain"
-            label="Entity"
-            density="compact"
-            variant="outlined"
-            hide-details
-            @update:model-value="selectEntity"
-          />
+        <!-- Layer switcher — superadmin only -->
+        <div v-if="isSuperAdmin && !rail" class="pa-3 sidebar-border-bottom">
+          <v-btn-toggle v-model="navLayer" mandatory density="compact" variant="outlined" divided style="width: 100%">
+            <v-btn value="entity" style="flex: 1; font-size: 12px">Entity</v-btn>
+            <v-btn value="admin" style="flex: 1; font-size: 12px">Admin</v-btn>
+          </v-btn-toggle>
         </div>
 
-        <v-list nav density="compact" class="pt-2">
-          <v-list-item
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
-            :prepend-icon="item.icon"
-            :title="item.title"
-            rounded="lg"
-            active-color="primary"
-          />
-        </v-list>
+        <!-- Entity layer: picker + entity nav -->
+        <template v-if="navLayer === 'entity'">
+          <div v-if="!rail" class="pa-3 sidebar-border-bottom">
+            <v-select
+              :model-value="selectedDomain"
+              :items="entities"
+              item-title="name"
+              item-value="domain"
+              label="Entity"
+              density="compact"
+              variant="outlined"
+              hide-details
+              @update:model-value="selectEntity"
+            />
+          </div>
+          <v-list nav density="compact" class="pt-2">
+            <v-list-item
+              v-for="item in entityNavItems"
+              :key="item.to"
+              :to="item.to"
+              :prepend-icon="item.icon"
+              :title="item.title"
+              rounded="lg"
+              active-color="primary"
+            />
+          </v-list>
+        </template>
+
+        <!-- Admin layer: global nav -->
+        <template v-else>
+          <v-list nav density="compact" class="pt-2">
+            <v-list-item
+              v-for="item in adminNavItems"
+              :key="item.to"
+              :to="item.to"
+              :prepend-icon="item.icon"
+              :title="item.title"
+              rounded="lg"
+              active-color="primary"
+            />
+          </v-list>
+        </template>
 
         <template #append>
           <div class="pa-3 sidebar-border-top d-flex" :class="rail ? 'justify-center' : 'justify-end'">

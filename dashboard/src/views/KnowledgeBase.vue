@@ -1,7 +1,6 @@
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { getPages, triggerScrape, getStats } from '../lib/api'
-import { isSuperAdmin } from '../lib/auth'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { getPages, triggerScrape } from '../lib/api'
 import { socket } from '../lib/socket'
 
 const props = defineProps(['domain', 'entity'])
@@ -34,8 +33,7 @@ watch(() => props.domain, () => {
 
 // Live feed — socket events
 function onScrapeProgress(event) {
-  const activeDomain = localStorage.getItem('leo_active_crawl_domain') || props.domain
-  if (event.url.includes(activeDomain) || event.url.includes(props.domain)) {
+  if (event.url.includes(props.domain)) {
     if (!scraping.value) scraping.value = true
     const host = (() => { try { return new URL(event.url).hostname } catch { return '' } })()
     const path = (() => { try { return new URL(event.url).pathname.slice(0, 55) } catch { return event.url.slice(0, 55) } })()
@@ -54,7 +52,6 @@ function onScrapeProgress(event) {
 
 function onScrapeComplete(event) {
   scraping.value = false
-  localStorage.removeItem('leo_active_crawl_domain')
   scrapeResult.value = event
   snackbarMsg.value = event.durationFormatted
     ? `Scrape complete in ${event.durationFormatted} — ${event.pagesChanged ?? event.pagesScraped} pages updated`
@@ -66,59 +63,11 @@ function onScrapeComplete(event) {
 onMounted(() => {
   socket.on('scrape_progress', onScrapeProgress)
   socket.on('scrape_complete', onScrapeComplete)
-
-  // If a superadmin crawl was in progress before a refresh, rejoin that room
-  // so progress events resume. scraping state will be set by the first arriving event.
-  if (isSuperAdmin.value) {
-    const activeDomain = localStorage.getItem('leo_active_crawl_domain')
-    if (activeDomain) {
-      socket.emit('join_domain', activeDomain)
-      scraping.value = true
-    }
-  }
 })
 onUnmounted(() => {
   socket.off('scrape_progress', onScrapeProgress)
   socket.off('scrape_complete', onScrapeComplete)
 })
-
-// Superadmin — crawl any site
-const newSiteUrl  = ref('')
-const newSiteName = ref('')
-const newSitePanel = ref(false)
-
-const newSiteDomain = computed(() => {
-  try {
-    const h = new URL(newSiteUrl.value).hostname
-    return h.startsWith('www.') ? h.slice(4) : h
-  } catch {
-    return ''
-  }
-})
-
-async function crawlNewSite() {
-  if (!newSiteDomain.value || !newSiteName.value) return
-  scraping.value = true
-  scrapeResult.value = null
-  scrapeLog.value = []
-  localStorage.setItem('leo_active_crawl_domain', newSiteDomain.value)
-  // Join the new domain's socket room so progress events arrive
-  socket.emit('join_domain', newSiteDomain.value)
-  try {
-    await triggerScrape({
-      domain: newSiteDomain.value,
-      url: newSiteUrl.value,
-      name: newSiteName.value,
-      rescrape: false,
-    })
-    newSitePanel.value = false
-  } catch {
-    scraping.value = false
-    localStorage.removeItem('leo_active_crawl_domain')
-    snackbarMsg.value = 'Crawl failed — check backend logs'
-    snackbar.value = true
-  }
-}
 
 async function rescrape() {
   if (!props.entity) return
@@ -149,71 +98,16 @@ function formatDate(d) {
   <div class="pa-6">
     <div class="d-flex align-center justify-space-between mb-1">
       <div class="text-h5 font-weight-bold">Knowledge Base</div>
-      <div class="d-flex" style="gap: 16px">
-        <v-btn
-          v-if="isSuperAdmin"
-          variant="tonal"
-          prepend-icon="mdi-plus"
-          :disabled="scraping"
-          @click="newSitePanel = !newSitePanel"
-        >
-          Crawl New Site
-        </v-btn>
-        <v-btn
-          color="primary"
-          prepend-icon="mdi-refresh"
-          :loading="scraping"
-          @click="rescrape"
-        >
-          Rescrape
-        </v-btn>
-      </div>
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-refresh"
+        :loading="scraping"
+        @click="rescrape"
+      >
+        Rescrape
+      </v-btn>
     </div>
     <div class="text-body-2 text-secondary mb-4">{{ pages.length }} pages tracked</div>
-
-    <!-- Superadmin: crawl any new site -->
-    <v-expand-transition>
-      <v-card v-if="isSuperAdmin && newSitePanel" rounded="lg" elevation="0" border class="mb-4">
-        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Crawl New Site</v-card-title>
-        <v-card-text class="pt-4">
-          <div class="d-flex flex-wrap align-start" style="gap: 20px">
-            <v-text-field
-              v-model="newSiteUrl"
-              label="Site URL"
-              placeholder="https://example.com"
-              variant="outlined"
-              density="compact"
-              hide-details="auto"
-              style="min-width: 260px; flex: 2"
-            />
-            <v-text-field
-              v-model="newSiteName"
-              label="Entity Name"
-              placeholder="Example Business"
-              variant="outlined"
-              density="compact"
-              hide-details="auto"
-              style="min-width: 200px; flex: 1"
-            />
-            <div class="d-flex flex-column gap-1">
-              <v-btn
-                color="primary"
-                variant="tonal"
-                prepend-icon="mdi-web"
-                :disabled="!newSiteDomain || !newSiteName || scraping"
-                :loading="scraping"
-                @click="crawlNewSite"
-              >
-                Start Crawl
-              </v-btn>
-              <div v-if="newSiteDomain" class="text-caption text-medium-emphasis text-center">
-                domain: {{ newSiteDomain }}
-              </div>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-expand-transition>
 
     <!-- Live scrape feed -->
     <v-card v-if="scraping || scrapeLog.length" rounded="lg" elevation="0" border class="mb-4">

@@ -45,6 +45,10 @@ io.on('connection', (socket) => {
   socket.on('join_domain', (domain) => {
     socket.join(`domain:${domain}`);
   });
+  // Superadmin clients join a room to receive all scrape events across entities
+  socket.on('join_superadmin', () => {
+    socket.join('superadmin');
+  });
 });
 
 mongoose
