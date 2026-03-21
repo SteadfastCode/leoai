@@ -24,12 +24,13 @@ router.get('/active', requireAuth(), (req, res) => {
 });
 
 router.post('/', requireAuth(), async (req, res) => {
-  const { domain, url, name, timezone, rescrape } = req.body;
+  const { domain, url, name, timezone, rescrape, force } = req.body;
 
   // Superadmins can crawl any domain. Owners can only rescrape their own domain.
   if (!isSuperAdmin(req.user)) {
     const hasMembership = req.user.memberships?.some((m) => m.entityDomain === domain);
     if (!hasMembership) return res.status(403).json({ error: 'Forbidden' });
+    if (force) return res.status(403).json({ error: 'Force rescrape requires superadmin' });
   }
 
   if (!domain || !url || !name) {
@@ -43,16 +44,26 @@ router.post('/', requireAuth(), async (req, res) => {
   try {
     let result;
     const storedPages = await ScrapedPage.find({ domain });
-    const isRescrape = rescrape && storedPages.length > 0;
-    const mode = isRescrape ? 'rescrape' : 'full';
+    // force=true: wipe all scraped chunks and re-embed from scratch (SA only)
+    // rescrape=true: smart hash-diff, only re-embed changed pages
+    const isForce    = force && isSuperAdmin(req.user);
+    const isRescrape = !isForce && rescrape && storedPages.length > 0;
+    const mode = isForce ? 'force' : isRescrape ? 'rescrape' : 'full';
 
     activeScrapes.set(domain, { url, name, startedAt: new Date(), mode });
+
+    if (isForce) {
+      // Force rescrape: same as full scrape but triggered on an existing entity.
+      // Wipe scraped chunks + page records so everything is re-embedded from scratch.
+      await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+      await ScrapedPage.deleteMany({ domain });
+    }
 
     if (isRescrape) {
       result = await rescrapeSite(url, storedPages, opts);
 
       if (result.embeddedChunks.length > 0) {
-        await Chunk.deleteMany({ domain, url: { $in: result.changedUrls } });
+        await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
         await Chunk.insertMany(result.embeddedChunks.map((c) => ({ ...c, domain })));
 
         for (const { url: pageUrl, hash, priority } of result.pageHashUpdates) {
@@ -86,26 +97,27 @@ router.post('/', requireAuth(), async (req, res) => {
       broadcastedIo.to(`domain:${domain}`).emit('scrape_complete', summary);
       res.json(summary);
     } else {
-      const { chunks, durationMs } = await scrapeSite(url, opts);
-
-      await Chunk.deleteMany({ domain });
+      // Delete only scraped chunks — preserve manual, upload, and owner_reply chunks.
+      // $nin covers both explicit source:'scraped' and old chunks that pre-date the source field.
+      await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
       await ScrapedPage.deleteMany({ domain });
 
-      if (chunks.length > 0) {
-        await Chunk.insertMany(chunks.map((c) => ({ ...c, domain })));
-      }
+      let totalChunks = 0;
 
-      const urlChunkMap = new Map();
-      for (const chunk of chunks) {
-        if (!urlChunkMap.has(chunk.url)) urlChunkMap.set(chunk.url, []);
-        urlChunkMap.get(chunk.url).push(chunk.content);
-      }
+      const { pageData, durationMs } = await scrapeSite(url, {
+        ...opts,
+        onChunks: async (batchChunks) => {
+          await Chunk.insertMany(batchChunks.map((c) => ({ ...c, domain })));
+          totalChunks += batchChunks.length;
+        },
+      });
 
+      // Build ScrapedPage records from crawled page data
       const crypto = require('crypto');
-      const pageRecords = [...urlChunkMap.entries()].map(([pageUrl, contents]) => ({
+      const pageRecords = pageData.map(({ url: pageUrl, hash }) => ({
         domain,
         url: pageUrl,
-        contentHash: crypto.createHash('sha256').update(contents.join('')).digest('hex'),
+        contentHash: hash,
         lastScrapedAt: new Date(),
         lastChangedAt: new Date(),
       }));
@@ -123,8 +135,8 @@ router.post('/', requireAuth(), async (req, res) => {
       const summary = {
         success: true,
         mode: 'full',
-        pagesScraped: urlChunkMap.size,
-        chunksStored: chunks.length,
+        pagesScraped: pageData.length,
+        chunksStored: totalChunks,
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };

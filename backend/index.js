@@ -12,6 +12,7 @@ const dashboardRoutes = require('./src/routes/dashboard');
 const authRoutes = require('./src/routes/auth');
 const billingRoutes = require('./src/routes/billing');
 const webhookRoutes = require('./src/routes/webhooks');
+const knowledgeRoutes = require('./src/routes/knowledge');
 
 const app = express();
 const server = http.createServer(app);
@@ -32,9 +33,15 @@ app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
 app.use('/scrape', scrapeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/dashboard/entities/:domain/kb', knowledgeRoutes);
 app.use('/api/billing', billingRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// Serve the widget demo page (test.html + chatbot.js/css) from the backend
+// so the login form and API calls share the same origin with no CORS friction.
+const path = require('path');
+app.use('/demo', express.static(path.join(__dirname, '../widget'), { etag: false, setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
 
 io.on('connection', (socket) => {
   // Visitors join a room by session token (for owner → visitor replies)

@@ -12,7 +12,7 @@ const { retrieveContext } = require('../services/rag');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
 const { PERMISSIONS } = require('../models/Permission');
-const { sendEmailRaw } = require('../services/notifications');
+const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -101,6 +101,20 @@ router.get('/entities/:domain/conversations/:id', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/entities/:domain/chunks?url=:url — chunks for a scraped page
+router.get('/entities/:domain/chunks', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'url required' });
+    const chunks = await Chunk.find({ domain: req.params.domain, url })
+      .select('content source label createdAt')
+      .sort({ createdAt: 1 });
+    res.json(chunks);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/dashboard/entities/:domain/pages — scraped pages list
 router.get('/entities/:domain/pages', async (req, res) => {
   try {
@@ -149,6 +163,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
         Chunk.create({
           domain: req.params.domain,
           url: `owner-reply://${req.params.domain}`,
+          label: answeredQuestions[i].slice(0, 120),
           content,
           embedding: embeddings[i],
           source: 'owner_reply',
@@ -174,7 +189,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
     const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab'];
-    const superadminOnly = ['churchModeEnabled', 'churchConfig'];
+    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     if (isSuperAdmin(req.user)) {
       Object.assign(updates, Object.fromEntries(Object.entries(req.body).filter(([k]) => superadminOnly.includes(k))));
@@ -182,6 +197,41 @@ router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async 
     const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
     res.json(entity);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Model routing analytics (superadmin only)
+// ---------------------------------------------------------------------------
+
+// GET /api/dashboard/entities/:domain/model-stats
+// Returns Haiku/Sonnet call counts, context hit rate, and avg topScore for the last N days.
+router.get('/entities/:domain/model-stats', async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const { domain } = req.params;
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [result] = await Conversation.aggregate([
+      { $match: { domain, lastActiveAt: { $gte: since } } },
+      { $unwind: '$messages' },
+      { $match: { 'messages.role': 'assistant', 'messages.model': { $exists: true } } },
+      {
+        $group: {
+          _id: null,
+          total:       { $sum: 1 },
+          haiku:       { $sum: { $cond: [{ $regexMatch: { input: '$messages.model', regex: 'haiku' } }, 1, 0] } },
+          sonnet:      { $sum: { $cond: [{ $regexMatch: { input: '$messages.model', regex: 'sonnet' } }, 1, 0] } },
+          contextHits: { $sum: { $cond: ['$messages.hadContext', 1, 0] } },
+          avgTopScore: { $avg: '$messages.topScore' },
+        },
+      },
+    ]);
+
+    res.json(result || { total: 0, haiku: 0, sonnet: 0, contextHits: 0, avgTopScore: null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -213,6 +263,7 @@ router.post('/entities/:domain/church-config/extract', async (req, res) => {
 - missionStatement: the church's mission or purpose statement
 - statementOfFaith: core doctrinal beliefs or statement of faith
 - denominationalDistinctives: denomination, theological tradition, or distinctive beliefs
+- churchValues: explicitly stated core values (e.g. "Community, Integrity, Service")
 - pastoralToneNotes: tone/style of communication (e.g. warm and conversational, liturgical, charismatic)
 
 Website content:
@@ -234,6 +285,46 @@ JSON:`,
     res.json(extracted);
   } catch (err) {
     console.error('Church config extraction error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Ministry Plan Requests
+// ---------------------------------------------------------------------------
+
+// POST /api/dashboard/entities/:domain/ministry-plan-request — entity owner requests church mode
+router.post('/entities/:domain/ministry-plan-request', requireAuth(), async (req, res) => {
+  try {
+    const entity = await Entity.findOne({ domain: req.params.domain });
+    if (!entity) return res.status(404).json({ error: 'Entity not found' });
+    if (entity.churchModeEnabled) return res.status(400).json({ error: 'Church Mode is already enabled' });
+    if (entity.ministryPlanRequested) return res.status(400).json({ error: 'Request already submitted' });
+
+    const requestedBy = req.user.name || req.user.email || 'Unknown user';
+    entity.ministryPlanRequested = true;
+    entity.ministryPlanRequestedAt = new Date();
+    entity.ministryPlanRequestedBy = requestedBy;
+    await entity.save();
+
+    sendMinistryPlanRequest({ entityName: entity.name, domain: entity.domain, requestedBy })
+      .catch((err) => console.error('Ministry plan notification error:', err));
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/ministry-requests — superadmin list of pending ministry plan requests
+router.get('/ministry-requests', async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const entities = await Entity.find({ ministryPlanRequested: true, churchModeEnabled: false })
+      .select('name domain ministryPlanRequestedAt ministryPlanRequestedBy ownerEmail ownerPhone')
+      .sort({ ministryPlanRequestedAt: -1 });
+    res.json(entities);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,7 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
-import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig } from '../lib/api'
+import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig, requestMinistryPlan, getModelStats } from '../lib/api'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
@@ -9,13 +9,18 @@ const props = defineProps(['domain', 'entity'])
 const emit = defineEmits(['entity-updated'])
 const form = ref({})
 const saving = ref(false)
+const modelStats = ref(null)
+const modelStatsLoading = ref(false)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
 const leoRefreshLoading = ref(false)
 const cancellingLeoRefresh = ref(false)
 const extractingChurchConfig = ref(false)
+const requestingMinistryPlan = ref(false)
+const ministryPlanRequested = ref(props.entity?.ministryPlanRequested || false)
 
 watch(() => props.entity, (e) => {
+  if (e) ministryPlanRequested.value = e.ministryPlanRequested || false
   if (e) form.value = {
     name: e.name,
     timezone: e.timezone,
@@ -25,14 +30,37 @@ watch(() => props.entity, (e) => {
     autoAddRepliesToKb: e.autoAddRepliesToKb,
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
-    churchConfig: { ...e.churchConfig },
+    churchConfig: {
+      missionStatement: e.churchConfig?.missionStatement || '',
+      statementOfFaith: e.churchConfig?.statementOfFaith || '',
+      denominationalDistinctives: e.churchConfig?.denominationalDistinctives || '',
+      churchValues: e.churchConfig?.churchValues || '',
+      pastoralToneNotes: e.churchConfig?.pastoralToneNotes || '',
+    },
     linksOpenInNewTab: e.linksOpenInNewTab ?? true,
     leoRefreshHour: e.leoRefreshHour ?? 3,
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
+    ragThreshold: e.ragThreshold ?? 0.75,
   }
 }, { immediate: true })
+
+onMounted(() => {
+  if (isSuperAdmin.value) fetchModelStats()
+})
+
+async function fetchModelStats() {
+  modelStatsLoading.value = true
+  try {
+    const { data } = await getModelStats(props.domain, 30)
+    modelStats.value = data
+  } catch {
+    // non-critical — silently ignore
+  } finally {
+    modelStatsLoading.value = false
+  }
+}
 
 // Passkeys
 const supportsPasskeys = browserSupportsWebAuthn()
@@ -86,14 +114,30 @@ const timezones = [
   'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu',
 ]
 
+async function sendMinistryPlanRequest() {
+  requestingMinistryPlan.value = true
+  try {
+    await requestMinistryPlan(props.domain)
+    ministryPlanRequested.value = true
+    snackbarMsg.value = 'Request sent! Steadfast Code will be in touch.'
+    snackbar.value = true
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Could not send request'
+    snackbar.value = true
+  } finally {
+    requestingMinistryPlan.value = false
+  }
+}
+
 async function populateChurchConfigFromKb() {
   extractingChurchConfig.value = true
   try {
     const { data } = await extractChurchConfig(props.domain)
-    if (data.missionStatement)        form.value.churchConfig.missionStatement        = data.missionStatement
-    if (data.statementOfFaith)        form.value.churchConfig.statementOfFaith        = data.statementOfFaith
+    if (data.missionStatement)           form.value.churchConfig.missionStatement           = data.missionStatement
+    if (data.statementOfFaith)           form.value.churchConfig.statementOfFaith           = data.statementOfFaith
     if (data.denominationalDistinctives) form.value.churchConfig.denominationalDistinctives = data.denominationalDistinctives
-    if (data.pastoralToneNotes)       form.value.churchConfig.pastoralToneNotes       = data.pastoralToneNotes
+    if (data.churchValues)               form.value.churchConfig.churchValues               = data.churchValues
+    if (data.pastoralToneNotes)          form.value.churchConfig.pastoralToneNotes          = data.pastoralToneNotes
     snackbarMsg.value = 'Fields populated from knowledge base — review and save'
     snackbar.value = true
   } catch (err) {
@@ -295,7 +339,89 @@ async function save() {
         </v-card-text>
       </v-card>
 
+      <v-card v-if="!isSuperAdmin && !entity?.churchModeEnabled" rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0 d-flex align-center gap-2">
+          Church & Ministry Mode
+          <v-chip size="x-small" variant="tonal" color="default">Available</v-chip>
+        </v-card-title>
+        <v-card-text class="pt-3">
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Leo can serve churches and ministries with theological depth — Scripture discussion, apologetics, church history, and more. Each church's doctrinal distinctives, mission, and statement of faith are configured to keep Leo on-message.
+          </div>
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Church & Ministry Mode is reviewed and enabled by Steadfast Code. Submit a request and we'll be in touch.
+          </div>
+          <div v-if="ministryPlanRequested" class="d-flex align-center gap-2 text-body-2">
+            <v-icon color="success" size="18">mdi-check-circle</v-icon>
+            <span class="text-medium-emphasis">Request submitted — Steadfast Code will be in touch.</span>
+          </div>
+          <v-btn
+            v-else
+            variant="tonal"
+            color="primary"
+            prepend-icon="mdi-church"
+            :loading="requestingMinistryPlan"
+            @click="sendMinistryPlanRequest"
+          >
+            Request Ministry Plan
+          </v-btn>
+        </v-card-text>
+      </v-card>
+
       <template v-if="isSuperAdmin">
+        <v-card rounded="lg" elevation="0" border>
+          <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0 d-flex align-center gap-2">
+            RAG Tuning
+            <v-chip size="x-small" variant="tonal" color="warning">Superadmin</v-chip>
+          </v-card-title>
+          <v-card-text class="pt-4">
+            <div class="text-body-2 text-medium-emphasis mb-1">
+              Context relevance threshold — chunks with a vector similarity score below this value are ignored. Higher = stricter matching, fewer context hits. Lower = more context, more noise.
+            </div>
+            <div class="d-flex align-center gap-3 mb-2">
+              <v-slider
+                v-model="form.ragThreshold"
+                min="0.50"
+                max="0.95"
+                step="0.01"
+                color="primary"
+                track-color="grey-lighten-2"
+                hide-details
+                class="flex-grow-1"
+              />
+              <span class="text-body-2 font-weight-medium" style="min-width: 36px; text-align: right">{{ form.ragThreshold?.toFixed(2) }}</span>
+            </div>
+            <div class="text-caption text-medium-emphasis mb-5">Default: 0.75. Raise if Leo is answering with loosely related content; lower if he's missing questions you'd expect him to handle.</div>
+
+            <!-- Stats -->
+            <div class="text-body-2 font-weight-medium mb-2">Last 30 days</div>
+            <div v-if="modelStatsLoading" class="text-body-2 text-medium-emphasis">Loading…</div>
+            <div v-else-if="modelStats && modelStats.total > 0" class="model-stats-grid">
+              <div class="stat-chip">
+                <span class="stat-label">Total responses</span>
+                <span class="stat-value">{{ modelStats.total }}</span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">Haiku</span>
+                <span class="stat-value">{{ modelStats.haiku }} <span class="text-medium-emphasis">({{ Math.round(modelStats.haiku / modelStats.total * 100) }}%)</span></span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">Sonnet</span>
+                <span class="stat-value">{{ modelStats.sonnet }} <span class="text-medium-emphasis">({{ Math.round(modelStats.sonnet / modelStats.total * 100) }}%)</span></span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">Context hit rate</span>
+                <span class="stat-value">{{ Math.round(modelStats.contextHits / modelStats.total * 100) }}%</span>
+              </div>
+              <div v-if="modelStats.avgTopScore != null" class="stat-chip">
+                <span class="stat-label">Avg top score</span>
+                <span class="stat-value">{{ modelStats.avgTopScore.toFixed(3) }}</span>
+              </div>
+            </div>
+            <div v-else class="text-body-2 text-medium-emphasis">No annotated responses yet — stats will appear after the next conversation.</div>
+          </v-card-text>
+        </v-card>
+
         <v-card rounded="lg" elevation="0" border>
           <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Church & Ministry Mode</v-card-title>
           <v-card-text class="pt-4">
@@ -315,6 +441,7 @@ async function save() {
                 <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
                 <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
                 <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
+                <v-textarea v-model="form.churchConfig.churchValues" label="Core Values" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
                 <v-text-field v-model="form.churchConfig.pastoralToneNotes" label="Pastoral Tone" variant="outlined" density="comfortable" hide-details placeholder="e.g. warm and conversational" />
               </div>
             </Transition>
@@ -422,6 +549,32 @@ async function save() {
 .passkey-name-input {
   min-width: 200px;
   flex: 1;
+}
+
+.model-stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0,0,0,0.04);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 100px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: rgba(0,0,0,0.5);
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* Church config expand/collapse animation */

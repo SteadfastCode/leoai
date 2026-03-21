@@ -56,6 +56,7 @@ export const getPages         = (domain)       => api.get(`/api/dashboard/entiti
 export const updateEntity          = (domain, data) => api.patch(`/api/dashboard/entities/${domain}`, data)
 export const extractChurchConfig   = (domain)       => api.post(`/api/dashboard/entities/${domain}/church-config/extract`)
 export const triggerScrape    = (data)         => api.post('/scrape', data)
+export const getChunks        = (domain, url)  => api.get(`/api/dashboard/entities/${domain}/chunks`, { params: { url } })
 export const getActiveScrapes = ()             => api.get('/scrape/active')
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
 
@@ -72,3 +73,12 @@ export const sendInvite      = (domain, data)     => api.post(`/api/dashboard/en
 export const cancelInvite    = (domain, inviteId) => api.delete(`/api/dashboard/entities/${domain}/invites/${inviteId}`)
 export const getInviteInfo   = (token)            => api.get(`/auth/invite/${token}`)
 export const acceptInvite    = (token, data)      => api.post(`/auth/invite/${token}/accept`, data)
+
+export const requestMinistryPlan   = (domain) => api.post(`/api/dashboard/entities/${domain}/ministry-plan-request`)
+export const getMinistryRequests   = ()       => api.get('/api/dashboard/ministry-requests')
+export const getModelStats         = (domain, days) => api.get(`/api/dashboard/entities/${domain}/model-stats`, { params: { days } })
+
+export const getKbEntries    = (domain)           => api.get(`/api/dashboard/entities/${domain}/kb/entries`)
+export const addKbEntry      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/kb/entries`, data)
+export const uploadKbFile    = (domain, file)     => { const fd = new FormData(); fd.append('file', file); return api.post(`/api/dashboard/entities/${domain}/kb/upload`, fd) }
+export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/entities/${domain}/kb/entries/${encodeURIComponent(label)}`)
