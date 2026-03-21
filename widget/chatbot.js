@@ -231,6 +231,50 @@
     btn.textContent = details.hidden ? 'See full privacy details ▾' : 'Hide details ▴';
   });
 
+  // --- Entity name — fetch immediately so page title and greeting are ready ---
+  let entityName = domain;
+  fetch(`${BACKEND_URL}/chat/entity-name?domain=${encodeURIComponent(domain)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.name) {
+        entityName = data.name;
+        const titleEl = document.getElementById('leo-header-title');
+        if (titleEl) titleEl.textContent = '🦁 ' + entityName;
+        window.dispatchEvent(new CustomEvent('leo:entity-loaded', { detail: { name: entityName, domain } }));
+      }
+    })
+    .catch(() => {});
+
+  // --- Minimized panel ---
+  let hasBeenOpened = false;
+  let panelChip     = null;
+
+  function getLeoPanel() {
+    if (window.__leoPanelEl) return window.__leoPanelEl;
+    const panel = document.createElement('div');
+    panel.id = 'leo-panel';
+    document.body.appendChild(panel);
+    window.__leoPanelEl = panel;
+    return panel;
+  }
+
+  function addToPanel() {
+    const panel = getLeoPanel();
+    panelChip = document.createElement('button');
+    panelChip.className = 'leo-panel-chip';
+    panelChip.innerHTML = `<span class="leo-panel-chip-icon">🦁</span><span class="leo-panel-chip-name">${entityName}</span>`;
+    panelChip.addEventListener('click', () => {
+      panelChip.parentNode?.removeChild(panelChip);
+      panelChip = null;
+      bubble.style.display = '';
+      drawer.hidden = false;
+      restoreDrawerSize();
+      checkHealth();
+      if (hasConsented()) input.focus();
+    });
+    panel.appendChild(panelChip);
+  }
+
   // --- Interactive options state ---
   let activeOptions = null; // { options, el, isYesNo, pendingValue }
 
@@ -252,16 +296,26 @@
       const res = await fetch(`${BACKEND_URL}/chat/history?${params}`);
       const data = await res.json();
 
-      if (!data.messages?.length) return;
-
-      hasMoreHistory = data.hasMore;
+      // Apply entity config on initial load
       if (!before && data.entityConfig) {
         linksOpenInNewTab = data.entityConfig.linksOpenInNewTab ?? true;
         if (data.entityConfig.name) {
+          entityName = data.entityConfig.name;
           const titleEl = document.getElementById('leo-header-title');
-          if (titleEl) titleEl.textContent = '🦁 ' + data.entityConfig.name;
+          if (titleEl) titleEl.textContent = '🦁 ' + entityName;
+          if (panelChip) {
+            const nameEl = panelChip.querySelector('.leo-panel-chip-name');
+            if (nameEl) nameEl.textContent = entityName;
+          }
         }
       }
+
+      if (!data.messages?.length) {
+        if (!before) appendMessage('assistant', `Hey there! 👋 I'm Leo, ${entityName}'s AI assistant. What can I help you with today?`);
+        return;
+      }
+
+      hasMoreHistory = data.hasMore;
 
       // Preserve scroll position when prepending
       const prevHeight = messagesEl.scrollHeight;
@@ -311,13 +365,13 @@
             ? `Welcome back! 👋 Last time we chatted about "${data.lastTopic}" — pick up where we left off or ask something new!`
             : hasHistory
             ? `Welcome back! 👋 Great to see you again. What can I help you with?`
-            : `Hey there! 👋 I'm Leo, your AI assistant. What can I help you with today?`;
+            : `Hey there! 👋 I'm Leo, ${entityName}'s AI assistant. What can I help you with today?`;
           appendMessage('assistant', greeting);
         }
       }
     } catch {
       // silently fail — history is nice to have, not critical
-      if (!before) appendMessage('assistant', `Hey there! 👋 I'm Leo, your AI assistant. What can I help you with today?`);
+      if (!before) appendMessage('assistant', `Hey there! 👋 I'm Leo, ${entityName}'s AI assistant. What can I help you with today?`);
     } finally {
       loadingHistory = false;
     }
@@ -335,6 +389,8 @@
     const isHidden = drawer.hidden;
     drawer.hidden = !isHidden;
     if (isHidden) {
+      hasBeenOpened = true;
+      restoreDrawerSize();
       checkHealth();
       if (!hasConsented()) {
         showConsent();
@@ -350,11 +406,45 @@
   closeBtn.addEventListener('click', () => {
     drawer.hidden = true;
     menu.hidden = true;
+    if (hasBeenOpened) {
+      bubble.style.display = 'none';
+      addToPanel();
+    }
   });
 
   // --- Resize handle ---
   const MIN_HEIGHT = 300;
-  const MAX_HEIGHT = window.innerHeight - 120;
+  const MIN_WIDTH   = 260;
+  const MAX_WIDTH_CAP = 600;
+
+  const DRAWER_HEIGHT_KEY = `leo_drawer_height_${domain}`;
+  const DRAWER_WIDTH_KEY  = `leo_drawer_width_${domain}`;
+
+  function maxHeight() { return window.innerHeight - 120; }
+  function maxWidth()  { return Math.min(MAX_WIDTH_CAP, window.innerWidth - 32); }
+
+  function clampHeight(px) { return Math.min(maxHeight(), Math.max(MIN_HEIGHT, px)); }
+  function clampWidth(px)  { return Math.min(maxWidth(),  Math.max(MIN_WIDTH,  px)); }
+
+  // Save size as viewport fractions so they scale correctly across screen sizes
+  function saveDrawerSize() {
+    localStorage.setItem(DRAWER_HEIGHT_KEY, (drawer.offsetHeight / window.innerHeight).toFixed(4));
+    localStorage.setItem(DRAWER_WIDTH_KEY,  (drawer.offsetWidth  / window.innerWidth ).toFixed(4));
+  }
+
+  function restoreDrawerSize() {
+    const hFrac = parseFloat(localStorage.getItem(DRAWER_HEIGHT_KEY));
+    const wFrac = parseFloat(localStorage.getItem(DRAWER_WIDTH_KEY));
+    if (!isNaN(hFrac)) drawer.style.height = clampHeight(hFrac * window.innerHeight) + 'px';
+    if (!isNaN(wFrac)) drawer.style.width  = clampWidth (wFrac * window.innerWidth ) + 'px';
+  }
+
+  // Clamp drawer to new viewport whenever the window is resized
+  window.addEventListener('resize', () => {
+    if (drawer.hidden) return;
+    drawer.style.height = clampHeight(drawer.offsetHeight) + 'px';
+    drawer.style.width  = clampWidth (drawer.offsetWidth ) + 'px';
+  });
 
   resizeHandle.addEventListener('mousedown', (e) => {
     e.preventDefault();
@@ -363,22 +453,18 @@
 
     function onMouseMove(e) {
       const delta = startY - e.clientY;
-      const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + delta));
-      drawer.style.height = newHeight + 'px';
+      drawer.style.height = clampHeight(startHeight + delta) + 'px';
     }
 
     function onMouseUp() {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+      saveDrawerSize();
     }
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   });
-
-  // --- Width resize handle ---
-  const MIN_WIDTH = 260;
-  const MAX_WIDTH = Math.min(600, window.innerWidth - 32);
 
   widthResizeHandle.addEventListener('mousedown', (e) => {
     e.preventDefault();
@@ -387,13 +473,13 @@
 
     function onMouseMove(e) {
       const delta = startX - e.clientX; // dragging left expands width
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
-      drawer.style.width = newWidth + 'px';
+      drawer.style.width = clampWidth(startWidth + delta) + 'px';
     }
 
     function onMouseUp() {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+      saveDrawerSize();
     }
 
     document.addEventListener('mousemove', onMouseMove);

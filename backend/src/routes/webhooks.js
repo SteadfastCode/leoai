@@ -58,8 +58,8 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
           entity.stripeSubscriptionId = sub.id;
           entity.subscriptionStatus   = sub.status;
           entity.plan                 = planFromSubscription(sub);
-          entity.currentPeriodStart   = new Date(sub.current_period_start * 1000);
-          entity.currentPeriodEnd     = new Date(sub.current_period_end   * 1000);
+          if (sub.current_period_start) entity.currentPeriodStart = new Date(sub.current_period_start * 1000);
+          if (sub.current_period_end)   entity.currentPeriodEnd   = new Date(sub.current_period_end   * 1000);
         }
 
         await entity.save();
@@ -76,8 +76,8 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
 
         entity.subscriptionStatus = sub.status;
         entity.plan               = sub.status === 'active' ? planFromSubscription(sub) : entity.plan;
-        entity.currentPeriodStart = new Date(sub.current_period_start * 1000);
-        entity.currentPeriodEnd   = new Date(sub.current_period_end   * 1000);
+        if (sub.current_period_start) entity.currentPeriodStart = new Date(sub.current_period_start * 1000);
+        if (sub.current_period_end)   entity.currentPeriodEnd   = new Date(sub.current_period_end   * 1000);
         await entity.save();
         break;
       }

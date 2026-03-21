@@ -10,7 +10,9 @@ function makeBroadcastIo(io, domain) {
       return {
         emit(event, data) {
           target.emit(event, data);
-          io.to('superadmin').emit(event, { ...data, domain });
+          // Exclude sockets already in the domain room — superadmins watching a specific
+          // entity's crawl would otherwise receive every event twice.
+          io.to('superadmin').except(room).emit(event, { ...data, domain });
         },
       };
     },

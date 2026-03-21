@@ -566,3 +566,74 @@
     background: rgba(34, 197, 94, 0.08);
   }
 }
+
+/* ─── Minimized chat panel ────────────────────────────────────────── */
+#leo-panel {
+  position: fixed;
+  right: 0;
+  bottom: 100px;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+#leo-panel:empty { display: none; }
+
+.leo-panel-chip {
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: none;
+  border-radius: 12px 0 0 12px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: -2px 4px 14px rgba(0, 0, 0, 0.22);
+  transition: width 0.25s ease, box-shadow 0.15s ease;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#leo-panel:hover .leo-panel-chip {
+  width: 200px;
+  box-shadow: -4px 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.leo-panel-chip-icon {
+  flex-shrink: 0;
+  width: 48px;
+  text-align: center;
+  font-size: 20px;
+  line-height: 48px;
+}
+
+.leo-panel-chip-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  padding-right: 14px;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease 0.08s, transform 0.2s ease 0.08s;
+}
+
+#leo-panel:hover .leo-panel-chip-name {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-color-scheme: dark) {
+  .leo-panel-chip {
+    background: #1d4ed8;
+    box-shadow: -2px 4px 14px rgba(0, 0, 0, 0.45);
+  }
+}

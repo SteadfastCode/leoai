@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import api from '../lib/api'
 
 const props = defineProps({
@@ -7,7 +7,7 @@ const props = defineProps({
   entityName: { type: String, default: '' },
   minimized: { type: Boolean, default: false },
 })
-const emit = defineEmits(['close', 'update:minimized'])
+const emit = defineEmits(['close', 'update:minimized', 'drag-start'])
 
 // ── Session token ──────────────────────────────────────────────────────────
 // Stored per-domain so closing and reopening resumes the same conversation.
@@ -31,14 +31,28 @@ const historyLoaded = ref(false)
 const confirmClear  = ref(false)
 const messagesEl    = ref(null)
 
+// ── Resize constraints ─────────────────────────────────────────────────────
+const MIN_H = 200
+const MAX_H = () => window.innerHeight - 160
+const MIN_W = 220
+const MAX_W = () => Math.min(600, window.innerWidth - 32)
+
 // ── Persistent sizing ──────────────────────────────────────────────────────
 const SIZE_KEY = `leo_admin_chat_size_${props.domain}`
 function loadSize() {
   try { return JSON.parse(localStorage.getItem(SIZE_KEY) || '{}') } catch { return {} }
 }
-const saved     = loadSize()
-const bodyHeight  = ref(saved.height || 360)
-const windowWidth = ref(saved.width  || 288)
+const saved = loadSize()
+const bodyHeight  = ref(
+  saved.heightFrac
+    ? Math.min(MAX_H(), Math.max(MIN_H, Math.round(saved.heightFrac * window.innerHeight)))
+    : 360
+)
+const windowWidth = ref(
+  saved.widthFrac
+    ? Math.min(MAX_W(), Math.max(MIN_W, Math.round(saved.widthFrac * window.innerWidth)))
+    : 288
+)
 
 // ── Scroll ─────────────────────────────────────────────────────────────────
 function scrollToBottom() {
@@ -64,7 +78,12 @@ async function loadHistoryOnce() {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', clampSizes)
   if (!props.minimized) loadHistoryOnce()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', clampSizes)
 })
 
 watch(() => props.minimized, (val) => {
@@ -114,15 +133,18 @@ function clearChat() {
 }
 
 // ── Resize (height) ────────────────────────────────────────────────────────
-// Save size to localStorage whenever either dimension changes
+// Save size as viewport fractions so they restore correctly across screen sizes
 watch([bodyHeight, windowWidth], () => {
-  localStorage.setItem(SIZE_KEY, JSON.stringify({ height: bodyHeight.value, width: windowWidth.value }))
+  localStorage.setItem(SIZE_KEY, JSON.stringify({
+    heightFrac: bodyHeight.value / window.innerHeight,
+    widthFrac:  windowWidth.value / window.innerWidth,
+  }))
 })
 
-const MIN_H = 200
-const MAX_H = () => window.innerHeight - 160
-const MIN_W = 220
-const MAX_W = () => Math.min(600, window.innerWidth - 32)
+function clampSizes() {
+  bodyHeight.value  = Math.min(MAX_H(), Math.max(MIN_H, bodyHeight.value))
+  windowWidth.value = Math.min(MAX_W(), Math.max(MIN_W, windowWidth.value))
+}
 
 function onResizeMousedown(e) {
   e.preventDefault()
@@ -178,8 +200,8 @@ function renderContent(text) {
     <div class="chat-width-handle" @mousedown="onWidthResizeMousedown" />
 
     <!-- ── Header ── -->
-    <div class="chat-window-header" @click="emit('update:minimized', !minimized)">
-      <div class="d-flex align-center gap-2 flex-1 min-width-0">
+    <div class="chat-window-header">
+      <div class="chat-drag-handle flex-1 min-width-0 d-flex align-center gap-2" @mousedown.prevent="emit('drag-start', $event)">
         <span style="font-size: 15px; flex-shrink: 0">🦁</span>
         <span class="chat-window-title text-truncate">{{ entityName || domain }}</span>
       </div>
@@ -213,7 +235,7 @@ function renderContent(text) {
     <!-- ── Confirm clear ── -->
     <div v-if="confirmClear && !minimized" class="chat-confirm-clear">
       <span class="text-body-2">Clear this conversation?</span>
-      <div class="d-flex gap-2 mt-2">
+      <div class="d-flex gap-3 mt-2">
         <v-btn size="small" color="error" variant="tonal" @click="clearChat">Clear</v-btn>
         <v-btn size="small" variant="text" @click="confirmClear = false">Cancel</v-btn>
       </div>
@@ -307,9 +329,17 @@ function renderContent(text) {
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
   user-select: none;
   flex-shrink: 0;
+}
+
+.chat-drag-handle {
+  cursor: grab;
+  overflow: hidden;
+}
+
+.chat-drag-handle:active {
+  cursor: grabbing;
 }
 
 .chat-header-actions {

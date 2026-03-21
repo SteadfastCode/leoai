@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getBilling, createCheckoutSession, createPortalSession } from '../lib/api'
+import { getBilling, createCheckoutSession, createPortalSession, createLeoRefreshCheckout } from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
 const route = useRoute()
@@ -64,6 +64,19 @@ async function openPortal() {
   }
 }
 
+async function addLeoRefresh() {
+  actionLoading.value = 'leorefresh'
+  error.value = ''
+  try {
+    const { data } = await createLeoRefreshCheckout(props.domain)
+    window.location.href = data.url
+  } catch (err) {
+    error.value = err.response?.data?.error || 'Could not start LeoRefresh checkout.'
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
 const planLabel = computed(() => {
   const p = billing.value?.plan
   if (p === 'free')     return 'Free'
@@ -100,6 +113,12 @@ const isOnPaidPlan = computed(() => {
   const p = billing.value?.plan
   return p === 'infinity' || p === 'lifetime'
 })
+
+// Which upgrade cards to show based on current plan
+const showMonthly  = computed(() => !billing.value || billing.value.plan === 'free' || billing.value.plan === 'payg')
+const showAnnual   = computed(() => !billing.value || ['free', 'payg', 'infinity'].includes(billing.value.plan))
+const showLifetime = computed(() => billing.value?.plan !== 'lifetime')
+const showAnyUpgrade = computed(() => showMonthly.value || showAnnual.value || showLifetime.value)
 
 function formatDate(d) {
   if (!d) return '—'
@@ -197,16 +216,18 @@ function formatDate(d) {
         </v-col>
       </v-row>
 
-      <!-- Upgrade plans — shown when not on infinity/lifetime -->
-      <template v-if="!isOnPaidPlan">
-        <div class="text-h6 font-weight-semibold mt-8 mb-4">Upgrade Your Plan</div>
+      <!-- Plan options -->
+      <template v-if="showAnyUpgrade">
+        <div class="text-h6 font-weight-semibold mt-8 mb-1">
+          {{ isOnPaidPlan ? 'Switch Plan' : 'Upgrade Your Plan' }}
+        </div>
         <div class="text-body-2 text-medium-emphasis mb-6">
-          Start free, pay as you grow, cap at $20/month.
+          {{ isOnPaidPlan ? 'Switch to annual and save, or grab a lifetime deal.' : 'Start free, pay as you grow, cap at $20/month.' }}
         </div>
 
         <v-row>
           <!-- Infinity Monthly -->
-          <v-col cols="12" sm="6" md="4">
+          <v-col v-if="showMonthly" cols="12" sm="6" md="4">
             <v-card rounded="lg" elevation="0" border class="pa-2 h-100">
               <v-card-title class="text-body-1 font-weight-semibold">Infinity Monthly</v-card-title>
               <v-card-subtitle class="pb-2">Unlimited messages</v-card-subtitle>
@@ -219,13 +240,8 @@ function formatDate(d) {
                   <li>Knowledge base management</li>
                 </ul>
               </v-card-text>
-              <v-card-actions class="pa-4 pt-0">
-                <v-btn
-                  color="primary"
-                  block
-                  :loading="actionLoading === 'infinity_monthly'"
-                  @click="upgrade('infinity_monthly')"
-                >
+              <v-card-actions class="pa-4 pt-2">
+                <v-btn color="primary" block :loading="actionLoading === 'infinity_monthly'" @click="upgrade('infinity_monthly')">
                   Get started
                 </v-btn>
               </v-card-actions>
@@ -233,7 +249,7 @@ function formatDate(d) {
           </v-col>
 
           <!-- Infinity Annual -->
-          <v-col cols="12" sm="6" md="4">
+          <v-col v-if="showAnnual" cols="12" sm="6" md="4">
             <v-card rounded="lg" elevation="0" border color="primary" class="pa-2 h-100">
               <v-card-title class="text-body-1 font-weight-semibold">Infinity Annual</v-card-title>
               <v-card-subtitle class="pb-2">Best value — save $40</v-card-subtitle>
@@ -244,22 +260,16 @@ function formatDate(d) {
                   <li>2 months free vs monthly</li>
                 </ul>
               </v-card-text>
-              <v-card-actions class="pa-4 pt-0">
-                <v-btn
-                  variant="flat"
-                  color="white"
-                  block
-                  :loading="actionLoading === 'infinity_12mo'"
-                  @click="upgrade('infinity_12mo')"
-                >
-                  Get started
+              <v-card-actions class="pa-4 pt-2">
+                <v-btn variant="flat" color="white" block :loading="actionLoading === 'infinity_12mo'" @click="upgrade('infinity_12mo')">
+                  {{ billing?.plan === 'infinity' ? 'Switch to annual' : 'Get started' }}
                 </v-btn>
               </v-card-actions>
             </v-card>
           </v-col>
 
           <!-- Lifetime -->
-          <v-col cols="12" sm="6" md="4">
+          <v-col v-if="showLifetime" cols="12" sm="6" md="4">
             <v-card rounded="lg" elevation="0" border class="pa-2 h-100">
               <v-card-title class="text-body-1 font-weight-semibold">
                 Lifetime Deal
@@ -274,13 +284,8 @@ function formatDate(d) {
                   <li>10 slots available</li>
                 </ul>
               </v-card-text>
-              <v-card-actions class="pa-4 pt-0">
-                <v-btn
-                  color="success"
-                  block
-                  :loading="actionLoading === 'lifetime'"
-                  @click="upgrade('lifetime')"
-                >
+              <v-card-actions class="pa-4 pt-2">
+                <v-btn color="success" block :loading="actionLoading === 'lifetime'" @click="upgrade('lifetime')">
                   Claim lifetime deal
                 </v-btn>
               </v-card-actions>
@@ -288,6 +293,42 @@ function formatDate(d) {
           </v-col>
         </v-row>
       </template>
+
+      <!-- Add-ons — always shown -->
+      <div class="text-h6 font-weight-semibold mt-8 mb-1">Add-ons</div>
+      <div class="text-body-2 text-medium-emphasis mb-6">Enhance Leo with additional capabilities.</div>
+      <v-row>
+        <v-col cols="12" sm="6" md="4">
+          <v-card rounded="lg" elevation="0" border class="pa-2 h-100">
+            <v-card-title class="text-body-1 font-weight-semibold d-flex align-center gap-2">
+              LeoRefresh
+              <v-chip v-if="billing?.leoRefreshEnabled" size="x-small" color="success" variant="tonal">Active</v-chip>
+            </v-card-title>
+            <v-card-subtitle class="pb-2">Daily site rescrape</v-card-subtitle>
+            <v-card-text class="pt-0">
+              <div class="text-h4 font-weight-bold mb-4">$10<span class="text-body-1 font-weight-regular text-medium-emphasis">/mo</span></div>
+              <ul class="text-body-2 pl-4">
+                <li>Automatic daily rescrape</li>
+                <li>Leo stays current on hours, menus, events</li>
+                <li>Only re-embeds changed pages</li>
+              </ul>
+            </v-card-text>
+            <v-card-actions class="pa-4 pt-0">
+              <v-btn
+                v-if="!billing?.leoRefreshEnabled"
+                color="primary"
+                variant="tonal"
+                block
+                :loading="actionLoading === 'leorefresh'"
+                @click="addLeoRefresh"
+              >
+                Add LeoRefresh
+              </v-btn>
+              <span v-else class="text-caption text-medium-emphasis">Manage via the billing portal above.</span>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
     </template>
   </div>
 </template>

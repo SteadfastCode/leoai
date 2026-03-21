@@ -37,6 +37,8 @@ const availableEntities = computed(() =>
   (props.entitiesList || []).filter(e => !openChats.value.some(c => c.domain === e.domain))
 )
 
+const minimizedChats = computed(() => openChats.value.filter(c => c.minimized))
+
 function openChat(domain) {
   if (!domain) return
   if (openChats.value.some(c => c.domain === domain)) return
@@ -52,6 +54,40 @@ function closeChat(domain) {
 function setMinimized(domain, val) {
   const chat = openChats.value.find(c => c.domain === domain)
   if (chat) chat.minimized = val
+}
+
+function onChatDragStart(domain, e) {
+  e.preventDefault()
+
+  function onMove(e) {
+    const tray = document.querySelector('.chat-tray')
+    if (!tray) return
+    const visibleEls = [...tray.children].filter(el => window.getComputedStyle(el).display !== 'none')
+    const visibleChats = openChats.value.filter(c => !c.minimized)
+
+    let insertIdx = visibleChats.length - 1
+    for (let i = 0; i < visibleEls.length; i++) {
+      const rect = visibleEls[i].getBoundingClientRect()
+      if (e.clientX < rect.left + rect.width / 2) { insertIdx = i; break }
+    }
+
+    const fromIdx = openChats.value.findIndex(c => c.domain === domain)
+    const toIdx   = openChats.value.findIndex(c => c.domain === visibleChats[insertIdx]?.domain)
+    if (toIdx !== -1 && fromIdx !== toIdx) {
+      const arr = [...openChats.value]
+      const [item] = arr.splice(fromIdx, 1)
+      arr.splice(toIdx, 0, item)
+      openChats.value = arr
+    }
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
 }
 </script>
 
@@ -96,17 +132,34 @@ function setMinimized(domain, val) {
     </div>
   </div>
 
+  <!-- Minimized chat side panel -->
+  <Teleport to="body">
+    <div v-if="minimizedChats.length" class="chat-side-panel">
+      <button
+        v-for="chat in minimizedChats"
+        :key="chat.domain"
+        class="chat-side-chip"
+        @click="setMinimized(chat.domain, false)"
+      >
+        <span class="chip-icon">{{ (chat.name || chat.domain).charAt(0).toUpperCase() }}</span>
+        <span class="chip-name">{{ chat.name || chat.domain }}</span>
+      </button>
+    </div>
+  </Teleport>
+
   <!-- Messenger-style tray fixed at bottom-right -->
   <Teleport to="body">
-    <div class="chat-tray">
+    <div class="chat-tray" :style="minimizedChats.length ? { right: '64px' } : {}">
       <ChatWindow
         v-for="chat in openChats"
+        v-show="!chat.minimized"
         :key="chat.domain"
         :domain="chat.domain"
         :entity-name="chat.name"
         :minimized="chat.minimized"
         @close="closeChat(chat.domain)"
         @update:minimized="setMinimized(chat.domain, $event)"
+        @drag-start="onChatDragStart(chat.domain, $event)"
       />
     </div>
   </Teleport>
@@ -130,5 +183,76 @@ function setMinimized(domain, val) {
 
 .chat-tray > * {
   pointer-events: auto;
+}
+
+/* ── Minimized side panel ── */
+.chat-side-panel {
+  position: fixed;
+  right: 0;
+  bottom: 80px;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  pointer-events: all;
+  background: rgba(30, 36, 51, 0.92);
+  border-radius: 12px 0 0 12px;
+  box-shadow: -3px 0 20px rgba(0, 0, 0, 0.25);
+  padding: 6px 0;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.chat-side-chip {
+  display: flex;
+  align-items: center;
+  width: 48px;
+  height: 44px;
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: width 0.25s ease, background 0.15s ease;
+  padding: 0;
+  font-family: inherit;
+}
+
+.chat-side-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chat-side-panel:hover .chat-side-chip {
+  width: 210px;
+}
+
+.chip-icon {
+  flex-shrink: 0;
+  width: 48px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 44px;
+  letter-spacing: 0;
+}
+
+.chip-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  padding-right: 14px;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease 0.08s, transform 0.2s ease 0.08s;
+}
+
+.chat-side-panel:hover .chip-name {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>

@@ -187,4 +187,29 @@ async function sendEmailRaw(toAddress, subject, text) {
   await transporter.sendMail({ from, to: toAddress, subject, text });
 }
 
-module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw };
+async function sendMinistryPlanRequest({ entityName, domain, requestedBy }) {
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
+  const adminPhone = process.env.ADMIN_PHONE;
+  const adminEmail = process.env.ADMIN_EMAIL;
+
+  const smsBody = [
+    `⛪ Ministry Plan Request — LeoAI`,
+    `Entity: ${entityName} (${domain})`,
+    `Requested by: ${requestedBy}`,
+    `Review: ${dashboardUrl}/#/ministry-requests`,
+  ].join('\n');
+
+  const results = await Promise.allSettled([
+    sendSms(adminPhone, smsBody),
+    adminEmail ? sendEmailRaw(adminEmail, `Ministry Plan Request — ${entityName}`, smsBody) : Promise.resolve(),
+  ]);
+
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      const channel = i === 0 ? 'SMS' : 'email';
+      console.error(`Ministry plan request ${channel} notification failed:`, r.reason?.message || r.reason);
+    }
+  });
+}
+
+module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw, sendMinistryPlanRequest };

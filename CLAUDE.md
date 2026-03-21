@@ -52,6 +52,9 @@ Scrape → chunk (1500 chars) → embed (Voyage AI `voyage-3-lite`) → store in
 - **Parallel fetching:** Pages fetched in batches of 5 concurrently (`CONCURRENCY = 5`). ~5x speedup vs sequential. Harvest Lane Farm Market (534 pages, Square shop subdomain) scrapes in ~7 minutes.
 - **Smart rescrape:** Hash-based diffing — only re-embeds changed pages. **Exception: PDFs must always be re-fetched** (same URL, changed content is undetectable by hash alone).
 - **MAX_PAGES = 500** — sites with shop subdomains need room. 50 was too small.
+- **Paragraph-aware chunking:** CHUNK_TARGET=1200, CHUNK_MAX=1800, CHUNK_OVERLAP=200. Split on `\n+` (handles both cheerio and Puppeteer whitespace). Sentence-boundary overlap. Paragraph-level hash dedup (seenParaHashes shared across batches) strips boilerplate before chunking. Chunk-level dedup as secondary safety net.
+- **Two-phase RAG retrieval:** Phase 1 = Atlas Vector Search (primary threshold, default 0.75). Phase 2 = tree siblings — all chunks from pages that produced a primary hit are scored in-memory against the query embedding (dot product; Voyage embeddings are unit-normalized); those passing a lower sibling threshold (default: primary − 0.15, min 0.50) are added to context. Chunks carry `chunkIndex` (position within page) — once semantic chunking lands, Phase 2 will narrow to ±2 neighbors instead of the full page.
+- **Per-entity ragThreshold** (superadmin-gated slider, 0.50–0.95, default 0.75).
 
 ---
 
@@ -82,6 +85,11 @@ Full prompt: `prompts/leo-system-prompt.md`. Current version: **v1.9**
 **Gate:** Church Mode is NOT self-service. Daniel enables after review. Entities see "Request Ministry Plan" button.
 
 **Pastoral review required** before Church Mode ships — Layer 1 hardlines + Layer 2 humility framing should be affirmed by one or more pastors.
+
+**General knowledge boundary — critical constraint (v2.1):**
+Leo must never draw on general training knowledge — not for cultural references, hymn lyrics, Scripture, pop culture, historical trivia, or anything outside the entity's RAG data. Confirmed in testing (Church Mode off): Leo recognized a Monty Python reference and riffed on it; in a separate message, quoted accurate hymn lyrics for a hymn not in the knowledge base. The "you do not have general internet knowledge" line in earlier prompts was insufficient — Claude's training bleeds through. v2.1 base prompt adds explicit instruction + a redirect script. v2.0 (Church Mode section) also adds a hard constraint against verbatim text reproduction. Church Mode intentionally re-enables general theological/apologetics knowledge — but still prohibits verbatim text quotation unless from RAG.
+
+**Default translation: LSB (Legacy Standard Bible).** Per-entity setting allows churches to set their own default. Visitors can request any available translation mid-conversation and Leo will pull from that translation's embedded text for the remainder of the session.
 
 ---
 
@@ -136,7 +144,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 ## Current State
 
 - ✅ Marketing site live at steadfastcode.tech
-- ✅ System prompt v1.5 — interactive options signal, repetitive closing lines fixed
+- ✅ System prompt v2.1 — interactive options, sycophancy resistance, Church Mode with apologetics knowledge; v2.0 added no-verbatim-text constraint for Church Mode; v2.1 strengthened base knowledge boundary — Leo no longer engages with cultural references (Monty Python, hymns outside KB, etc.) regardless of Church Mode status
 - ✅ Vector embeddings (Voyage AI voyage-3-lite) — replaced keyword RAG
 - ✅ Atlas Vector Search index configured
 - ✅ Smart rescrape with hash-based diffing
@@ -149,7 +157,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Widget — bubble, drawer, markdown rendering, drag-to-resize, three-dot menu
 - ✅ Privacy consent screen (per-domain localStorage)
 - ✅ Conversation memory — MongoDB, infinite scroll (20/page)
-- ✅ Returning visitor greeting with last topic
+- ✅ Returning visitor greeting with last topic — Haiku summarizes recent session into a topic list, stored as `lastTopic` on the conversation, fire-and-forget after each chat response
 - ✅ Handoff / escalation — Twilio SMS + email, fire-and-forget
 - ✅ Interactive quick-reply buttons with hotkeys
 - ✅ Dashboard — Overview, Conversations, Knowledge Base, Settings (Vue 3 + Vuetify)
@@ -160,25 +168,21 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Stripe billing integration — checkout session, customer portal, webhooks (checkout.session.completed, subscription updated/deleted, invoice.payment_failed). Entity model has full billing fields. Billing.vue dashboard page with plan/usage card and upgrade cards.
 - ✅ Free tier quota enforcement — 100 msg/month cap, 402 response, widget handles gracefully with Leo-voiced message
 - ✅ Quota warning notifications — owner alerted at 50/75/90% and on limit hit (configurable thresholds + alert channels: email/SMS). Resets each billing period. Dashboard Settings > Usage Alerts UI.
-- ⬜ Stripe price IDs + env vars need to be created and filled in (.env.example documents them)
+- ✅ Stripe price IDs + env vars configured in sandbox. Webhook handler fixed (current_period_start/end guarded against undefined).
 - ⬜ OneSignal integration
-- ⬜ Church & Ministry Mode (prompt engineering + pastoral review)
+- ✅ Church & Ministry Mode — toggle + full config fields (mission, statement of faith, denominational distinctives, core values, pastoral tone), system prompt v1.9, RAG context church-aware, AI-extract from KB. Superadmin-gated on both frontend (v-if="isSuperAdmin") and backend (superadminOnly field list). Non-superadmin entities see "Request Ministry Plan" card. Pastoral review still needed before enabling for real churches.
 - ✅ LeoRefresh scheduler — node-cron, 3 AM UTC daily, sequential per-entity rescrape
 - ✅ Passkey registration UI — Settings > Security card; name field, register/delete; discoverable login (no email)
 - ✅ User invite / team management — Team.vue (members list, pending invites, invite form), AcceptInvite.vue (new + existing user paths), full backend (Invite model, team endpoints, invite accept/validate routes)
 - ✅ Password reset flow — forgot-password email link, reset-password token validation, ResetPassword.vue
+- ✅ RAG quality — paragraph-aware chunking, paragraph-level hash dedup (seenParaHashes), chunk viewer in KB accordion, force rescrape (SA-gated), per-entity ragThreshold slider, model routing analytics, owner reply chunks injected as separate labeled block
+- ✅ Two-phase RAG retrieval (tree siblings) — Phase 1 vector search + Phase 2 in-memory sibling scoring for all chunks sharing a primary hit's page URL; lower sibling threshold (primary − 0.15); chunkIndex stored on each chunk for future ±N neighbor narrowing once semantic chunking lands
 
 ---
 
 ## Known Issues (Fix Before Ship)
 
-**lastTopic stores raw last user message, not actual topic** — Returning visitor greeting says things like "Last time we talked about 'Yes!'" because `lastTopic` is set to the raw last user message. Should be a short summary derived from recent conversation context.
-
-Fix: fire-and-forget Haiku call after each chat response — pass the last ~10 messages and ask for a one-phrase topic summary, store result as `lastTopic`. Non-blocking, never delays chat response. Skip if conversation is fewer than 2 exchanges.
-
-**Leo offers to add questions to handoff after they've already been answered** — If a visitor previously had questions forwarded and the owner already replied (clearing `handoffPending`), Leo still offers "should I add that to the questions I'm already sending?" on the next unanswerable question. Leo has no awareness of whether the previous handoff cycle was resolved.
-
-Fix: inject handoff state into Claude's context on every chat call — pass `handoffPending` (bool) and `pendingQuestions.length` so Leo knows whether there's an active open handoff or if the slate is clean. When `handoffPending` is false, Leo should treat it as a fresh handoff, not an addition.
+None currently logged.
 
 ---
 

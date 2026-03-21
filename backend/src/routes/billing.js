@@ -28,7 +28,7 @@ async function requireEntityAccess(req, res, next) {
 }
 
 // GET /api/billing/:domain — current billing state
-router.get('/:domain', requireAuth, requireEntityAccess, async (req, res) => {
+router.get('/:domain', requireAuth(), requireEntityAccess, async (req, res) => {
   const { domain } = req.params;
   try {
     const entity = await Entity.findOne({ domain }).select(
@@ -60,7 +60,7 @@ router.get('/:domain', requireAuth, requireEntityAccess, async (req, res) => {
 });
 
 // POST /api/billing/:domain/checkout — create Stripe Checkout session
-router.post('/:domain/checkout', requireAuth, requireEntityAccess, async (req, res) => {
+router.post('/:domain/checkout', requireAuth(), requireEntityAccess, async (req, res) => {
   const { domain } = req.params;
   const { plan } = req.body; // 'infinity_monthly' | 'infinity_12mo' | 'lifetime'
 
@@ -102,7 +102,7 @@ router.post('/:domain/checkout', requireAuth, requireEntityAccess, async (req, r
 });
 
 // POST /api/billing/:domain/leorefresh/checkout — subscribe to LeoRefresh add-on
-router.post('/:domain/leorefresh/checkout', requireAuth, requireEntityAccess, async (req, res) => {
+router.post('/:domain/leorefresh/checkout', requireAuth(), requireEntityAccess, async (req, res) => {
   const { domain } = req.params;
   const priceId = ADDON_PRICES.leorefresh;
   if (!priceId) return res.status(500).json({ error: 'LeoRefresh price not configured' });
@@ -138,7 +138,7 @@ router.post('/:domain/leorefresh/checkout', requireAuth, requireEntityAccess, as
 });
 
 // POST /api/billing/:domain/leorefresh/cancel — cancel LeoRefresh subscription
-router.post('/:domain/leorefresh/cancel', requireAuth, requireEntityAccess, async (req, res) => {
+router.post('/:domain/leorefresh/cancel', requireAuth(), requireEntityAccess, async (req, res) => {
   const { domain } = req.params;
   try {
     const entity = await Entity.findOne({ domain });
@@ -161,7 +161,7 @@ router.post('/:domain/leorefresh/cancel', requireAuth, requireEntityAccess, asyn
 });
 
 // POST /api/billing/:domain/portal — create Stripe Billing Portal session
-router.post('/:domain/portal', requireAuth, requireEntityAccess, async (req, res) => {
+router.post('/:domain/portal', requireAuth(), requireEntityAccess, async (req, res) => {
   const { domain } = req.params;
   try {
     const entity = await Entity.findOne({ domain });

@@ -146,10 +146,10 @@ async function handlePasskeyLogin() {
               autocomplete="current-password"
               variant="outlined"
               density="comfortable"
-              class="mb-1"
+              class="mb-2"
               hide-details="auto"
             />
-            <div class="text-right mb-3">
+            <div class="text-right mb-4">
               <v-btn variant="text" size="small" @click="showForgot = true; forgotEmail = email">
                 Forgot password?
               </v-btn>

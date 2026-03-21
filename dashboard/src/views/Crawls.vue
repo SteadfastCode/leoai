@@ -144,7 +144,7 @@ const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) 
               hide-details="auto"
               style="min-width: 200px; flex: 1"
             />
-            <div class="d-flex flex-column gap-1">
+            <div class="d-flex flex-column gap-2">
               <v-btn
                 color="primary"
                 variant="tonal"
