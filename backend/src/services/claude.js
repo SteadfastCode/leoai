@@ -44,7 +44,7 @@ function buildSystemPrompt(entity, conversation) {
     prompt = prompt
       .replace(/\[DENOMINATIONAL_DISTINCTIVES\]/g, c.denominationalDistinctives || '')
       .replace(/\[CHURCH_MISSION\]/g, c.missionStatement || '')
-      .replace(/\[CHURCH_VALUES\]/g, '')
+      .replace(/\[CHURCH_VALUES\]/g, c.churchValues || '')
       .replace(/\[STATEMENT_OF_FAITH\]/g, c.statementOfFaith || '')
       .replace(/\[PASTORAL_TONE\]/g, c.pastoralToneNotes || 'warm and conversational');
   }
@@ -56,9 +56,9 @@ function buildSystemPrompt(entity, conversation) {
   }
 
   // Inject handoff state so Leo knows whether there's an active open handoff
-  if (conversation?.handoffPending) {
-    const count = conversation.pendingQuestions?.length || 1;
-    prompt += `\nHandoff status: ACTIVE — ${count} question${count !== 1 ? 's' : ''} already forwarded to the team and awaiting reply. Do NOT start a new handoff cycle. If the visitor raises another unanswerable question, let them know it will be added to the existing list already sent to the team.`;
+  if (conversation?.handoffPending && conversation.pendingQuestions?.length) {
+    const questions = conversation.pendingQuestions.map((q, i) => `  ${i + 1}. ${q.text}`).join('\n');
+    prompt += `\nHandoff status: ACTIVE — the following question${conversation.pendingQuestions.length !== 1 ? 's have' : ' has'} been forwarded to the team and awaiting reply:\n${questions}\nDo NOT start a new handoff cycle. If the visitor raises another unanswerable question, let them know it will be added to the existing list. If the visitor asks to cancel a question: if there is only one, cancel it directly; if there are multiple, use [OPTIONS: ...] with the exact question texts so the visitor can pick which one to remove.`;
   } else {
     prompt += `\nHandoff status: NONE — no open handoff. If you cannot answer a question, treat it as a fresh start and follow the normal handoff flow.`;
   }
@@ -66,8 +66,16 @@ function buildSystemPrompt(entity, conversation) {
   return prompt;
 }
 
-async function chat({ entity, conversation, ragContext, sources, userMessage }) {
+function selectModel(entity) {
+  // Church mode needs theological depth — Sonnet handles nuanced biblical/apologetics questions well
+  if (entity.churchModeEnabled) return 'claude-sonnet-4-6';
+  // Standard mode: responses are either KB-grounded facts or scripted handoffs — Haiku handles both well
+  return 'claude-haiku-4-5-20251001';
+}
+
+async function chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage }) {
   const systemPrompt = buildSystemPrompt(entity, conversation);
+  const model = selectModel(entity);
 
   const messages = [];
 
@@ -78,6 +86,10 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
   let contextContent;
   let contextAck;
 
+  const ownerReplyBlock = ownerReplyContext
+    ? `\n\n---\n\nThe following are Q&A pairs answered directly by the ${entity.name} team. These are authoritative — treat them as reliable supplemental answers, not general website content:\n\n${ownerReplyContext}`
+    : '';
+
   if (entity.churchModeEnabled) {
     // Church mode: entity-specific content is available for church questions, but
     // Leo must also be free to draw on built-in biblical/theological knowledge.
@@ -85,23 +97,25 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
       contextContent =
         `Here is content from ${entity.name}'s website that may be relevant to the visitor's question:\n\n${ragContext}${sourceNote}\n\n` +
         `Use this website content for questions specific to ${entity.name} — their schedule, programs, staff, events, location, contact info, and ministry details.\n` +
-        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge — do not limit yourself to the website content for those topics.`;
+        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge — do not limit yourself to the website content for those topics.` +
+        ownerReplyBlock;
       contextAck =
         `Understood. I'll use the website content for ${entity.name}-specific questions, and my own biblical and theological knowledge for Scripture, history, and apologetics questions.`;
     } else {
       contextContent =
         `No content from ${entity.name}'s website matched this query. ` +
         `For questions about the church specifically (hours, events, staff, programs), let the visitor know you don't have that detail and offer to connect them with the team. ` +
-        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge and answer fully.`;
+        `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge and answer fully.` +
+        ownerReplyBlock;
       contextAck =
         `Understood. No church-specific content found — I'll answer biblical and theological questions from my own knowledge, and offer a handoff for church-specific details I don't have.`;
     }
   } else {
     // Standard mode: KB is the only source of truth.
     contextContent = ragContext
-      ? `Here is the ONLY information you are allowed to use when answering the next question. It comes directly from ${entity.name}'s website.\n\nCRITICAL RULES:\n- Only state facts that are explicitly present in this content.\n- Do NOT infer, extrapolate, or fill gaps with what seems reasonable.\n- Do NOT use the entity's name or any outside knowledge to guess at products, services, or details not mentioned here.\n- If the answer is not clearly present in this content, say so honestly and offer to connect the visitor with someone who can help.\n\n${ragContext}${sourceNote}`
-      : `No relevant content was found in ${entity.name}'s website data for this query. Do NOT infer, guess, or assume anything — not from the business name, not from general knowledge, not from what seems reasonable. Ask a clarifying question or let the visitor know you don't have that information and offer to connect them with someone who does.`;
-    contextAck = ragContext
+      ? `Here is the ONLY information you are allowed to use when answering the next question. It comes directly from ${entity.name}'s website.\n\nCRITICAL RULES:\n- Only state facts that are explicitly present in this content.\n- Do NOT infer, extrapolate, or fill gaps with what seems reasonable.\n- Do NOT use the entity's name or any outside knowledge to guess at products, services, or details not mentioned here.\n- If the answer is not clearly present in this content, say so honestly and offer to connect the visitor with someone who can help.\n\n${ragContext}${sourceNote}` + ownerReplyBlock
+      : `No relevant content was found in ${entity.name}'s website data for this query. Do NOT infer, guess, or assume anything — not from the business name, not from general knowledge, not from what seems reasonable. Ask a clarifying question or let the visitor know you don't have that information and offer to connect them with someone who does.` + ownerReplyBlock;
+    contextAck = (ragContext || ownerReplyContext)
       ? 'Understood. I will only state facts explicitly present in that content and will not fill any gaps with inference or assumption.'
       : 'Understood — I have no relevant website content for this query. I will not guess or infer. I will ask a clarifying question or offer a handoff.';
   }
@@ -123,13 +137,13 @@ async function chat({ entity, conversation, ragContext, sources, userMessage }) 
   messages.push({ role: 'user', content: userMessage });
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model,
     max_tokens: 1024,
     system: systemPrompt,
     messages,
   });
 
-  return response.content[0].text;
+  return { text: response.content[0].text, model };
 }
 
 // Fire-and-forget topic summarization using Haiku — called after each chat response.

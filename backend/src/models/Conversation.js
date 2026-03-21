@@ -7,6 +7,10 @@ const messageSchema = new mongoose.Schema({
   seenByVisitor: { type: Boolean, default: true },
   // 'interactive' = user picked a quick-reply button instead of typing
   type:          { type: String, enum: ['text', 'interactive'], default: 'text' },
+  // Model routing analytics — populated on assistant messages only
+  model:      { type: String },
+  topScore:   { type: Number },
+  hadContext: { type: Boolean },
   interactiveData: {
     options:  [{ type: String }], // the buttons that were shown
     selected: { type: String },   // which one they picked

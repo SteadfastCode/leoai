@@ -11,6 +11,7 @@ const entitySchema = new mongoose.Schema(
       missionStatement: String,
       statementOfFaith: String,
       denominationalDistinctives: String,
+      churchValues: String,
       pastoralToneNotes: String,
     },
     ownerPhone: { type: String, default: '' },
@@ -42,12 +43,16 @@ const entitySchema = new mongoose.Schema(
     quotaAlertChannels: { type: [String], default: ['email'] }, // 'email', 'sms', or both
     notifiedThresholds: { type: [Number], default: [] },
     quotaExceededNotified: { type: Boolean, default: false },
+    ministryPlanRequested: { type: Boolean, default: false },
+    ministryPlanRequestedAt: { type: Date },
+    ministryPlanRequestedBy: { type: String },
     lastScrapedAt: { type: Date },
     leoRefreshEnabled: { type: Boolean, default: false },
     leoRefreshSubscriptionId: { type: String },
     leoRefreshHour: { type: Number, default: 3, min: 0, max: 23 },
     leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' },
     leoRefreshLastRun: { type: Date },
+    ragThreshold: { type: Number, default: 0.75, min: 0.5, max: 0.95 },
   },
   { timestamps: true }
 );

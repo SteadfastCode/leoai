@@ -7,7 +7,9 @@ const { embedTexts } = require('./embeddings');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
-const CHUNK_SIZE = 1500; // characters per chunk — large enough for semantic meaning, small enough for precision
+const CHUNK_TARGET  = 1200; // flush chunk when buffer reaches this size
+const CHUNK_MAX     = 1800; // hard cap — a single unit may never exceed this
+const CHUNK_OVERLAP = 200;  // chars of sentence-boundary overlap carried into next chunk
 const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
 const THIN_CONTENT_THRESHOLD = 300; // chars — below this, assume JS rendering is needed
 
@@ -37,6 +39,35 @@ function hashContent(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
+// Block-level tags that warrant a paragraph break in extracted text.
+const BLOCK_TAGS = new Set([
+  'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'li', 'td', 'th', 'article', 'section', 'blockquote',
+  'main', 'ul', 'ol', 'table', 'tr', 'figure', 'figcaption', 'address',
+]);
+
+// Recursively walk the DOM and emit text with paragraph breaks around block elements.
+// This is more reliable than cheerio's .text() which flattens all whitespace.
+function extractStructuredText($, el) {
+  let out = '';
+  $(el).contents().each((_, node) => {
+    if (node.type === 'text') {
+      out += node.data;
+    } else if (node.type === 'tag') {
+      const tag = node.name.toLowerCase();
+      const inner = extractStructuredText($, node);
+      if (tag === 'br') {
+        out += '\n';
+      } else if (BLOCK_TAGS.has(tag)) {
+        out += '\n\n' + inner + '\n\n';
+      } else {
+        out += inner;
+      }
+    }
+  });
+  return out;
+}
+
 async function fetchPageWithPuppeteer(url, browser) {
   const page = await browser.newPage();
   try {
@@ -59,7 +90,11 @@ async function fetchPageWithPuppeteer(url, browser) {
       ['script', 'style', 'noscript'].forEach((tag) => {
         document.querySelectorAll(tag).forEach((el) => el.remove());
       });
-      const text = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+      const text = (document.body?.innerText || '')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/ *\n */g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
       const links = [...document.querySelectorAll('a[href]')]
         .map((a) => a.getAttribute('href'))
         .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:'));
@@ -102,9 +137,28 @@ async function fetchPage(url, browser) {
 
   const $ = cheerio.load(html);
 
+  // Decode Cloudflare email obfuscation — CF replaces emails with [email protected]
+  // and an XOR-encoded href. Decode before text extraction so real emails end up in chunks.
+  $('a[href^="/cdn-cgi/l/email-protection#"]').each((_, el) => {
+    const encoded = $(el).attr('href').split('#')[1];
+    if (!encoded) return;
+    try {
+      const r = parseInt(encoded.slice(0, 2), 16);
+      let email = '';
+      for (let n = 2; n < encoded.length; n += 2) {
+        email += String.fromCharCode(parseInt(encoded.slice(n, n + 2), 16) ^ r);
+      }
+      $(el).replaceWith(email);
+    } catch { /* malformed encoding, leave as-is */ }
+  });
+
   $('nav, footer, script, style, noscript, header').remove();
 
-  const text = $('body').text().replace(/\s+/g, ' ').trim();
+  const text = extractStructuredText($, $('body')[0])
+    .replace(/[ \t]+/g, ' ')       // collapse horizontal whitespace only
+    .replace(/ *\n */g, '\n')      // strip spaces that crept around newlines
+    .replace(/\n{3,}/g, '\n\n')    // normalize 3+ newlines → double
+    .trim();
   const links = [];
 
   $('a[href]').each((_, el) => {
@@ -128,37 +182,88 @@ async function fetchPage(url, browser) {
   return { text, links, usedPuppeteer: false };
 }
 
+// Returns the trailing overlap to carry into the next chunk.
+// Walks back from the end of `text` to find a clean sentence boundary.
+function trailingOverlap(text) {
+  if (text.length <= CHUNK_OVERLAP) return text;
+  const window = text.slice(-(CHUNK_OVERLAP * 2));
+  const matches = [...window.matchAll(/[.!?]\s+/g)];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const start = matches[i].index + matches[i][0].length;
+    const candidate = window.slice(start);
+    if (candidate.length >= 40 && candidate.length <= CHUNK_OVERLAP * 1.5) return candidate;
+  }
+  // No sentence boundary found — fall back to word boundary
+  const tail = text.slice(-CHUNK_OVERLAP);
+  const space = tail.indexOf(' ');
+  return space !== -1 ? tail.slice(space + 1) : tail;
+}
+
+// Split a block of text into sentences (period/exclamation/question followed by whitespace).
+function toSentences(text) {
+  return text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) ?? [text];
+}
+
 function chunkText(text, url) {
   const chunks = [];
-  const words = text.split(' ');
-  let current = '';
+  // Split on any newline sequence — handles both \n (Puppeteer innerText) and \n\n (cheerio traversal)
+  const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
 
-  for (const word of words) {
-    current += word + ' ';
-    if (current.length >= CHUNK_SIZE) {
-      const trimmed = current.trim();
-      if (trimmed.length >= MIN_CHUNK_LENGTH) {
-        chunks.push({ content: trimmed, url });
+  let buf = '';
+
+  function flush() {
+    const trimmed = buf.trim();
+    if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: trimmed, url, chunkIndex: chunks.length });
+    buf = trailingOverlap(trimmed);
+  }
+
+  // Add a sentence-or-paragraph unit into the buffer
+  function addUnit(unit, separator) {
+    const joined = buf ? buf + separator + unit : unit;
+    if (buf.length > 0 && joined.length > CHUNK_MAX) {
+      flush();
+      buf = buf ? buf + separator + unit : unit; // retry after flush (buf is now overlap)
+    } else {
+      buf = joined;
+    }
+    if (buf.length >= CHUNK_TARGET) flush();
+  }
+
+  for (const para of paragraphs) {
+    if (para.length <= CHUNK_MAX) {
+      addUnit(para, '\n\n');
+    } else {
+      // Paragraph is too large — split into sentences
+      const sentences = toSentences(para);
+      for (const sentence of sentences) {
+        if (sentence.length <= CHUNK_MAX) {
+          addUnit(sentence, ' ');
+        } else {
+          // Single sentence exceeds hard cap — word-split fallback
+          for (const word of sentence.split(/\s+/)) {
+            addUnit(word, ' ');
+          }
+        }
       }
-      current = '';
     }
   }
 
-  const trimmed = current.trim();
-  if (trimmed.length >= MIN_CHUNK_LENGTH) {
-    chunks.push({ content: trimmed, url });
-  }
+  const trimmed = buf.trim();
+  if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: trimmed, url, chunkIndex: chunks.length });
 
   return chunks;
 }
 
-// Full scrape — crawls entire site, embeds all chunks
+// Full scrape — crawls entire site, embeds chunks progressively per batch
+// opts.onChunks(chunks) is called after each batch so chunks reach MongoDB immediately
 async function scrapeSite(baseUrl, opts = {}) {
-  const { io, domain } = opts;
+  const { io, domain, onChunks } = opts;
   const startedAt = Date.now();
   const visited = new Set();
   const queue = [baseUrl];
-  const pageData = []; // { url, text, hash }
+  const allPageData = []; // kept for page record building in the route
+  const seenChunkHashes = new Set(); // shared across batches — secondary chunk-level dedup
+  const seenParaHashes  = new Set(); // shared across batches — primary paragraph-level dedup
   const baseDomain = new URL(baseUrl).hostname;
   const browser = await puppeteer.launch({ headless: true });
 
@@ -176,10 +281,14 @@ async function scrapeSite(baseUrl, opts = {}) {
       }
       if (batch.length === 0) break;
 
+      const batchPageData = [];
+
       await Promise.all(batch.map(async (url) => {
         try {
           const { text, links, usedPuppeteer } = await fetchPage(url, browser);
-          pageData.push({ url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' });
+          const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' };
+          batchPageData.push(pageEntry);
+          allPageData.push(pageEntry);
 
           if (io && domain) {
             io.to(`domain:${domain}`).emit('scrape_progress', {
@@ -204,13 +313,20 @@ async function scrapeSite(baseUrl, opts = {}) {
           console.warn(`Skipping ${url}: ${err.message}`);
         }
       }));
+
+      // Embed and store this batch immediately — KB is queryable after first batch
+      if (batchPageData.length > 0 && onChunks) {
+        const batchChunks = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes);
+        if (batchChunks.length > 0) await onChunks(batchChunks);
+      }
     }
   } finally {
     await browser.close();
   }
 
-  const chunks = await embedPageData(pageData);
-  return { chunks, durationMs: Date.now() - startedAt };
+  // If no onChunks callback (e.g. tests), fall back to batch embed at end
+  const chunks = onChunks ? [] : await embedPageData(allPageData);
+  return { chunks, pageData: allPageData, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed
@@ -290,15 +406,28 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   };
 }
 
-async function embedPageData(pageData) {
-  const rawChunks = pageData.flatMap(({ url, text }) => chunkText(text, url));
+// seenParaHashes: shared across batches, dedupes at the paragraph level before chunking
+// seenChunkHashes: secondary safety net, dedupes assembled chunks
+async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Set()) {
+  const rawChunks = pageData.flatMap(({ url, text }) => {
+    // Filter out paragraphs already seen on a previous page — catches boilerplate
+    // (nav items, footers, cookie notices, etc.) more reliably than chunk-level dedup.
+    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
+    const filtered = paras.filter(p => {
+      const h = hashContent(p);
+      if (seenParaHashes.has(h)) return false;
+      seenParaHashes.add(h);
+      return true;
+    });
+    if (filtered.length === 0) return [];
+    return chunkText(filtered.join('\n\n'), url);
+  });
 
-  // Deduplicate by content hash — removes boilerplate repeated across pages
-  const seen = new Set();
+  // Secondary: chunk-level dedup as a safety net for any remaining exact duplicates
   const allChunks = rawChunks.filter((chunk) => {
     const h = hashContent(chunk.content);
-    if (seen.has(h)) return false;
-    seen.add(h);
+    if (seenChunkHashes.has(h)) return false;
+    seenChunkHashes.add(h);
     return true;
   });
 
@@ -310,4 +439,4 @@ async function embedPageData(pageData) {
   return allChunks.map((chunk, i) => ({ ...chunk, embedding: embeddings[i] }));
 }
 
-module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl };
+module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText };

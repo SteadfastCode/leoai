@@ -6,8 +6,9 @@ const { retrieveContext } = require('../services/rag');
 const { chat, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 
-const HANDOFF_RE = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
-const OPTIONS_RE  = /\[OPTIONS:\s*([^\]]+)\]\s*$/;
+const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
+const HANDOFF_CANCEL_RE = /\[HANDOFF_CANCEL:\s*([^\]]+)\]\s*$/;
+const OPTIONS_RE        = /\[OPTIONS:\s*([^\]]+)\]\s*$/;
 
 // Returns Jaccard similarity (0–1) between two strings based on word sets.
 // Used to suppress near-duplicate handoff questions Leo rephrases across turns.
@@ -22,6 +23,14 @@ function questionSimilarity(a, b) {
 const DUPLICATE_THRESHOLD = 0.6;
 
 const PAGE_SIZE = 20;
+
+// GET /chat/entity-name — lightweight public endpoint for widget initialization
+router.get('/entity-name', async (req, res) => {
+  const { domain } = req.query;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  const entity = await Entity.findOne({ domain }).select('name').lean();
+  res.json({ name: entity?.name || '' });
+});
 
 // POST /chat — send a message
 router.post('/', async (req, res) => {
@@ -73,13 +82,17 @@ router.post('/', async (req, res) => {
 
     let conversation = await Conversation.findOne({ sessionToken, domain });
 
-    const { context: ragContext, sources } = await retrieveContext(domain, message);
+    const { context: ragContext, ownerReplyContext, sources, topScore } = await retrieveContext(domain, message, entity.ragThreshold);
 
-    let reply = await chat({ entity, conversation, ragContext, sources, userMessage: message });
+    const { text: replyText, model } = await chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage: message });
+    let reply = replyText;
 
     // Detect and strip signals from Leo's reply
     const handoffMatch = reply.match(HANDOFF_RE);
     if (handoffMatch) reply = reply.replace(HANDOFF_RE, '').trimEnd();
+
+    const cancelMatch = reply.match(HANDOFF_CANCEL_RE);
+    if (cancelMatch) reply = reply.replace(HANDOFF_CANCEL_RE, '').trimEnd();
 
     const optionsMatch = reply.match(OPTIONS_RE);
     let options = null;
@@ -101,8 +114,16 @@ router.post('/', async (req, res) => {
       };
     }
     conversation.messages.push(userMsg);
-    conversation.messages.push({ role: 'assistant', content: reply });
+    conversation.messages.push({ role: 'assistant', content: reply, model, topScore, hadContext: !!(ragContext || ownerReplyContext) });
     conversation.lastActiveAt = new Date();
+
+    // Remove a specific pending question when visitor confirms cancellation
+    if (cancelMatch && conversation.pendingQuestions?.length) {
+      const cancelText = cancelMatch[1].trim();
+      const idx = conversation.pendingQuestions.findIndex(q => q.text === cancelText);
+      if (idx !== -1) conversation.pendingQuestions.splice(idx, 1);
+      if (conversation.pendingQuestions.length === 0) conversation.handoffPending = false;
+    }
 
     // Accumulate pending questions, only notify owner on the first handoff
     if (handoffMatch) {
