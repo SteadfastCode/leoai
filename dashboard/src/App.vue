@@ -59,6 +59,7 @@ const adminNavItems = [
   { title: 'Crawls', icon: 'mdi-web-sync', to: '/crawls' },
   { title: 'Chat', icon: 'mdi-chat-outline', to: '/chat-preview' },
   { title: 'Ministry Requests', icon: 'mdi-church', to: '/ministry-requests' },
+  { title: 'Codes', icon: 'mdi-ticket-percent-outline', to: '/codes' },
 ]
 
 async function loadEntities() {

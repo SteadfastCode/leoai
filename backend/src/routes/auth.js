@@ -11,6 +11,7 @@ const {
 
 const crypto = require('crypto');
 const User = require('../models/User');
+const Code = require('../models/Code');
 const Invite = require('../models/Invite');
 const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET } = require('../middleware/auth');
 const { sendEmailRaw } = require('../services/notifications');
@@ -67,13 +68,13 @@ router.post('/onboard', async (req, res) => {
     return res.status(400).json({ error: 'name, email, password, alphaCode, and domain are required' });
   }
 
-  // Validate alpha code
-  const validCodes = (process.env.ALPHA_CODES || '').split(',').map(c => c.trim()).filter(Boolean);
-  if (validCodes.length > 0 && !validCodes.includes(alphaCode.trim())) {
-    return res.status(403).json({ error: 'Invalid alpha code' });
-  }
-
   try {
+    // Validate alpha code against DB
+    const code = await Code.findOne({ code: alphaCode.trim(), type: 'alpha', active: true });
+    if (!code) return res.status(403).json({ error: 'Invalid or inactive alpha code' });
+    if (code.used) return res.status(403).json({ error: 'This alpha code has already been used' });
+    if (code.expiresAt && code.expiresAt < new Date()) return res.status(403).json({ error: 'This alpha code has expired' });
+
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
@@ -89,6 +90,12 @@ router.post('/onboard', async (req, res) => {
     const refreshToken = signRefreshToken(user);
     user.refreshTokens.push({ token: refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
     await user.save();
+
+    // Record code usage
+    code.useCount += 1;
+    code.usedBy.push({ email: email.trim(), usedAt: new Date() });
+    if (code.maxUses !== null && code.useCount >= code.maxUses) code.used = true;
+    await code.save();
 
     res.status(201).json({ accessToken, refreshToken, user: safeUser(user) });
   } catch (err) {

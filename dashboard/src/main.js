@@ -20,6 +20,7 @@ import Crawls from './views/Crawls.vue'
 import Chat from './views/Chat.vue'
 import MinistryRequests from './views/MinistryRequests.vue'
 import Signup from './views/Signup.vue'
+import Codes from './views/Codes.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -67,6 +68,7 @@ const router = createRouter({
     { path: '/crawls', component: Crawls },
     { path: '/chat-preview', component: Chat },
     { path: '/ministry-requests', component: MinistryRequests },
+    { path: '/codes', component: Codes },
   ],
 })
 

@@ -13,6 +13,7 @@ const authRoutes = require('./src/routes/auth');
 const billingRoutes = require('./src/routes/billing');
 const webhookRoutes = require('./src/routes/webhooks');
 const knowledgeRoutes = require('./src/routes/knowledge');
+const codesRoutes     = require('./src/routes/codes');
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +36,7 @@ app.use('/scrape', scrapeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/dashboard/entities/:domain/kb', knowledgeRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/codes', codesRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
