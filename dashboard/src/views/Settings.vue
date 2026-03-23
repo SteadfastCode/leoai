@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig, requestMinistryPlan, getModelStats } from '../lib/api'
+import EmbedSnippet from '../components/EmbedSnippet.vue'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import api from '../lib/api'
 
@@ -193,6 +194,17 @@ async function save() {
 <template>
   <div class="pa-6">
     <div class="text-h5 font-weight-bold mb-6">Settings</div>
+
+    <!-- Embed code — shown prominently at top -->
+    <v-card rounded="lg" elevation="0" border class="mb-6">
+      <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-2 d-flex align-center gap-2">
+        <v-icon size="18" color="primary">mdi-code-tags</v-icon>
+        Your Embed Code
+      </v-card-title>
+      <v-card-text class="pt-0">
+        <EmbedSnippet :domain="domain" />
+      </v-card-text>
+    </v-card>
 
     <div class="settings-grid mb-6">
       <v-card rounded="lg" elevation="0" border>

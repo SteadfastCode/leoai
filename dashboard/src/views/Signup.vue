@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { onboard, triggerScrape } from '../lib/api'
 import { persist } from '../lib/auth'
 import { socket } from '../lib/socket'
+import EmbedSnippet from '../components/EmbedSnippet.vue'
 
 const router = useRouter()
 
@@ -354,9 +355,16 @@ onUnmounted(() => window.removeEventListener('leo-fill', onLeoFill))
           <div class="text-body-2 text-medium-emphasis mb-2">
             Leo is{{ scrapeComplete ? ' done learning and is' : '' }} ready to answer questions for your visitors 24/7.
           </div>
-          <div class="text-body-2 text-medium-emphasis mb-8">
-            Grab your embed code from the dashboard and paste it into your site.
+          <div class="text-body-2 text-medium-emphasis mb-6">
+            Paste this into your site and Leo goes live instantly.
           </div>
+
+          <EmbedSnippet :domain="domain" class="mb-3" />
+
+          <div class="text-caption text-medium-emphasis mb-8">
+            You can always find this in <strong>Settings</strong> inside your dashboard.
+          </div>
+
           <v-btn color="primary" block size="large" @click="goToDashboard">
             Open dashboard
           </v-btn>

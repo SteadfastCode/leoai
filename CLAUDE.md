@@ -181,6 +181,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Password reset flow — forgot-password email link, reset-password token validation, ResetPassword.vue
 - ✅ Leo-Guided Onboarding v1 — /signup public route; 4-step stepper (Account → Business Info → Scrape → Done); alpha code gate (ALPHA_CODES env var); auto-login after account creation; scrape fires immediately on step 2 submit; live scrape progress via socket on step 3; JS bridge scaffolded (leo-fill CustomEvent); draft auto-saved to localStorage
 - ✅ RAG quality — paragraph-aware chunking, paragraph-level hash dedup (seenParaHashes), chunk viewer in KB accordion, force rescrape (SA-gated), per-entity ragThreshold slider, model routing analytics, owner reply chunks injected as separate labeled block
+- ✅ Embed snippet component — `EmbedSnippet.vue` renders the `<script>` tag with correct domain, click-to-copy with checkmark confirmation; shown in Settings and on the Signup step-4 Done screen
 - ✅ Two-phase RAG retrieval (tree siblings) — Phase 1 vector search + Phase 2 in-memory sibling scoring for all chunks sharing a primary hit's page URL; lower sibling threshold (primary − 0.15); chunkIndex stored on each chunk for future ±N neighbor narrowing once semantic chunking lands
 
 ---
