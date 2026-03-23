@@ -70,3 +70,154 @@ What was built/decided:
 Estimated additional time saved this session: 2-3 months of evenings/weekends.
 
 Running Total: ~8-15 months of evenings/weekends saved across both sessions.
+
+---
+
+SESSION 3 — March 16, 2026
+---------------------------
+What was built:
+  - Git repo initialized, codebase committed
+  - Handoff bug #1: race condition causing duplicate handoff notifications
+  - Handoff bug #2: pending questions cumulating across multiple handoffs
+  - Widget offline detection, status indicator, and message queuing
+  - Owner reply flow wiring (re-fetch conversation after reply)
+  - Socket cleanup, room re-join on reconnect, transport ordering
+
+Estimated additional time saved: 1-2 weeks of evenings.
+  (Debugging async race conditions in Node.js without knowing what to look
+  for can consume days. Identifying + fixing two separate bugs in one session
+  is the kind of thing that builds confidence to keep going.)
+
+Running Total: ~9-17 months of evenings/weekends saved.
+
+---
+
+SESSION 4 — March 17, 2026
+---------------------------
+What was built:
+  - Full Stripe billing integration — checkout sessions, customer portal,
+    webhook handlers (checkout.completed, subscription updated/deleted,
+    invoice.payment_failed), Stripe price IDs wired to plans
+  - Entity model with complete billing fields
+  - Free tier quota enforcement — 100 msg/month cap, 402 response, widget
+    handles gracefully with Leo-voiced message
+  - Quota warning notifications — owner alerted at 50/75/90% and on limit hit,
+    configurable thresholds, email/SMS channels, Settings UI
+  - Widget dark mode via CSS custom properties (follows prefers-color-scheme)
+  - Pricing strategy decisions logged and rationale documented
+
+Estimated additional time saved: 1-2 months of evenings.
+  (Stripe alone is a multi-week integration if you don't know it well.
+  Doing checkout + portal + webhooks + quota enforcement + notifications UI
+  in one session is substantial.)
+
+Running Total: ~10-19 months of evenings/weekends saved.
+
+---
+
+SESSION 5 — March 18, 2026
+---------------------------
+What was built (massive day):
+  - Password reset flow — forgot-password email, token validation, ResetPassword.vue
+  - Passkey auth — SimpleWebAuthn registration, discoverable credential login
+    (no email required), delete passkey, compatibility fixes for v13
+  - Two-pass scraping — axios/cheerio first, Puppeteer fallback for JS-rendered
+    sites (React, Vue, Webflow, Square, Squarespace); waits for loading overlays
+  - Subdomain crawling — shop subdomains included in same KB, prioritized queue
+  - URL normalization — hostname+pathname dedup, strips Square/category params
+  - Parallel page fetching — CONCURRENCY=5, ~5x speedup, MAX_PAGES=500
+  - Live scrape feed in dashboard KB with per-page progress, JS/HTML chips,
+    duration tracking
+  - LeoRefresh daily rescrape scheduler — node-cron, 3 AM UTC, sequential
+    per-entity, wired as Stripe add-on
+  - Church & Ministry Mode — toggle, full config fields (mission, statement of
+    faith, denominational distinctives, core values, pastoral tone), system
+    prompt v1.7/v1.8, RAG context church-aware, AI-extract from KB,
+    superadmin-gated on frontend and backend
+  - User invite / team management — Invite model, team endpoints, invite
+    accept/validate routes, AcceptInvite.vue (new + existing user paths)
+  - Admin layer in dashboard — Crawls view with live all-crawl tracking,
+    layer switcher navigation
+  - System prompt improvements — banned "Great question!", default closing
+    is silence, lastTopic lists multiple topics
+  - Conversations real-time — socket-based auto-refresh on new messages,
+    ConversationDetail refresh after owner reply
+  - SMTP fixes — singleton pooled transporter, duplicate email prevention
+
+Estimated additional time saved: 4-6 months of evenings.
+  (This session alone would represent most of a serious side-project's
+  development timeline. Two-pass scraping + Puppeteer fallback, passkeys,
+  Church Mode, team management, and LeoRefresh are each multi-day builds
+  done solo. Getting all of them done in one day — with bugs caught and
+  fixed in the same session — is the clearest illustration of why this log
+  exists.)
+
+Running Total: ~14-25 months of evenings/weekends saved.
+
+---
+
+SESSION 6 — March 19, 2026
+---------------------------
+What was built:
+  - Chat preview windows in dashboard — per-entity floating chat windows,
+    session token persistence per domain, lazy history load on first expand,
+    conversation preserved on minimize/close
+  - Chat window resize — vertical (height) drag handle, horizontal (width)
+    drag handle, persistent sizing saved as viewport fractions, clamped on
+    resize
+  - Chat window drag positioning, minimize/expand, confirm-clear flow
+  - System prompt v1.9 — biblical & historical knowledge unlocked in Church
+    Mode; Leo can engage apologetics, history, theology from training;
+    hardened general knowledge boundary for non-Church Mode (v2.1 base)
+  - Fixed church mode RAG context injection blocking biblical knowledge
+  - Widget polish batch — layout, spacing, button alignment, crawl form
+
+Estimated additional time saved: 3-4 weeks of evenings.
+
+Running Total: ~15-27 months of evenings/weekends saved.
+
+---
+
+SESSION 7 — March 21-22, 2026 (started ~midnight, ended ~4 AM)
+---------------------------------------------------------------
+What was built:
+  - Paragraph-aware chunking — complete rewrite of text extraction using
+    recursive DOM traversal (extractStructuredText) emitting \n\n around
+    block elements; chunker splits on \n+ (handles Puppeteer + cheerio);
+    sentence-boundary overlap; CHUNK_TARGET=1200, CHUNK_MAX=1800
+  - Paragraph-level hash dedup (seenParaHashes shared across batches) —
+    strips nav/footer boilerplate before chunking more reliably than
+    chunk-level dedup alone
+  - Model routing simplification — Church Mode → Sonnet, standard → always
+    Haiku; returns { text, model } for analytics
+  - Per-entity RAG threshold slider (0.50–0.95, default 0.75), superadmin-gated
+  - Model routing analytics — model/topScore/hadContext stored per message,
+    30-day stats endpoint, Settings RAG Tuning card
+  - KB chunk viewer — accordion shows pages, click to lazy-load chunks,
+    expand individual chunk content; dark mode fix
+  - Force rescrape (superadmin-gated) — wipes scraped chunks, re-embeds from
+    scratch; $nin guard preserves manual/upload/owner_reply chunks
+  - Auto-refresh on scrape — KB and chunk viewer update live during scrape_progress,
+    full reload on scrape_complete
+  - Owner reply KB visibility — knowledge route includes owner_reply chunks
+    alongside manual/upload entries
+  - Two-phase RAG tree retrieval — Phase 1: Atlas Vector Search at primary
+    threshold; Phase 2: all chunks from matched pages scored in-memory via
+    dot product (Voyage embeddings are unit-normalized), included if ≥
+    max(0.50, threshold − 0.15); chunkIndex stored on chunks for future
+    ±N neighbor narrowing once semantic chunking lands
+  - Architecture discussion: hashed out why tree retrieval beats LLM-based
+    look-ahead, why semantic chunking and tree retrieval are synergistic,
+    and the right shape of embedding-based (not LLM-based) semantic chunking
+  - Billing UI, notifications UI, MinistryRequests view, BibleVerse model
+  - Branch renamed master → main
+
+Estimated additional time saved: 2-3 months of evenings.
+  (The RAG quality work alone — diagnosing the Camp Calvary retrieval miss,
+  tracing it to semantic mismatch in embeddings, designing and implementing
+  two-phase tree retrieval — is the kind of debugging + architecture work
+  that takes experienced engineers days. The chunker rewrite, chunk viewer,
+  and force rescrape round out a session that meaningfully advances the
+  product's reliability before any real users arrive.)
+
+Running Total: ~17-30 months of evenings/weekends saved.
