@@ -202,7 +202,7 @@ function formatDate(d) {
             </td>
             <td class="text-body-2 text-medium-emphasis">{{ formatDate(code.expiresAt) }}</td>
             <td>
-              <v-chip v-if="code.used" size="x-small" color="error" variant="tonal">Exhausted</v-chip>
+              <v-chip v-if="code.maxUses !== null && code.useCount >= code.maxUses" size="x-small" color="error" variant="tonal">Exhausted</v-chip>
               <v-chip v-else-if="!code.active" size="x-small" color="secondary" variant="tonal">Inactive</v-chip>
               <v-chip v-else size="x-small" color="success" variant="tonal">Active</v-chip>
             </td>
@@ -213,7 +213,7 @@ function formatDate(d) {
                   variant="text"
                   :icon="code.active ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"
                   :title="code.active ? 'Deactivate' : 'Activate'"
-                  :disabled="code.used"
+                  :disabled="code.maxUses !== null && code.useCount >= code.maxUses"
                   @click="toggleActive(code)"
                 />
                 <v-btn

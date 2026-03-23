@@ -6,7 +6,6 @@ const codeSchema = new mongoose.Schema(
     type:        { type: String, enum: ['alpha', 'promo', 'referral', 'ministry', 'beta'], required: true },
     description: { type: String, default: '' },
     active:      { type: Boolean, default: true },
-    used:        { type: Boolean, default: false },   // true once exhausted (useCount >= maxUses, or first use if maxUses=1)
     maxUses:     { type: Number, default: null },      // null = unlimited
     useCount:    { type: Number, default: 0 },
     expiresAt:   { type: Date,   default: null },      // null = never expires

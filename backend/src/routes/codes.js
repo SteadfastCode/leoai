@@ -44,12 +44,6 @@ router.patch('/:id', requireAuth(), async (req, res) => {
   if (!sa(req, res)) return;
   const allowed = ['active', 'description', 'expiresAt', 'maxUses'];
   const update = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
-  // Recalculate used flag if maxUses changed
-  if ('maxUses' in update) {
-    const code = await Code.findById(req.params.id);
-    if (!code) return res.status(404).json({ error: 'Not found' });
-    update.used = update.maxUses !== null && code.useCount >= update.maxUses;
-  }
   const code = await Code.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!code) return res.status(404).json({ error: 'Not found' });
   res.json(code);

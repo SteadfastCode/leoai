@@ -72,7 +72,7 @@ router.post('/onboard', async (req, res) => {
     // Validate alpha code against DB
     const code = await Code.findOne({ code: alphaCode.trim(), type: 'alpha', active: true });
     if (!code) return res.status(403).json({ error: 'Invalid or inactive alpha code' });
-    if (code.used) return res.status(403).json({ error: 'This alpha code has already been used' });
+    if (code.maxUses !== null && code.useCount >= code.maxUses) return res.status(403).json({ error: 'This alpha code has already been used' });
     if (code.expiresAt && code.expiresAt < new Date()) return res.status(403).json({ error: 'This alpha code has expired' });
 
     const existing = await User.findOne({ email });
@@ -94,7 +94,6 @@ router.post('/onboard', async (req, res) => {
     // Record code usage
     code.useCount += 1;
     code.usedBy.push({ email: email.trim(), usedAt: new Date() });
-    if (code.maxUses !== null && code.useCount >= code.maxUses) code.used = true;
     await code.save();
 
     res.status(201).json({ accessToken, refreshToken, user: safeUser(user) });
