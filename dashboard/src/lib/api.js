@@ -78,6 +78,8 @@ export const requestMinistryPlan   = (domain) => api.post(`/api/dashboard/entiti
 export const getMinistryRequests   = ()       => api.get('/api/dashboard/ministry-requests')
 export const getModelStats         = (domain, days) => api.get(`/api/dashboard/entities/${domain}/model-stats`, { params: { days } })
 
+export const onboard             = (data)         => api.post('/auth/onboard', data)
+
 export const getKbEntries    = (domain)           => api.get(`/api/dashboard/entities/${domain}/kb/entries`)
 export const addKbEntry      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/kb/entries`, data)
 export const uploadKbFile    = (domain, file)     => { const fd = new FormData(); fd.append('file', file); return api.post(`/api/dashboard/entities/${domain}/kb/upload`, fd) }

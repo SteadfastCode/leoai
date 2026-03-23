@@ -60,6 +60,42 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// POST /auth/onboard — alpha signup: validate code, create user + entity membership, return tokens
+router.post('/onboard', async (req, res) => {
+  const { name, email, password, alphaCode, domain } = req.body;
+  if (!name || !email || !password || !alphaCode || !domain) {
+    return res.status(400).json({ error: 'name, email, password, alphaCode, and domain are required' });
+  }
+
+  // Validate alpha code
+  const validCodes = (process.env.ALPHA_CODES || '').split(',').map(c => c.trim()).filter(Boolean);
+  if (validCodes.length > 0 && !validCodes.includes(alphaCode.trim())) {
+    return res.status(403).json({ error: 'Invalid alpha code' });
+  }
+
+  try {
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(409).json({ error: 'Email already registered' });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      name,
+      email,
+      hashedPassword,
+      memberships: [{ entityDomain: domain, roles: ['owner'], permissions: [] }],
+    });
+
+    const accessToken  = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+    user.refreshTokens.push({ token: refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
+    await user.save();
+
+    res.status(201).json({ accessToken, refreshToken, user: safeUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /auth/login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;

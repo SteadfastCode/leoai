@@ -122,7 +122,11 @@ Ministry Plan: 50% off. Not a coupon — a distinct plan. See [`docs/pricing-str
 
 **Site Navigation & Deep Linking (post-MVP, high priority)** — Leo guides visitors to the exact page/section with the answer. Requires scraper change: chunks must store a `sectionAnchor` field. Widget tracks viewport via `IntersectionObserver`. Prerequisite for Leo-Guided Onboarding.
 
-**Leo-Guided Onboarding (high priority)** — Signup on steadfastcode.tech happens through Leo. Traditional form + Leo chat path both converge on same stepper (Account → Business Info → Plan → Scrape → Done). Auto-saves to localStorage. Leo fills fields via JS bridge.
+**Leo-Guided Onboarding (high priority)** — Signup lives at `leo-ai.app/#/signup` (public route in the dashboard app). Steps: Account → Business Info → Scrape (live progress) → Done. Traditional form is the primary path; Leo companion widget is scaffolded for guided path and will be iterated into a fluid experience. Leo fills fields via JS bridge (`window.dispatchEvent(new CustomEvent('leo-fill', { detail: { field, value } }))`). Auto-saves to localStorage per step.
+
+**Alpha gate (current):** Signup requires an alpha code validated server-side against `ALPHA_CODES` env var (comma-separated). No public signup until alpha ends. Plan/pricing step is scaffolded but skipped — all alpha users start on free tier.
+
+**Crawl-ASAP principle:** Scrape is fired immediately after business info is submitted (step 2), before the user finishes setup. Most small business sites scrape in under 2 minutes — Leo is already learning while the user reads the done screen. This is a marketing differentiator: "Your site is already being learned."
 
 **Owner Reply Flow** — Owner gets SMS/email alert with dashboard link → "Reply to visitor" input in ConversationDetail → stored as message → Leo surfaces it on visitor's next open. One-click "Add to knowledge base" on reply closes the improvement loop.
 
@@ -175,6 +179,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Passkey registration UI — Settings > Security card; name field, register/delete; discoverable login (no email)
 - ✅ User invite / team management — Team.vue (members list, pending invites, invite form), AcceptInvite.vue (new + existing user paths), full backend (Invite model, team endpoints, invite accept/validate routes)
 - ✅ Password reset flow — forgot-password email link, reset-password token validation, ResetPassword.vue
+- ✅ Leo-Guided Onboarding v1 — /signup public route; 4-step stepper (Account → Business Info → Scrape → Done); alpha code gate (ALPHA_CODES env var); auto-login after account creation; scrape fires immediately on step 2 submit; live scrape progress via socket on step 3; JS bridge scaffolded (leo-fill CustomEvent); draft auto-saved to localStorage
 - ✅ RAG quality — paragraph-aware chunking, paragraph-level hash dedup (seenParaHashes), chunk viewer in KB accordion, force rescrape (SA-gated), per-entity ragThreshold slider, model routing analytics, owner reply chunks injected as separate labeled block
 - ✅ Two-phase RAG retrieval (tree siblings) — Phase 1 vector search + Phase 2 in-memory sibling scoring for all chunks sharing a primary hit's page URL; lower sibling threshold (primary − 0.15); chunkIndex stored on each chunk for future ±N neighbor narrowing once semantic chunking lands
 

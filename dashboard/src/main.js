@@ -19,6 +19,7 @@ import AcceptInvite from './views/AcceptInvite.vue'
 import Crawls from './views/Crawls.vue'
 import Chat from './views/Chat.vue'
 import MinistryRequests from './views/MinistryRequests.vue'
+import Signup from './views/Signup.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -53,6 +54,7 @@ const router = createRouter({
   routes: [
     { path: '/', redirect: '/overview' },
     { path: '/login', component: Login, meta: { public: true } },
+    { path: '/signup', component: Signup, meta: { public: true } },
     { path: '/reset-password', component: ResetPassword, meta: { public: true } },
     { path: '/accept-invite/:token', component: AcceptInvite, meta: { public: true } },
     { path: '/overview', component: Overview },
