@@ -4,7 +4,7 @@ const path = require('path');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const PROMPT_PATH = path.join(__dirname, '../../../prompts/leo-system-prompt.md');
+const PROMPT_PATH = path.join(__dirname, '../../prompts/leo-system-prompt.md');
 
 // Read fresh from disk on every call — prompt edits take effect immediately, no restart needed
 function getRawPrompt() {
