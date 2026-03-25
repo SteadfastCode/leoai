@@ -1,5 +1,5 @@
 const twilio = require('twilio');
-const nodemailer = require('nodemailer');
+const { sendEmailRaw } = require('./email');
 
 /**
  * Send a handoff notification to the business owner via SMS and/or email,
@@ -157,35 +157,6 @@ async function sendQuotaExceededNotification({ entity, messageCountThisPeriod, l
   });
 }
 
-// Singleton transporter — created once on first use and reused for all sends.
-// Creating a new transporter per call opens and tears down a TCP+SMTP connection
-// each time; if the server sends 250 OK but the connection drops before nodemailer
-// reads it, nodemailer retries and the SMTP server delivers a duplicate.
-let _transporter = null;
-
-function getTransporter() {
-  if (_transporter) return _transporter;
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
-
-  const isLocalhost = SMTP_HOST === '127.0.0.1' || SMTP_HOST === 'localhost';
-  _transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT) || 587,
-    secure: Number(SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    tls: isLocalhost ? { rejectUnauthorized: false } : undefined,
-  });
-  return _transporter;
-}
-
-async function sendEmailRaw(toAddress, subject, text) {
-  if (!toAddress) return;
-  const transporter = getTransporter();
-  if (!transporter) return;
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  await transporter.sendMail({ from, to: toAddress, subject, text });
-}
 
 async function sendMinistryPlanRequest({ entityName, domain, requestedBy }) {
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
