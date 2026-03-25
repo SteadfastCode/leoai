@@ -60,7 +60,7 @@ Scrape → chunk (1500 chars) → embed (Voyage AI `voyage-3-lite`) → store in
 
 ## Leo System Prompt
 
-Full prompt: `prompts/leo-system-prompt.md`. Current version: **v1.9**
+Full prompt: `prompts/leo-system-prompt.md`. Current version: **v2.3**
 
 **Personality:** Warm, friendly, almost childlike. Honest about being an AI. Wants to be your best friend.
 
