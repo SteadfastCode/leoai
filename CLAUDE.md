@@ -183,6 +183,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ RAG quality — paragraph-aware chunking, paragraph-level hash dedup (seenParaHashes), chunk viewer in KB accordion, force rescrape (SA-gated), per-entity ragThreshold slider, model routing analytics, owner reply chunks injected as separate labeled block
 - ✅ Embed snippet component — `EmbedSnippet.vue` renders the `<script>` tag with correct domain, click-to-copy with checkmark confirmation; shown in Settings and on the Signup step-4 Done screen
 - ✅ Two-phase RAG retrieval (tree siblings) — Phase 1 vector search + Phase 2 in-memory sibling scoring for all chunks sharing a primary hit's page URL; lower sibling threshold (primary − 0.15); chunkIndex stored on each chunk for future ±N neighbor narrowing once semantic chunking lands
+- ✅ Production deployment — backend on Railway (api.leo-ai.chat), dashboard on Netlify (leo-ai.app). Email switched from Proton Bridge/nodemailer to Resend SDK (email.js service). Puppeteer configured for Railway via nixpacks.toml (system Chromium, --no-sandbox flags). Dashboard API URL driven by VITE_API_URL env var.
 
 ---
 
