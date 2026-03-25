@@ -265,7 +265,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   const seenChunkHashes = new Set(); // shared across batches — secondary chunk-level dedup
   const seenParaHashes  = new Set(); // shared across batches — primary paragraph-level dedup
   const baseDomain = new URL(baseUrl).hostname;
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
@@ -340,7 +340,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const changedPages = [];
   const unchangedUrls = [];
   const baseDomain = new URL(baseUrl).hostname;
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
