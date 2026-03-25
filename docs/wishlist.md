@@ -501,6 +501,20 @@ During Leo-guided onboarding, after Leo has collected both email and phone numbe
 
 ---
 
+## Planning Center / Church Center Integration
+
+Churches using Planning Center publish events, groups, and giving through Church Center (their member-facing app). An integration would let Leo pull live data directly from Planning Center's API rather than relying on scraping public pages.
+
+**Why it matters:** Event pages inside Church Center are often behind a login wall and not scrape-accessible. LeoRefresh picks up what's publicly visible, but authenticated member data (event RSVPs, group rosters, etc.) would require a real API integration.
+
+**What it would take:** OAuth per church (Planning Center uses OAuth 2.0), API key management per entity, scheduled sync for events/groups/etc., and compliance with Planning Center's API terms.
+
+**Potential partnership angle:** Daniel met Planning Center staff at a worship conference (fall 2025) — a direct partnership conversation may be possible. A partnership could unlock deeper access or official listing in their marketplace.
+
+**For now:** LeoRefresh + public Church Center event pages is sufficient for alpha. Revisit when Church Mode has real church customers asking for it.
+
+---
+
 ## Leo Accounts (Phase 2)
 
 Optional end-user accounts enabling cross-site recognition. Visitor with Leo account is greeted by name on any Leo-enabled site: *"Fancy seeing you here, Daniel!"*
