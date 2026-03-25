@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { io } from 'socket.io-client'
 
-const BACKEND_URL = 'http://localhost:3001'
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // Module-level singleton — one connection for the whole dashboard session
 export const socket = io(BACKEND_URL, { autoConnect: false, transports: ['polling', 'websocket'] })
