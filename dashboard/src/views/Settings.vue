@@ -69,6 +69,23 @@ const passkeyName = ref('')
 const addingPasskey = ref(false)
 const passkeyError = ref('')
 const removingPasskey = ref('')
+const editingPasskey = ref('')
+const editingName = ref('')
+
+function startRenamePasskey(pk) {
+  editingPasskey.value = pk.credentialID
+  editingName.value = pk.name
+}
+
+async function saveRenamePasskey(credentialID) {
+  try {
+    await api.patch(`/auth/passkey/${encodeURIComponent(credentialID)}`, { name: editingName.value })
+    editingPasskey.value = ''
+    await refreshUser()
+  } catch (err) {
+    passkeyError.value = err.response?.data?.error || 'Rename failed'
+  }
+}
 
 async function addPasskey() {
   passkeyError.value = ''
@@ -319,10 +336,29 @@ async function save() {
               style="border-bottom: 1px solid rgba(0,0,0,0.06)"
             >
               <v-icon size="20" color="primary">mdi-fingerprint</v-icon>
-              <span class="text-body-2 flex-grow-1">{{ pk.name }}</span>
-              <v-btn size="small" variant="text" color="error" :loading="removingPasskey === pk.credentialID" @click="removePasskey(pk.credentialID)">
-                Remove
-              </v-btn>
+              <template v-if="editingPasskey === pk.credentialID">
+                <v-text-field
+                  v-model="editingName"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  autofocus
+                  class="flex-grow-1"
+                  @keyup.enter="saveRenamePasskey(pk.credentialID)"
+                  @keyup.escape="editingPasskey = ''"
+                />
+                <v-btn size="small" variant="text" color="primary" @click="saveRenamePasskey(pk.credentialID)">Save</v-btn>
+                <v-btn size="small" variant="text" @click="editingPasskey = ''">Cancel</v-btn>
+              </template>
+              <template v-else>
+                <span class="text-body-2 flex-grow-1">{{ pk.name }}</span>
+                <v-btn size="small" variant="text" icon @click="startRenamePasskey(pk)">
+                  <v-icon size="16">mdi-pencil</v-icon>
+                </v-btn>
+                <v-btn size="small" variant="text" color="error" :loading="removingPasskey === pk.credentialID" @click="removePasskey(pk.credentialID)">
+                  Remove
+                </v-btn>
+              </template>
             </div>
           </div>
           <div v-else class="text-body-2 text-medium-emphasis mb-4">No passkeys registered yet.</div>

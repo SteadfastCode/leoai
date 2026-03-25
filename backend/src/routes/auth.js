@@ -307,6 +307,22 @@ router.post('/passkey/login-verify', async (req, res) => {
   }
 });
 
+// PATCH /auth/passkey/:credentialId — rename a passkey
+router.patch('/passkey/:credentialId', requireAuth(), async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const passkey = user.passkeys.find((p) => p.credentialID === req.params.credentialId);
+    if (!passkey) return res.status(404).json({ error: 'Passkey not found' });
+    const name = req.body.name?.trim();
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    passkey.name = name;
+    await user.save();
+    res.json({ ok: true, passkeys: user.passkeys.map((p) => ({ credentialID: p.credentialID, name: p.name })) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /auth/passkey/:credentialId — remove a registered passkey
 router.delete('/passkey/:credentialId', requireAuth(), async (req, res) => {
   try {
