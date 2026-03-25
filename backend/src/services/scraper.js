@@ -410,10 +410,14 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 // seenChunkHashes: secondary safety net, dedupes assembled chunks
 async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Set()) {
   const rawChunks = pageData.flatMap(({ url, text }) => {
-    // Filter out paragraphs already seen on a previous page — catches boilerplate
-    // (nav items, footers, cookie notices, etc.) more reliably than chunk-level dedup.
+    // Filter out short paragraphs already seen on a previous page — catches boilerplate
+    // (nav items, footers, cookie notices, etc.). Long paragraphs (>200 chars) are always
+    // kept even if seen before — they may be real content that legitimately appears on both
+    // an index page and a detail page (e.g. a staff bio on /staff/ and /staff/kelly-robinson/).
+    const BOILERPLATE_MAX = 200;
     const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
     const filtered = paras.filter(p => {
+      if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
       const h = hashContent(p);
       if (seenParaHashes.has(h)) return false;
       seenParaHashes.add(h);
