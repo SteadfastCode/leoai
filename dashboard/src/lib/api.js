@@ -85,3 +85,5 @@ export const getKbEntries    = (domain)           => api.get(`/api/dashboard/ent
 export const addKbEntry      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/kb/entries`, data)
 export const uploadKbFile    = (domain, file)     => { const fd = new FormData(); fd.append('file', file); return api.post(`/api/dashboard/entities/${domain}/kb/upload`, fd) }
 export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/entities/${domain}/kb/entries/${encodeURIComponent(label)}`)
+
+export const getLogs = (params) => api.get('/api/admin/logs', { params })

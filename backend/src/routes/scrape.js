@@ -6,6 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
+const logger = require('../services/logger');
 
 // In-memory tracking of currently active scrapes
 // domain → { url, name, startedAt, mode }
@@ -147,7 +148,7 @@ router.post('/', requireAuth(), async (req, res) => {
     }
   } catch (err) {
     activeScrapes.delete(domain);
-    console.error('Scrape error:', err);
+    logger.error('scrape', err.message, { stack: err.stack }, domain);
     res.status(500).json({ error: 'Scrape failed', details: err.message });
   }
 });

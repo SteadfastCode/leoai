@@ -5,6 +5,7 @@ const Conversation = require('../models/Conversation');
 const { retrieveContext } = require('../services/rag');
 const { chat, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
+const logger = require('../services/logger');
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
 const HANDOFF_CANCEL_RE = /\[HANDOFF_CANCEL:\s*([^\]]+)\]\s*$/;
@@ -224,7 +225,8 @@ router.post('/', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Chat error:', err);
+    const domain = req.body?.domain || 'unknown';
+    logger.error('chat', err.message, { stack: err.stack }, domain);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
