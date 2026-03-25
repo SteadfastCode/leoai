@@ -76,10 +76,12 @@ async function fetchPageWithPuppeteer(url, browser) {
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
 
-    // Wait for meaningful content — handles JS frameworks that render after networkidle2
+    // Wait for meaningful content — handles JS frameworks that render after networkidle2.
+    // Threshold is 600 chars so nav/header alone (typically ~200-400 chars) doesn't
+    // trigger the check before main content has loaded.
     try {
       await page.waitForFunction(
-        () => (document.body?.innerText || '').trim().length > 100,
+        () => (document.body?.innerText || '').trim().length > 600,
         { timeout: 15000, polling: 500 }
       );
     } catch { /* timed out — extract whatever is there */ }
