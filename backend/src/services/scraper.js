@@ -11,7 +11,7 @@ const CHUNK_TARGET  = 1200; // flush chunk when buffer reaches this size
 const CHUNK_MAX     = 1800; // hard cap — a single unit may never exceed this
 const CHUNK_OVERLAP = 200;  // chars of sentence-boundary overlap carried into next chunk
 const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
-const THIN_CONTENT_THRESHOLD = 300; // chars — below this, assume JS rendering is needed
+const THIN_CONTENT_THRESHOLD = 800; // chars — below this, assume JS rendering is needed
 
 // Use hostname + pathname as the canonical key — strips query params that are
 // navigation context (category_id, cp, si, etc.) so the same product isn't
@@ -76,15 +76,9 @@ async function fetchPageWithPuppeteer(url, browser) {
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
 
-    // Wait for meaningful content — handles JS frameworks that render after networkidle2.
-    // Threshold is 600 chars so nav/header alone (typically ~200-400 chars) doesn't
-    // trigger the check before main content has loaded.
-    try {
-      await page.waitForFunction(
-        () => (document.body?.innerText || '').trim().length > 600,
-        { timeout: 15000, polling: 500 }
-      );
-    } catch { /* timed out — extract whatever is there */ }
+    // Fixed wait after networkidle2 — gives JS frameworks time to render main content
+    // without risking a 15s timeout on genuinely thin pages.
+    await new Promise(r => setTimeout(r, 1500));
 
     const result = await page.evaluate(() => {
       // Only remove script/style/noscript — JS frameworks (Square, Webflow, etc.)
