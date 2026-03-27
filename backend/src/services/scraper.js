@@ -58,6 +58,9 @@ function extractStructuredText($, el) {
       const inner = extractStructuredText($, node);
       if (tag === 'br') {
         out += '\n';
+      } else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+        // Prefix headings so paragraph dedup can exempt them — page titles must never be filtered
+        out += '\n\n[' + tag.toUpperCase() + '] ' + inner.trim() + '\n\n';
       } else if (BLOCK_TAGS.has(tag)) {
         out += '\n\n' + inner + '\n\n';
       } else {
@@ -85,6 +88,12 @@ async function fetchPageWithPuppeteer(url, browser) {
       // often render real content inside nav/header/footer so we leave those alone
       ['script', 'style', 'noscript'].forEach((tag) => {
         document.querySelectorAll(tag).forEach((el) => el.remove());
+      });
+      // Prefix headings with markers before innerText extraction so dedup can exempt them.
+      // innerText flattens structure, so we inject the markers into the DOM text directly.
+      document.querySelectorAll('h1, h2, h3').forEach((el) => {
+        const tag = el.tagName.toLowerCase();
+        el.prepend(`[${tag.toUpperCase()}] `);
       });
       const text = (document.body?.innerText || '')
         .replace(/[ \t]+/g, ' ')
@@ -414,6 +423,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
+      if (/^\[H[123]\] /.test(p)) return true;     // headings always kept — page titles must survive dedup
       const h = hashContent(p);
       if (seenParaHashes.has(h)) return false;
       seenParaHashes.add(h);
