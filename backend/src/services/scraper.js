@@ -157,7 +157,11 @@ async function fetchPage(url, browser) {
     } catch { /* malformed encoding, leave as-is */ }
   });
 
-  $('nav, footer, script, style, noscript, header').remove();
+  // Remove nav and footer boilerplate. Leave <header> — many CMS templates
+  // place the page H1 inside <header class="entry-header"> and stripping it
+  // caused staff/page titles to vanish from chunks. <nav> removal already
+  // handles navigation menus whether they're inside <header> or not.
+  $('nav, footer, script, style, noscript').remove();
 
   const text = extractStructuredText($, $('body')[0])
     .replace(/[ \t]+/g, ' ')       // collapse horizontal whitespace only
@@ -268,7 +272,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   const queue = [baseUrl];
   const allPageData = []; // kept for page record building in the route
   const seenChunkHashes = new Set(); // shared across batches — secondary chunk-level dedup
-  const seenParaHashes  = new Set(); // shared across batches — primary paragraph-level dedup
+  const seenParaHashes  = new Map(); // shared across batches — primary paragraph-level dedup (hash → count)
   const baseDomain = new URL(baseUrl).hostname;
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
@@ -413,7 +417,9 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
 // seenParaHashes: shared across batches, dedupes at the paragraph level before chunking
 // seenChunkHashes: secondary safety net, dedupes assembled chunks
-async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Set()) {
+const MAX_HEADING_OCCURRENCES = 5; // heading text seen more than this is boilerplate (e.g. site-wide banners)
+
+async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Map()) {
   const rawChunks = pageData.flatMap(({ url, text }) => {
     // Filter out short paragraphs already seen on a previous page — catches boilerplate
     // (nav items, footers, cookie notices, etc.). Long paragraphs (>200 chars) are always
@@ -423,10 +429,12 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
-      if (/^\[H[123]\] /.test(p)) return true;     // headings always kept — page titles must survive dedup
       const h = hashContent(p);
-      if (seenParaHashes.has(h)) return false;
-      seenParaHashes.add(h);
+      const count = seenParaHashes.get(h) ?? 0;
+      const isHeading = /^\[H[123]\] /.test(p);
+      const limit = isHeading ? MAX_HEADING_OCCURRENCES : 1;
+      if (count >= limit) return false;
+      seenParaHashes.set(h, count + 1);
       return true;
     });
     if (filtered.length === 0) return [];
