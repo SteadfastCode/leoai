@@ -42,6 +42,16 @@ function hashContent(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
+// Estimate the unique content length of a page's text without a full seenParaHashes pass.
+// Applies basic paragraph filtering (length gate + heading/email exemptions) but skips
+// cross-page dedup. Used for thin-page detection where seenParaHashes isn't available.
+function estimateContentLen(text) {
+  return text.split(/\n+/)
+    .map(p => p.trim())
+    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p))
+    .join('\n\n').length;
+}
+
 // Returns the parent-path URL used to group thin pages under a common key.
 // e.g. https://site.com/staff/kelly-robinson/ → https://site.com/staff/
 // Falls back to origin for top-level pages (e.g. /about → /).
@@ -497,10 +507,13 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
       return true;
     });
 
-    // Thin pages (raw text under threshold) are grouped separately.
-    // We pass the original text to buildGroupChunks so that content unique
-    // to the detail page (title, email) is not lost to seenParaHashes filtering.
-    if (page.text.length < THIN_PAGE_THRESHOLD) {
+    // Thin pages are grouped separately. Use filtered text length — raw text includes
+    // Puppeteer-rendered nav/global elements that inflate char count far above the real
+    // content. A page with only name+title+email may have 80 chars of content but
+    // 500 chars of raw text. We pass original page.text to buildGroupChunks so
+    // content unique to the detail page isn't lost to seenParaHashes filtering.
+    const filteredLen = filtered.join('\n\n').length;
+    if (filteredLen < THIN_PAGE_THRESHOLD) {
       thinPageData.push(page);
       continue;
     }
@@ -657,7 +670,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
-          const isThin      = text.length < THIN_PAGE_THRESHOLD;
+          const isThin      = estimateContentLen(text) < THIN_PAGE_THRESHOLD;
 
           const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, contentChanged: hashChanged };
           allPageData.push(pageEntry);
@@ -711,7 +724,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     : { normalChunks: [] };
 
   // Thin pages: re-group all thin pages; only re-embed groups with ≥1 changed page
-  const allThinPages = allPageData.filter(p => p.text.length < THIN_PAGE_THRESHOLD);
+  const allThinPages = allPageData.filter(p => estimateContentLen(p.text) < THIN_PAGE_THRESHOLD);
   const changedThinUrls = new Set(allThinPages.filter(p => p.contentChanged).map(p => p.url));
 
   // Group all thin pages; identify which groups contain at least one changed page
