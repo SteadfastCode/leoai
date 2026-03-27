@@ -163,7 +163,18 @@ async function load() {
   loading.value = true
   try {
     const { data } = await getPages(props.domain)
-    pages.value = data
+    if (scraping.value && pages.value.length > 0) {
+      // During a scrape: keep existing pages in place so the list doesn't jump.
+      // Update existing rows in place (chunkSizes etc. may have changed), then
+      // append any brand-new pages at the bottom.
+      const existingUrls = new Set(pages.value.map(p => p.url))
+      const byUrl = new Map(data.map(p => [p.url, p]))
+      const updated = pages.value.map(p => byUrl.get(p.url) ?? p)
+      const added   = data.filter(p => !existingUrls.has(p.url))
+      pages.value = [...updated, ...added]
+    } else {
+      pages.value = data
+    }
   } finally {
     loading.value = false
   }
