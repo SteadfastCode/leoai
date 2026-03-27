@@ -202,7 +202,6 @@ function trailingOverlap(text) {
     const candidate = window.slice(start);
     if (candidate.length >= 40 && candidate.length <= CHUNK_OVERLAP * 1.5) return candidate;
   }
-  // No sentence boundary found — fall back to word boundary
   const tail = text.slice(-CHUNK_OVERLAP);
   const space = tail.indexOf(' ');
   return space !== -1 ? tail.slice(space + 1) : tail;
@@ -213,52 +212,126 @@ function toSentences(text) {
   return text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) ?? [text];
 }
 
+// H2-aware semantic chunking.
+//
+// Strategy:
+//   1. Parse the page into H2-bounded sections (content before the first H2 is the "intro" section).
+//   2. Merge consecutive short sections into a single chunk (up to CHUNK_TARGET).
+//   3. Oversized sections (> CHUNK_MAX) are paragraph-split with the usual sentence/word fallbacks.
+//   4. Every chunk is prefixed with [Source], [H1], and the H2(s) it contains.
+//
+// Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label.
+// label = H2(s) joined by " / " — used as the tab title in the chunk viewer.
 function chunkText(text, url) {
   const chunks = [];
-  // Split on any newline sequence — handles both \n (Puppeteer innerText) and \n\n (cheerio traversal)
-  const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
 
-  let buf = '';
+  // Parse paragraphs — headings are exempt from the 20-char minimum
+  const allParas = text.split(/\n+/)
+    .map(p => p.trim())
+    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
 
-  function flush() {
-    const trimmed = buf.trim();
-    if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: `[Source: ${url}]\n${trimmed}`, url, chunkIndex: chunks.length });
-    buf = trailingOverlap(trimmed);
-  }
+  // Extract page-level H1 (first [H1] paragraph)
+  const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
+  const pageH1  = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
 
-  // Add a sentence-or-paragraph unit into the buffer
-  function addUnit(unit, separator) {
-    const joined = buf ? buf + separator + unit : unit;
-    if (buf.length > 0 && joined.length > CHUNK_MAX) {
-      flush();
-      buf = buf ? buf + separator + unit : unit; // retry after flush (buf is now overlap)
+  // Split into H2-bounded sections: [{ h2: string|null, paras: string[] }]
+  const sections = [];
+  let cur = { h2: null, paras: [] };
+  for (const para of allParas) {
+    if (/^\[H1\] /.test(para)) continue; // page-level, prepended to every chunk separately
+    if (/^\[H2\] /.test(para)) {
+      if (cur.paras.length > 0 || cur.h2 !== null) sections.push(cur);
+      cur = { h2: para.replace(/^\[H2\] /, '').trim(), paras: [] };
     } else {
-      buf = joined;
+      cur.paras.push(para);
     }
-    if (buf.length >= CHUNK_TARGET) flush();
+  }
+  if (cur.paras.length > 0 || cur.h2 !== null) sections.push(cur);
+  if (sections.length === 0) return [];
+
+  // Build the full content string for a chunk
+  function buildContent(h2s, bodyParas) {
+    const lines = [`[Source: ${url}]`];
+    if (pageH1) lines.push(`[H1] ${pageH1}`);
+    if (h2s.length > 0) lines.push(`[H2] ${h2s.join(' / ')}`);
+    lines.push('');
+    lines.push(...bodyParas);
+    return lines.join('\n').trim();
   }
 
-  for (const para of paragraphs) {
-    if (para.length <= CHUNK_MAX) {
-      addUnit(para, '\n\n');
-    } else {
-      // Paragraph is too large — split into sentences
-      const sentences = toSentences(para);
-      for (const sentence of sentences) {
-        if (sentence.length <= CHUNK_MAX) {
-          addUnit(sentence, ' ');
-        } else {
-          // Single sentence exceeds hard cap — word-split fallback
-          for (const word of sentence.split(/\s+/)) {
-            addUnit(word, ' ');
-          }
+  function pushChunk(h2s, bodyParas, primaryH2) {
+    const content = buildContent(h2s, bodyParas);
+    if (content.length < MIN_CHUNK_LENGTH) return;
+    chunks.push({
+      content,
+      url,
+      chunkIndex: chunks.length,
+      pageH1:    pageH1 || null,
+      sectionH2: primaryH2 || null,
+      label:     h2s.length > 0 ? h2s.join(' / ') : (pageH1 || 'Intro'),
+    });
+  }
+
+  // Paragraph-split fallback for a single section that exceeds CHUNK_MAX
+  function splitOversizedSection(section) {
+    const h2s      = section.h2 ? [section.h2] : [];
+    const primaryH2 = section.h2 || null;
+    let buf = '';
+
+    function flushBuf() {
+      const trimmed = buf.trim();
+      if (!trimmed) return;
+      pushChunk(h2s, [trimmed], primaryH2);
+      buf = trailingOverlap(trimmed);
+    }
+
+    function addUnit(unit, sep) {
+      const joined = buf ? buf + sep + unit : unit;
+      if (buf.length > 0 && joined.length > CHUNK_MAX) { flushBuf(); buf = buf ? buf + sep + unit : unit; }
+      else buf = joined;
+      if (buf.length >= CHUNK_TARGET) flushBuf();
+    }
+
+    for (const para of section.paras) {
+      if (para.length <= CHUNK_MAX) {
+        addUnit(para, '\n\n');
+      } else {
+        for (const sent of toSentences(para)) {
+          if (sent.length <= CHUNK_MAX) addUnit(sent, ' ');
+          else for (const word of sent.split(/\s+/)) addUnit(word, ' ');
         }
       }
     }
+    const trimmed = buf.trim();
+    if (trimmed.length >= MIN_CHUNK_LENGTH) pushChunk(h2s, [trimmed], primaryH2);
   }
 
-  const trimmed = buf.trim();
-  if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: `[Source: ${url}]\n${trimmed}`, url, chunkIndex: chunks.length });
+  // Main pass: merge short sections, split oversized ones
+  let mergeBuf = [];
+  let mergeBufLen = 0;
+
+  function flushMergeBuf() {
+    if (mergeBuf.length === 0) return;
+    const h2s  = mergeBuf.map(s => s.h2).filter(Boolean);
+    const paras = mergeBuf.flatMap(s => s.paras);
+    pushChunk(h2s, paras, h2s[0] || null);
+    mergeBuf    = [];
+    mergeBufLen = 0;
+  }
+
+  for (const section of sections) {
+    const sectionLen = section.paras.join('\n\n').length + (section.h2 ? section.h2.length + 10 : 0);
+    if (sectionLen > CHUNK_MAX) {
+      flushMergeBuf();
+      splitOversizedSection(section);
+    } else {
+      if (mergeBufLen > 0 && mergeBufLen + sectionLen > CHUNK_TARGET) flushMergeBuf();
+      mergeBuf.push(section);
+      mergeBufLen += sectionLen;
+      if (mergeBufLen >= CHUNK_TARGET) flushMergeBuf();
+    }
+  }
+  flushMergeBuf();
 
   return chunks;
 }
@@ -295,7 +368,7 @@ async function scrapeSite(baseUrl, opts = {}) {
       await Promise.all(batch.map(async (url) => {
         try {
           const { text, links, usedPuppeteer } = await fetchPage(url, browser);
-          const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal' };
+          const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer };
           batchPageData.push(pageEntry);
           allPageData.push(pageEntry);
 
@@ -368,10 +441,14 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
       await Promise.all(batch.map(async (url) => {
         try {
           const { text, links, usedPuppeteer } = await fetchPage(url, browser);
-          const hash = hashContent(text);
+          const hash        = hashContent(text);
+          const isPriority  = isPriorityUrl(url);
+          const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
 
-          if (storedHashMap.get(urlKey(url)) !== hash) {
-            changedPages.push({ url, text, hash, priority: isPriorityUrl(url) ? 'high' : 'normal' });
+          // High-priority pages (events, schedules, etc.) are always re-embedded even if
+          // the hash matches — their content can change in ways the hash doesn't catch.
+          if (hashChanged || isPriority) {
+            changedPages.push({ url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, contentChanged: hashChanged });
           } else {
             unchangedUrls.push(url);
           }
@@ -410,7 +487,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     embeddedChunks,
     changedUrls: changedPages.map((p) => p.url),
     unchangedUrls,
-    pageHashUpdates: changedPages.map((p) => ({ url: p.url, hash: p.hash, priority: p.priority })),
+    pageHashUpdates: changedPages.map((p) => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged })),
     durationMs: Date.now() - startedAt,
   };
 }

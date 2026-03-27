@@ -44,6 +44,18 @@ Leo may currently quote hymn lyrics from memory with a precision caveat. This is
 
 ---
 
+## Staleness-Based Force Re-Embed
+
+**Priority: Low — LeoRefresh covers most cases**
+
+Add a per-entity setting: "force re-embed pages not scraped in N days." Smart rescrape skips re-embedding pages whose hash hasn't changed — but some pages serve genuinely dynamic content (event listings, live feeds) under a stable URL where the hash stays the same. This would override the hash check for pages older than the threshold, ensuring stale content eventually gets refreshed regardless.
+
+**Not urgent because:** LeoRefresh already runs daily for subscribers. High-priority URL patterns (`/events`, `/schedule`, etc.) already get force re-embedded on every smart rescrape (post-v2.4 behavior). This setting is for the edge case of non-pattern-matched dynamic pages.
+
+**Implementation:** Per-entity `staleDaysThreshold` field. In `rescrapeSite`, skip hash comparison if `lastScrapedAt < now - threshold`.
+
+---
+
 ## Semantic Chunking — Embedding-Based Boundary Detection
 
 **Priority: Medium — pairs with tree retrieval for full benefit**

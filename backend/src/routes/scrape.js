@@ -3,14 +3,52 @@ const router = express.Router();
 const Entity = require('../models/Entity');
 const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
+const ScrapeSnapshot = require('../models/ScrapeSnapshot');
+const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
 
+const MAX_SNAPSHOTS_PER_DOMAIN = 10;
+
 // In-memory tracking of currently active scrapes
 // domain → { url, name, startedAt, mode }
 const activeScrapes = new Map();
+
+// Create a snapshot of current scraped chunks before a destructive operation.
+// mode: 'full'|'force' archives all scraped chunks; 'rescrape' archives only affected URLs.
+// Prunes oldest snapshots if count exceeds MAX_SNAPSHOTS_PER_DOMAIN.
+async function createSnapshot(domain, mode, affectedUrls = null) {
+  const query = { domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } };
+  if (affectedUrls) query.url = { $in: affectedUrls };
+
+  const chunksToArchive = await Chunk.find(query).lean();
+  if (chunksToArchive.length === 0) return null;
+
+  const snapshot = await ScrapeSnapshot.create({
+    domain,
+    mode,
+    chunkCount: chunksToArchive.length,
+    pageCount: new Set(chunksToArchive.map(c => c.url)).size,
+    affectedUrls: affectedUrls ?? [...new Set(chunksToArchive.map(c => c.url))],
+  });
+
+  await ArchivedChunk.insertMany(
+    chunksToArchive.map(({ _id, __v, createdAt, updatedAt, ...c }) => ({ ...c, snapshotId: snapshot._id }))
+  );
+
+  // Prune oldest snapshots for this domain
+  const allSnapshots = await ScrapeSnapshot.find({ domain }).sort({ createdAt: 1 });
+  if (allSnapshots.length > MAX_SNAPSHOTS_PER_DOMAIN) {
+    const toDelete = allSnapshots.slice(0, allSnapshots.length - MAX_SNAPSHOTS_PER_DOMAIN);
+    const toDeleteIds = toDelete.map(s => s._id);
+    await ArchivedChunk.deleteMany({ snapshotId: { $in: toDeleteIds } });
+    await ScrapeSnapshot.deleteMany({ _id: { $in: toDeleteIds } });
+  }
+
+  return snapshot;
+}
 
 function formatDuration(ms) {
   const s = Math.round(ms / 1000);
@@ -38,12 +76,56 @@ router.get('/pages', requireAuth(), async (req, res) => {
       .sort({ url: 1 })
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .select('url priority lastScrapedAt lastChangedAt -_id'),
+      .select('url priority usedPuppeteer chunkCount lastScrapedAt lastChangedAt -_id'),
     ScrapedPage.countDocuments(filter),
     Entity.findOne({ domain }).select('lastScrapedAt name -_id'),
   ]);
 
   res.json({ pages, total, page: Number(page), limit: Number(limit), lastScrapedAt: entity?.lastScrapedAt, entityName: entity?.name });
+});
+
+// GET /scrape/snapshots — list snapshots for a domain (superadmin only)
+router.get('/snapshots', requireAuth(), async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  const { domain } = req.query;
+  if (!domain) return res.status(400).json({ error: 'domain is required' });
+  const snapshots = await ScrapeSnapshot.find({ domain }).sort({ createdAt: -1 }).select('-affectedUrls');
+  res.json(snapshots);
+});
+
+// GET /scrape/snapshots/:id/chunks — chunks for a specific snapshot + URL (superadmin only)
+router.get('/snapshots/:id/chunks', requireAuth(), async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  const { url } = req.query;
+  const filter = { snapshotId: req.params.id };
+  if (url) filter.url = url;
+  const chunks = await ArchivedChunk.find(filter).select('-embedding').sort({ chunkIndex: 1 });
+  res.json(chunks);
+});
+
+// POST /scrape/snapshots/:id/restore — restore a snapshot (superadmin only)
+// If url query param is provided, restores only that page's chunks. Otherwise restores all.
+router.post('/snapshots/:id/restore', requireAuth(), async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  const { url } = req.query;
+
+  const snapshot = await ScrapeSnapshot.findById(req.params.id);
+  if (!snapshot) return res.status(404).json({ error: 'Snapshot not found' });
+
+  const filter = { snapshotId: snapshot._id };
+  if (url) filter.url = url;
+
+  const archived = await ArchivedChunk.find(filter).lean();
+  if (archived.length === 0) return res.status(404).json({ error: 'No archived chunks found' });
+
+  const domain = snapshot.domain;
+  const urlsToRestore = [...new Set(archived.map(c => c.url))];
+
+  // Replace current chunks for the affected URLs
+  await Chunk.deleteMany({ domain, url: { $in: urlsToRestore }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+  await Chunk.insertMany(archived.map(({ _id, snapshotId, __v, createdAt, updatedAt, ...c }) => c));
+
+  res.json({ restored: archived.length, urls: urlsToRestore.length });
 });
 
 router.post('/', requireAuth(), async (req, res) => {
@@ -77,7 +159,8 @@ router.post('/', requireAuth(), async (req, res) => {
 
     if (isForce) {
       // Force rescrape: same as full scrape but triggered on an existing entity.
-      // Wipe scraped chunks + page records so everything is re-embedded from scratch.
+      // Snapshot current chunks before wiping so they can be restored.
+      await createSnapshot(domain, 'force');
       await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
       await ScrapedPage.deleteMany({ domain });
     }
@@ -86,15 +169,23 @@ router.post('/', requireAuth(), async (req, res) => {
       result = await rescrapeSite(url, storedPages, opts);
 
       if (result.embeddedChunks.length > 0) {
-        await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
-        await Chunk.insertMany(result.embeddedChunks.map((c) => ({ ...c, domain })));
+        // Snapshot only the chunks being replaced before deleting them
+        await createSnapshot(domain, 'rescrape', result.changedUrls);
 
-        for (const { url: pageUrl, hash, priority } of result.pageHashUpdates) {
-          await ScrapedPage.findOneAndUpdate(
-            { domain, url: pageUrl },
-            { contentHash: hash, priority, lastScrapedAt: new Date(), lastChangedAt: new Date() },
-            { upsert: true }
-          );
+        await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+        const insertedChunks = result.embeddedChunks.map((c) => ({ ...c, domain }));
+        await Chunk.insertMany(insertedChunks);
+
+        // Count chunks per URL so we can update ScrapedPage.chunkCount
+        const chunkCountByUrl = insertedChunks.reduce((acc, c) => {
+          acc[c.url] = (acc[c.url] || 0) + 1;
+          return acc;
+        }, {});
+
+        for (const { url: pageUrl, hash, priority, usedPuppeteer, contentChanged } of result.pageHashUpdates) {
+          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] ?? 0 };
+          if (contentChanged) update.lastChangedAt = new Date();
+          await ScrapedPage.findOneAndUpdate({ domain, url: pageUrl }, update, { upsert: true });
         }
 
         if (result.unchangedUrls.length > 0) {
@@ -120,27 +211,36 @@ router.post('/', requireAuth(), async (req, res) => {
       broadcastedIo.to(`domain:${domain}`).emit('scrape_complete', summary);
       res.json(summary);
     } else {
+      // Snapshot existing scraped chunks before wiping (full scrape is destructive)
+      await createSnapshot(domain, 'full');
+
       // Delete only scraped chunks — preserve manual, upload, and owner_reply chunks.
-      // $nin covers both explicit source:'scraped' and old chunks that pre-date the source field.
       await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
       await ScrapedPage.deleteMany({ domain });
 
       let totalChunks = 0;
+      // Track chunk counts per URL across all batches for ScrapedPage.chunkCount
+      const chunkCountByUrl = {};
 
       const { pageData, durationMs } = await scrapeSite(url, {
         ...opts,
         onChunks: async (batchChunks) => {
-          await Chunk.insertMany(batchChunks.map((c) => ({ ...c, domain })));
+          const toInsert = batchChunks.map((c) => ({ ...c, domain }));
+          await Chunk.insertMany(toInsert);
           totalChunks += batchChunks.length;
+          for (const c of batchChunks) {
+            chunkCountByUrl[c.url] = (chunkCountByUrl[c.url] || 0) + 1;
+          }
         },
       });
 
       // Build ScrapedPage records from crawled page data
-      const crypto = require('crypto');
-      const pageRecords = pageData.map(({ url: pageUrl, hash }) => ({
+      const pageRecords = pageData.map(({ url: pageUrl, hash, usedPuppeteer }) => ({
         domain,
         url: pageUrl,
         contentHash: hash,
+        usedPuppeteer: !!usedPuppeteer,
+        chunkCount: chunkCountByUrl[pageUrl] ?? 0,
         lastScrapedAt: new Date(),
         lastChangedAt: new Date(),
       }));
