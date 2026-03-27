@@ -218,7 +218,7 @@ function chunkText(text, url) {
 
   function flush() {
     const trimmed = buf.trim();
-    if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: trimmed, url, chunkIndex: chunks.length });
+    if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: `[Source: ${url}]\n${trimmed}`, url, chunkIndex: chunks.length });
     buf = trailingOverlap(trimmed);
   }
 
@@ -254,7 +254,7 @@ function chunkText(text, url) {
   }
 
   const trimmed = buf.trim();
-  if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: trimmed, url, chunkIndex: chunks.length });
+  if (trimmed.length >= MIN_CHUNK_LENGTH) chunks.push({ content: `[Source: ${url}]\n${trimmed}`, url, chunkIndex: chunks.length });
 
   return chunks;
 }
