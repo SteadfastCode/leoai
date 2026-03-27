@@ -11,6 +11,7 @@ const chunkSchema = new mongoose.Schema(
     pageH1:   { type: String }, // page-level H1 heading (same for all chunks on a page)
     sectionH2:{ type: String }, // primary H2 section this chunk belongs to (null for intro/pre-H2 content)
     chunkIndex: { type: Number }, // position within page — used for sibling-range narrowing in tree retrieval
+    sourceUrls: { type: [String], default: [] }, // contributing page URLs — single-URL chunks have [url]; group chunks list all member pages
   },
   { timestamps: true }
 );

@@ -168,16 +168,30 @@ router.post('/', requireAuth(), async (req, res) => {
     if (isRescrape) {
       result = await rescrapeSite(url, storedPages, opts);
 
-      if (result.embeddedChunks.length > 0) {
-        // Snapshot only the chunks being replaced before deleting them
-        await createSnapshot(domain, 'rescrape', result.changedUrls);
+      const hasNormalChanges = result.embeddedChunks.length > 0;
+      const hasThinChanges   = result.thinGroupChunks.length > 0;
 
-        await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
-        const insertedChunks = result.embeddedChunks.map((c) => ({ ...c, domain }));
+      if (hasNormalChanges || hasThinChanges) {
+        // Snapshot affected chunks before deletion:
+        // changedUrls = normal changed pages; thinGroupUrls = group parent URLs being replaced
+        const allAffectedUrls = [...result.changedUrls, ...result.thinGroupUrls];
+        await createSnapshot(domain, 'rescrape', allAffectedUrls);
+
+        // Delete old normal chunks for changed pages
+        if (result.changedUrls.length > 0) {
+          await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+        }
+
+        // Delete old thin group chunks being replaced — only when we have new chunks to insert
+        if (hasThinChanges && result.thinGroupUrls.length > 0) {
+          await Chunk.deleteMany({ domain, url: { $in: result.thinGroupUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+        }
+
+        const insertedChunks = [...result.embeddedChunks, ...result.thinGroupChunks].map((c) => ({ ...c, domain }));
         await Chunk.insertMany(insertedChunks);
 
-        // Count chunks per URL so we can update ScrapedPage.chunkCount
-        const chunkCountByUrl = insertedChunks.reduce((acc, c) => {
+        // Count chunks per URL (normal pages only — group chunks have groupUrl, not individual page URLs)
+        const chunkCountByUrl = result.embeddedChunks.reduce((acc, c) => {
           acc[c.url] = (acc[c.url] || 0) + 1;
           return acc;
         }, {});
@@ -196,13 +210,14 @@ router.post('/', requireAuth(), async (req, res) => {
         }
       }
 
+      const pagesChanged = result.changedUrls.length + result.thinGroupUrls.length;
       const summary = {
         success: true,
         mode: 'rescrape',
         pagesChecked: result.changedUrls.length + result.unchangedUrls.length,
-        pagesChanged: result.changedUrls.length,
+        pagesChanged,
         pagesUnchanged: result.unchangedUrls.length,
-        chunksUpdated: result.embeddedChunks.length,
+        chunksUpdated: result.embeddedChunks.length + result.thinGroupChunks.length,
         durationMs: result.durationMs,
         durationFormatted: formatDuration(result.durationMs),
       };

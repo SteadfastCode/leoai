@@ -10,8 +10,10 @@ const CONCURRENCY = 5; // pages fetched in parallel per batch
 const CHUNK_TARGET  = 1200; // flush chunk when buffer reaches this size
 const CHUNK_MAX     = 1800; // hard cap — a single unit may never exceed this
 const CHUNK_OVERLAP = 200;  // chars of sentence-boundary overlap carried into next chunk
-const MIN_CHUNK_LENGTH = 100; // skip chunks too short to be useful
 const THIN_CONTENT_THRESHOLD = 800; // chars — below this, assume JS rendering is needed
+const THIN_PAGE_THRESHOLD    = 300; // chars — below this, page is held for multi-URL grouping
+const MAX_HEADING_OCCURRENCES = 5;  // heading text seen more than this is boilerplate
+const BOILERPLATE_MAX = 200;        // paragraphs shorter than this are deduped across pages
 
 // Use hostname + pathname as the canonical key — strips query params that are
 // navigation context (category_id, cp, si, etc.) so the same product isn't
@@ -37,6 +39,23 @@ function isPriorityUrl(url) {
 
 function hashContent(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+// Returns the parent-path URL used to group thin pages under a common key.
+// e.g. https://site.com/staff/kelly-robinson/ → https://site.com/staff/
+// Falls back to origin for top-level pages (e.g. /about → /).
+function getGroupUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const path = u.pathname.replace(/\/$/, ''); // strip trailing slash
+    const lastSlash = path.lastIndexOf('/');
+    u.pathname = lastSlash <= 0 ? '/' : path.slice(0, lastSlash) + '/';
+    u.search = '';
+    u.hash = '';
+    return u.href;
+  } catch {
+    return urlStr;
+  }
 }
 
 // Block-level tags that warrant a paragraph break in extracted text.
@@ -220,12 +239,11 @@ function toSentences(text) {
 //   3. Oversized sections (> CHUNK_MAX) are paragraph-split with the usual sentence/word fallbacks.
 //   4. Every chunk is prefixed with [Source], [H1], and the H2(s) it contains.
 //
-// Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label.
-// label = H2(s) joined by " / " — used as the tab title in the chunk viewer.
+// Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label, sourceUrls.
 function chunkText(text, url) {
   const chunks = [];
 
-  // Parse paragraphs — headings are exempt from the 20-char minimum
+  // Parse paragraphs — headings and emails are exempt from the 20-char minimum
   const allParas = text.split(/\n+/)
     .map(p => p.trim())
     .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
@@ -260,9 +278,7 @@ function chunkText(text, url) {
 
   function pushChunk(h2s, bodyParas, primaryH2) {
     const content = buildContent(h2s, bodyParas);
-    // Always include chunks that have a page H1 — short staff/person pages are real
-    // content even with minimal body text. Apply length gate only to heading-free chunks.
-    if (!pageH1 && content.length < MIN_CHUNK_LENGTH) return;
+    if (!content.trim()) return;
     chunks.push({
       content,
       url,
@@ -270,12 +286,13 @@ function chunkText(text, url) {
       pageH1:    pageH1 || null,
       sectionH2: primaryH2 || null,
       label:     h2s.length > 0 ? h2s.join(' / ') : (pageH1 || 'Intro'),
+      sourceUrls: [url],
     });
   }
 
   // Paragraph-split fallback for a single section that exceeds CHUNK_MAX
   function splitOversizedSection(section) {
-    const h2s      = section.h2 ? [section.h2] : [];
+    const h2s       = section.h2 ? [section.h2] : [];
     const primaryH2 = section.h2 || null;
     let buf = '';
 
@@ -304,7 +321,7 @@ function chunkText(text, url) {
       }
     }
     const trimmed = buf.trim();
-    if (trimmed.length >= MIN_CHUNK_LENGTH) pushChunk(h2s, [trimmed], primaryH2);
+    if (trimmed) pushChunk(h2s, [trimmed], primaryH2);
   }
 
   // Main pass: merge short sections, split oversized ones
@@ -313,7 +330,7 @@ function chunkText(text, url) {
 
   function flushMergeBuf() {
     if (mergeBuf.length === 0) return;
-    const h2s  = mergeBuf.map(s => s.h2).filter(Boolean);
+    const h2s   = mergeBuf.map(s => s.h2).filter(Boolean);
     const paras = mergeBuf.flatMap(s => s.paras);
     pushChunk(h2s, paras, h2s[0] || null);
     mergeBuf    = [];
@@ -337,16 +354,172 @@ function chunkText(text, url) {
   return chunks;
 }
 
-// Full scrape — crawls entire site, embeds chunks progressively per batch
-// opts.onChunks(chunks) is called after each batch so chunks reach MongoDB immediately
+// Build combined multi-URL chunks for a group of thin pages.
+// Each page becomes a "card" (source URL + H1 + body). Cards are packed into
+// CHUNK_TARGET-sized chunks attributed to the parent group URL.
+// Does NOT apply seenParaHashes — thin pages' content must be preserved even
+// if paragraphs appeared on a listing page.
+function buildGroupChunks(groupUrl, pages) {
+  const rawChunks = [];
+
+  // Build a card per page with lightweight filtering (no seenParaHashes)
+  const cards = pages.map(({ url, text }) => {
+    const paras = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+    const h1Para = paras.find(p => /^\[H1\] /.test(p));
+    const h1 = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
+    const bodyParas = paras
+      .filter(p => !/^\[H1\] /.test(p))
+      .filter(p => p.length >= 20 || /^\[H[23]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
+
+    let cardText = `[Source: ${url}]`;
+    if (h1) cardText += `\n[H1] ${h1}`;
+    if (bodyParas.length > 0) cardText += '\n\n' + bodyParas.join('\n\n');
+
+    return { url, h1, cardText };
+  });
+
+  // Pack cards into CHUNK_TARGET-sized combined chunks
+  let buf = [];
+  let bufLen = 0;
+
+  function flush() {
+    if (buf.length === 0) return;
+    const content = [`[Source: ${groupUrl}]`, ''].concat(buf.map(c => c.cardText)).join('\n\n').trim();
+    const h1s = buf.map(c => c.h1).filter(Boolean);
+    const label = h1s.length > 0
+      ? h1s.slice(0, 3).join(', ') + (h1s.length > 3 ? ', …' : '')
+      : 'Group';
+    rawChunks.push({
+      content,
+      url: groupUrl,
+      chunkIndex: rawChunks.length,
+      pageH1: null,
+      sectionH2: null,
+      label,
+      sourceUrls: buf.map(c => c.url),
+    });
+    buf = [];
+    bufLen = 0;
+  }
+
+  for (const card of cards) {
+    if (bufLen > 0 && bufLen + card.cardText.length + 10 > CHUNK_TARGET) flush();
+    buf.push(card);
+    bufLen += card.cardText.length;
+  }
+  flush();
+
+  return rawChunks;
+}
+
+// Embed a set of thin pages grouped by parent URL.
+// Returns { chunks: embedded[], groupUrls: string[] }
+async function embedThinPageGroups(thinPages, seenChunkHashes = new Set()) {
+  if (thinPages.length === 0) return { chunks: [], groupUrls: [] };
+
+  // Group by parent path URL
+  const groups = new Map(); // groupUrl → pages[]
+  for (const page of thinPages) {
+    const groupUrl = getGroupUrl(page.url);
+    if (!groups.has(groupUrl)) groups.set(groupUrl, []);
+    groups.get(groupUrl).push(page);
+  }
+
+  const rawChunks = [];
+  for (const [groupUrl, pages] of groups) {
+    rawChunks.push(...buildGroupChunks(groupUrl, pages));
+  }
+
+  // Chunk-level dedup
+  const allChunks = rawChunks.filter(chunk => {
+    const h = hashContent(chunk.content);
+    if (seenChunkHashes.has(h)) return false;
+    seenChunkHashes.add(h);
+    return true;
+  });
+
+  if (allChunks.length === 0) return { chunks: [], groupUrls: [...groups.keys()] };
+
+  console.log(`Embedding ${allChunks.length} thin-group chunks across ${groups.size} groups...`);
+  const embeddings = await embedTexts(allChunks.map(c => c.content));
+  const chunks = allChunks.map((chunk, i) => ({ ...chunk, embedding: embeddings[i] }));
+
+  return { chunks, groupUrls: [...groups.keys()] };
+}
+
+// Process a batch of fetched pages: run paragraph dedup, split into normal vs thin.
+// Normal pages are chunked and embedded immediately; thin pages are returned for
+// deferred multi-URL grouping.
+//
+// Returns { normalChunks: embedded[], thinPageData: pageEntry[] }
+async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Map()) {
+  const thinPageData = [];
+  const toChunk = []; // { url, filteredText }
+
+  for (const page of pageData) {
+    // Apply paragraph-level dedup for ALL pages to track boilerplate.
+    // Short paragraphs already seen on a previous page are filtered out.
+    // Long paragraphs (>BOILERPLATE_MAX) always pass — they may be real content
+    // appearing on both an index page and a detail page.
+    const paras = page.text.split(/\n+/).map(p => p.trim())
+      .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
+
+    const filtered = paras.filter(p => {
+      if (p.length > BOILERPLATE_MAX) return true;
+      const h = hashContent(p);
+      const count = seenParaHashes.get(h) ?? 0;
+      const isHeading = /^\[H[123]\] /.test(p);
+      const limit = isHeading ? MAX_HEADING_OCCURRENCES : 1;
+      if (count >= limit) return false;
+      seenParaHashes.set(h, count + 1);
+      return true;
+    });
+
+    // Thin pages (raw text under threshold) are grouped separately.
+    // We pass the original text to buildGroupChunks so that content unique
+    // to the detail page (title, email) is not lost to seenParaHashes filtering.
+    if (page.text.length < THIN_PAGE_THRESHOLD) {
+      thinPageData.push(page);
+      continue;
+    }
+
+    if (filtered.length === 0) continue;
+    toChunk.push({ url: page.url, filteredText: filtered.join('\n\n') });
+  }
+
+  const rawChunks = toChunk.flatMap(({ url, filteredText }) => chunkText(filteredText, url));
+
+  // Secondary: chunk-level dedup as a safety net for any remaining exact duplicates
+  const allChunks = rawChunks.filter(chunk => {
+    const h = hashContent(chunk.content);
+    if (seenChunkHashes.has(h)) return false;
+    seenChunkHashes.add(h);
+    return true;
+  });
+
+  let normalChunks = [];
+  if (allChunks.length > 0) {
+    console.log(`Embedding ${allChunks.length} chunks (${rawChunks.length - allChunks.length} duplicates removed)...`);
+    const embeddings = await embedTexts(allChunks.map(c => c.content));
+    normalChunks = allChunks.map((chunk, i) => ({ ...chunk, embedding: embeddings[i] }));
+  }
+
+  return { normalChunks, thinPageData };
+}
+
+// Full scrape — crawls entire site, embeds chunks progressively per batch.
+// Normal-page chunks reach MongoDB after each batch (KB is queryable early).
+// Thin pages are buffered and grouped into multi-URL chunks after the full crawl.
+// opts.onChunks(chunks) is called for both normal batches and the final thin groups.
 async function scrapeSite(baseUrl, opts = {}) {
   const { io, domain, onChunks } = opts;
   const startedAt = Date.now();
   const visited = new Set();
   const queue = [baseUrl];
   const allPageData = []; // kept for page record building in the route
-  const seenChunkHashes = new Set(); // shared across batches — secondary chunk-level dedup
-  const seenParaHashes  = new Map(); // shared across batches — primary paragraph-level dedup (hash → count)
+  const thinPageBuffer = []; // thin pages accumulated across all batches
+  const seenChunkHashes = new Set();
+  const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
@@ -397,22 +570,38 @@ async function scrapeSite(baseUrl, opts = {}) {
         }
       }));
 
-      // Embed and store this batch immediately — KB is queryable after first batch
-      if (batchPageData.length > 0 && onChunks) {
-        const batchChunks = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes);
-        if (batchChunks.length > 0) await onChunks(batchChunks);
+      // Embed normal chunks immediately — thin pages are buffered for end-of-crawl grouping
+      if (batchPageData.length > 0) {
+        if (onChunks) {
+          const { normalChunks, thinPageData } = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes);
+          if (normalChunks.length > 0) await onChunks(normalChunks);
+          thinPageBuffer.push(...thinPageData);
+        }
       }
+    }
+
+    // After full crawl: group thin pages and embed them together
+    if (thinPageBuffer.length > 0) {
+      const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageBuffer, seenChunkHashes);
+      if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks);
     }
   } finally {
     await browser.close();
   }
 
-  // If no onChunks callback (e.g. tests), fall back to batch embed at end
-  const chunks = onChunks ? [] : await embedPageData(allPageData);
-  return { chunks, pageData: allPageData, durationMs: Date.now() - startedAt };
+  // If no onChunks callback (e.g. tests), embed everything at the end
+  if (!onChunks) {
+    const { normalChunks, thinPageData } = await embedPageData(allPageData, seenChunkHashes, seenParaHashes);
+    const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageData, seenChunkHashes);
+    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, durationMs: Date.now() - startedAt };
+  }
+
+  return { chunks: [], pageData: allPageData, durationMs: Date.now() - startedAt };
 }
 
-// Smart rescrape — only re-embeds pages whose content has changed
+// Smart rescrape — only re-embeds pages whose content has changed.
+// Thin pages are always re-grouped since we have their text from the hash-check crawl.
+// Only thin groups with at least one changed page are re-embedded.
 async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const { io, domain } = opts;
   const startedAt = Date.now();
@@ -420,7 +609,8 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
   const visited = new Set();
   const queue = [baseUrl];
-  const changedPages = [];
+  const allPageData = []; // all fetched pages (text available for thin grouping)
+  const changedPages = []; // non-thin pages with changed hash or high-priority
   const unchangedUrls = [];
   const baseDomain = new URL(baseUrl).hostname;
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
@@ -445,14 +635,23 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
+          const isThin      = text.length < THIN_PAGE_THRESHOLD;
 
-          // High-priority pages (events, schedules, etc.) are always re-embedded even if
-          // the hash matches — their content can change in ways the hash doesn't catch.
-          if (hashChanged || isPriority) {
-            changedPages.push({ url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, contentChanged: hashChanged });
-          } else {
+          const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, contentChanged: hashChanged };
+          allPageData.push(pageEntry);
+
+          if (!isThin) {
+            // High-priority pages are always re-embedded even if hash matches
+            if (hashChanged || isPriority) {
+              changedPages.push(pageEntry);
+            } else {
+              unchangedUrls.push(url);
+            }
+          } else if (!hashChanged) {
+            // Unchanged thin pages still need lastScrapedAt updated even though they're re-grouped
             unchangedUrls.push(url);
           }
+          // Thin pages are collected from allPageData at the end — always re-grouped
 
           if (io && domain) {
             io.to(`domain:${domain}`).emit('scrape_progress', {
@@ -482,57 +681,51 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     await browser.close();
   }
 
-  const embeddedChunks = changedPages.length > 0 ? await embedPageData(changedPages) : [];
+  // Embed normal changed pages
+  const seenChunkHashes = new Set();
+  const seenParaHashes  = new Map();
+  const { normalChunks: embeddedChunks } = changedPages.length > 0
+    ? await embedPageData(changedPages, seenChunkHashes, seenParaHashes)
+    : { normalChunks: [] };
+
+  // Thin pages: re-group all thin pages; only re-embed groups with ≥1 changed page
+  const allThinPages = allPageData.filter(p => p.text.length < THIN_PAGE_THRESHOLD);
+  const changedThinUrls = new Set(allThinPages.filter(p => p.contentChanged).map(p => p.url));
+
+  // Group all thin pages; identify which groups contain at least one changed page
+  const thinGroups = new Map(); // groupUrl → pages[]
+  for (const page of allThinPages) {
+    const groupUrl = getGroupUrl(page.url);
+    if (!thinGroups.has(groupUrl)) thinGroups.set(groupUrl, []);
+    thinGroups.get(groupUrl).push(page);
+  }
+
+  const changedThinGroups = new Map();
+  for (const [groupUrl, pages] of thinGroups) {
+    const hasChanged = pages.some(p => changedThinUrls.has(p.url));
+    if (hasChanged) changedThinGroups.set(groupUrl, pages);
+  }
+
+  let thinGroupChunks = [];
+  const thinGroupUrls = [...changedThinGroups.keys()];
+  if (changedThinGroups.size > 0) {
+    const thinPagesForEmbedding = [...changedThinGroups.values()].flat();
+    const result = await embedThinPageGroups(thinPagesForEmbedding, seenChunkHashes);
+    thinGroupChunks = result.chunks;
+  }
 
   return {
     embeddedChunks,
-    changedUrls: changedPages.map((p) => p.url),
+    thinGroupChunks,
+    changedUrls:    changedPages.map(p => p.url),
+    thinGroupUrls,
     unchangedUrls,
-    pageHashUpdates: changedPages.map((p) => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged })),
+    // pageHashUpdates covers ALL changed pages (normal + thin) for ScrapedPage record updates
+    pageHashUpdates: allPageData
+      .filter(p => p.contentChanged || (isPriorityUrl(p.url) && p.text.length >= THIN_PAGE_THRESHOLD))
+      .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged })),
     durationMs: Date.now() - startedAt,
   };
-}
-
-// seenParaHashes: shared across batches, dedupes at the paragraph level before chunking
-// seenChunkHashes: secondary safety net, dedupes assembled chunks
-const MAX_HEADING_OCCURRENCES = 5; // heading text seen more than this is boilerplate (e.g. site-wide banners)
-
-async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Map()) {
-  const rawChunks = pageData.flatMap(({ url, text }) => {
-    // Filter out short paragraphs already seen on a previous page — catches boilerplate
-    // (nav items, footers, cookie notices, etc.). Long paragraphs (>200 chars) are always
-    // kept even if seen before — they may be real content that legitimately appears on both
-    // an index page and a detail page (e.g. a staff bio on /staff/ and /staff/kelly-robinson/).
-    const BOILERPLATE_MAX = 200;
-    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
-    const filtered = paras.filter(p => {
-      if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
-      const h = hashContent(p);
-      const count = seenParaHashes.get(h) ?? 0;
-      const isHeading = /^\[H[123]\] /.test(p);
-      const limit = isHeading ? MAX_HEADING_OCCURRENCES : 1;
-      if (count >= limit) return false;
-      seenParaHashes.set(h, count + 1);
-      return true;
-    });
-    if (filtered.length === 0) return [];
-    return chunkText(filtered.join('\n\n'), url);
-  });
-
-  // Secondary: chunk-level dedup as a safety net for any remaining exact duplicates
-  const allChunks = rawChunks.filter((chunk) => {
-    const h = hashContent(chunk.content);
-    if (seenChunkHashes.has(h)) return false;
-    seenChunkHashes.add(h);
-    return true;
-  });
-
-  if (allChunks.length === 0) return [];
-
-  console.log(`Embedding ${allChunks.length} chunks (${rawChunks.length - allChunks.length} duplicates removed)...`);
-  const embeddings = await embedTexts(allChunks.map((c) => c.content));
-
-  return allChunks.map((chunk, i) => ({ ...chunk, embedding: embeddings[i] }));
 }
 
 module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText };

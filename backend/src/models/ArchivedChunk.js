@@ -14,7 +14,8 @@ const archivedChunkSchema = new mongoose.Schema(
     label:      { type: String },
     pageH1:     { type: String },
     sectionH2:  { type: String },
-    chunkIndex: { type: Number },
+    chunkIndex:  { type: Number },
+    sourceUrls:  { type: [String], default: [] },
   },
   { timestamps: true }
 );
