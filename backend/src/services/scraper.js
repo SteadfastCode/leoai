@@ -10,7 +10,6 @@ const CONCURRENCY = 5; // pages fetched in parallel per batch
 const CHUNK_TARGET  = 1200; // flush chunk when buffer reaches this size
 const CHUNK_MAX     = 1800; // hard cap — a single unit may never exceed this
 const CHUNK_OVERLAP = 200;  // chars of sentence-boundary overlap carried into next chunk
-const THIN_CONTENT_THRESHOLD = 800; // chars — below this, assume JS rendering is needed
 const THIN_PAGE_THRESHOLD    = 300; // chars — below this, page is held for multi-URL grouping
 const MAX_HEADING_OCCURRENCES = 5;  // heading text seen more than this is boilerplate
 const BOILERPLATE_MAX = 200;        // paragraphs shorter than this are deduped across pages
@@ -67,6 +66,45 @@ function getGroupUrl(urlStr) {
   } catch {
     return urlStr;
   }
+}
+
+// Script src patterns and DOM markers that indicate a JS-rendered page.
+// When detected, Puppeteer is used regardless of content length — these platforms
+// render real content client-side and axios/cheerio will miss it.
+const JS_FRAMEWORK_SCRIPTS = [
+  /\breact\b/i,             // React (react.js, react-dom, react-router…)
+  /\bvue\b/i,               // Vue.js (vue.js, vue-router, vuetify…)
+  /\bangular\b/i,           // Angular
+  /\bsvelte\b/i,            // Svelte
+  /\/_next\//i,             // Next.js (/_next/static/…)
+  /\bnuxt\b/i,              // Nuxt.js
+  /\bgatsby\b/i,            // Gatsby
+  /webflow\.com/i,          // Webflow CDN
+  /squarespace\.com/i,      // Squarespace CDN
+  /squarecdn\.com/i,        // Square Online CDN
+  /squareupscdn\.com/i,     // Square CDN (alternate)
+  /shopify\.com\/s\//i,     // Shopify CDN
+  /wixstatic\.com/i,        // Wix CDN
+  /weebly\.com/i,           // Weebly CDN
+];
+
+const JS_GENERATOR_RE = /webflow|squarespace|wix|shopify|squareup/i;
+
+// Returns true if the page likely requires JS rendering.
+// Must be called before script tags are removed from the cheerio DOM.
+function detectsJsFramework($) {
+  // Check script src attributes for framework/platform CDN patterns
+  const scriptSrcs = $('script[src]').map((_, el) => $(el).attr('src') || '').get();
+  if (scriptSrcs.some(src => JS_FRAMEWORK_SCRIPTS.some(p => p.test(src)))) return true;
+
+  // Check meta generator tag (Webflow, Squarespace, Wix etc. all set this)
+  const generator = $('meta[name="generator"]').attr('content') || '';
+  if (JS_GENERATOR_RE.test(generator)) return true;
+
+  // Framework-specific DOM mount-point markers
+  if ($('[data-reactroot], #__next, #__nuxt, [data-v-app]').length > 0) return true;
+
+  return false;
 }
 
 // Block-level tags that warrant a paragraph break in extracted text.
@@ -172,6 +210,9 @@ async function fetchPage(url, browser) {
 
   const $ = cheerio.load(html);
 
+  // Detect JS frameworks BEFORE removing script tags — detection reads script src attrs.
+  const jsFramework = browser && detectsJsFramework($);
+
   // Decode Cloudflare email obfuscation — CF replaces emails with [email protected]
   // and an XOR-encoded href. Decode before text extraction so real emails end up in chunks.
   $('a[href^="/cdn-cgi/l/email-protection#"]').each((_, el) => {
@@ -207,9 +248,13 @@ async function fetchPage(url, browser) {
     }
   });
 
-  // Pass 2 — thin content likely means JS rendering is needed
-  if (text.length < THIN_CONTENT_THRESHOLD && browser) {
-    console.log(`Thin content on ${url} (${text.length} chars) — retrying with Puppeteer`);
+  // Pass 2 — use Puppeteer if JS framework detected, or if cheerio found no H1
+  // (a missing H1 suggests a JS-rendered shell that didn't produce real structure).
+  const hasH1 = /\[H1\]/.test(text);
+  const needsPuppeteer = jsFramework || !hasH1;
+  if (needsPuppeteer && browser) {
+    const reason = jsFramework ? 'JS framework detected' : 'no H1 found (possible JS shell)';
+    console.log(`${reason} on ${url} — retrying with Puppeteer`);
     try {
       const puppeteerResult = await fetchPageWithPuppeteer(url, browser);
       return { ...puppeteerResult, usedPuppeteer: true };
