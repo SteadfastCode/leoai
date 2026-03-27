@@ -57,7 +57,7 @@ Some pages (e.g. staff pages with just a name, title, phone) are too thin to sta
 
 **Possible resolution:** Store `primaryUrl` (owner) + `sourceUrls: [String]` (all contributing pages). Tree retrieval uses `primaryUrl`; citation uses the most relevant source URL. Rescrape deletes by `primaryUrl`.
 
-**When to revisit:** If thin-page content regularly fails to surface in RAG answers despite being included via the H1-exemption fix.
+**When to revisit:** The current H1-exemption and email-pattern fixes cover the Westminster PCA staff page pattern, but they're targeted patches. This is a general problem — thin but legitimate pages appear across all kinds of sites: product SKU + price pages, service listings with just a title and phone number, event pages with a name and date, location pages with just an address. Any site with many short pages will hit these same false negatives. The multi-URL chunk approach is the architectural answer to the general case.
 
 ---
 
