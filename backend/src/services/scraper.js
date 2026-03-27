@@ -14,6 +14,7 @@ const THIN_CONTENT_THRESHOLD = 800; // chars — below this, assume JS rendering
 const THIN_PAGE_THRESHOLD    = 300; // chars — below this, page is held for multi-URL grouping
 const MAX_HEADING_OCCURRENCES = 5;  // heading text seen more than this is boilerplate
 const BOILERPLATE_MAX = 200;        // paragraphs shorter than this are deduped across pages
+const TINY_BUF_THRESHOLD     = 200; // merge buffer below this is never flushed alone — absorbs into next section
 
 // Use hostname + pathname as the canonical key — strips query params that are
 // navigation context (category_id, cp, si, etc.) so the same product isn't
@@ -343,7 +344,9 @@ function chunkText(text, url) {
       flushMergeBuf();
       splitOversizedSection(section);
     } else {
-      if (mergeBufLen > 0 && mergeBufLen + sectionLen > CHUNK_TARGET) flushMergeBuf();
+      // Don't flush a tiny buffer just because the next section is large —
+      // absorb the small leading section into the next chunk even if it overruns CHUNK_TARGET slightly.
+      if (mergeBufLen > TINY_BUF_THRESHOLD && mergeBufLen + sectionLen > CHUNK_TARGET) flushMergeBuf();
       mergeBuf.push(section);
       mergeBufLen += sectionLen;
       if (mergeBufLen >= CHUNK_TARGET) flushMergeBuf();
