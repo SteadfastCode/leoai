@@ -7,15 +7,25 @@ const BATCH_SIZE = 128; // Voyage AI max batch size
 const MAX_RETRIES = 6;
 const BASE_DELAY_MS = 20000; // 20s base — 429s mean rate limited, give it room
 
+const NETWORK_ERROR_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED', 'EPIPE']);
+
 async function embedBatchWithRetry(batch, inputType, attempt = 0) {
   try {
     const result = await client.embed({ model: MODEL, input: batch, inputType });
     return result.data.map((d) => d.embedding);
   } catch (err) {
     const is429 = err?.statusCode === 429 || err?.message?.includes('429');
-    if (is429 && attempt < MAX_RETRIES) {
-      const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-      console.log(`Voyage rate limit hit — retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+    const isNetwork = NETWORK_ERROR_CODES.has(err?.code)
+      || err?.message?.toLowerCase().includes('timeout')
+      || err?.message?.toLowerCase().includes('network error');
+    const isRetryable = is429 || isNetwork;
+    if (isRetryable && attempt < MAX_RETRIES) {
+      // 429 rate limits need long back-off; transient network errors recover quickly
+      const delay = is429
+        ? BASE_DELAY_MS * Math.pow(2, attempt)
+        : Math.min(1000 * Math.pow(2, attempt), 30000);
+      const reason = is429 ? 'rate limit' : `network error (${err?.code || err?.message})`;
+      console.log(`Voyage ${reason} — retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
       await new Promise((r) => setTimeout(r, delay));
       return embedBatchWithRetry(batch, inputType, attempt + 1);
     }

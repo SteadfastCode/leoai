@@ -665,7 +665,14 @@ async function scrapeSite(baseUrl, opts = {}) {
       if (batchPageData.length > 0) {
         if (onChunks) {
           const { normalChunks, thinPageData } = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes);
-          if (normalChunks.length > 0) await onChunks(normalChunks);
+          if (normalChunks.length > 0) {
+            // Tell the route which pages produced chunks so it can upsert ScrapedPage records
+            const normalPageUrls = new Set(normalChunks.map(c => c.url));
+            const batchPageRecords = batchPageData
+              .filter(p => normalPageUrls.has(p.url))
+              .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer }));
+            await onChunks(normalChunks, batchPageRecords);
+          }
           thinPageBuffer.push(...thinPageData);
         }
       }
@@ -674,7 +681,8 @@ async function scrapeSite(baseUrl, opts = {}) {
     // After full crawl: group thin pages and embed them together
     if (thinPageBuffer.length > 0) {
       const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageBuffer, seenChunkHashes);
-      if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks);
+      // No page records — thin group pages' ScrapedPage records are handled by bulkWrite at end
+      if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks, []);
     }
   } finally {
     await browser.close();

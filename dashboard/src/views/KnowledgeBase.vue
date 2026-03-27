@@ -176,6 +176,17 @@ watch(() => props.domain, () => {
   loadKbEntries()
 }, { immediate: true })
 
+// Throttled reload — fires at most once per 4s when scrape_page_saved events arrive.
+// Pages are now saved progressively per-URL so each event means fresh data in the DB.
+let _pagesSavedTimer = null
+function onPagesSaved() {
+  if (_pagesSavedTimer) return
+  _pagesSavedTimer = setTimeout(() => {
+    _pagesSavedTimer = null
+    load()
+  }, 4000)
+}
+
 function onScrapeProgress(event) {
   if (event.url.includes(props.domain)) {
     if (!scraping.value) scraping.value = true
@@ -212,10 +223,13 @@ function onScrapeComplete(event) {
 onMounted(() => {
   socket.on('scrape_progress', onScrapeProgress)
   socket.on('scrape_complete', onScrapeComplete)
+  socket.on('scrape_page_saved', onPagesSaved)
 })
 onUnmounted(() => {
   socket.off('scrape_progress', onScrapeProgress)
   socket.off('scrape_complete', onScrapeComplete)
+  socket.off('scrape_page_saved', onPagesSaved)
+  if (_pagesSavedTimer) { clearTimeout(_pagesSavedTimer); _pagesSavedTimer = null }
 })
 
 async function rescrape() {

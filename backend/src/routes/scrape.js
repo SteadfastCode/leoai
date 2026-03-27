@@ -172,42 +172,57 @@ router.post('/', requireAuth(), async (req, res) => {
       const hasThinChanges   = result.thinGroupChunks.length > 0;
 
       if (hasNormalChanges || hasThinChanges) {
-        // Snapshot affected chunks before deletion:
-        // changedUrls = normal changed pages; thinGroupUrls = group parent URLs being replaced
+        // Snapshot first — before any mutations so a restore is always possible
         const allAffectedUrls = [...result.changedUrls, ...result.thinGroupUrls];
         await createSnapshot(domain, 'rescrape', allAffectedUrls);
 
-        // Delete old normal chunks for changed pages
-        if (result.changedUrls.length > 0) {
-          await Chunk.deleteMany({ domain, url: { $in: result.changedUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+        // Group normal chunks by URL for per-URL saves
+        const normalByUrl = new Map();
+        for (const chunk of result.embeddedChunks) {
+          if (!normalByUrl.has(chunk.url)) normalByUrl.set(chunk.url, []);
+          normalByUrl.get(chunk.url).push(chunk);
         }
 
-        // Delete old thin group chunks being replaced — only when we have new chunks to insert
-        if (hasThinChanges && result.thinGroupUrls.length > 0) {
-          await Chunk.deleteMany({ domain, url: { $in: result.thinGroupUrls }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
-        }
-
-        const insertedChunks = [...result.embeddedChunks, ...result.thinGroupChunks].map((c) => ({ ...c, domain }));
-        await Chunk.insertMany(insertedChunks);
-
-        // Count chunks per URL (normal pages only — group chunks have groupUrl, not individual page URLs)
-        const chunkCountByUrl = result.embeddedChunks.reduce((acc, c) => {
-          acc[c.url] = (acc[c.url] || 0) + 1;
-          return acc;
-        }, {});
-
+        // Per-URL: insert new chunks FIRST (no gap), then delete old ones, then upsert ScrapedPage.
+        // Using _id exclusion so the delete never touches the chunks we just inserted.
+        const PRESERVED = { $nin: ['manual', 'upload', 'owner_reply'] };
         for (const { url: pageUrl, hash, priority, usedPuppeteer, contentChanged } of result.pageHashUpdates) {
-          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] ?? 0 };
+          const chunks = normalByUrl.get(pageUrl) || [];
+          if (chunks.length > 0) {
+            const inserted = await Chunk.insertMany(chunks.map(c => ({ ...c, domain })));
+            const insertedIds = inserted.map(d => d._id);
+            await Chunk.deleteMany({ domain, url: pageUrl, source: PRESERVED, _id: { $nin: insertedIds } });
+          }
+          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), chunkCount: chunks.length };
           if (contentChanged) update.lastChangedAt = new Date();
           await ScrapedPage.findOneAndUpdate({ domain, url: pageUrl }, update, { upsert: true });
+          broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { url: pageUrl });
         }
 
-        if (result.unchangedUrls.length > 0) {
-          await ScrapedPage.updateMany(
-            { domain, url: { $in: result.unchangedUrls } },
-            { lastScrapedAt: new Date() }
-          );
+        // Thin group chunks: same insert-before-delete pattern per group URL
+        if (hasThinChanges) {
+          const thinByUrl = new Map();
+          for (const chunk of result.thinGroupChunks) {
+            if (!thinByUrl.has(chunk.url)) thinByUrl.set(chunk.url, []);
+            thinByUrl.get(chunk.url).push(chunk);
+          }
+          for (const groupUrl of result.thinGroupUrls) {
+            const chunks = thinByUrl.get(groupUrl) || [];
+            if (chunks.length > 0) {
+              const inserted = await Chunk.insertMany(chunks.map(c => ({ ...c, domain })));
+              const insertedIds = inserted.map(d => d._id);
+              await Chunk.deleteMany({ domain, url: groupUrl, source: PRESERVED, _id: { $nin: insertedIds } });
+            }
+            broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { url: groupUrl });
+          }
         }
+      }
+
+      if (result.unchangedUrls.length > 0) {
+        await ScrapedPage.updateMany(
+          { domain, url: { $in: result.unchangedUrls } },
+          { lastScrapedAt: new Date() }
+        );
       }
 
       const pagesChanged = result.changedUrls.length + result.thinGroupUrls.length;
@@ -234,34 +249,44 @@ router.post('/', requireAuth(), async (req, res) => {
       await ScrapedPage.deleteMany({ domain });
 
       let totalChunks = 0;
-      // Track chunk counts per URL across all batches for ScrapedPage.chunkCount
       const chunkCountByUrl = {};
 
       const { pageData, durationMs } = await scrapeSite(url, {
         ...opts,
-        onChunks: async (batchChunks) => {
-          const toInsert = batchChunks.map((c) => ({ ...c, domain }));
-          await Chunk.insertMany(toInsert);
+        // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
+        onChunks: async (batchChunks, pageRecords = []) => {
+          await Chunk.insertMany(batchChunks.map(c => ({ ...c, domain })));
           totalChunks += batchChunks.length;
           for (const c of batchChunks) {
             chunkCountByUrl[c.url] = (chunkCountByUrl[c.url] || 0) + 1;
           }
+          // Upsert ScrapedPage records progressively for non-thin pages
+          if (pageRecords.length > 0) {
+            await Promise.all(pageRecords.map(p =>
+              ScrapedPage.findOneAndUpdate(
+                { domain, url: p.url },
+                { contentHash: p.hash, priority: p.priority, usedPuppeteer: !!p.usedPuppeteer, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[p.url] || 0 },
+                { upsert: true }
+              )
+            ));
+            broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { count: pageRecords.length });
+          }
         },
       });
 
-      // Build ScrapedPage records from crawled page data
-      const pageRecords = pageData.map(({ url: pageUrl, hash, usedPuppeteer }) => ({
-        domain,
-        url: pageUrl,
-        contentHash: hash,
-        usedPuppeteer: !!usedPuppeteer,
-        chunkCount: chunkCountByUrl[pageUrl] ?? 0,
-        lastScrapedAt: new Date(),
-        lastChangedAt: new Date(),
-      }));
-
-      if (pageRecords.length > 0) {
-        await ScrapedPage.insertMany(pageRecords);
+      // Final pass: upsert ScrapedPage for ALL pages via bulkWrite.
+      // Non-thin pages were already upserted in onChunks — this is idempotent for them.
+      // Thin pages and any zero-chunk pages are picked up here for the first time.
+      if (pageData.length > 0) {
+        await ScrapedPage.bulkWrite(
+          pageData.map(({ url: pageUrl, hash, usedPuppeteer }) => ({
+            updateOne: {
+              filter: { domain, url: pageUrl },
+              update: { $set: { contentHash: hash, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] || 0 } },
+              upsert: true,
+            },
+          }))
+        );
       }
 
       await Entity.findOneAndUpdate(
