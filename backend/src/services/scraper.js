@@ -41,13 +41,24 @@ function hashContent(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
+// Paragraphs shorter than 20 chars are usually nav noise — but contact info (emails,
+// phone numbers) must be kept even when short. This predicate is used in every
+// paragraph filter pass so all four sites stay in sync.
+const PHONE_RE = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/;
+function keepPara(p) {
+  return p.length >= 20
+    || /^\[H[123]\] /.test(p)
+    || /\S+@\S+\.\S+/.test(p)
+    || PHONE_RE.test(p);
+}
+
 // Estimate the unique content length of a page's text without a full seenParaHashes pass.
-// Applies basic paragraph filtering (length gate + heading/email exemptions) but skips
-// cross-page dedup. Used for thin-page detection where seenParaHashes isn't available.
+// Applies basic paragraph filtering (length gate + heading/email/phone exemptions) but
+// skips cross-page dedup. Used for thin-page detection where seenParaHashes isn't available.
 function estimateContentLen(text) {
   return text.split(/\n+/)
     .map(p => p.trim())
-    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p))
+    .filter(keepPara)
     .join('\n\n').length;
 }
 
@@ -302,7 +313,7 @@ function chunkText(text, url) {
   // Parse paragraphs — headings and emails are exempt from the 20-char minimum
   const allParas = text.split(/\n+/)
     .map(p => p.trim())
-    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
+    .filter(keepPara);
 
   // Extract page-level H1 (first [H1] paragraph)
   const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
@@ -446,7 +457,7 @@ function buildGroupChunks(groupUrl, pages) {
     const h1 = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
     const bodyParas = paras
       .filter(p => !/^\[H1\] /.test(p))
-      .filter(p => p.length >= 20 || /^\[H[23]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
+      .filter(keepPara);
 
     let cardText = `[Source: ${url}]`;
     if (h1) cardText += `\n[H1] ${h1}`;
@@ -539,7 +550,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     // Long paragraphs (>BOILERPLATE_MAX) always pass — they may be real content
     // appearing on both an index page and a detail page.
     const paras = page.text.split(/\n+/).map(p => p.trim())
-      .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
+      .filter(keepPara);
 
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true;
