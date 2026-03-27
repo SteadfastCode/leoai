@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const router = express.Router({ mergeParams: true });
 
 const Chunk = require('../models/Chunk');
@@ -84,11 +84,26 @@ router.post('/upload', requireAuth(PERMISSIONS.SETTINGS_EDIT), upload.single('fi
     }
   } else if (ext === 'xlsx' || ext === 'xls' || mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || mimetype === 'application/vnd.ms-excel') {
     try {
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      text = workbook.SheetNames.map(name => {
-        const sheet = workbook.Sheets[name];
-        return `[Sheet: ${name}]\n` + XLSX.utils.sheet_to_csv(sheet);
-      }).join('\n\n');
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const sheetTexts = [];
+      workbook.eachSheet((worksheet) => {
+        const rows = [];
+        worksheet.eachRow((row) => {
+          const cells = row.values.slice(1).map(v => {
+            if (v == null) return '';
+            if (typeof v === 'object') {
+              if (v.richText) return v.richText.map(r => r.text).join('');
+              if (v.result != null) return String(v.result);
+              if (v instanceof Date) return v.toISOString().slice(0, 10);
+            }
+            return String(v);
+          });
+          rows.push(cells.join(','));
+        });
+        sheetTexts.push(`[Sheet: ${worksheet.name}]\n` + rows.join('\n'));
+      });
+      text = sheetTexts.join('\n\n');
     } catch {
       return res.status(422).json({ error: 'Could not parse Excel file' });
     }
