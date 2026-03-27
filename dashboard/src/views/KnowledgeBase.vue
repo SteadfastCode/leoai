@@ -169,15 +169,6 @@ async function load() {
   }
 }
 
-let lastProgressRefresh = 0
-function throttledLoad() {
-  const now = Date.now()
-  if (now - lastProgressRefresh > 5000) {
-    lastProgressRefresh = now
-    load()
-  }
-}
-
 watch(() => props.domain, () => {
   scrapeLog.value = []
   scrapeResult.value = null
@@ -188,7 +179,6 @@ watch(() => props.domain, () => {
 function onScrapeProgress(event) {
   if (event.url.includes(props.domain)) {
     if (!scraping.value) scraping.value = true
-    throttledLoad()
     const host = (() => { try { return new URL(event.url).hostname } catch { return '' } })()
     const path = (() => { try { return new URL(event.url).pathname.slice(0, 55) } catch { return event.url.slice(0, 55) } })()
     const isSubdomain = host && !host.startsWith('www.') && host !== props.domain
@@ -215,7 +205,6 @@ function onScrapeComplete(event) {
   expandedPage.value = null
   pageChunks.value = []
   expandedChunk.value = null
-  lastProgressRefresh = 0
   load()
   loadKbEntries()
 }
