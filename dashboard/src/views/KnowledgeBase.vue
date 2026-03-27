@@ -506,6 +506,15 @@ function sourceColor(source) {
               >{{ page.url }}</a>
             </div>
 
+            <div v-if="page.chunkSizes && page.chunkSizes.length" class="d-flex gap-1 flex-shrink-0 flex-wrap">
+              <v-chip
+                v-for="(size, i) in page.chunkSizes"
+                :key="i"
+                size="x-small"
+                variant="tonal"
+              >{{ size.toLocaleString() }}</v-chip>
+            </div>
+
             <v-chip
               :color="page.priority === 'high' ? 'orange' : 'default'"
               size="x-small"

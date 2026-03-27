@@ -116,11 +116,27 @@ router.get('/entities/:domain/chunks', async (req, res) => {
   }
 });
 
-// GET /api/dashboard/entities/:domain/pages — scraped pages list
+// GET /api/dashboard/entities/:domain/pages — scraped pages list with per-chunk sizes
 router.get('/entities/:domain/pages', async (req, res) => {
   try {
     const pages = await ScrapedPage.find({ domain: req.params.domain }).sort({ lastChangedAt: -1 });
-    res.json(pages);
+
+    // Aggregate chunk sizes for all pages in one query.
+    // Group chunks (url = parent path) won't match individual page URLs — thin pages
+    // show no chips, which is fine since they appear in the chunk viewer via sourceUrls.
+    const sizeAgg = await Chunk.aggregate([
+      { $match: { domain: req.params.domain } },
+      { $project: { url: 1, chunkIndex: 1, len: { $strLenCP: '$content' } } },
+      { $sort: { chunkIndex: 1 } },
+    ]);
+
+    const sizesByUrl = {};
+    for (const c of sizeAgg) {
+      if (!sizesByUrl[c.url]) sizesByUrl[c.url] = [];
+      sizesByUrl[c.url].push(c.len);
+    }
+
+    res.json(pages.map(p => ({ ...p.toObject(), chunkSizes: sizesByUrl[p.url] || [] })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
