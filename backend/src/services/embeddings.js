@@ -29,6 +29,9 @@ async function embedBatchWithRetry(batch, inputType, attempt = 0) {
       await new Promise((r) => setTimeout(r, delay));
       return embedBatchWithRetry(batch, inputType, attempt + 1);
     }
+    if (isRetryable) {
+      console.error(`Voyage embedding failed after ${MAX_RETRIES} retries — giving up. Error: ${err?.message}`);
+    }
     throw err;
   }
 }
