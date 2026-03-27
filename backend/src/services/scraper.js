@@ -216,7 +216,7 @@ function toSentences(text) {
 function chunkText(text, url) {
   const chunks = [];
   // Split on any newline sequence — handles both \n (Puppeteer innerText) and \n\n (cheerio traversal)
-  const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
+  const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
 
   let buf = '';
 
@@ -426,7 +426,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     // kept even if seen before — they may be real content that legitimately appears on both
     // an index page and a detail page (e.g. a staff bio on /staff/ and /staff/kelly-robinson/).
     const BOILERPLATE_MAX = 200;
-    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20);
+    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
       const h = hashContent(p);

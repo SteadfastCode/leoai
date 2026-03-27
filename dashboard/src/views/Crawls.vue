@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { triggerScrape, getActiveScrapes } from '../lib/api'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { triggerScrape, getActiveScrapes, getScrapedPages } from '../lib/api'
 import { socket } from '../lib/socket'
 
 // Map of domain → { name, mode, startedAt, log: [], done: false, result: null }
@@ -104,6 +104,49 @@ function dismissCrawl(domain) {
 }
 
 const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) => ({ domain, ...c })))
+
+// ── Page Explorer ─────────────────────────────────────────────────────────────
+const explorerDomain   = ref('')
+const explorerSearch   = ref('')
+const explorerPage     = ref(1)
+const explorerLimit    = ref(50)
+const explorerTotal    = ref(0)
+const explorerPages    = ref([])
+const explorerLoading  = ref(false)
+const explorerMeta     = ref(null) // { lastScrapedAt, entityName }
+const explorerHeaders  = [
+  { title: 'URL', key: 'url', sortable: false },
+  { title: 'Priority', key: 'priority', sortable: false, width: '100px' },
+  { title: 'Last Changed', key: 'lastChangedAt', sortable: false, width: '160px' },
+  { title: 'Last Scraped', key: 'lastScrapedAt', sortable: false, width: '160px' },
+]
+
+async function loadPages({ page, itemsPerPage } = {}) {
+  if (!explorerDomain.value) return
+  if (page) explorerPage.value = page
+  if (itemsPerPage) explorerLimit.value = itemsPerPage
+  explorerLoading.value = true
+  try {
+    const { data } = await getScrapedPages({
+      domain: explorerDomain.value,
+      page: explorerPage.value,
+      limit: explorerLimit.value,
+      search: explorerSearch.value,
+    })
+    explorerPages.value = data.pages
+    explorerTotal.value = data.total
+    explorerMeta.value  = { lastScrapedAt: data.lastScrapedAt, entityName: data.entityName }
+  } catch { /* non-critical */ } finally {
+    explorerLoading.value = false
+  }
+}
+
+watch(explorerSearch, () => { explorerPage.value = 1; loadPages() })
+
+function formatTs(ts) {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
 </script>
 
 <template>
@@ -234,6 +277,72 @@ const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) 
     </div>
 
     <v-snackbar v-model="snackbar" timeout="5000">{{ snackbarMsg }}</v-snackbar>
+
+    <!-- Page Explorer -->
+    <v-divider class="my-8" />
+    <div class="text-h6 font-weight-bold mb-4">Page Explorer</div>
+
+    <div class="d-flex align-start flex-wrap mb-4" style="gap: 12px">
+      <v-text-field
+        v-model="explorerDomain"
+        label="Domain"
+        placeholder="example.com"
+        variant="outlined"
+        density="compact"
+        hide-details
+        clearable
+        style="max-width: 260px"
+        @keyup.enter="loadPages()"
+        @click:clear="explorerPages = []; explorerMeta = null; explorerTotal = 0"
+      />
+      <v-btn color="primary" variant="tonal" :loading="explorerLoading" :disabled="!explorerDomain" @click="loadPages()">
+        Load
+      </v-btn>
+      <v-text-field
+        v-if="explorerMeta"
+        v-model="explorerSearch"
+        label="Filter URLs"
+        placeholder="/staff"
+        variant="outlined"
+        density="compact"
+        hide-details
+        clearable
+        prepend-inner-icon="mdi-magnify"
+        style="max-width: 280px"
+      />
+    </div>
+
+    <div v-if="explorerMeta" class="text-body-2 text-medium-emphasis mb-3">
+      <span class="font-weight-medium">{{ explorerMeta.entityName || explorerDomain }}</span>
+      · {{ explorerTotal.toLocaleString() }} pages
+      · Last scraped {{ formatTs(explorerMeta.lastScrapedAt) }}
+    </div>
+
+    <v-data-table-server
+      v-if="explorerMeta"
+      v-model:items-per-page="explorerLimit"
+      :headers="explorerHeaders"
+      :items="explorerPages"
+      :items-length="explorerTotal"
+      :loading="explorerLoading"
+      :page="explorerPage"
+      density="compact"
+      @update:options="loadPages"
+    >
+      <template #item.url="{ item }">
+        <a :href="item.url" target="_blank" rel="noopener" class="text-caption" style="word-break: break-all">{{ item.url }}</a>
+      </template>
+      <template #item.priority="{ item }">
+        <v-chip v-if="item.priority === 'high'" size="x-small" color="warning" variant="tonal">high</v-chip>
+        <span v-else class="text-caption text-medium-emphasis">normal</span>
+      </template>
+      <template #item.lastChangedAt="{ item }">
+        <span class="text-caption">{{ formatTs(item.lastChangedAt) }}</span>
+      </template>
+      <template #item.lastScrapedAt="{ item }">
+        <span class="text-caption">{{ formatTs(item.lastScrapedAt) }}</span>
+      </template>
+    </v-data-table-server>
   </div>
 </template>
 

@@ -24,6 +24,28 @@ router.get('/active', requireAuth(), (req, res) => {
   res.json([...activeScrapes.entries()].map(([domain, info]) => ({ domain, ...info })));
 });
 
+// GET /scrape/pages — superadmin only, paginated scraped page records for a domain
+router.get('/pages', requireAuth(), async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  const { domain, page = 1, limit = 50, search = '' } = req.query;
+  if (!domain) return res.status(400).json({ error: 'domain is required' });
+
+  const filter = { domain };
+  if (search) filter.url = { $regex: search, $options: 'i' };
+
+  const [pages, total, entity] = await Promise.all([
+    ScrapedPage.find(filter)
+      .sort({ url: 1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .select('url priority lastScrapedAt lastChangedAt -_id'),
+    ScrapedPage.countDocuments(filter),
+    Entity.findOne({ domain }).select('lastScrapedAt name -_id'),
+  ]);
+
+  res.json({ pages, total, page: Number(page), limit: Number(limit), lastScrapedAt: entity?.lastScrapedAt, entityName: entity?.name });
+});
+
 router.post('/', requireAuth(), async (req, res) => {
   const { domain, url, name, timezone, rescrape, force } = req.body;
 

@@ -59,6 +59,7 @@ export const extractChurchConfig   = (domain)       => api.post(`/api/dashboard/
 export const triggerScrape    = (data)         => api.post('/scrape', data)
 export const getChunks        = (domain, url)  => api.get(`/api/dashboard/entities/${domain}/chunks`, { params: { url } })
 export const getActiveScrapes = ()             => api.get('/scrape/active')
+export const getScrapedPages  = (params)       => api.get('/scrape/pages', { params })
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
 
 export const getBilling                = (domain)       => api.get(`/api/billing/${domain}`)
