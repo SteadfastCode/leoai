@@ -106,9 +106,10 @@ router.get('/entities/:domain/chunks', async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'url required' });
-    const chunks = await Chunk.find({ domain: req.params.domain, url })
-      .select('content source label createdAt')
-      .sort({ createdAt: 1 });
+    // Match chunks by exact URL or by sourceUrls membership (multi-URL group chunks)
+    const chunks = await Chunk.find({ domain: req.params.domain, $or: [{ url }, { sourceUrls: url }] })
+      .select('content source label chunkIndex sourceUrls createdAt')
+      .sort({ chunkIndex: 1 });
     res.json(chunks);
   } catch (err) {
     res.status(500).json({ error: err.message });

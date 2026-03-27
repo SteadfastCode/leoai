@@ -541,7 +541,18 @@ function sourceColor(source) {
                     mdi-chevron-right
                   </v-icon>
                   <span class="text-caption text-medium-emphasis flex-shrink-0">Chunk {{ idx + 1 }}</span>
+                  <v-chip
+                    v-if="chunk.sourceUrls && chunk.sourceUrls.length > 1"
+                    size="x-small"
+                    color="indigo"
+                    variant="tonal"
+                    class="flex-shrink-0"
+                    title="Multi-page group chunk"
+                  >{{ chunk.sourceUrls.length }} pages</v-chip>
                   <span class="text-caption chunk-preview flex-grow-1">{{ chunk.content.slice(0, 120) }}…</span>
+                  <v-chip size="x-small" variant="tonal" class="flex-shrink-0 ml-auto">
+                    {{ chunk.content.length.toLocaleString() }} chars
+                  </v-chip>
                 </div>
                 <div v-if="expandedChunk === idx" class="chunk-content pa-3 pt-0">
                   <pre class="chunk-text">{{ chunk.content }}</pre>

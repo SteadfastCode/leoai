@@ -268,6 +268,25 @@ function chunkText(text, url) {
   if (cur.paras.length > 0 || cur.h2 !== null) sections.push(cur);
   if (sections.length === 0) return [];
 
+  // Pre-pass: absorb tiny sections (< TINY_BUF_THRESHOLD) into the adjacent section.
+  // Without this, a short "Contact" or intro section before/after a large bio section
+  // ends up as its own micro-chunk regardless of the merge-loop logic below.
+  // Iterate backwards so splice indices stay stable.
+  for (let i = sections.length - 1; i >= 0; i--) {
+    const len = sections[i].paras.join('\n\n').length + (sections[i].h2 ? sections[i].h2.length + 10 : 0);
+    if (len >= TINY_BUF_THRESHOLD) continue;
+    if (i + 1 < sections.length) {
+      // Absorb forward: prepend paras into the next section (keep next section's H2 label)
+      sections[i + 1] = { h2: sections[i + 1].h2, paras: [...sections[i].paras, ...sections[i + 1].paras] };
+      sections.splice(i, 1);
+    } else if (i > 0) {
+      // Last section is tiny — absorb backward into the previous section
+      sections[i - 1] = { h2: sections[i - 1].h2, paras: [...sections[i - 1].paras, ...sections[i].paras] };
+      sections.splice(i, 1);
+    }
+  }
+  if (sections.length === 0) return [];
+
   // Build the full content string for a chunk
   function buildContent(h2s, bodyParas) {
     const lines = [`[Source: ${url}]`];
