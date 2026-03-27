@@ -228,7 +228,7 @@ function chunkText(text, url) {
   // Parse paragraphs — headings are exempt from the 20-char minimum
   const allParas = text.split(/\n+/)
     .map(p => p.trim())
-    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
+    .filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
 
   // Extract page-level H1 (first [H1] paragraph)
   const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
@@ -255,13 +255,14 @@ function chunkText(text, url) {
     if (pageH1) lines.push(`[H1] ${pageH1}`);
     if (h2s.length > 0) lines.push(`[H2] ${h2s.join(' / ')}`);
     lines.push('');
-    lines.push(...bodyParas);
-    return lines.join('\n').trim();
+    return (lines.join('\n') + '\n' + bodyParas.join('\n\n')).trim();
   }
 
   function pushChunk(h2s, bodyParas, primaryH2) {
     const content = buildContent(h2s, bodyParas);
-    if (content.length < MIN_CHUNK_LENGTH) return;
+    // Always include chunks that have a page H1 — short staff/person pages are real
+    // content even with minimal body text. Apply length gate only to heading-free chunks.
+    if (!pageH1 && content.length < MIN_CHUNK_LENGTH) return;
     chunks.push({
       content,
       url,
@@ -503,7 +504,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     // kept even if seen before — they may be real content that legitimately appears on both
     // an index page and a detail page (e.g. a staff bio on /staff/ and /staff/kelly-robinson/).
     const BOILERPLATE_MAX = 200;
-    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p));
+    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p.length >= 20 || /^\[H[123]\] /.test(p) || /\S+@\S+\.\S+/.test(p));
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true; // always keep substantive paragraphs
       const h = hashContent(p);

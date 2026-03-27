@@ -44,6 +44,23 @@ Leo may currently quote hymn lyrics from memory with a precision caveat. This is
 
 ---
 
+## Multi-URL Chunks — Thin Page Appending
+
+**Priority: Low — current H1-exemption fix covers the immediate need**
+
+Some pages (e.g. staff pages with just a name, title, phone) are too thin to stand alone as meaningful chunks but too specific to discard. The idea: detect pages below a content threshold after chunking and append their content to a logically related chunk from another URL (e.g. the parent `/staff/` listing page). This creates chunks that reference multiple source URLs.
+
+**Complicating factors:**
+- `url` field on Chunk is a single string — used for dedup, delete-on-rescrape, tree retrieval grouping, and source attribution in Leo's responses
+- Smart rescrape deletes by URL — a multi-URL chunk would need to decide which URL "owns" it for deletion purposes
+- RAG source citation becomes ambiguous
+
+**Possible resolution:** Store `primaryUrl` (owner) + `sourceUrls: [String]` (all contributing pages). Tree retrieval uses `primaryUrl`; citation uses the most relevant source URL. Rescrape deletes by `primaryUrl`.
+
+**When to revisit:** If thin-page content regularly fails to surface in RAG answers despite being included via the H1-exemption fix.
+
+---
+
 ## Staleness-Based Force Re-Embed
 
 **Priority: Low — LeoRefresh covers most cases**
