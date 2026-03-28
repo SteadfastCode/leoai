@@ -186,6 +186,13 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Embed snippet component — `EmbedSnippet.vue` renders the `<script>` tag with correct domain, click-to-copy with checkmark confirmation; shown in Settings and on the Signup step-4 Done screen
 - ✅ Two-phase RAG retrieval (tree siblings) — Phase 1 vector search + Phase 2 in-memory sibling scoring for all chunks sharing a primary hit's page URL; lower sibling threshold (primary − 0.15); chunkIndex stored on each chunk for future ±N neighbor narrowing once semantic chunking lands
 - ✅ Production deployment — backend on Railway (api.leo-ai.chat), dashboard on Netlify (leo-ai.app). Email switched from Proton Bridge/nodemailer to Resend SDK (email.js service). Puppeteer configured for Railway via nixpacks.toml (system Chromium, --no-sandbox flags). Dashboard API URL driven by VITE_API_URL env var.
+- ✅ Scraper — JS-framework-aware Puppeteer trigger: detects React/Vue/Angular/etc. via CDN script patterns + meta generator; H1 presence used as negative signal (if cheerio found H1, site is server-rendered, skip Puppeteer). Replaces blunt `THIN_CONTENT_THRESHOLD` constant.
+- ✅ Scraper — `keepPara()` unified paragraph filter with `PHONE_RE` so phone numbers (< 20 chars) are preserved through chunking.
+- ✅ Scraper — Embedding network retry with short back-off (1s/2s/4s, cap 30s) for transient errors (`ECONNRESET`, `ETIMEDOUT`, `ENOTFOUND`, `ECONNREFUSED`, `EPIPE`, timeout messages). Separate path from 429 handling. Logs error when retries exhausted.
+- ✅ Progressive per-URL DB saves — chunks inserted before old ones deleted (insert-before-delete with `$nin` on `_id`); ScrapedPage upserted per URL; `scrape_page_saved` socket event fired per URL. Snapshot taken before any mutations. Chunks are never absent during scrape.
+- ✅ KB Scraped Pages live update — `scrape_page_saved` socket event throttles `load()` to 4s; new pages appended to bottom (not prepended); in-place update preserves scroll position.
+- ✅ Admin Entities tab — `/entities` route; lists all entities with plan badge, last-scraped date; trash icon → confirm-by-domain dialog → hard delete (chunks, pages, conversations, snapshots, archived chunks, invites, membership entries, entity doc).
+- ✅ Crawls Page Explorer infini-grid — `@tanstack/vue-virtual` virtualizer replaces `v-data-table-server`; all pages loaded at once (limit=1000) for client-side filtering (URL search, renderer HTML/JS toggle, priority High/Normal toggle); router-synced `domain`+`search` query params; right-side chunk drawer (420px) with tabbed chunks, `[H1]`/`[H2]`/`[H3]` rendered as markdown headings, group-chunk indicator chip.
 
 ---
 
