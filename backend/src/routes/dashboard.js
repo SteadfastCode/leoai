@@ -454,37 +454,41 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
   if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
   const { domain } = req.params;
 
-  const entity = await Entity.findOne({ domain });
-  if (!entity) return res.status(404).json({ error: 'Entity not found' });
+  try {
+    const entity = await Entity.findOne({ domain });
+    if (!entity) return res.status(404).json({ error: 'Entity not found' });
 
-  // Snapshot IDs first so we can cascade-delete archived chunks
-  const snapshotIds = await ScrapeSnapshot.find({ domain }).distinct('_id');
+    // Collect snapshot IDs first so we can cascade-delete their archived chunks
+    const snapshotIds = await ScrapeSnapshot.distinct('_id', { domain });
 
-  const [chunks, pages, conversations, snapshots, archived] = await Promise.all([
-    Chunk.deleteMany({ domain }),
-    ScrapedPage.deleteMany({ domain }),
-    Conversation.deleteMany({ domain }),
-    ScrapeSnapshot.deleteMany({ domain }),
-    ArchivedChunk.deleteMany({ snapshotId: { $in: snapshotIds } }),
-    Invite.deleteMany({ domain }),
-    User.updateMany(
-      { 'memberships.entityDomain': domain },
-      { $pull: { memberships: { entityDomain: domain } } }
-    ),
-  ]);
+    const [chunks, pages, conversations, snapshots, archived] = await Promise.all([
+      Chunk.deleteMany({ domain }),
+      ScrapedPage.deleteMany({ domain }),
+      Conversation.deleteMany({ domain }),
+      ScrapeSnapshot.deleteMany({ domain }),
+      ArchivedChunk.deleteMany({ snapshotId: { $in: snapshotIds } }),
+      Invite.deleteMany({ domain }),
+      User.updateMany(
+        { 'memberships.entityDomain': domain },
+        { $pull: { memberships: { entityDomain: domain } } }
+      ),
+    ]);
 
-  await Entity.deleteOne({ domain });
+    await Entity.deleteOne({ domain });
 
-  res.json({
-    ok: true,
-    deleted: {
-      chunks: chunks.deletedCount,
-      pages: pages.deletedCount,
-      conversations: conversations.deletedCount,
-      snapshots: snapshots.deletedCount,
-      archivedChunks: archived.deletedCount,
-    },
-  });
+    res.json({
+      ok: true,
+      deleted: {
+        chunks: chunks.deletedCount,
+        pages: pages.deletedCount,
+        conversations: conversations.deletedCount,
+        snapshots: snapshots.deletedCount,
+        archivedChunks: archived.deletedCount,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
