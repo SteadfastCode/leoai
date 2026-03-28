@@ -43,7 +43,7 @@ const selectedDomain = ref(localStorage.getItem('leo_dashboard_domain') || '')
 const drawer        = ref(true)
 const rail          = ref(false)
 
-const adminPaths = ['/crawls', '/chat-preview', '/ministry-requests', '/logs']
+const adminPaths = ['/entities', '/crawls', '/chat-preview', '/ministry-requests', '/logs']
 const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsWith(p)) ? 'admin' : 'entity')
 
 const entityNavItems = [
@@ -56,11 +56,12 @@ const entityNavItems = [
 ]
 
 const adminNavItems = [
-  { title: 'Crawls', icon: 'mdi-web-sync', to: '/crawls' },
-  { title: 'Chat', icon: 'mdi-chat-outline', to: '/chat-preview' },
-  { title: 'Ministry Requests', icon: 'mdi-church', to: '/ministry-requests' },
-  { title: 'Codes', icon: 'mdi-ticket-percent-outline', to: '/codes' },
-  { title: 'Logs',  icon: 'mdi-text-box-outline',      to: '/logs' },
+  { title: 'Entities', icon: 'mdi-domain',              to: '/entities' },
+  { title: 'Crawls',   icon: 'mdi-web-sync',            to: '/crawls' },
+  { title: 'Chat',     icon: 'mdi-chat-outline',        to: '/chat-preview' },
+  { title: 'Ministry Requests', icon: 'mdi-church',     to: '/ministry-requests' },
+  { title: 'Codes',    icon: 'mdi-ticket-percent-outline', to: '/codes' },
+  { title: 'Logs',     icon: 'mdi-text-box-outline',    to: '/logs' },
 ]
 
 async function loadEntities() {
@@ -113,7 +114,7 @@ function selectEntity(domain) {
 }
 
 watch(navLayer, (val) => {
-  router.push(val === 'admin' ? '/crawls' : '/overview')
+  router.push(val === 'admin' ? '/entities' : '/overview')
 })
 
 const selectedEntity = () => entities.value.find(e => e.domain === selectedDomain.value)

@@ -5,6 +5,8 @@ const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
+const ScrapeSnapshot = require('../models/ScrapeSnapshot');
+const ArchivedChunk = require('../models/ArchivedChunk');
 const Invite = require('../models/Invite');
 const User = require('../models/User');
 const { embedTexts } = require('../services/embeddings');
@@ -445,6 +447,44 @@ router.delete('/entities/:domain/team/:userId', requireAuth(PERMISSIONS.USERS_MA
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// DELETE /api/dashboard/entities/:domain — superadmin only, full cascade delete
+router.delete('/entities/:domain', requireAuth(), async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
+  const { domain } = req.params;
+
+  const entity = await Entity.findOne({ domain });
+  if (!entity) return res.status(404).json({ error: 'Entity not found' });
+
+  // Snapshot IDs first so we can cascade-delete archived chunks
+  const snapshotIds = await ScrapeSnapshot.find({ domain }).distinct('_id');
+
+  const [chunks, pages, conversations, snapshots, archived] = await Promise.all([
+    Chunk.deleteMany({ domain }),
+    ScrapedPage.deleteMany({ domain }),
+    Conversation.deleteMany({ domain }),
+    ScrapeSnapshot.deleteMany({ domain }),
+    ArchivedChunk.deleteMany({ snapshotId: { $in: snapshotIds } }),
+    Invite.deleteMany({ domain }),
+    User.updateMany(
+      { 'memberships.entityDomain': domain },
+      { $pull: { memberships: { entityDomain: domain } } }
+    ),
+  ]);
+
+  await Entity.deleteOne({ domain });
+
+  res.json({
+    ok: true,
+    deleted: {
+      chunks: chunks.deletedCount,
+      pages: pages.deletedCount,
+      conversations: conversations.deletedCount,
+      snapshots: snapshots.deletedCount,
+      archivedChunks: archived.deletedCount,
+    },
+  });
 });
 
 module.exports = router;

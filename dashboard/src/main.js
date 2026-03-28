@@ -17,6 +17,7 @@ import ResetPassword from './views/ResetPassword.vue'
 import Team from './views/Team.vue'
 import AcceptInvite from './views/AcceptInvite.vue'
 import Crawls from './views/Crawls.vue'
+import AdminEntities from './views/AdminEntities.vue'
 import Chat from './views/Chat.vue'
 import MinistryRequests from './views/MinistryRequests.vue'
 import Signup from './views/Signup.vue'
@@ -67,6 +68,7 @@ const router = createRouter({
     { path: '/billing', component: Billing },
     { path: '/team', component: Team },
     { path: '/crawls', component: Crawls },
+    { path: '/entities', component: AdminEntities },
     { path: '/chat-preview', component: Chat },
     { path: '/ministry-requests', component: MinistryRequests },
     { path: '/codes', component: Codes },

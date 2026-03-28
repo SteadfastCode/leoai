@@ -55,6 +55,7 @@ export const getConversations = (domain, page) => api.get(`/api/dashboard/entiti
 export const getConversation  = (domain, id)   => api.get(`/api/dashboard/entities/${domain}/conversations/${id}`)
 export const getPages         = (domain)       => api.get(`/api/dashboard/entities/${domain}/pages`)
 export const updateEntity          = (domain, data) => api.patch(`/api/dashboard/entities/${domain}`, data)
+export const deleteEntity          = (domain)       => api.delete(`/api/dashboard/entities/${domain}`)
 export const extractChurchConfig   = (domain)       => api.post(`/api/dashboard/entities/${domain}/church-config/extract`)
 export const triggerScrape    = (data)         => api.post('/scrape', data)
 export const getChunks        = (domain, url)  => api.get(`/api/dashboard/entities/${domain}/chunks`, { params: { url } })
