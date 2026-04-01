@@ -4,6 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getScrapedPages, getChunks } from '../lib/api'
 
+const props = defineProps({
+  entitiesList: { type: Array, default: () => [] },
+})
+
 const route  = useRoute()
 const router = useRouter()
 
@@ -123,29 +127,29 @@ function formatTs(ts) {
       <div class="text-h5 font-weight-bold">Page Explorer</div>
     </div>
 
-    <!-- Domain + Load -->
-    <div class="d-flex align-start flex-wrap mb-3" style="gap: 12px">
-      <v-text-field
+    <!-- Domain picker -->
+    <div class="mb-3" style="max-width: 340px">
+      <v-autocomplete
         v-model="explorerDomain"
-        label="Domain"
-        placeholder="example.com"
+        :items="props.entitiesList"
+        item-title="name"
+        item-value="domain"
+        label="Entity"
+        placeholder="Search entities…"
         variant="outlined"
         density="compact"
         hide-details
         clearable
-        style="max-width: 260px"
-        @keyup.enter="loadPages"
+        auto-select-first
+        @update:model-value="val => { if (val) loadPages(); else { allPages = []; explorerMeta = null } }"
         @click:clear="allPages = []; explorerMeta = null"
-      />
-      <v-btn
-        color="primary"
-        variant="tonal"
-        :loading="explorerLoading"
-        :disabled="!explorerDomain"
-        @click="loadPages"
       >
-        Load
-      </v-btn>
+        <template #item="{ item, props: iProps }">
+          <v-list-item v-bind="iProps">
+            <template #subtitle>{{ item.raw.domain }}</template>
+          </v-list-item>
+        </template>
+      </v-autocomplete>
     </div>
 
     <!-- Filters (only after load) -->
