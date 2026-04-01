@@ -45,11 +45,13 @@ function hashContent(text) {
 // phone numbers) must be kept even when short. This predicate is used in every
 // paragraph filter pass so all four sites stay in sync.
 const PHONE_RE = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/;
+const MONEY_RE = /[$€£¥]\s*\d[\d.,]*/;
 function keepPara(p) {
   return p.length >= 20
     || /^\[H[123]\] /.test(p)
     || /\S+@\S+\.\S+/.test(p)
-    || PHONE_RE.test(p);
+    || PHONE_RE.test(p)
+    || MONEY_RE.test(p);
 }
 
 // Estimate the unique content length of a page's text without a full seenParaHashes pass.
