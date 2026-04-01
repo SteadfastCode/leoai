@@ -198,9 +198,13 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
       });
       // Join list items into a single line before innerText so short items
       // (product names, partner names, etc.) survive the keepPara length floor.
+      // Use textContent (not innerText) to avoid forcing layout reflow per element.
+      // Skip large lists (>30 items) — product catalog pages with hundreds of items
+      // produce unhelpful mega-strings and cause performance issues.
       document.querySelectorAll('ul, ol').forEach((list) => {
-        const items = [...list.querySelectorAll(':scope > li')]
-          .map(li => li.innerText.trim()).filter(Boolean);
+        const lis = [...list.querySelectorAll(':scope > li')];
+        if (lis.length > 30) return;
+        const items = lis.map(li => li.textContent.trim()).filter(Boolean);
         if (items.length) {
           const p = document.createElement('p');
           p.textContent = items.join(', ');
@@ -233,7 +237,7 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
     result.hasVariants = false;
 
     if (shouldSweep) {
-      const variantLines = await sweepVariantPrices(page, hasRange);
+      const variantLines = await sweepVariantPrices(page);
       if (variantLines.length) {
         result.text += '\n\nVariant Pricing:\n' + variantLines.join('\n');
         result.hasVariants = true;
@@ -249,64 +253,18 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
 }
 
 // Iterate every <select> on the page, poll for price changes per option.
-// hasRange = true  → the range element IS the price display; find it globally once
-//                    (no outward DOM search needed — we know exactly where the price lives)
-// hasRange = false → search outward from each select to find its price anchor
-async function sweepVariantPrices(page, hasRange) {
+// Re-queries the DOM fresh on every poll tick so React re-renders (which replace
+// DOM nodes rather than updating them in place) don't leave us with stale handles.
+async function sweepVariantPrices(page) {
   const lines = [];
-
-  // If a price range is visible, find that element directly — it's the live price display.
-  // Walk to the deepest element still containing the range so we get the tightest node.
-  let globalAnchor = null;
-  if (hasRange) {
-    globalAnchor = await page.evaluateHandle(() => {
-      const RE = /[$€£¥]\s*\d[\d.,]*\s*[-–—]\s*[$€£¥]?\s*\d[\d.,]*/;
-      let best = null;
-      function walk(el) {
-        if (RE.test(el.textContent)) {
-          best = el;
-          for (const child of el.children) walk(child);
-        }
-      }
-      walk(document.body);
-      return best;
-    });
-  }
-
   const selects = await page.$$('select');
 
-  // Helper: search outward from a select for a nearby price element
-  async function findAnchorNearSelect(sel) {
-    return page.evaluateHandle((s) => {
-      const RE = /[$€£¥]\s*\d[\d.,]*/;
-      function search(el, depth) {
-        if (depth > 5 || !el) return null;
-        const siblings = el.parentElement ? [...el.parentElement.children] : [];
-        for (const s of siblings) {
-          if (s !== el && RE.test(s.textContent)) return s;
-          for (const child of s.children) {
-            if (RE.test(child.textContent)) return child;
-          }
-        }
-        return search(el.parentElement, depth + 1);
-      }
-      return search(s, 0);
-    }, sel);
-  }
-
   for (const select of selects) {
-    // Primary anchor: globally-found range element (fast path when range is visible).
-    // Fallback: search outward from this select (used when no range, or as backup).
-    let anchorHandle = (globalAnchor?.asElement()) ? globalAnchor : await findAnchorNearSelect(select);
-    if (!anchorHandle.asElement()) continue;
-
-    // Read all options up front
     const options = await page.evaluate((sel) =>
       [...sel.options].map(o => ({ value: o.value, label: o.text.trim() })).filter(o => o.value),
       select
     );
-
-    const usingGlobalAnchor = anchorHandle === globalAnchor;
+    if (!options.length) continue;
 
     for (const { value, label } of options) {
       await page.evaluate((sel, val) => {
@@ -315,24 +273,31 @@ async function sweepVariantPrices(page, hasRange) {
         sel.dispatchEvent(new Event('input',  { bubbles: true }));
       }, select, value);
 
-      // Poll every 100ms — typically settles in 1–3 ticks
+      // Poll by re-querying DOM fresh each tick — outward search from the select
+      // so we find the price element closest to it, not a price in "Similar Items".
+      // textContent (not innerText) avoids forced reflow.
       let price = null;
       for (let i = 0; i < 15; i++) {
         await new Promise(r => setTimeout(r, 100));
-        const txt = await page.evaluate(el => el?.textContent?.trim(), anchorHandle);
-        if (txt && /[$€£¥]\s*\d/.test(txt)) { price = txt.replace(/\s+/g, ' '); break; }
-      }
-
-      // Global anchor didn't update — fall back to DOM search anchor for this select
-      if (!price && usingGlobalAnchor) {
-        const fallbackAnchor = await findAnchorNearSelect(select);
-        if (fallbackAnchor.asElement()) {
-          for (let i = 0; i < 15; i++) {
-            await new Promise(r => setTimeout(r, 100));
-            const txt = await page.evaluate(el => el?.textContent?.trim(), fallbackAnchor);
-            if (txt && /[$€£¥]\s*\d/.test(txt)) { price = txt.replace(/\s+/g, ' '); break; }
+        price = await page.evaluate((sel) => {
+          const RE = /[$€£¥]\s*\d[\d.,]*/;
+          function search(el, depth) {
+            if (depth > 8 || !el?.parentElement) return null;
+            for (const sib of el.parentElement.children) {
+              if (sib === el) continue;
+              const txt = sib.textContent?.trim();
+              if (txt && RE.test(txt) && txt.length < 40) return txt;
+              for (const child of sib.children) {
+                const ct = child.textContent?.trim();
+                if (ct && RE.test(ct) && ct.length < 40) return ct;
+              }
+            }
+            return search(el.parentElement, depth + 1);
           }
-        }
+          const r = search(sel, 0);
+          return r ? r.replace(/\s+/g, ' ') : null;
+        }, select);
+        if (price) break;
       }
 
       if (price) lines.push(`${label}: ${price}`);
