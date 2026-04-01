@@ -163,7 +163,11 @@ function extractStructuredText($, el) {
   return out;
 }
 
-async function fetchPageWithPuppeteer(url, browser) {
+// Price patterns used by both the main scraper and the variant sweep.
+const PRICE_RE        = /[$€£¥]\s*\d[\d.,]*/;
+const PRICE_RANGE_RE  = /[$€£¥]\s*\d[\d.,]*\s*[-–—]\s*[$€£¥]?\s*\d[\d.,]*/;
+
+async function fetchPageWithPuppeteer(url, browser, cs = {}) {
   const page = await browser.newPage();
   try {
     // Mimic a real browser to avoid bot detection
@@ -197,6 +201,18 @@ async function fetchPageWithPuppeteer(url, browser) {
         .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:'));
       return { text, links };
     });
+
+    // Variant price sweep — runs when enabled AND the page has a price range or no price at all.
+    // Iterates <select> options, finds the live price element near each select once, then
+    // polls for text changes as each option is selected. Appends structured pricing to text.
+    if (cs.variantPriceSweep && (PRICE_RANGE_RE.test(result.text) || !PRICE_RE.test(result.text))) {
+      const variantLines = await sweepVariantPrices(page);
+      if (variantLines.length) {
+        result.text += '\n\nVariant Pricing:\n' + variantLines.join('\n');
+        console.log(`Variant sweep: ${url} — captured ${variantLines.length} variant/price pairs`);
+      }
+    }
+
     console.log(`Puppeteer: ${url} — ${result.text.length} chars`);
     return result;
   } finally {
@@ -204,7 +220,65 @@ async function fetchPageWithPuppeteer(url, browser) {
   }
 }
 
-async function fetchPage(url, browser) {
+// Iterate every <select> on the page, find the nearest live price element once,
+// then walk each option — dispatching change, polling for a price update.
+// Returns lines like ["Small (6 oz): $3.25", "Medium (12 oz): $4.50"]
+async function sweepVariantPrices(page) {
+  const selects = await page.$$('select');
+  const lines = [];
+
+  for (const select of selects) {
+    // Find the price anchor nearest this select in the DOM — search outward through
+    // parent/siblings up to 5 levels. Done once per select; reused for every option.
+    const anchorHandle = await page.evaluateHandle((sel) => {
+      const PRICE_RE = /[$€£¥]\s*\d[\d.,]*/;
+      function search(el, depth) {
+        if (depth > 5 || !el) return null;
+        const siblings = el.parentElement ? [...el.parentElement.children] : [];
+        for (const s of siblings) {
+          if (s !== el && PRICE_RE.test(s.textContent)) return s;
+          // Also check one level inside each sibling
+          for (const child of s.children) {
+            if (PRICE_RE.test(child.textContent)) return child;
+          }
+        }
+        return search(el.parentElement, depth + 1);
+      }
+      return search(sel, 0);
+    }, select);
+
+    if (!anchorHandle.asElement()) continue;
+
+    // Read all options up front
+    const options = await page.evaluate((sel) =>
+      [...sel.options].map(o => ({ value: o.value, label: o.text.trim() })).filter(o => o.value),
+      select
+    );
+
+    for (const { value, label } of options) {
+      // Select the option and fire the change event
+      await page.evaluate((sel, val) => {
+        sel.value = val;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        sel.dispatchEvent(new Event('input',  { bubbles: true }));
+      }, select, value);
+
+      // Poll the anchor for a settled price — check every 100ms up to 1.5s
+      let price = null;
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        const txt = await page.evaluate(el => el?.textContent?.trim(), anchorHandle);
+        if (txt && /[$€£¥]\s*\d/.test(txt)) { price = txt.replace(/\s+/g, ' '); break; }
+      }
+
+      if (price) lines.push(`${label}: ${price}`);
+    }
+  }
+
+  return lines;
+}
+
+async function fetchPage(url, browser, cs = {}) {
   const response = await axios.get(url, {
     timeout: 10000,
     responseType: 'arraybuffer',
@@ -280,7 +354,7 @@ async function fetchPage(url, browser) {
     const reason = jsFramework ? 'JS framework detected' : 'no H1 found (possible JS shell)';
     console.log(`${reason} on ${url} — retrying with Puppeteer`);
     try {
-      const puppeteerResult = await fetchPageWithPuppeteer(url, browser);
+      const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs);
       return { ...puppeteerResult, usedPuppeteer: true };
     } catch (err) {
       console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
@@ -645,7 +719,7 @@ async function scrapeSite(baseUrl, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer } = await fetchPage(url, browser);
+          const { text, links, usedPuppeteer } = await fetchPage(url, browser, cs);
           const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer };
           batchPageData.push(pageEntry);
           allPageData.push(pageEntry);
@@ -743,7 +817,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer } = await fetchPage(url, browser);
+          const { text, links, usedPuppeteer } = await fetchPage(url, browser, cs);
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;

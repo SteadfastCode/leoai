@@ -40,8 +40,9 @@ watch(() => props.entity, (e) => {
     },
     linksOpenInNewTab: e.linksOpenInNewTab ?? true,
     crawlSettings: {
-      keepSocialHandles: e.crawlSettings?.keepSocialHandles ?? false,
-      keepShortUrls:     e.crawlSettings?.keepShortUrls     ?? false,
+      keepSocialHandles: e.crawlSettings?.keepSocialHandles  ?? false,
+      keepShortUrls:     e.crawlSettings?.keepShortUrls      ?? false,
+      variantPriceSweep: e.crawlSettings?.variantPriceSweep  ?? false,
     },
     leoRefreshHour: e.leoRefreshHour ?? 3,
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
@@ -349,6 +350,19 @@ async function save() {
           <div class="text-caption text-medium-emphasis ml-11">
             Keeps bare URL strings (e.g. "https://shop.example.com") that appear as their own line.
             Off by default — most URLs appear in context and are already captured.
+          </div>
+          <v-divider class="my-4" />
+          <v-switch
+            v-model="form.crawlSettings.variantPriceSweep"
+            label="Variant price sweep (shop sites)"
+            density="compact"
+            hide-details
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis ml-11">
+            On pages with a price range or no single price, iterates product option dropdowns
+            and captures the live price for each variant (e.g. Small: $3.25, Large: $4.50).
+            Adds ~1–2s per product page. Recommended for sites with a shop subdomain.
           </div>
         </v-card-text>
       </v-card>

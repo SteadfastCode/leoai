@@ -54,8 +54,9 @@ const entitySchema = new mongoose.Schema(
     leoRefreshLastRun: { type: Date },
     ragThreshold: { type: Number, default: 0.75, min: 0.5, max: 0.95 },
     crawlSettings: {
-      keepSocialHandles: { type: Boolean, default: false },
-      keepShortUrls:     { type: Boolean, default: false },
+      keepSocialHandles:  { type: Boolean, default: false },
+      keepShortUrls:      { type: Boolean, default: false },
+      variantPriceSweep:  { type: Boolean, default: false },
     },
   },
   { timestamps: true }

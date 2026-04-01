@@ -4,6 +4,33 @@ Post-MVP concepts. Nothing here is a commitment. Add freely.
 
 ---
 
+## Crawl Profiles — Platform-Aware Scraping
+
+**Priority: Medium — build when 3+ concrete cases exist**
+
+Some platforms render critical content (prices, availability, hours) dynamically based on user interaction — variant dropdowns, booking selectors, location pickers. A crawl profile system would let the scraper know how to interact with a specific platform's UI before extracting text.
+
+**Architecture:**
+- `CrawlProfile` — named profile (e.g. `wix-product`, `shopify-product`, `square-product`) with:
+  - `detect(html, $)` — DOM signature check (script patterns, meta generators, data attributes)
+  - `interact(puppeteerPage)` — async function that drives UI and captures additional text
+- Detection runs on first Puppeteer pass; detected profile stored on `ScrapedPage.crawlProfile`
+- On subsequent visits (LeoRefresh), profile is loaded by name and interaction is re-run
+
+**AI-assisted profile assignment (optional later):**
+- When `detect()` returns null (unknown platform), pass first-crawl page text to Haiku
+- Haiku classifies: "product page with variant pricing", "booking page", "standard content", etc.
+- Classification stored and used to select nearest matching profile on next crawl
+- Not needed for known platforms — deterministic detection is faster and cheaper
+
+**Why wait for 3 cases:**
+- Profile interaction code is hand-written per platform; not worth abstracting for 1 site
+- Harvest Lane (Wix variant pricing) is solved generically by `variantPriceSweep` crawl setting
+- Revisit when Square Online, Shopify, or booking platforms (Calendly, Acuity) need custom interaction
+- Data point: with only 5–6 test sites, 1 already had this problem — profiles will matter at scale
+
+---
+
 ## Church Mode: Scripture via Bible API (RAG replacement)
 
 **Priority: High for Church Mode launch**
