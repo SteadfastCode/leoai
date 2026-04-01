@@ -76,7 +76,10 @@ const virtualizer = useVirtualizer(computed(() => ({
 const virtualItems    = computed(() => virtualizer.value.getVirtualItems())
 const totalVirtualSize = computed(() => virtualizer.value.getTotalSize())
 
-// ── Chunk drawer ───────────────────────────────────────────────────────────
+// ── Chunk drawer + layout ──────────────────────────────────────────────────
+const viewerPosition = ref(localStorage.getItem('leo_explorer_viewer') || 'side') // 'side' | 'bottom'
+watch(viewerPosition, v => localStorage.setItem('leo_explorer_viewer', v))
+
 const drawerPage     = ref(null)
 const drawerChunks   = ref([])
 const drawerLoading  = ref(false)
@@ -125,6 +128,14 @@ function formatTs(ts) {
     <!-- ── Header ── -->
     <div class="d-flex align-center justify-space-between mb-6">
       <div class="text-h5 font-weight-bold">Page Explorer</div>
+      <v-btn-toggle v-model="viewerPosition" mandatory density="compact" variant="outlined" divided rounded="lg">
+        <v-btn value="side"   title="Chunk viewer on right" style="padding: 0 10px">
+          <v-icon size="16">mdi-dock-right</v-icon>
+        </v-btn>
+        <v-btn value="bottom" title="Chunk viewer on bottom" style="padding: 0 10px">
+          <v-icon size="16">mdi-dock-bottom</v-icon>
+        </v-btn>
+      </v-btn-toggle>
     </div>
 
     <!-- Domain picker -->
@@ -193,7 +204,7 @@ function formatTs(ts) {
     </div>
 
     <!-- Grid + Drawer wrapper -->
-    <div v-if="explorerMeta" class="explorer-layout" :class="{ 'drawer-open': drawerPage }">
+    <div v-if="explorerMeta" class="explorer-layout" :class="[`viewer-${viewerPosition}`, { 'drawer-open': drawerPage }]">
 
       <!-- ── Infini-grid ── -->
       <div class="explorer-grid-wrap">
@@ -383,8 +394,8 @@ function formatTs(ts) {
   flex: 1;
   overflow-y: auto;
   height: 0;        /* forces flex child to scroll rather than expand */
-  min-height: 400px;
-  max-height: calc(100vh - 340px);
+  min-height: 200px;
+  max-height: calc(100vh - 300px);
 }
 
 .grid-row {
@@ -396,26 +407,52 @@ function formatTs(ts) {
 .grid-row:hover { background: rgba(var(--v-theme-primary), 0.04); }
 .grid-row--active { background: rgba(var(--v-theme-primary), 0.08); }
 
-.col-url { min-width: 0; overflow: hidden; }
+/* col-url clips overflow; <a> stays inline so its click target = visible text only */
+.col-url {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .col-render, .col-priority, .col-chunks { display: flex; align-items: center; }
 .col-date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .page-url {
   font-size: 12px;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* inline — hit area matches visible text, not the full cell width */
 }
 
-/* ── Chunk drawer ── */
-.chunk-drawer {
+/* ── Viewer position variants ── */
+.explorer-layout.viewer-side   { flex-direction: row; }
+.explorer-layout.viewer-bottom { flex-direction: column; }
+
+/* ── Chunk drawer (side) ── */
+.viewer-side .chunk-drawer {
   width: 420px;
   flex-shrink: 0;
   border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Chunk drawer (bottom) ── */
+.viewer-bottom .chunk-drawer {
+  width: 100%;
+  height: 300px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* bottom mode: grid uses remaining height */
+.viewer-bottom .grid-scroll {
+  max-height: calc(100vh - 560px);
+  min-height: 150px;
 }
 
 .drawer-header {

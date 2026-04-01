@@ -53,6 +53,10 @@ const entitySchema = new mongoose.Schema(
     leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' },
     leoRefreshLastRun: { type: Date },
     ragThreshold: { type: Number, default: 0.75, min: 0.5, max: 0.95 },
+    crawlSettings: {
+      keepSocialHandles: { type: Boolean, default: false },
+      keepShortUrls:     { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

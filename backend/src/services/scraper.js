@@ -44,14 +44,25 @@ function hashContent(text) {
 // Paragraphs shorter than 20 chars are usually nav noise — but contact info (emails,
 // phone numbers) must be kept even when short. This predicate is used in every
 // paragraph filter pass so all four sites stay in sync.
-const PHONE_RE = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/;
-const MONEY_RE = /[$€£¥]\s*\d[\d.,]*/;
-function keepPara(p) {
+const PHONE_RE           = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/;
+const MONEY_RE           = /[$€£¥]\s*\d[\d.,]*/;
+const TIME_RE            = /\d{1,2}(:\d{2})?\s*(am|pm|a\.m\.|p\.m\.)/i;
+const ADDRESS_FRAGMENT_RE = /\b(suite|ste\.?|apt\.?|unit|floor|fl\.?)\s*[\w\d-]+/i;
+const SOCIAL_HANDLE_RE   = /@\w{3,}/;
+const SHORT_URL_RE       = /\bhttps?:\/\/\S+/i;
+
+// cs = crawlSettings (entity-level). Always-on regexes are hardcoded;
+// optional ones are gated on cs flags.
+function keepPara(p, cs = {}) {
   return p.length >= 20
     || /^\[H[123]\] /.test(p)
     || /\S+@\S+\.\S+/.test(p)
     || PHONE_RE.test(p)
-    || MONEY_RE.test(p);
+    || MONEY_RE.test(p)
+    || TIME_RE.test(p)
+    || ADDRESS_FRAGMENT_RE.test(p)
+    || (cs.keepSocialHandles && SOCIAL_HANDLE_RE.test(p))
+    || (cs.keepShortUrls    && SHORT_URL_RE.test(p));
 }
 
 // Estimate the unique content length of a page's text without a full seenParaHashes pass.
@@ -309,13 +320,13 @@ function toSentences(text) {
 //   4. Every chunk is prefixed with [Source], [H1], and the H2(s) it contains.
 //
 // Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label, sourceUrls.
-function chunkText(text, url) {
+function chunkText(text, url, cs = {}) {
   const chunks = [];
 
   // Parse paragraphs — headings and emails are exempt from the 20-char minimum
   const allParas = text.split(/\n+/)
     .map(p => p.trim())
-    .filter(keepPara);
+    .filter(p => keepPara(p, cs));
 
   // Extract page-level H1 (first [H1] paragraph)
   const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
@@ -449,7 +460,7 @@ function chunkText(text, url) {
 // CHUNK_TARGET-sized chunks attributed to the parent group URL.
 // Does NOT apply seenParaHashes — thin pages' content must be preserved even
 // if paragraphs appeared on a listing page.
-function buildGroupChunks(groupUrl, pages) {
+function buildGroupChunks(groupUrl, pages, cs = {}) {
   const rawChunks = [];
 
   // Build a card per page with lightweight filtering (no seenParaHashes)
@@ -459,7 +470,7 @@ function buildGroupChunks(groupUrl, pages) {
     const h1 = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
     const bodyParas = paras
       .filter(p => !/^\[H1\] /.test(p))
-      .filter(keepPara);
+      .filter(p => keepPara(p, cs));
 
     let cardText = `[Source: ${url}]`;
     if (h1) cardText += `\n[H1] ${h1}`;
@@ -504,7 +515,7 @@ function buildGroupChunks(groupUrl, pages) {
 
 // Embed a set of thin pages grouped by parent URL.
 // Returns { chunks: embedded[], groupUrls: string[] }
-async function embedThinPageGroups(thinPages, seenChunkHashes = new Set()) {
+async function embedThinPageGroups(thinPages, seenChunkHashes = new Set(), cs = {}) {
   if (thinPages.length === 0) return { chunks: [], groupUrls: [] };
 
   // Group by parent path URL
@@ -517,7 +528,7 @@ async function embedThinPageGroups(thinPages, seenChunkHashes = new Set()) {
 
   const rawChunks = [];
   for (const [groupUrl, pages] of groups) {
-    rawChunks.push(...buildGroupChunks(groupUrl, pages));
+    rawChunks.push(...buildGroupChunks(groupUrl, pages, cs));
   }
 
   // Chunk-level dedup
@@ -542,7 +553,7 @@ async function embedThinPageGroups(thinPages, seenChunkHashes = new Set()) {
 // deferred multi-URL grouping.
 //
 // Returns { normalChunks: embedded[], thinPageData: pageEntry[] }
-async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Map()) {
+async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHashes = new Map(), cs = {}) {
   const thinPageData = [];
   const toChunk = []; // { url, filteredText }
 
@@ -552,7 +563,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     // Long paragraphs (>BOILERPLATE_MAX) always pass — they may be real content
     // appearing on both an index page and a detail page.
     const paras = page.text.split(/\n+/).map(p => p.trim())
-      .filter(keepPara);
+      .filter(p => keepPara(p, cs));
 
     const filtered = paras.filter(p => {
       if (p.length > BOILERPLATE_MAX) return true;
@@ -580,7 +591,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     toChunk.push({ url: page.url, filteredText: filtered.join('\n\n') });
   }
 
-  const rawChunks = toChunk.flatMap(({ url, filteredText }) => chunkText(filteredText, url));
+  const rawChunks = toChunk.flatMap(({ url, filteredText }) => chunkText(filteredText, url, cs));
 
   // Secondary: chunk-level dedup as a safety net for any remaining exact duplicates
   const allChunks = rawChunks.filter(chunk => {
@@ -605,7 +616,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
 // Thin pages are buffered and grouped into multi-URL chunks after the full crawl.
 // opts.onChunks(chunks) is called for both normal batches and the final thin groups.
 async function scrapeSite(baseUrl, opts = {}) {
-  const { io, domain, onChunks } = opts;
+  const { io, domain, onChunks, crawlSettings: cs = {} } = opts;
   const startedAt = Date.now();
   const visited = new Set();
   const queue = [baseUrl];
@@ -666,7 +677,7 @@ async function scrapeSite(baseUrl, opts = {}) {
       // Embed normal chunks immediately — thin pages are buffered for end-of-crawl grouping
       if (batchPageData.length > 0) {
         if (onChunks) {
-          const { normalChunks, thinPageData } = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes);
+          const { normalChunks, thinPageData } = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes, cs);
           if (normalChunks.length > 0) {
             // Tell the route which pages produced chunks so it can upsert ScrapedPage records
             const normalPageUrls = new Set(normalChunks.map(c => c.url));
@@ -682,7 +693,7 @@ async function scrapeSite(baseUrl, opts = {}) {
 
     // After full crawl: group thin pages and embed them together
     if (thinPageBuffer.length > 0) {
-      const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageBuffer, seenChunkHashes);
+      const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageBuffer, seenChunkHashes, cs);
       // No page records — thin group pages' ScrapedPage records are handled by bulkWrite at end
       if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks, []);
     }
@@ -692,8 +703,8 @@ async function scrapeSite(baseUrl, opts = {}) {
 
   // If no onChunks callback (e.g. tests), embed everything at the end
   if (!onChunks) {
-    const { normalChunks, thinPageData } = await embedPageData(allPageData, seenChunkHashes, seenParaHashes);
-    const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageData, seenChunkHashes);
+    const { normalChunks, thinPageData } = await embedPageData(allPageData, seenChunkHashes, seenParaHashes, cs);
+    const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageData, seenChunkHashes, cs);
     return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, durationMs: Date.now() - startedAt };
   }
 
@@ -704,7 +715,7 @@ async function scrapeSite(baseUrl, opts = {}) {
 // Thin pages are always re-grouped since we have their text from the hash-check crawl.
 // Only thin groups with at least one changed page are re-embedded.
 async function rescrapeSite(baseUrl, storedPages, opts = {}) {
-  const { io, domain } = opts;
+  const { io, domain, crawlSettings: cs = {} } = opts;
   const startedAt = Date.now();
   // Key stored hashes by urlKey (hostname+pathname) to match normalization
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
@@ -786,7 +797,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const { normalChunks: embeddedChunks } = changedPages.length > 0
-    ? await embedPageData(changedPages, seenChunkHashes, seenParaHashes)
+    ? await embedPageData(changedPages, seenChunkHashes, seenParaHashes, cs)
     : { normalChunks: [] };
 
   // Thin pages: re-group all thin pages; only re-embed groups with ≥1 changed page
@@ -811,7 +822,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const thinGroupUrls = [...changedThinGroups.keys()];
   if (changedThinGroups.size > 0) {
     const thinPagesForEmbedding = [...changedThinGroups.values()].flat();
-    const result = await embedThinPageGroups(thinPagesForEmbedding, seenChunkHashes);
+    const result = await embedThinPageGroups(thinPagesForEmbedding, seenChunkHashes, cs);
     thinGroupChunks = result.chunks;
   }
 

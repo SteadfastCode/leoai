@@ -144,7 +144,8 @@ router.post('/', requireAuth(), async (req, res) => {
 
   const io = req.app.get('io');
   const broadcastedIo = makeBroadcastIo(io, domain);
-  const opts = { io: broadcastedIo, domain };
+  const entity = await Entity.findOne({ domain }).lean();
+  const opts = { io: broadcastedIo, domain, crawlSettings: entity?.crawlSettings || {} };
 
   try {
     let result;

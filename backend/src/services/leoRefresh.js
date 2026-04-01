@@ -29,7 +29,7 @@ async function runRefreshForEntity(entity, io) {
 
   try {
     const storedPages = await ScrapedPage.find({ domain });
-    const opts = { io: makeBroadcastIo(io, domain), domain };
+    const opts = { io: makeBroadcastIo(io, domain), domain, crawlSettings: entity.crawlSettings || {} };
     const result = await rescrapeSite(url, storedPages, opts);
 
     if (result.embeddedChunks.length > 0) {

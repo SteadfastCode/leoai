@@ -39,6 +39,10 @@ watch(() => props.entity, (e) => {
       pastoralToneNotes: e.churchConfig?.pastoralToneNotes || '',
     },
     linksOpenInNewTab: e.linksOpenInNewTab ?? true,
+    crawlSettings: {
+      keepSocialHandles: e.crawlSettings?.keepSocialHandles ?? false,
+      keepShortUrls:     e.crawlSettings?.keepShortUrls     ?? false,
+    },
     leoRefreshHour: e.leoRefreshHour ?? 3,
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
@@ -313,6 +317,38 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-3">
             Only applies to the free plan. Uses the phone and email configured in Handoff Notifications above. Uncheck both to disable usage alerts entirely.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Crawl Settings ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Crawl Settings</v-card-title>
+        <v-card-text class="pt-2">
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Fine-tune what gets kept during a crawl. Changes take effect on the next full scrape or rescrape.
+          </div>
+          <v-switch
+            v-model="form.crawlSettings.keepSocialHandles"
+            label="Keep short social handles (@mentions)"
+            density="compact"
+            hide-details
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis mb-4 ml-11">
+            Keeps lines like "@FirstBaptist" that would otherwise be dropped by the 20-character minimum.
+            Useful if your social handle appears standalone on the page.
+          </div>
+          <v-switch
+            v-model="form.crawlSettings.keepShortUrls"
+            label="Keep short standalone URLs"
+            density="compact"
+            hide-details
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis ml-11">
+            Keeps bare URL strings (e.g. "https://shop.example.com") that appear as their own line.
+            Off by default — most URLs appear in context and are already captured.
           </div>
         </v-card-text>
       </v-card>
