@@ -153,6 +153,15 @@ function extractStructuredText($, el) {
       } else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
         // Prefix headings so paragraph dedup can exempt them — page titles must never be filtered
         out += '\n\n[' + tag.toUpperCase() + '] ' + inner.trim() + '\n\n';
+      } else if (tag === 'ul' || tag === 'ol') {
+        // Join list items into a single comma-separated line so short items (e.g. product names,
+        // partner names, staff titles) are never individually killed by the keepPara length floor
+        const items = [];
+        $(node).children('li').each((_, li) => {
+          const t = extractStructuredText($, li).replace(/\n+/g, ' ').trim();
+          if (t) items.push(t);
+        });
+        if (items.length) out += '\n\n' + items.join(', ') + '\n\n';
       } else if (BLOCK_TAGS.has(tag)) {
         out += '\n\n' + inner + '\n\n';
       } else {
@@ -186,6 +195,17 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
       // often render real content inside nav/header/footer so we leave those alone
       ['script', 'style', 'noscript'].forEach((tag) => {
         document.querySelectorAll(tag).forEach((el) => el.remove());
+      });
+      // Join list items into a single line before innerText so short items
+      // (product names, partner names, etc.) survive the keepPara length floor.
+      document.querySelectorAll('ul, ol').forEach((list) => {
+        const items = [...list.querySelectorAll(':scope > li')]
+          .map(li => li.innerText.trim()).filter(Boolean);
+        if (items.length) {
+          const p = document.createElement('p');
+          p.textContent = items.join(', ');
+          list.replaceWith(p);
+        }
       });
       // Prefix headings with markers before innerText extraction so dedup can exempt them.
       // innerText flattens structure, so we inject the markers into the DOM text directly.
