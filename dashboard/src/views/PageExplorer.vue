@@ -358,7 +358,8 @@ function formatTs(ts) {
 .explorer-layout {
   display: flex;
   gap: 0;
-  min-height: 500px;
+  height: calc(100vh - 310px);
+  min-height: 400px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
   overflow: hidden;
@@ -398,8 +399,7 @@ function formatTs(ts) {
   flex: 1;
   overflow-y: auto;
   height: 0;        /* forces flex child to scroll rather than expand */
-  min-height: 200px;
-  max-height: calc(100vh - 300px);
+  min-height: 0;
 }
 
 .grid-row {
@@ -453,11 +453,6 @@ function formatTs(ts) {
   overflow: hidden;
 }
 
-/* bottom mode: grid uses remaining height */
-.viewer-bottom .grid-scroll {
-  max-height: calc(100vh - 560px);
-  min-height: 150px;
-}
 
 .drawer-header {
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
