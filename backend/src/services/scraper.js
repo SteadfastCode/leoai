@@ -167,7 +167,9 @@ function extractStructuredText($, el) {
 const PRICE_RE        = /[$€£¥]\s*\d[\d.,]*/;
 const PRICE_RANGE_RE  = /[$€£¥]\s*\d[\d.,]*\s*[-–—]\s*[$€£¥]?\s*\d[\d.,]*/;
 
-async function fetchPageWithPuppeteer(url, browser, cs = {}) {
+// knownHasVariants — true when ScrapedPage.hasVariants was set on a previous crawl,
+// meaning we skip trigger detection and always run the sweep.
+async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = false) {
   const page = await browser.newPage();
   try {
     // Mimic a real browser to avoid bot detection
@@ -202,13 +204,19 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}) {
       return { text, links };
     });
 
-    // Variant price sweep — runs when enabled AND the page has a price range or no price at all.
-    // Iterates <select> options, finds the live price element near each select once, then
-    // polls for text changes as each option is selected. Appends structured pricing to text.
-    if (cs.variantPriceSweep && (PRICE_RANGE_RE.test(result.text) || !PRICE_RE.test(result.text))) {
-      const variantLines = await sweepVariantPrices(page);
+    // Variant price sweep — runs when:
+    //   (a) setting enabled AND page has a price range (anchor = that range element)
+    //   (b) setting enabled AND no price found at all (DOM search from select)
+    //   (c) previously tagged as hasVariants (skip detection, go straight to sweep)
+    const hasRange = PRICE_RANGE_RE.test(result.text);
+    const shouldSweep = cs.variantPriceSweep && (knownHasVariants || hasRange || !PRICE_RE.test(result.text));
+    result.hasVariants = false;
+
+    if (shouldSweep) {
+      const variantLines = await sweepVariantPrices(page, hasRange);
       if (variantLines.length) {
         result.text += '\n\nVariant Pricing:\n' + variantLines.join('\n');
+        result.hasVariants = true;
         console.log(`Variant sweep: ${url} — captured ${variantLines.length} variant/price pairs`);
       }
     }
@@ -220,33 +228,56 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}) {
   }
 }
 
-// Iterate every <select> on the page, find the nearest live price element once,
-// then walk each option — dispatching change, polling for a price update.
-// Returns lines like ["Small (6 oz): $3.25", "Medium (12 oz): $4.50"]
-async function sweepVariantPrices(page) {
-  const selects = await page.$$('select');
+// Iterate every <select> on the page, poll for price changes per option.
+// hasRange = true  → the range element IS the price display; find it globally once
+//                    (no outward DOM search needed — we know exactly where the price lives)
+// hasRange = false → search outward from each select to find its price anchor
+async function sweepVariantPrices(page, hasRange) {
   const lines = [];
 
-  for (const select of selects) {
-    // Find the price anchor nearest this select in the DOM — search outward through
-    // parent/siblings up to 5 levels. Done once per select; reused for every option.
-    const anchorHandle = await page.evaluateHandle((sel) => {
-      const PRICE_RE = /[$€£¥]\s*\d[\d.,]*/;
+  // If a price range is visible, find that element directly — it's the live price display.
+  // Walk to the deepest element still containing the range so we get the tightest node.
+  let globalAnchor = null;
+  if (hasRange) {
+    globalAnchor = await page.evaluateHandle(() => {
+      const RE = /[$€£¥]\s*\d[\d.,]*\s*[-–—]\s*[$€£¥]?\s*\d[\d.,]*/;
+      let best = null;
+      function walk(el) {
+        if (RE.test(el.textContent)) {
+          best = el;
+          for (const child of el.children) walk(child);
+        }
+      }
+      walk(document.body);
+      return best;
+    });
+  }
+
+  const selects = await page.$$('select');
+
+  // Helper: search outward from a select for a nearby price element
+  async function findAnchorNearSelect(sel) {
+    return page.evaluateHandle((s) => {
+      const RE = /[$€£¥]\s*\d[\d.,]*/;
       function search(el, depth) {
         if (depth > 5 || !el) return null;
         const siblings = el.parentElement ? [...el.parentElement.children] : [];
         for (const s of siblings) {
-          if (s !== el && PRICE_RE.test(s.textContent)) return s;
-          // Also check one level inside each sibling
+          if (s !== el && RE.test(s.textContent)) return s;
           for (const child of s.children) {
-            if (PRICE_RE.test(child.textContent)) return child;
+            if (RE.test(child.textContent)) return child;
           }
         }
         return search(el.parentElement, depth + 1);
       }
-      return search(sel, 0);
-    }, select);
+      return search(s, 0);
+    }, sel);
+  }
 
+  for (const select of selects) {
+    // Primary anchor: globally-found range element (fast path when range is visible).
+    // Fallback: search outward from this select (used when no range, or as backup).
+    let anchorHandle = (globalAnchor?.asElement()) ? globalAnchor : await findAnchorNearSelect(select);
     if (!anchorHandle.asElement()) continue;
 
     // Read all options up front
@@ -255,20 +286,33 @@ async function sweepVariantPrices(page) {
       select
     );
 
+    const usingGlobalAnchor = anchorHandle === globalAnchor;
+
     for (const { value, label } of options) {
-      // Select the option and fire the change event
       await page.evaluate((sel, val) => {
         sel.value = val;
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         sel.dispatchEvent(new Event('input',  { bubbles: true }));
       }, select, value);
 
-      // Poll the anchor for a settled price — check every 100ms up to 1.5s
+      // Poll every 100ms — typically settles in 1–3 ticks
       let price = null;
       for (let i = 0; i < 15; i++) {
         await new Promise(r => setTimeout(r, 100));
         const txt = await page.evaluate(el => el?.textContent?.trim(), anchorHandle);
         if (txt && /[$€£¥]\s*\d/.test(txt)) { price = txt.replace(/\s+/g, ' '); break; }
+      }
+
+      // Global anchor didn't update — fall back to DOM search anchor for this select
+      if (!price && usingGlobalAnchor) {
+        const fallbackAnchor = await findAnchorNearSelect(select);
+        if (fallbackAnchor.asElement()) {
+          for (let i = 0; i < 15; i++) {
+            await new Promise(r => setTimeout(r, 100));
+            const txt = await page.evaluate(el => el?.textContent?.trim(), fallbackAnchor);
+            if (txt && /[$€£¥]\s*\d/.test(txt)) { price = txt.replace(/\s+/g, ' '); break; }
+          }
+        }
       }
 
       if (price) lines.push(`${label}: ${price}`);
@@ -278,7 +322,7 @@ async function sweepVariantPrices(page) {
   return lines;
 }
 
-async function fetchPage(url, browser, cs = {}) {
+async function fetchPage(url, browser, cs = {}, knownHasVariants = false) {
   const response = await axios.get(url, {
     timeout: 10000,
     responseType: 'arraybuffer',
@@ -354,14 +398,14 @@ async function fetchPage(url, browser, cs = {}) {
     const reason = jsFramework ? 'JS framework detected' : 'no H1 found (possible JS shell)';
     console.log(`${reason} on ${url} — retrying with Puppeteer`);
     try {
-      const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs);
+      const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs, knownHasVariants);
       return { ...puppeteerResult, usedPuppeteer: true };
     } catch (err) {
       console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
     }
   }
 
-  return { text, links, usedPuppeteer: false };
+  return { text, links, usedPuppeteer: false, hasVariants: false };
 }
 
 // Returns the trailing overlap to carry into the next chunk.
@@ -719,8 +763,8 @@ async function scrapeSite(baseUrl, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer } = await fetchPage(url, browser, cs);
-          const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer };
+          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs);
+          const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants };
           batchPageData.push(pageEntry);
           allPageData.push(pageEntry);
 
@@ -757,7 +801,7 @@ async function scrapeSite(baseUrl, opts = {}) {
             const normalPageUrls = new Set(normalChunks.map(c => c.url));
             const batchPageRecords = batchPageData
               .filter(p => normalPageUrls.has(p.url))
-              .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer }));
+              .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, hasVariants: p.hasVariants }));
             await onChunks(normalChunks, batchPageRecords);
           }
           thinPageBuffer.push(...thinPageData);
@@ -793,6 +837,8 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const startedAt = Date.now();
   // Key stored hashes by urlKey (hostname+pathname) to match normalization
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
+  // Pages tagged from a previous crawl as having variants — skip trigger detection, always sweep
+  const variantUrlKeys = new Set(storedPages.filter(p => p.hasVariants).map(p => urlKey(p.url)));
   const visited = new Set();
   const queue = [baseUrl];
   const allPageData = []; // all fetched pages (text available for thin grouping)
@@ -817,13 +863,13 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer } = await fetchPage(url, browser, cs);
+          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, variantUrlKeys.has(urlKey(url)));
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
           const isThin      = estimateContentLen(text) < THIN_PAGE_THRESHOLD;
 
-          const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, contentChanged: hashChanged };
+          const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants, contentChanged: hashChanged };
           allPageData.push(pageEntry);
 
           if (!isThin) {

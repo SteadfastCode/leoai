@@ -8,6 +8,7 @@ const scrapedPageSchema = new mongoose.Schema(
     contentHash: { type: String, required: true },
     priority:     { type: String, enum: ['high', 'normal'], default: 'normal' },
     usedPuppeteer:{ type: Boolean, default: false },
+    hasVariants:  { type: Boolean, default: false },
     chunkCount:   { type: Number, default: 0 },
     lastScrapedAt: { type: Date, default: Date.now },
     lastChangedAt: { type: Date, default: Date.now },

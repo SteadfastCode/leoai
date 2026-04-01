@@ -76,7 +76,7 @@ router.get('/pages', requireAuth(), async (req, res) => {
       .sort({ url: 1 })
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .select('url priority usedPuppeteer chunkCount lastScrapedAt lastChangedAt -_id'),
+      .select('url priority usedPuppeteer hasVariants chunkCount lastScrapedAt lastChangedAt -_id'),
     ScrapedPage.countDocuments(filter),
     Entity.findOne({ domain }).select('lastScrapedAt name -_id'),
   ]);
@@ -187,14 +187,14 @@ router.post('/', requireAuth(), async (req, res) => {
         // Per-URL: insert new chunks FIRST (no gap), then delete old ones, then upsert ScrapedPage.
         // Using _id exclusion so the delete never touches the chunks we just inserted.
         const PRESERVED = { $nin: ['manual', 'upload', 'owner_reply'] };
-        for (const { url: pageUrl, hash, priority, usedPuppeteer, contentChanged } of result.pageHashUpdates) {
+        for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of result.pageHashUpdates) {
           const chunks = normalByUrl.get(pageUrl) || [];
           if (chunks.length > 0) {
             const inserted = await Chunk.insertMany(chunks.map(c => ({ ...c, domain })));
             const insertedIds = inserted.map(d => d._id);
             await Chunk.deleteMany({ domain, url: pageUrl, source: PRESERVED, _id: { $nin: insertedIds } });
           }
-          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), chunkCount: chunks.length };
+          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, hasVariants: !!hasVariants, lastScrapedAt: new Date(), chunkCount: chunks.length };
           if (contentChanged) update.lastChangedAt = new Date();
           await ScrapedPage.findOneAndUpdate({ domain, url: pageUrl }, update, { upsert: true });
           broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { url: pageUrl });
@@ -266,7 +266,7 @@ router.post('/', requireAuth(), async (req, res) => {
             await Promise.all(pageRecords.map(p =>
               ScrapedPage.findOneAndUpdate(
                 { domain, url: p.url },
-                { contentHash: p.hash, priority: p.priority, usedPuppeteer: !!p.usedPuppeteer, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[p.url] || 0 },
+                { contentHash: p.hash, priority: p.priority, usedPuppeteer: !!p.usedPuppeteer, hasVariants: !!p.hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[p.url] || 0 },
                 { upsert: true }
               )
             ));
@@ -280,10 +280,10 @@ router.post('/', requireAuth(), async (req, res) => {
       // Thin pages and any zero-chunk pages are picked up here for the first time.
       if (pageData.length > 0) {
         await ScrapedPage.bulkWrite(
-          pageData.map(({ url: pageUrl, hash, usedPuppeteer }) => ({
+          pageData.map(({ url: pageUrl, hash, usedPuppeteer, hasVariants }) => ({
             updateOne: {
               filter: { domain, url: pageUrl },
-              update: { $set: { contentHash: hash, usedPuppeteer: !!usedPuppeteer, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] || 0 } },
+              update: { $set: { contentHash: hash, usedPuppeteer: !!usedPuppeteer, hasVariants: !!hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] || 0 } },
               upsert: true,
             },
           }))

@@ -238,12 +238,16 @@ function formatTs(ts) {
                   @click.stop
                 >{{ filteredPages[vRow.index].url }}</a>
               </div>
-              <div class="col-render">
+              <div class="col-render" style="gap:4px">
                 <v-chip
                   v-if="filteredPages[vRow.index].usedPuppeteer"
                   size="x-small" color="purple" variant="tonal" label
                 >JS</v-chip>
                 <v-chip v-else size="x-small" variant="tonal" label>HTML</v-chip>
+                <v-chip
+                  v-if="filteredPages[vRow.index].hasVariants"
+                  size="x-small" color="orange" variant="tonal" label title="Variant pricing captured"
+                >V</v-chip>
               </div>
               <div class="col-priority">
                 <v-chip
@@ -372,7 +376,7 @@ function formatTs(ts) {
 .grid-header,
 .grid-row {
   display: grid;
-  grid-template-columns: 1fr 64px 72px 60px 140px 140px;
+  grid-template-columns: 1fr 90px 72px 60px 140px 140px;
   align-items: center;
   padding: 0 12px;
   gap: 8px;
