@@ -29,6 +29,7 @@
     "puppeteer": "^24.39.1",
     "resend": "^6.9.4",
     "socket.io": "^4.8.3",
+    "socket.io-parser": "4.2.6",
     "stripe": "^20.4.1",
     "twilio": "^5.13.0",
     "voyageai": "^0.2.1"
@@ -37,6 +38,8 @@
     "nodemon": "^3.1.0"
   },
   "resolutions": {
-    "undici": "^7.24.6"
+    "undici": "^7.24.6",
+    "socket.io-parser": "4.2.6",
+    "path-to-regexp": "0.1.13"
   }
 }
