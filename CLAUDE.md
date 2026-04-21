@@ -196,6 +196,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ KB Scraped Pages live update — `scrape_page_saved` socket event throttles `load()` to 4s; new pages appended to bottom (not prepended); in-place update preserves scroll position.
 - ✅ Admin Entities tab — `/entities` route; lists all entities with plan badge, last-scraped date; trash icon → confirm-by-domain dialog → hard delete (chunks, pages, conversations, snapshots, archived chunks, invites, membership entries, entity doc).
 - ✅ Page Explorer — own nav drawer item (`/page-explorer`); `@tanstack/vue-virtual` infini-grid; entity `v-autocomplete` dropdown; client-side filters (URL search, renderer HTML/JS, priority High/Normal); side/bottom chunk viewer toggle (localStorage-persisted); "V" chip on variant-tagged pages; router-synced `domain`+`search` query params.
+- ✅ Tiered model routing — `classifyQuery()` (Haiku, ~60 tokens) fires in parallel with RAG retrieval; classifies message as `simple`/`complex`; `selectModel()` routes simple→Haiku, complex→Sonnet. Hard overrides: Church Mode and >500-char messages always Sonnet regardless of classifier. Conservative: classifier error/uncertainty defaults to Sonnet. `classifierRoute`+`classifierReason` stored on assistant messages alongside existing `model`/`topScore`/`hadContext` analytics.
 
 ---
 
