@@ -3,7 +3,7 @@ const router = express.Router();
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const { retrieveContext } = require('../services/rag');
-const { chat, summarizeTopic } = require('../services/claude');
+const { chat, classifyQuery, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 const logger = require('../services/logger');
 
@@ -83,9 +83,12 @@ router.post('/', async (req, res) => {
 
     let conversation = await Conversation.findOne({ sessionToken, domain });
 
-    const { context: ragContext, ownerReplyContext, sources, topScore } = await retrieveContext(domain, message, entity.ragThreshold);
+    const [{ context: ragContext, ownerReplyContext, sources, topScore }, classifierResult] = await Promise.all([
+      retrieveContext(domain, message, entity.ragThreshold),
+      classifyQuery(message, conversation),
+    ]);
 
-    const { text: replyText, model } = await chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage: message });
+    const { text: replyText, model, classifierRoute, classifierReason } = await chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage: message, classifierResult });
     let reply = replyText;
 
     // Detect and strip signals from Leo's reply
@@ -115,7 +118,7 @@ router.post('/', async (req, res) => {
       };
     }
     conversation.messages.push(userMsg);
-    conversation.messages.push({ role: 'assistant', content: reply, model, topScore, hadContext: !!(ragContext || ownerReplyContext) });
+    conversation.messages.push({ role: 'assistant', content: reply, model, topScore, hadContext: !!(ragContext || ownerReplyContext), classifierRoute, classifierReason });
     conversation.lastActiveAt = new Date();
 
     // Remove a specific pending question when visitor confirms cancellation

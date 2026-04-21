@@ -66,16 +66,56 @@ function buildSystemPrompt(entity, conversation) {
   return prompt;
 }
 
-function selectModel(entity) {
-  // Church mode needs theological depth — Sonnet handles nuanced biblical/apologetics questions well
+// Pre-call classifier: single Haiku call to decide simple vs complex routing.
+// Conservative — defaults to "complex" on any error or uncertainty.
+async function classifyQuery(userMessage, conversation) {
+  const turnCount = conversation?.messages
+    ? conversation.messages.filter((m) => m.role === 'user').length
+    : 0;
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 60,
+      messages: [
+        {
+          role: 'user',
+          content: `Classify this chatbot visitor message as "simple" or "complex".
+
+SIMPLE: Single-fact lookups — hours, location, price, menu item, contact info, address. One clear question. Short.
+COMPLEX: Multi-part or multi-sentence questions. Pushback on a previous answer ("but you said", "that's wrong", "I disagree"). Requests for explanation or nuance. Emotional or sensitive topics. Unclear intent. When uncertain, use "complex".
+
+Conversation turns so far: ${turnCount}
+Message: "${userMessage.slice(0, 300)}"
+
+Respond with valid JSON only: {"route": "simple" or "complex", "reason": "one short phrase"}`,
+        },
+      ],
+    });
+
+    const raw = response.content[0].text.trim();
+    const match = raw.match(/\{[^}]+\}/);
+    if (!match) return { route: 'complex', reason: 'parse_failed' };
+    const parsed = JSON.parse(match[0]);
+    if (parsed.route !== 'simple' && parsed.route !== 'complex') return { route: 'complex', reason: 'invalid_route' };
+    return { route: parsed.route, reason: parsed.reason || '' };
+  } catch {
+    return { route: 'complex', reason: 'classifier_error' };
+  }
+}
+
+function selectModel(entity, userMessage, classifierResult) {
+  // Hard overrides — classifier result is ignored
   if (entity.churchModeEnabled) return 'claude-sonnet-4-6';
-  // Standard mode: responses are either KB-grounded facts or scripted handoffs — Haiku handles both well
+  if (userMessage && userMessage.length > 500) return 'claude-sonnet-4-6';
+  // Conservative fallback: any non-simple result routes to Sonnet
+  if (!classifierResult || classifierResult.route !== 'simple') return 'claude-sonnet-4-6';
   return 'claude-haiku-4-5-20251001';
 }
 
-async function chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage }) {
+async function chat({ entity, conversation, ragContext, ownerReplyContext, sources, topScore, userMessage, classifierResult }) {
   const systemPrompt = buildSystemPrompt(entity, conversation);
-  const model = selectModel(entity);
+  const model = selectModel(entity, userMessage, classifierResult);
 
   const messages = [];
 
@@ -143,7 +183,12 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
     messages,
   });
 
-  return { text: response.content[0].text, model };
+  return {
+    text: response.content[0].text,
+    model,
+    classifierRoute: classifierResult?.route || null,
+    classifierReason: classifierResult?.reason || null,
+  };
 }
 
 // Fire-and-forget topic summarization using Haiku — called after each chat response.
@@ -179,4 +224,4 @@ ${transcript}`,
   return response.content[0].text.trim().toLowerCase().replace(/[^a-z0-9 ,]/g, '');
 }
 
-module.exports = { chat, summarizeTopic };
+module.exports = { chat, classifyQuery, summarizeTopic };
