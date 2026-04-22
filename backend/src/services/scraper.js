@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
+const { analyzePageStructure } = require('./claude');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -51,18 +52,29 @@ const ADDRESS_FRAGMENT_RE = /\b(suite|ste\.?|apt\.?|unit|floor|fl\.?)\s*[\w\d-]+
 const SOCIAL_HANDLE_RE   = /@\w{3,}/;
 const SHORT_URL_RE       = /\bhttps?:\/\/\S+/i;
 
+// Strip [SB] block marker(s) from a paragraph — called after keepPara filtering.
+function stripBlockMarker(p) {
+  return p.startsWith('[SB]') ? p.replace(/^(?:\[SB\])+/, '') : p;
+}
+
 // cs = crawlSettings (entity-level). Always-on regexes are hardcoded;
 // optional ones are gated on cs flags.
+// Paragraphs prefixed with [SB] (emitted by semantic leaf elements in extractStructuredText)
+// use a 4-char floor — short but real content like "Closed Sundays" or table cell values passes.
+// All other paragraphs (inline element text, generic divs) keep the 20-char floor.
 function keepPara(p, cs = {}) {
-  return p.length >= 20
-    || /^\[H[123]\] /.test(p)
-    || /\S+@\S+\.\S+/.test(p)
-    || PHONE_RE.test(p)
-    || MONEY_RE.test(p)
-    || TIME_RE.test(p)
-    || ADDRESS_FRAGMENT_RE.test(p)
-    || (cs.keepSocialHandles && SOCIAL_HANDLE_RE.test(p))
-    || (cs.keepShortUrls    && SHORT_URL_RE.test(p));
+  const isSB = p.startsWith('[SB]');
+  const bare = isSB ? p.replace(/^(?:\[SB\])+/, '') : p;
+  const minLen = isSB ? 4 : 20;
+  return bare.length >= minLen
+    || /^\[H[123]\] /.test(bare)
+    || /\S+@\S+\.\S+/.test(bare)
+    || PHONE_RE.test(bare)
+    || MONEY_RE.test(bare)
+    || TIME_RE.test(bare)
+    || ADDRESS_FRAGMENT_RE.test(bare)
+    || (cs.keepSocialHandles && SOCIAL_HANDLE_RE.test(bare))
+    || (cs.keepShortUrls    && SHORT_URL_RE.test(bare));
 }
 
 // Estimate the unique content length of a page's text without a full seenParaHashes pass.
@@ -72,6 +84,7 @@ function estimateContentLen(text) {
   return text.split(/\n+/)
     .map(p => p.trim())
     .filter(keepPara)
+    .map(stripBlockMarker)
     .join('\n\n').length;
 }
 
@@ -131,6 +144,10 @@ function detectsJsFramework($) {
   return false;
 }
 
+// Semantic leaf elements — their content gets a lower keepPara floor (4 chars vs 20).
+// Inline elements (a, span, button, label) are absent and retain the standard 20-char floor.
+const SEMANTIC_LEAF_TAGS = new Set(['p', 'dt', 'dd', 'td', 'th', 'blockquote', 'figcaption', 'address']);
+
 // Block-level tags that warrant a paragraph break in extracted text.
 const BLOCK_TAGS = new Set([
   'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -155,13 +172,19 @@ function extractStructuredText($, el) {
         out += '\n\n[' + tag.toUpperCase() + '] ' + inner.trim() + '\n\n';
       } else if (tag === 'ul' || tag === 'ol') {
         // Join list items into a single comma-separated line so short items (e.g. product names,
-        // partner names, staff titles) are never individually killed by the keepPara length floor
+        // partner names, staff titles) are never individually killed by the keepPara length floor.
+        // Strip [SB] from item text before joining — the joined string gets [SB] as a unit.
         const items = [];
         $(node).children('li').each((_, li) => {
-          const t = extractStructuredText($, li).replace(/\n+/g, ' ').trim();
+          const t = extractStructuredText($, li).replace(/\[SB\]/g, '').replace(/\n+/g, ' ').trim();
           if (t) items.push(t);
         });
-        if (items.length) out += '\n\n' + items.join(', ') + '\n\n';
+        if (items.length) out += '\n\n[SB]' + items.join(', ') + '\n\n';
+      } else if (SEMANTIC_LEAF_TAGS.has(tag)) {
+        // Strip any nested [SB] markers before wrapping the whole unit — prevents double-marking
+        // when semantic elements are nested (e.g. <td><p>text</p></td>).
+        const trimmed = inner.replace(/\[SB\]/g, '').trim();
+        if (trimmed) out += '\n\n[SB]' + trimmed + '\n\n';
       } else if (BLOCK_TAGS.has(tag)) {
         out += '\n\n' + inner + '\n\n';
       } else {
@@ -176,9 +199,40 @@ function extractStructuredText($, el) {
 const PRICE_RE        = /[$€£¥]\s*\d[\d.,]*/;
 const PRICE_RANGE_RE  = /[$€£¥]\s*\d[\d.,]*\s*[-–—]\s*[$€£¥]?\s*\d[\d.,]*/;
 
+// Build a compact DOM summary of a page for Haiku structural analysis.
+// Emits tag + up to 3 classes/id + first 50 chars of direct text per element,
+// max 3 levels of nesting depth. Skips empty elements. Output is capped at 6000 chars.
+function buildDomSummary($, maxDepth = 3) {
+  const lines = [];
+
+  function walk(el, depth) {
+    if (!el || depth > maxDepth) return;
+    $(el).children().each((_, child) => {
+      const tag = child.name?.toLowerCase();
+      if (!tag || ['script', 'style', 'noscript', 'svg', 'path', 'head'].includes(tag)) return;
+
+      const cls = ($(child).attr('class') || '').trim().split(/\s+/).filter(Boolean).slice(0, 3).join('.');
+      const id  = $(child).attr('id') || '';
+      // Direct text only (not recursive) — clone + remove children to avoid flattening deep subtrees
+      const directText = $(child).clone().children().remove().end().text().replace(/\s+/g, ' ').trim().slice(0, 50);
+      const hasChildren = $(child).children().length > 0;
+
+      if (!directText && !hasChildren) return;
+
+      const selector = tag + (id ? '#' + id : '') + (cls ? '.' + cls : '');
+      lines.push('  '.repeat(depth) + selector + (directText ? ` "${directText}"` : ''));
+      walk(child, depth + 1);
+    });
+  }
+
+  walk($('body')[0], 0);
+  const result = lines.join('\n');
+  return result.length > 6000 ? result.slice(0, 6000) + '\n[truncated]' : result;
+}
+
 // knownHasVariants — true when ScrapedPage.hasVariants was set on a previous crawl,
 // meaning we skip trigger detection and always run the sweep.
-async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = false) {
+async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = false, pass1Filters = {}) {
   const page = await browser.newPage();
   try {
     // Mimic a real browser to avoid bot detection
@@ -189,6 +243,15 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
     // Fixed wait after networkidle2 — gives JS frameworks time to render main content
     // without risking a 15s timeout on genuinely thin pages.
     await new Promise(r => setTimeout(r, 1500));
+
+    // Apply Pass 1 structural filters (Haiku-identified boilerplate) in browser context
+    if (pass1Filters.exclude?.length) {
+      await page.evaluate((selectors) => {
+        for (const sel of selectors) {
+          try { document.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
+        }
+      }, pass1Filters.exclude);
+    }
 
     const result = await page.evaluate(() => {
       // Only remove script/style/noscript — JS frameworks (Square, Webflow, etc.)
@@ -307,7 +370,7 @@ async function sweepVariantPrices(page) {
   return lines;
 }
 
-async function fetchPage(url, browser, cs = {}, knownHasVariants = false) {
+async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1Filters = {}) {
   const response = await axios.get(url, {
     timeout: 10000,
     responseType: 'arraybuffer',
@@ -361,6 +424,11 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false) {
   // handles navigation menus whether they're inside <header> or not.
   $('nav, footer, script, style, noscript').remove();
 
+  // Apply Pass 1 structural filters (Haiku-identified boilerplate selectors)
+  for (const sel of (pass1Filters.exclude || [])) {
+    try { $(sel).remove(); } catch { /* invalid selector — skip */ }
+  }
+
   const text = extractStructuredText($, $('body')[0])
     .replace(/[ \t]+/g, ' ')       // collapse horizontal whitespace only
     .replace(/ *\n */g, '\n')      // strip spaces that crept around newlines
@@ -383,7 +451,7 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false) {
     const reason = jsFramework ? 'JS framework detected' : 'no H1 found (possible JS shell)';
     console.log(`${reason} on ${url} — retrying with Puppeteer`);
     try {
-      const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs, knownHasVariants);
+      const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs, knownHasVariants, pass1Filters);
       return { ...puppeteerResult, usedPuppeteer: true };
     } catch (err) {
       console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
@@ -426,10 +494,12 @@ function toSentences(text) {
 function chunkText(text, url, cs = {}) {
   const chunks = [];
 
-  // Parse paragraphs — headings and emails are exempt from the 20-char minimum
+  // Parse paragraphs — headings and emails are exempt from the 20-char minimum.
+  // [SB] markers (semantic block elements) use a 4-char floor; strip after filtering.
   const allParas = text.split(/\n+/)
     .map(p => p.trim())
-    .filter(p => keepPara(p, cs));
+    .filter(p => keepPara(p, cs))
+    .map(stripBlockMarker);
 
   // Extract page-level H1 (first [H1] paragraph)
   const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
@@ -573,7 +643,8 @@ function buildGroupChunks(groupUrl, pages, cs = {}) {
     const h1 = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
     const bodyParas = paras
       .filter(p => !/^\[H1\] /.test(p))
-      .filter(p => keepPara(p, cs));
+      .filter(p => keepPara(p, cs))
+      .map(stripBlockMarker);
 
     let cardText = `[Source: ${url}]`;
     if (h1) cardText += `\n[H1] ${h1}`;
@@ -669,10 +740,11 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
       .filter(p => keepPara(p, cs));
 
     const filtered = paras.filter(p => {
-      if (p.length > BOILERPLATE_MAX) return true;
-      const h = hashContent(p);
+      const bare = stripBlockMarker(p);
+      if (bare.length > BOILERPLATE_MAX) return true;
+      const h = hashContent(bare); // hash clean text so [SB]-prefixed and plain variants dedup correctly
       const count = seenParaHashes.get(h) ?? 0;
-      const isHeading = /^\[H[123]\] /.test(p);
+      const isHeading = /^\[H[123]\] /.test(bare);
       const limit = isHeading ? MAX_HEADING_OCCURRENCES : 1;
       if (count >= limit) return false;
       seenParaHashes.set(h, count + 1);
@@ -728,6 +800,25 @@ async function scrapeSite(baseUrl, opts = {}) {
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
+
+  // Pass 1 — Haiku structural analysis of the home page to identify per-site boilerplate.
+  // Selectors are applied as a cheerio pre-filter on every subsequent page before text extraction.
+  // On any failure the scrape continues with no extra filters.
+  let pass1Filters = { exclude: [], include: [] };
+  try {
+    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity' } });
+    const homeHtml = homeResp.data.toString('utf8');
+    if (!homeHtml.includes('\x00')) {
+      const $home = cheerio.load(homeHtml);
+      pass1Filters = await analyzePageStructure(buildDomSummary($home));
+      if (pass1Filters.exclude.length || pass1Filters.include.length) {
+        console.log(`Pass 1 filters — exclude: [${pass1Filters.exclude.join(', ')}]`);
+      }
+    }
+  } catch (err) {
+    console.warn(`Pass 1 structural analysis skipped: ${err.message}`);
+  }
+
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
   try {
@@ -748,7 +839,7 @@ async function scrapeSite(baseUrl, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs);
+          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, false, pass1Filters);
           const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants };
           batchPageData.push(pageEntry);
           allPageData.push(pageEntry);
@@ -830,6 +921,22 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const changedPages = []; // non-thin pages with changed hash or high-priority
   const unchangedUrls = [];
   const baseDomain = new URL(baseUrl).hostname;
+
+  let pass1Filters = { exclude: [], include: [] };
+  try {
+    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity' } });
+    const homeHtml = homeResp.data.toString('utf8');
+    if (!homeHtml.includes('\x00')) {
+      const $home = cheerio.load(homeHtml);
+      pass1Filters = await analyzePageStructure(buildDomSummary($home));
+      if (pass1Filters.exclude.length || pass1Filters.include.length) {
+        console.log(`Pass 1 filters — exclude: [${pass1Filters.exclude.join(', ')}]`);
+      }
+    }
+  } catch (err) {
+    console.warn(`Pass 1 structural analysis skipped: ${err.message}`);
+  }
+
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
   try {
@@ -848,7 +955,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
-          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, variantUrlKeys.has(urlKey(url)));
+          const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, variantUrlKeys.has(urlKey(url)), pass1Filters);
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
