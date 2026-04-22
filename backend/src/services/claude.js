@@ -224,4 +224,46 @@ ${transcript}`,
   return response.content[0].text.trim().toLowerCase().replace(/[^a-z0-9 ,]/g, '');
 }
 
-module.exports = { chat, classifyQuery, summarizeTopic };
+// Analyze the DOM structure of a site's home page and return CSS selectors for
+// boilerplate elements to exclude from all pages (cookie banners, promo ribbons,
+// social share widgets, etc.). Called once per scrape before the main crawl loop.
+// Returns { exclude: [], include: [] } on any error — never blocks a scrape.
+async function analyzePageStructure(domSummary) {
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `Analyze this website DOM structure and identify CSS selectors for boilerplate elements.
+
+DOM summary (depth-limited; tag + classes/id + first 50 chars of direct text):
+${domSummary}
+
+Return ONLY a JSON object with two arrays:
+- "exclude": selectors for site-wide boilerplate present on every page — cookie consent banners, promotional/announcement ribbon bars, social share widgets, "back to top" buttons, newsletter popup overlays, breadcrumb nav bars. Do NOT exclude nav, header, or footer — those often contain real content on JS-rendered sites.
+- "include": selectors for elements that look like boilerplate but contain real content to preserve.
+
+Respond with only valid JSON, no explanation. Example:
+{"exclude":[".cookie-banner","#announcement-bar",".social-share"],"include":[]}`,
+      }],
+    });
+
+    const text = response.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in response');
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed.exclude) || !Array.isArray(parsed.include)) {
+      throw new Error('Invalid response shape');
+    }
+    return {
+      exclude: parsed.exclude.filter(s => typeof s === 'string' && s.trim()),
+      include: parsed.include.filter(s => typeof s === 'string' && s.trim()),
+    };
+  } catch (err) {
+    console.warn(`analyzePageStructure failed: ${err.message}`);
+    return { exclude: [], include: [] };
+  }
+}
+
+module.exports = { chat, classifyQuery, summarizeTopic, analyzePageStructure };
