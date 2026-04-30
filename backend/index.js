@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./src/services/consoleBuf'); // override console early — captures all subsequent logs
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -16,9 +17,12 @@ const knowledgeRoutes = require('./src/routes/knowledge');
 const codesRoutes     = require('./src/routes/codes');
 const adminRoutes     = require('./src/routes/admin');
 
+const consoleBuf = require('./src/services/consoleBuf');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+consoleBuf.setup(io);
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());

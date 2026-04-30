@@ -1,154 +1,218 @@
 <template>
   <v-container fluid class="pa-6">
+    <!-- Header -->
     <div class="d-flex align-center justify-space-between mb-4">
-      <h2 class="text-h6 font-weight-bold">System Logs</h2>
-      <v-btn variant="text" prepend-icon="mdi-refresh" @click="load">Refresh</v-btn>
-    </div>
-
-    <!-- Filters -->
-    <div class="d-flex gap-3 mb-4 flex-wrap">
-      <v-select
-        v-model="filterLevel"
-        :items="['', 'error', 'warn', 'info']"
-        label="Level"
-        variant="outlined"
-        density="compact"
-        hide-details
-        clearable
-        style="max-width: 140px"
-        @update:modelValue="load"
-      />
-      <v-select
-        v-model="filterSource"
-        :items="['', 'chat', 'scrape', 'notifications', 'auth']"
-        label="Source"
-        variant="outlined"
-        density="compact"
-        hide-details
-        clearable
-        style="max-width: 160px"
-        @update:modelValue="load"
-      />
-      <v-text-field
-        v-model="filterDomain"
-        label="Domain"
-        variant="outlined"
-        density="compact"
-        hide-details
-        clearable
-        style="max-width: 220px"
-        @keyup.enter="load"
-        @click:clear="load"
-      />
-    </div>
-
-    <v-card variant="outlined">
-      <v-progress-linear v-if="loading" indeterminate />
-
-      <div v-if="!loading && logs.length === 0" class="pa-8 text-center text-medium-emphasis text-body-2">
-        No logs found.
+      <div class="d-flex align-center gap-3">
+        <h2 class="text-h6 font-weight-bold">System Logs</h2>
+        <v-chip
+          :color="socketConnected ? 'success' : 'error'"
+          size="x-small"
+          variant="tonal"
+        >{{ socketConnected ? 'live' : 'disconnected' }}</v-chip>
       </div>
+      <div class="d-flex align-center gap-2">
+        <span class="text-caption text-medium-emphasis">{{ allLogs.length }} entries</span>
+        <v-btn
+          :color="autoScroll ? undefined : 'warning'"
+          :prepend-icon="autoScroll ? 'mdi-pause' : 'mdi-play'"
+          variant="text"
+          density="compact"
+          size="small"
+          @click="togglePause"
+        >{{ autoScroll ? 'Pause' : 'Resume' }}</v-btn>
+        <v-btn
+          prepend-icon="mdi-delete-outline"
+          variant="text"
+          density="compact"
+          size="small"
+          @click="clearLogs"
+        >Clear</v-btn>
+      </div>
+    </div>
 
-      <div
-        v-for="log in logs"
-        :key="log._id"
-        class="log-row pa-3"
-        :class="`log-row--${log.level}`"
-        @click="toggleExpand(log._id)"
-      >
-        <div class="d-flex align-center gap-3">
+    <!-- Level filter -->
+    <v-btn-toggle
+      v-model="levelFilter"
+      mandatory
+      density="compact"
+      variant="outlined"
+      divided
+      class="mb-4"
+    >
+      <v-btn value="all" size="small">All ({{ allLogs.length }})</v-btn>
+      <v-btn value="warn" size="small" color="warning">Warn+ ({{ warnCount }})</v-btn>
+      <v-btn value="error" size="small" color="error">Errors ({{ errorCount }})</v-btn>
+    </v-btn-toggle>
+
+    <!-- Log stream -->
+    <v-card variant="outlined" class="log-card">
+      <div v-if="loading && allLogs.length === 0" class="pa-8 text-center text-medium-emphasis text-body-2">
+        Loading…
+      </div>
+      <div v-else-if="!loading && visibleLogs.length === 0" class="pa-8 text-center text-medium-emphasis text-body-2">
+        No log entries yet.
+      </div>
+      <div ref="logEl" class="log-stream" @scroll.passive="onScroll">
+        <div
+          v-for="entry in visibleLogs"
+          :key="entry.id"
+          class="log-row"
+          :class="`log-row--${entry.level}`"
+        >
+          <span class="log-ts">{{ formatTs(entry.ts) }}</span>
           <v-chip
-            :color="levelColor(log.level)"
+            :color="levelColor(entry.level)"
             size="x-small"
             variant="tonal"
-            class="font-weight-bold"
-            style="min-width: 52px; justify-content: center"
-          >{{ log.level }}</v-chip>
-          <v-chip size="x-small" variant="outlined" style="min-width: 72px; justify-content: center">{{ log.source }}</v-chip>
-          <span v-if="log.domain" class="text-caption text-medium-emphasis">{{ log.domain }}</span>
-          <span class="text-body-2 flex-grow-1 log-message">{{ log.message }}</span>
-          <span class="text-caption text-medium-emphasis flex-shrink-0">{{ formatDate(log.createdAt) }}</span>
-          <v-icon size="16" class="flex-shrink-0">{{ expanded.has(log._id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-        </div>
-
-        <div v-if="expanded.has(log._id) && log.meta" class="mt-2 ml-1">
-          <pre class="log-meta text-caption">{{ JSON.stringify(log.meta, null, 2) }}</pre>
+            class="font-weight-bold log-level"
+          >{{ entry.level }}</v-chip>
+          <span class="log-msg">{{ entry.message }}</span>
         </div>
       </div>
     </v-card>
-
-    <!-- Pagination -->
-    <div v-if="pages > 1" class="d-flex justify-center mt-4">
-      <v-pagination v-model="page" :length="pages" @update:modelValue="load" />
-    </div>
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { getLogs } from '../lib/api'
+import { socket, socketConnected } from '../lib/socket'
 
-const logs    = ref([])
-const loading = ref(false)
-const page    = ref(1)
-const pages   = ref(1)
-const expanded = ref(new Set())
+const allLogs     = ref([])
+const loading     = ref(false)
+const autoScroll  = ref(true)
+const levelFilter = ref('all')
+const logEl       = ref(null)
+const seenIds     = new Set()
 
-const filterLevel  = ref('')
-const filterSource = ref('')
-const filterDomain = ref('')
+const visibleLogs = computed(() => {
+  if (levelFilter.value === 'error') return allLogs.value.filter(e => e.level === 'error')
+  if (levelFilter.value === 'warn')  return allLogs.value.filter(e => e.level !== 'info')
+  return allLogs.value
+})
+const errorCount = computed(() => allLogs.value.filter(e => e.level === 'error').length)
+const warnCount  = computed(() => allLogs.value.filter(e => e.level !== 'info').length)
+
+function addEntry(entry) {
+  if (seenIds.has(entry.id)) return
+  seenIds.add(entry.id)
+  allLogs.value.push(entry)
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+  })
+}
+
+// Auto-pause when user manually scrolls up more than 60px from the bottom
+function onScroll() {
+  if (!logEl.value) return
+  const { scrollTop, scrollHeight, clientHeight } = logEl.value
+  autoScroll.value = scrollTop + clientHeight >= scrollHeight - 60
+}
+
+function togglePause() {
+  autoScroll.value = !autoScroll.value
+  if (autoScroll.value) scrollToBottom()
+}
+
+function onLogEntry(entry) {
+  addEntry(entry)
+  if (autoScroll.value) scrollToBottom()
+}
 
 async function load() {
   loading.value = true
-  expanded.value = new Set()
   try {
-    const params = { page: page.value }
-    if (filterLevel.value)  params.level  = filterLevel.value
-    if (filterSource.value) params.source = filterSource.value
-    if (filterDomain.value) params.domain = filterDomain.value
-    const { data } = await getLogs(params)
-    logs.value  = data.logs
-    pages.value = data.pages
+    const { data } = await getLogs()
+    // History comes newest-first from server; reverse so oldest is at top (terminal order)
+    const history = [...data.logs].reverse()
+    history.forEach(addEntry)
+    scrollToBottom()
   } finally {
     loading.value = false
   }
 }
 
-function toggleExpand(id) {
-  const s = new Set(expanded.value)
-  s.has(id) ? s.delete(id) : s.add(id)
-  expanded.value = s
+function clearLogs() {
+  allLogs.value = []
+  seenIds.clear()
 }
+
+// Scroll to bottom when filter changes (if auto-scroll is on)
+watch(levelFilter, () => {
+  if (autoScroll.value) scrollToBottom()
+})
 
 function levelColor(level) {
   return level === 'error' ? 'error' : level === 'warn' ? 'warning' : 'success'
 }
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleString()
+function formatTs(iso) {
+  return new Date(iso).toLocaleString('en-US', {
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  })
 }
 
-onMounted(load)
+onMounted(() => {
+  socket.on('log_entry', onLogEntry)
+  load()
+})
+
+onUnmounted(() => {
+  socket.off('log_entry', onLogEntry)
+})
 </script>
 
 <style scoped>
-.log-row {
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  cursor: pointer;
-  transition: background 0.1s;
+.log-card {
+  overflow: hidden;
 }
-.log-row:hover { background: rgba(0,0,0,0.02); }
-.log-row--error { border-left: 3px solid rgb(var(--v-theme-error)); }
-.log-row--warn  { border-left: 3px solid rgb(var(--v-theme-warning)); }
-.log-row--info  { border-left: 3px solid rgb(var(--v-theme-success)); }
-.log-message { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 500px; }
-.log-meta {
-  background: rgba(0,0,0,0.04);
-  padding: 8px;
-  border-radius: 4px;
+.log-stream {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  height: calc(100vh - 280px);
+  min-height: 300px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 6px 0;
+}
+.log-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 12px;
+  border-left: 3px solid transparent;
+  line-height: 1.6;
+}
+.log-row:hover { background: rgba(0, 0, 0, 0.04); }
+.log-row--error {
+  border-left-color: rgb(var(--v-theme-error));
+  background: rgba(var(--v-theme-error), 0.04);
+}
+.log-row--warn {
+  border-left-color: rgb(var(--v-theme-warning));
+  background: rgba(var(--v-theme-warning), 0.03);
+}
+.log-ts {
+  flex-shrink: 0;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 11px;
+  padding-top: 2px;
+  min-width: 80px;
+}
+.log-level {
+  flex-shrink: 0;
+  min-width: 44px;
+  justify-content: center;
+  margin-top: 1px;
+}
+.log-msg {
+  flex: 1;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 300px;
-  overflow-y: auto;
+  color: rgb(var(--v-theme-on-surface));
 }
 </style>
