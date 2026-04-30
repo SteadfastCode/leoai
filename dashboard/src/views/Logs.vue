@@ -30,19 +30,27 @@
       </div>
     </div>
 
-    <!-- Level filter -->
-    <v-btn-toggle
-      v-model="levelFilter"
-      mandatory
-      density="compact"
-      variant="outlined"
-      divided
-      class="mb-4"
-    >
-      <v-btn value="all" size="small">All ({{ allLogs.length }})</v-btn>
-      <v-btn value="warn" size="small" color="warning">Warn+ ({{ warnCount }})</v-btn>
-      <v-btn value="error" size="small" color="error">Errors ({{ errorCount }})</v-btn>
-    </v-btn-toggle>
+    <!-- Filters -->
+    <div class="d-flex align-center gap-4 mb-4 flex-wrap">
+      <v-btn-toggle
+        v-model="levelFilter"
+        mandatory
+        density="compact"
+        variant="outlined"
+        divided
+      >
+        <v-btn value="all" size="small">All ({{ allLogs.length }})</v-btn>
+        <v-btn value="warn" size="small" color="warning">Warn+ ({{ warnCount }})</v-btn>
+        <v-btn value="error" size="small" color="error">Errors ({{ errorCount }})</v-btn>
+      </v-btn-toggle>
+      <v-checkbox
+        v-model="hideHttp"
+        label="Hide HTTP"
+        density="compact"
+        hide-details
+        class="flex-grow-0"
+      />
+    </div>
 
     <!-- Log stream -->
     <v-card variant="outlined" class="log-card">
@@ -82,16 +90,19 @@ const allLogs     = ref([])
 const loading     = ref(false)
 const autoScroll  = ref(true)
 const levelFilter = ref('all')
+const hideHttp    = ref(false)
 const logEl       = ref(null)
 const seenIds     = new Set()
 
 const visibleLogs = computed(() => {
-  if (levelFilter.value === 'error') return allLogs.value.filter(e => e.level === 'error')
-  if (levelFilter.value === 'warn')  return allLogs.value.filter(e => e.level !== 'info')
-  return allLogs.value
+  let logs = allLogs.value
+  if (levelFilter.value === 'error') logs = logs.filter(e => e.level === 'error')
+  else if (levelFilter.value === 'warn') logs = logs.filter(e => e.level !== 'info' && e.level !== 'http')
+  if (hideHttp.value) logs = logs.filter(e => e.level !== 'http')
+  return logs
 })
 const errorCount = computed(() => allLogs.value.filter(e => e.level === 'error').length)
-const warnCount  = computed(() => allLogs.value.filter(e => e.level !== 'info').length)
+const warnCount  = computed(() => allLogs.value.filter(e => e.level !== 'info' && e.level !== 'http').length)
 
 function addEntry(entry) {
   if (seenIds.has(entry.id)) return
@@ -140,13 +151,16 @@ function clearLogs() {
   seenIds.clear()
 }
 
-// Scroll to bottom when filter changes (if auto-scroll is on)
-watch(levelFilter, () => {
+// Scroll to bottom when filters change (if auto-scroll is on)
+watch([levelFilter, hideHttp], () => {
   if (autoScroll.value) scrollToBottom()
 })
 
 function levelColor(level) {
-  return level === 'error' ? 'error' : level === 'warn' ? 'warning' : 'success'
+  if (level === 'error') return 'error'
+  if (level === 'warn')  return 'warning'
+  if (level === 'http')  return 'primary'
+  return 'success'
 }
 
 function formatTs(iso) {
@@ -195,6 +209,9 @@ onUnmounted(() => {
 .log-row--warn {
   border-left-color: rgb(var(--v-theme-warning));
   background: rgba(var(--v-theme-warning), 0.03);
+}
+.log-row--http {
+  border-left-color: rgb(var(--v-theme-primary));
 }
 .log-ts {
   flex-shrink: 0;

@@ -32,4 +32,7 @@ console.error = (...args) => { _origError(...args); addEntry('error', args); };
 function setup(io) { _io = io; }
 function getRecentLogs() { return buffer.slice(); }
 
-module.exports = { setup, getRecentLogs };
+// Morgan stream — writes HTTP access log lines with level 'http'
+const morganStream = { write: (msg) => addEntry('http', [msg.trim()]) };
+
+module.exports = { setup, getRecentLogs, morganStream };

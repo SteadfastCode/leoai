@@ -18,6 +18,7 @@ const codesRoutes     = require('./src/routes/codes');
 const adminRoutes     = require('./src/routes/admin');
 
 const consoleBuf = require('./src/services/consoleBuf');
+const morgan = require('morgan');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,6 +27,7 @@ consoleBuf.setup(io);
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+app.use(morgan('tiny', { stream: consoleBuf.morganStream }));
 
 // Stripe webhook needs raw body — register BEFORE express.json()
 app.use('/webhooks/stripe', webhookRoutes);
