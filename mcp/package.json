@@ -1,0 +1,15 @@
+{
+  "name": "leoai-admin-mcp",
+  "version": "1.0.0",
+  "description": "LeoAI admin MCP server — wraps the LeoAI backend API for superadmin tooling in Claude desktop / Cowork",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dotenv": "^16.4.7",
+    "zod": "^4.4.1"
+  }
+}

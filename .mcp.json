@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "leoai-admin": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/index.js"]
+    }
+  }
+}
