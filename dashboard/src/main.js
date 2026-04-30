@@ -24,6 +24,7 @@ import MinistryRequests from './views/MinistryRequests.vue'
 import Signup from './views/Signup.vue'
 import Codes from './views/Codes.vue'
 import Logs from './views/Logs.vue'
+import ApiKeys from './views/ApiKeys.vue'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -75,6 +76,7 @@ const router = createRouter({
     { path: '/ministry-requests', component: MinistryRequests },
     { path: '/codes', component: Codes },
     { path: '/logs', component: Logs },
+    { path: '/api-keys', component: ApiKeys },
   ],
 })
 

@@ -5,10 +5,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const API_BASE = process.env.API_BASE || 'https://api.leo-ai.chat';
-const BEARER_TOKEN = process.env.BEARER_TOKEN;
+const API_KEY  = process.env.API_KEY;
 
-if (!BEARER_TOKEN) {
-  process.stderr.write('ERROR: BEARER_TOKEN env var is required\n');
+if (!API_KEY) {
+  process.stderr.write('ERROR: API_KEY env var is required — generate one from the dashboard Admin → API Keys page\n');
   process.exit(1);
 }
 
@@ -17,7 +17,7 @@ async function api(method, path, body) {
   const opts = {
     method,
     headers: {
-      Authorization: `Bearer ${BEARER_TOKEN}`,
+      'X-API-Key': API_KEY,
       'Content-Type': 'application/json',
     },
   };

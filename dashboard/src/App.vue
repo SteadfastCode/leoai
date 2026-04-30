@@ -43,7 +43,7 @@ const selectedDomain = ref(localStorage.getItem('leo_dashboard_domain') || '')
 const drawer        = ref(true)
 const rail          = ref(false)
 
-const adminPaths = ['/entities', '/crawls', '/page-explorer', '/chat-preview', '/ministry-requests', '/logs']
+const adminPaths = ['/entities', '/crawls', '/page-explorer', '/chat-preview', '/ministry-requests', '/logs', '/api-keys']
 const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsWith(p)) ? 'admin' : 'entity')
 
 const entityNavItems = [
@@ -63,6 +63,7 @@ const adminNavItems = [
   { title: 'Ministry Requests', icon: 'mdi-church',     to: '/ministry-requests' },
   { title: 'Codes',    icon: 'mdi-ticket-percent-outline', to: '/codes' },
   { title: 'Logs',     icon: 'mdi-text-box-outline',    to: '/logs' },
+  { title: 'API Keys', icon: 'mdi-key-variant',          to: '/api-keys' },
 ]
 
 async function loadEntities() {

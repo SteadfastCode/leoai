@@ -1,28 +1,34 @@
 # LeoAI Admin MCP Server
 
-Wraps the LeoAI backend API so you can call admin tools directly from Claude desktop / Cowork without pasting tokens in chat.
+Wraps the LeoAI backend API so you can call admin tools directly from Claude Desktop or Cowork without pasting tokens in chat.
 
 ## Setup
 
 ```bash
 cd mcp
 cp .env.example .env
-# Edit .env — fill in BEARER_TOKEN (see below)
+# Edit .env — paste your API key (see below)
 yarn install
 ```
 
-### Getting your BEARER_TOKEN
+**`mcp/.env`**:
+```
+API_BASE=https://api.leo-ai.chat
+API_KEY=leoai_your_key_here
+```
+
+### Getting your API key
 
 1. Open [leo-ai.app](https://leo-ai.app) and log in as a superadmin user.
-2. Open DevTools → Application → Local Storage → `https://leo-ai.app`.
-3. Copy the value of `access_token`.
-4. Paste it into `mcp/.env` as `BEARER_TOKEN=...`.
+2. Go to **Admin → API Keys**.
+3. Click **Generate MCP Key**, give it a label (e.g. "MCP server — dev laptop"), and copy the key.
+4. Paste it into `mcp/.env` as `API_KEY=leoai_...`.
 
-JWT access tokens expire after 15 minutes. When a tool returns a 401, refresh the token by reloading the dashboard (silent refresh fires automatically) and copying the updated `access_token`.
+API keys don't expire. Revoke and regenerate from the same page if a key is compromised.
 
-## Connecting in Claude desktop
+## Connecting in Claude Desktop
 
-Add this to your Claude desktop `claude_desktop_config.json`:
+Add this to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -32,7 +38,7 @@ Add this to your Claude desktop `claude_desktop_config.json`:
       "args": ["/absolute/path/to/leoai/mcp/index.js"],
       "env": {
         "API_BASE": "https://api.leo-ai.chat",
-        "BEARER_TOKEN": "your_token_here"
+        "API_KEY": "leoai_your_key_here"
       }
     }
   }
