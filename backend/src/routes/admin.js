@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Log = require('../models/Log');
+const { getRecentLogs } = require('../services/consoleBuf');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 
 function superadminOnly(req, res, next) {
@@ -11,24 +11,14 @@ function superadminOnly(req, res, next) {
 router.use(requireAuth(), superadminOnly);
 
 // GET /api/admin/logs
-router.get('/logs', async (req, res) => {
-  try {
-    const { level, source, domain, page = 1 } = req.query;
-    const PAGE_SIZE = 50;
-    const filter = {};
-    if (level)  filter.level  = level;
-    if (source) filter.source = source;
-    if (domain) filter.domain = domain;
-
-    const [logs, total] = await Promise.all([
-      Log.find(filter).sort({ createdAt: -1 }).skip((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).lean(),
-      Log.countDocuments(filter),
-    ]);
-
-    res.json({ logs, total, page: Number(page), pages: Math.ceil(total / PAGE_SIZE) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// Returns recent entries from the in-memory circular buffer (last ~500 lines).
+// Client-side level filter applied here to keep payload small.
+router.get('/logs', (req, res) => {
+  const { level } = req.query;
+  let logs = getRecentLogs().reverse(); // newest first for history load
+  if (level === 'error') logs = logs.filter(e => e.level === 'error');
+  else if (level === 'warn') logs = logs.filter(e => e.level !== 'info');
+  res.json({ logs });
 });
 
 module.exports = router;
