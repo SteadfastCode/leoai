@@ -2,10 +2,34 @@ const express = require('express');
 const router = express.Router();
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
+const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { retrieveContext } = require('../services/rag');
 const { chat, classifyQuery, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 const logger = require('../services/logger');
+
+// Phrases Leo uses when it can't find an answer in the KB
+const UNANSWERED_PHRASES = [
+  "i don't have information",
+  "i don't have that information",
+  "i don't have specific",
+  "i don't have details",
+  "i'm not sure",
+  "i am not sure",
+  "i don't know",
+  "i do not know",
+  "i'm unable to find",
+  "i am unable to find",
+  "isn't in my knowledge base",
+  "not in my knowledge base",
+  "i don't have access to that",
+];
+
+function isUnanswered(replyText, hadContext) {
+  if (!hadContext) return true;
+  const lower = replyText.toLowerCase();
+  return UNANSWERED_PHRASES.some((p) => lower.includes(p));
+}
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
 const HANDOFF_CANCEL_RE = /\[HANDOFF_CANCEL:\s*([^\]]+)\]\s*$/;
@@ -117,8 +141,9 @@ router.post('/', async (req, res) => {
         selected: interactiveData.selected || message,
       };
     }
+    const hadContext = !!(ragContext || ownerReplyContext);
     conversation.messages.push(userMsg);
-    conversation.messages.push({ role: 'assistant', content: reply, model, topScore, hadContext: !!(ragContext || ownerReplyContext), classifierRoute, classifierReason });
+    conversation.messages.push({ role: 'assistant', content: reply, model, topScore, hadContext, classifierRoute, classifierReason });
     conversation.lastActiveAt = new Date();
 
     // Remove a specific pending question when visitor confirms cancellation
@@ -188,6 +213,17 @@ router.post('/', async (req, res) => {
     }
 
     await Promise.all([conversation.save(), entity.save()]);
+
+    // Fire-and-forget — log questions Leo couldn't answer (skip interactive button clicks)
+    if (type !== 'interactive' && isUnanswered(reply, hadContext)) {
+      UnansweredQuestion.create({
+        entityDomain: domain,
+        question: message,
+        conversationId: conversation._id,
+        sessionToken,
+        handoffOffered: !!handoffMatch,
+      }).catch((err) => console.error('UnansweredQuestion save error:', err));
+    }
 
     // Notify dashboard clients watching this domain
     const io = req.app.get('io');

@@ -47,12 +47,13 @@ const adminPaths = ['/entities', '/crawls', '/page-explorer', '/chat-preview', '
 const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsWith(p)) ? 'admin' : 'entity')
 
 const entityNavItems = [
-  { title: 'Overview',       icon: 'mdi-view-dashboard', to: '/overview' },
-  { title: 'Conversations',  icon: 'mdi-chat',           to: '/conversations' },
-  { title: 'Knowledge Base', icon: 'mdi-database',       to: '/knowledge' },
-  { title: 'Team',           icon: 'mdi-account-group',  to: '/team' },
-  { title: 'Settings',       icon: 'mdi-cog',            to: '/settings' },
-  { title: 'Billing',        icon: 'mdi-credit-card',    to: '/billing' },
+  { title: 'Overview',            icon: 'mdi-view-dashboard',       to: '/overview' },
+  { title: 'Conversations',       icon: 'mdi-chat',                 to: '/conversations' },
+  { title: 'Knowledge Base',      icon: 'mdi-database',             to: '/knowledge' },
+  { title: 'Unanswered',          icon: 'mdi-help-circle-outline',  to: '/unanswered' },
+  { title: 'Team',                icon: 'mdi-account-group',        to: '/team' },
+  { title: 'Settings',            icon: 'mdi-cog',                  to: '/settings' },
+  { title: 'Billing',             icon: 'mdi-credit-card',          to: '/billing' },
 ]
 
 const adminNavItems = [

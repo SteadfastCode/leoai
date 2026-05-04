@@ -89,3 +89,7 @@ export const uploadKbFile    = (domain, file)     => { const fd = new FormData()
 export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/entities/${domain}/kb/entries/${encodeURIComponent(label)}`)
 
 export const getLogs = (params) => api.get('/api/admin/logs', { params })
+
+export const getUnanswered     = (domain)     => api.get(`/api/dashboard/entities/${domain}/unanswered`)
+export const addUnansweredToKb = (domain, id) => api.post(`/api/dashboard/entities/${domain}/unanswered/${id}/add-to-kb`)
+export const dismissUnanswered = (domain, id) => api.delete(`/api/dashboard/entities/${domain}/unanswered/${id}`)

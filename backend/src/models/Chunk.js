@@ -6,7 +6,7 @@ const chunkSchema = new mongoose.Schema(
     url: { type: String, required: true },
     content: { type: String, required: true },
     embedding: { type: [Number], required: true },
-    source: { type: String, enum: ['scraped', 'owner_reply', 'manual', 'upload'], default: 'scraped' },
+    source: { type: String, enum: ['scraped', 'owner_reply', 'manual', 'upload', 'unanswered_qa'], default: 'scraped' },
     label:    { type: String }, // display name — tab label in chunk viewer; derived from H2(s) in chunk
     pageH1:   { type: String }, // page-level H1 heading (same for all chunks on a page)
     sectionH2:{ type: String }, // primary H2 section this chunk belongs to (null for intro/pre-H2 content)

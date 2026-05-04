@@ -15,6 +15,7 @@ const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
 const { PERMISSIONS } = require('../models/Permission');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
+const UnansweredQuestion = require('../models/UnansweredQuestion');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -486,6 +487,116 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
         archivedChunks: archived.deletedCount,
       },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Unanswered Questions
+// ---------------------------------------------------------------------------
+
+// Jaccard similarity — same logic as chat.js
+function questionSimilarity(a, b) {
+  const words = (s) => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean));
+  const wa = words(a);
+  const wb = words(b);
+  const intersection = [...wa].filter((w) => wb.has(w)).length;
+  const union = new Set([...wa, ...wb]).size;
+  return union === 0 ? 1 : intersection / union;
+}
+const UNANSWERED_SIMILARITY_THRESHOLD = 0.6;
+
+// GET /api/dashboard/entities/:domain/unanswered
+// Returns questions grouped by similarity, sorted by frequency desc.
+router.get('/entities/:domain/unanswered', async (req, res) => {
+  try {
+    const { domain } = req.params;
+    const questions = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Greedy grouping by Jaccard similarity
+    const groups = [];
+    for (const q of questions) {
+      const match = groups.find(
+        (g) => questionSimilarity(g.question, q.question) >= UNANSWERED_SIMILARITY_THRESHOLD
+      );
+      if (match) {
+        match.count++;
+        match.allIds.push(q._id);
+        if (new Date(q.createdAt) > new Date(match.lastAskedAt)) {
+          match.lastAskedAt = q.createdAt;
+          match.id = q._id; // most recent is the representative
+          match.question = q.question;
+        }
+      } else {
+        groups.push({
+          id: q._id,
+          question: q.question,
+          count: 1,
+          lastAskedAt: q.createdAt,
+          allIds: [q._id],
+        });
+      }
+    }
+
+    groups.sort((a, b) => b.count - a.count);
+    res.json(groups);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/dashboard/entities/:domain/unanswered/:id/add-to-kb
+// Marks the group as added to KB and creates a chunk for the question text.
+router.post('/entities/:domain/unanswered/:id/add-to-kb', async (req, res) => {
+  try {
+    const { domain, id } = req.params;
+    const doc = await UnansweredQuestion.findOne({ _id: id, entityDomain: domain });
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    // Find all similar questions and mark the whole group as added
+    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false }).lean();
+    const similarIds = all
+      .filter((q) => questionSimilarity(q.question, doc.question) >= UNANSWERED_SIMILARITY_THRESHOLD)
+      .map((q) => q._id);
+
+    await UnansweredQuestion.updateMany(
+      { _id: { $in: similarIds } },
+      { addedToKb: true, addedAt: new Date() }
+    );
+
+    // Create a KB chunk for the question so future RAG can surface it
+    const url = `unanswered_qa://${domain}/${id}`;
+    const content = doc.question;
+    const label = content.slice(0, 100);
+
+    await Chunk.deleteMany({ domain, url });
+    const [embedding] = await embedTexts([content]);
+    await Chunk.create({ domain, url, label, content, embedding, source: 'unanswered_qa' });
+
+    res.json({ ok: true, markedCount: similarIds.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/dashboard/entities/:domain/unanswered/:id
+// Dismisses the entire group (deletes all similar questions).
+router.delete('/entities/:domain/unanswered/:id', async (req, res) => {
+  try {
+    const { domain, id } = req.params;
+    const doc = await UnansweredQuestion.findOne({ _id: id, entityDomain: domain });
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false }).lean();
+    const similarIds = all
+      .filter((q) => questionSimilarity(q.question, doc.question) >= UNANSWERED_SIMILARITY_THRESHOLD)
+      .map((q) => q._id);
+
+    await UnansweredQuestion.deleteMany({ _id: { $in: similarIds } });
+    res.json({ ok: true, deletedCount: similarIds.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
