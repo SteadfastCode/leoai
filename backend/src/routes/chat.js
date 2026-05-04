@@ -54,10 +54,12 @@ router.post('/', async (req, res) => {
       entity.messageCountThisPeriod = 0;
       entity.notifiedThresholds = [];
       entity.quotaExceededNotified = false;
+      entity.billingPeriodStart = now;
       entity.billingPeriodResetAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
     }
-    // Initialise reset date on first message if not set
+    // Initialise period dates on first message if not set
     if (!entity.billingPeriodResetAt) {
+      entity.billingPeriodStart = now;
       entity.billingPeriodResetAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
     }
 

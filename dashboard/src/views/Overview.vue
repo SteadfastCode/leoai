@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { getStats } from '../lib/api'
+import UsagePanel from '../components/UsagePanel.vue'
 
 const props = defineProps(['domain', 'entity'])
 const stats = ref(null)
@@ -43,12 +44,7 @@ function formatDate(d) {
           </v-card>
         </v-col>
         <v-col cols="12" sm="6" md="3">
-          <v-card rounded="lg" elevation="0" border>
-            <v-card-text>
-              <div class="text-caption text-secondary mb-1">Total Messages</div>
-              <div class="text-h4 font-weight-bold">{{ stats.stats.totalMessages }}</div>
-            </v-card-text>
-          </v-card>
+          <UsagePanel :entity="stats.entity" />
         </v-col>
         <v-col cols="12" sm="6" md="3">
           <v-card rounded="lg" elevation="0" border>
