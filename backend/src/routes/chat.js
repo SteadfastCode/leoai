@@ -151,6 +151,7 @@ router.post('/', async (req, res) => {
             ));
 
         if (isFirstHandoff) {
+          conversation.lastHandoffNotifiedAt = new Date();
           sendHandoffNotification({
             entity,
             reason: question,

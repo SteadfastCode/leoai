@@ -158,6 +158,50 @@ async function sendQuotaExceededNotification({ entity, messageCountThisPeriod, l
 }
 
 
+async function sendHandoffFollowUpNotification({ entity, conversationId, sessionToken, pendingQuestions }) {
+  const shortSession = sessionToken.slice(0, 10);
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
+  const conversationLink = `${dashboardUrl}/#/conversations/${conversationId}`;
+  const questionList = pendingQuestions?.length
+    ? pendingQuestions.map((q) => `• ${q}`).join('\n')
+    : '(no questions recorded)';
+
+  const smsBody = [
+    `🦁 Leo reminder — ${entity.name}`,
+    `A visitor is still waiting for your reply.`,
+    questionList,
+    `View chat: ${conversationLink}`,
+    `Session: ${shortSession}`,
+  ].join('\n');
+
+  const subject = `Reminder — ${entity.name} visitor still waiting`;
+  const text = [
+    `Hey! Just a reminder from LeoAI.`,
+    ``,
+    `A visitor on ${entity.name} is still waiting for a response from your team.`,
+    ``,
+    `Open question(s):`,
+    questionList,
+    ``,
+    `View and reply: ${conversationLink}`,
+    `Session: ${shortSession}`,
+    ``,
+    `— LeoAI by Steadfast Code`,
+  ].join('\n');
+
+  const results = await Promise.allSettled([
+    sendSms(entity.ownerPhone, smsBody),
+    sendEmailRaw(entity.ownerEmail, subject, text),
+  ]);
+
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      const channel = i === 0 ? 'SMS' : 'email';
+      console.error(`Handoff follow-up ${channel} failed for ${entity.domain}:`, r.reason?.message || r.reason);
+    }
+  });
+}
+
 async function sendMinistryPlanRequest({ entityName, domain, requestedBy }) {
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
   const adminPhone = process.env.ADMIN_PHONE;
@@ -183,4 +227,4 @@ async function sendMinistryPlanRequest({ entityName, domain, requestedBy }) {
   });
 }
 
-module.exports = { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw, sendMinistryPlanRequest };
+module.exports = { sendHandoffNotification, sendHandoffFollowUpNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw, sendMinistryPlanRequest };
