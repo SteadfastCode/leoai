@@ -48,6 +48,10 @@ watch(() => props.entity, (e) => {
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
+    handoffFollowUp: {
+      enabled:       e.handoffFollowUp?.enabled ?? true,
+      intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
+    },
     ragThreshold: e.ragThreshold ?? 0.75,
   }
 }, { immediate: true })
@@ -119,6 +123,14 @@ async function removePasskey(credentialID) {
     removingPasskey.value = ''
   }
 }
+
+const FOLLOW_UP_INTERVAL_OPTIONS = [
+  { value: 1,  title: '1 hour' },
+  { value: 4,  title: '4 hours' },
+  { value: 12, title: '12 hours' },
+  { value: 24, title: '24 hours' },
+  { value: 48, title: '48 hours' },
+]
 
 const QUOTA_THRESHOLD_OPTIONS = [
   { value: 50, label: '50% (50 messages)' },
@@ -318,6 +330,39 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-3">
             Only applies to the free plan. Uses the phone and email configured in Handoff Notifications above. Uncheck both to disable usage alerts entirely.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Handoff Follow-Up ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Handoff Follow-Up Reminders</v-card-title>
+        <v-card-text class="pt-4">
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            If a visitor is still waiting and you haven't replied, Leo will send you a reminder on the schedule below.
+          </div>
+          <v-switch
+            v-model="form.handoffFollowUp.enabled"
+            label="Send follow-up reminders"
+            color="primary"
+            hide-details
+            density="compact"
+            class="mb-3"
+          />
+          <v-select
+            v-model="form.handoffFollowUp.intervalHours"
+            :items="FOLLOW_UP_INTERVAL_OPTIONS"
+            item-title="title"
+            item-value="value"
+            label="Reminder interval"
+            variant="outlined"
+            density="compact"
+            hide-details
+            :disabled="!form.handoffFollowUp.enabled"
+            style="max-width: 180px"
+          />
+          <div class="text-caption text-medium-emphasis mt-2">
+            Uses the same phone and email as Handoff Notifications above. Reminders repeat at this interval until you reply.
           </div>
         </v-card-text>
       </v-card>

@@ -2,8 +2,10 @@ const cron = require('node-cron');
 const Entity = require('../models/Entity');
 const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
+const Conversation = require('../models/Conversation');
 const { rescrapeSite } = require('./scraper');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
+const { sendHandoffFollowUpNotification } = require('./notifications');
 
 const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
 
@@ -91,11 +93,59 @@ async function runHourlyTick(io) {
   console.log('[LeoRefresh] Tick complete');
 }
 
+async function runHandoffFollowUpTick() {
+  // Find conversations with an unresolved handoff that have already been notified once
+  // (lastHandoffNotifiedAt set) and are overdue for a follow-up.
+  const pendingConvos = await Conversation.find({
+    handoffPending: true,
+    lastHandoffNotifiedAt: { $ne: null, $exists: true },
+  }).lean();
+
+  if (!pendingConvos.length) return;
+
+  // Group by domain so we fetch each entity once
+  const domainMap = new Map();
+  for (const c of pendingConvos) {
+    if (!domainMap.has(c.domain)) domainMap.set(c.domain, []);
+    domainMap.get(c.domain).push(c);
+  }
+
+  for (const [domain, convos] of domainMap) {
+    const entity = await Entity.findOne({ domain }).lean();
+    if (!entity) continue;
+    if (!entity.handoffFollowUp?.enabled) continue;
+    if (!entity.ownerPhone && !entity.ownerEmail) continue;
+
+    const intervalMs = (entity.handoffFollowUp.intervalHours || 24) * 60 * 60 * 1000;
+    const cutoff = new Date(Date.now() - intervalMs);
+
+    for (const convo of convos) {
+      if (new Date(convo.lastHandoffNotifiedAt) > cutoff) continue;
+
+      // Atomic update to prevent duplicate sends on concurrent runs
+      const updated = await Conversation.findOneAndUpdate(
+        { _id: convo._id, lastHandoffNotifiedAt: convo.lastHandoffNotifiedAt },
+        { $set: { lastHandoffNotifiedAt: new Date() } }
+      );
+      if (!updated) continue; // another process beat us to it
+
+      console.log(`[HandoffFollowUp] Sending reminder for ${domain}, conversation ${convo._id}`);
+      sendHandoffFollowUpNotification({
+        entity,
+        conversationId: convo._id,
+        sessionToken: convo.sessionToken,
+        pendingQuestions: (convo.pendingQuestions || []).map((q) => q.text),
+      }).catch((err) => console.error(`[HandoffFollowUp] Notification failed for ${domain}:`, err.message));
+    }
+  }
+}
+
 function startLeoRefreshScheduler(io) {
   // Run at the top of every hour, check which entities are due
   cron.schedule('0 * * * *', () => {
     console.log('[LeoRefresh] Hourly tick');
     runHourlyTick(io).catch((err) => console.error('[LeoRefresh] Unexpected error:', err));
+    runHandoffFollowUpTick().catch((err) => console.error('[HandoffFollowUp] Unexpected error:', err));
   });
 
   console.log('[LeoRefresh] Scheduler started — checks every hour for entities due to refresh');
