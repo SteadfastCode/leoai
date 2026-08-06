@@ -274,4 +274,7 @@ Respond with only valid JSON, no explanation. Example:
   }
 }
 
-module.exports = { chat, classifyQuery, summarizeTopic, analyzePageStructure };
+// buildSystemPrompt and getRawPrompt are exported for verification, not for callers —
+// the prompt is assembled internally by chat(). Exposed so a test can assert the fully
+// substituted prompt is intact without reaching into module internals.
+module.exports = { chat, classifyQuery, summarizeTopic, analyzePageStructure, buildSystemPrompt, getRawPrompt };
