@@ -127,6 +127,8 @@ Ministry Plan: 50% off. Not a coupon — a distinct plan. See [`docs/pricing-str
 
 **Alpha gate (current):** Signup requires an alpha code validated server-side against `ALPHA_CODES` env var (comma-separated). No public signup until alpha ends. Plan/pricing step is scaffolded but skipped — all alpha users start on free tier.
 
+> **Pre-alpha — no real customers yet (as of 2026-08-06).** The alpha gate is *built*, but alpha has not started: there are no paying or non-paying customers on the platform, no real visitor traffic, and no financial exposure. Production being live on Railway/Netlify does NOT mean it is serving anyone yet. Treat production as a staging environment for now — a broken deploy costs nothing but Daniel's time to revert. This is why the overnight routine is authorized to merge to `main` and deploy without a human review gate. **When alpha actually begins, that changes: this note must be updated and the routine's deploy gate revisited.**
+
 **Crawl-ASAP principle:** Scrape is fired immediately after business info is submitted (step 2), before the user finishes setup. Most small business sites scrape in under 2 minutes — Leo is already learning while the user reads the done screen. This is a marketing differentiator: "Your site is already being learned."
 
 **Owner Reply Flow** — Owner gets SMS/email alert with dashboard link → "Reply to visitor" input in ConversationDetail → stored as message → Leo surfaces it on visitor's next open. One-click "Add to knowledge base" on reply closes the improvement loop.
