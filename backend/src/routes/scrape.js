@@ -12,6 +12,21 @@ const logger = require('../services/logger');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
+// Chunk sources a scrape is allowed to delete. Everything else on the Chunk.source enum is
+// human-authored or human-derived (manual, upload, owner_reply, unanswered_qa) and must
+// survive a rescrape.
+//
+// Derived from the model rather than hardcoded on purpose. This list was previously spelled
+// out inline in five places and drifted the moment 'unanswered_qa' was added — a force
+// rescrape would have deleted every chunk created by the KB "add to knowledge base" button.
+// Deriving it means a new enum value is preserved by default: over-preserving leaves a
+// stale chunk, which is recoverable; over-deleting destroys owner-authored content, which
+// is not.
+const DESTROYABLE_SOURCES = ['scraped'];
+const PRESERVED_SOURCES = Chunk.schema
+  .path('source')
+  .enumValues.filter((s) => !DESTROYABLE_SOURCES.includes(s));
+
 // In-memory tracking of currently active scrapes
 // domain → { url, name, startedAt, mode }
 const activeScrapes = new Map();
@@ -20,7 +35,7 @@ const activeScrapes = new Map();
 // mode: 'full'|'force' archives all scraped chunks; 'rescrape' archives only affected URLs.
 // Prunes oldest snapshots if count exceeds MAX_SNAPSHOTS_PER_DOMAIN.
 async function createSnapshot(domain, mode, affectedUrls = null) {
-  const query = { domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } };
+  const query = { domain, source: { $nin: PRESERVED_SOURCES } };
   if (affectedUrls) query.url = { $in: affectedUrls };
 
   const chunksToArchive = await Chunk.find(query).lean();
@@ -122,7 +137,7 @@ router.post('/snapshots/:id/restore', requireAuth(), async (req, res) => {
   const urlsToRestore = [...new Set(archived.map(c => c.url))];
 
   // Replace current chunks for the affected URLs
-  await Chunk.deleteMany({ domain, url: { $in: urlsToRestore }, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+  await Chunk.deleteMany({ domain, url: { $in: urlsToRestore }, source: { $nin: PRESERVED_SOURCES } });
   await Chunk.insertMany(archived.map(({ _id, snapshotId, __v, createdAt, updatedAt, ...c }) => c));
 
   res.json({ restored: archived.length, urls: urlsToRestore.length });
@@ -162,7 +177,7 @@ router.post('/', requireAuth(), async (req, res) => {
       // Force rescrape: same as full scrape but triggered on an existing entity.
       // Snapshot current chunks before wiping so they can be restored.
       await createSnapshot(domain, 'force');
-      await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+      await Chunk.deleteMany({ domain, source: { $nin: PRESERVED_SOURCES } });
       await ScrapedPage.deleteMany({ domain });
     }
 
@@ -186,7 +201,7 @@ router.post('/', requireAuth(), async (req, res) => {
 
         // Per-URL: insert new chunks FIRST (no gap), then delete old ones, then upsert ScrapedPage.
         // Using _id exclusion so the delete never touches the chunks we just inserted.
-        const PRESERVED = { $nin: ['manual', 'upload', 'owner_reply'] };
+        const PRESERVED = { $nin: PRESERVED_SOURCES };
         for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of result.pageHashUpdates) {
           const chunks = normalByUrl.get(pageUrl) || [];
           if (chunks.length > 0) {
@@ -246,7 +261,7 @@ router.post('/', requireAuth(), async (req, res) => {
       await createSnapshot(domain, 'full');
 
       // Delete only scraped chunks — preserve manual, upload, and owner_reply chunks.
-      await Chunk.deleteMany({ domain, source: { $nin: ['manual', 'upload', 'owner_reply'] } });
+      await Chunk.deleteMany({ domain, source: { $nin: PRESERVED_SOURCES } });
       await ScrapedPage.deleteMany({ domain });
 
       let totalChunks = 0;
