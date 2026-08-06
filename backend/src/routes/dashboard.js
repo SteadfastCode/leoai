@@ -20,6 +20,24 @@ const UnansweredQuestion = require('../models/UnansweredQuestion');
 // All dashboard routes require auth
 router.use(requireAuth());
 
+// Domain-scoping floor.
+//
+// requireAuth() with no argument authenticates but does NOT check domain membership — its
+// permission gate is `if (permission && ...)`. Routes that pass a PERMISSIONS constant were
+// scoped; the ones that didn't (stats, conversations, chunks, pages, unanswered) were
+// readable and writable across entities by any authenticated user.
+//
+// Registered as router.param rather than per-route middleware so it fires for every route
+// on this router carrying :domain, including routes added later. A new endpoint cannot
+// forget it. Routes that also pass a PERMISSIONS constant still get the finer-grained
+// check on top — this is a floor, not a replacement.
+router.param('domain', (req, res, next, domain) => {
+  if (isSuperAdmin(req.user)) return next();
+  const hasMembership = req.user?.memberships?.some((m) => m.entityDomain === domain);
+  if (!hasMembership) return res.status(403).json({ error: 'Forbidden' });
+  next();
+});
+
 // GET /api/dashboard/entities — list entities the user has access to
 router.get('/entities', async (req, res) => {
   try {
