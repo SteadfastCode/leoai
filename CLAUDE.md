@@ -175,6 +175,7 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 - ✅ Quota warning notifications — owner alerted at 50/75/90% and on limit hit (configurable thresholds + alert channels: email/SMS). Resets each billing period. Dashboard Settings > Usage Alerts UI.
 - ✅ Stripe price IDs + env vars configured in sandbox. Webhook handler fixed (current_period_start/end guarded against undefined).
 - ⬜ OneSignal integration
+- ✅ Unanswered questions log — detection in chat.js (hadContext === false or Leo's reply contains uncertainty phrases), UnansweredQuestion model, grouped GET endpoint with Jaccard similarity dedup, add-to-KB (creates unanswered_qa chunk) and dismiss endpoints. Dashboard: /unanswered view in entity nav under Knowledge Base.
 - ✅ Church & Ministry Mode — toggle + full config fields (mission, statement of faith, denominational distinctives, core values, pastoral tone), system prompt v1.9, RAG context church-aware, AI-extract from KB. Superadmin-gated on both frontend (v-if="isSuperAdmin") and backend (superadminOnly field list). Non-superadmin entities see "Request Ministry Plan" card. Pastoral review still needed before enabling for real churches.
 - ✅ LeoRefresh scheduler — node-cron, 3 AM UTC daily, sequential per-entity rescrape
 - ✅ Passkey registration UI — Settings > Security card; name field, register/delete; discoverable login (no email)
@@ -208,6 +209,13 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 ## Known Issues (Fix Before Ship)
 
 None currently logged.
+
+---
+
+## Alpha Roadmap — Deferred Items
+
+**Church Mode theological safety layer — intentionally deferred until after alpha.**
+Church Mode UI, config fields, system prompt toggles, and the RAG church-awareness all ship. What's deferred is the full theological depth: hardline sycophancy resistance on Layer 1 essentials under sustained user pressure, formal pastoral review of the Layer 1/Layer 2 framing, and the per-entity denominational parameter QA pass. Goal: get the business side working and real users onboarded first. No churches will be onboarded during alpha (Church Mode is superadmin-gated), so this is safe to defer. When it ships, pastoral review must happen before enabling for any real church entity.
 
 ---
 
