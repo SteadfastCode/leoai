@@ -37,6 +37,7 @@ const entitySchema = new mongoose.Schema(
     currentPeriodEnd: { type: Date },
     // Usage tracking — per billing period (free tier: 100/month, payg: metered)
     messageCountThisPeriod: { type: Number, default: 0 },
+    billingPeriodStart: { type: Date },
     billingPeriodResetAt: { type: Date },
     // Quota warning notifications
     quotaWarningThresholds: { type: [Number], default: [50, 75, 90] },
