@@ -13,5 +13,8 @@ build/
 # Local Claude Code settings (machine-specific permissions)
 .claude/settings.local.json
 
+# Task worktrees — full repo checkouts; never commit these
+.claude/worktrees/
+
 # Local Netlify folder
 .netlify
