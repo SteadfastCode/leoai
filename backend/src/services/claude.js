@@ -7,9 +7,15 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const PROMPT_PATH = path.join(__dirname, '../../prompts/leo-system-prompt.md');
 
 // Read fresh from disk on every call — prompt edits take effect immediately, no restart needed
+//
+// GREEDY on purpose. The prompt body contains its own nested ``` fences (the [OPTIONS: ...]
+// format example), so a non-greedy match stops at the first inner fence and silently drops
+// everything after it. Match the opening fence to the LAST fence in the file instead; the
+// trailing "Prompt Variables Reference" / "Version History" sections live outside it and are
+// correctly excluded. Verify with `node src/scripts/verify-prompt.js` after editing.
 function getRawPrompt() {
   const template = fs.readFileSync(PROMPT_PATH, 'utf8');
-  const match = template.match(/```\n([\s\S]*?)\n```/);
+  const match = template.match(/```\n([\s\S]*)\n```/);
   return match ? match[1] : template;
 }
 
@@ -39,15 +45,17 @@ function buildSystemPrompt(entity, conversation) {
     .replace(/\[PREVIOUS_TOPIC\]/g, conversation?.lastTopic || '')
     .replace(/\[HANDOFF_MODE_INSTRUCTION\]/g, handoffModeInstruction);
 
-  if (entity.churchModeEnabled && entity.churchConfig) {
-    const c = entity.churchConfig;
-    prompt = prompt
-      .replace(/\[DENOMINATIONAL_DISTINCTIVES\]/g, c.denominationalDistinctives || '')
-      .replace(/\[CHURCH_MISSION\]/g, c.missionStatement || '')
-      .replace(/\[CHURCH_VALUES\]/g, c.churchValues || '')
-      .replace(/\[STATEMENT_OF_FAITH\]/g, c.statementOfFaith || '')
-      .replace(/\[PASTORAL_TONE\]/g, c.pastoralToneNotes || 'warm and conversational');
-  }
+  // Substituted unconditionally, NOT gated on churchModeEnabled. The Church Mode section is
+  // always present in the prompt body (it self-gates on the "ENABLED: true|false" header), so
+  // gating substitution here would leave literal "[CHURCH_MISSION]" text in every non-church
+  // entity's prompt. An empty value renders inert inside an already-inactive section.
+  const c = (entity.churchModeEnabled && entity.churchConfig) ? entity.churchConfig : {};
+  prompt = prompt
+    .replace(/\[DENOMINATIONAL_DISTINCTIVES\]/g, c.denominationalDistinctives || '')
+    .replace(/\[CHURCH_MISSION\]/g, c.missionStatement || '')
+    .replace(/\[CHURCH_VALUES\]/g, c.churchValues || '')
+    .replace(/\[STATEMENT_OF_FAITH\]/g, c.statementOfFaith || '')
+    .replace(/\[PASTORAL_TONE\]/g, c.pastoralToneNotes || 'warm and conversational');
 
   // Inject temporal context so Leo knows current time and when user last visited
   prompt += `\n\n---\n\n## CURRENT CONTEXT\n\nCurrent date and time (${entity.timezone || 'America/New_York'}): ${now}`;
