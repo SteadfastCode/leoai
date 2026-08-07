@@ -1,0 +1,5 @@
+{
+  "lastRunUtc": null,
+  "decision": "never-run",
+  "note": "Initialised at setup. The routine overwrites this every run, including no-ops."
+}

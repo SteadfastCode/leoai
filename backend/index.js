@@ -46,7 +46,26 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/codes', codesRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Health check. Reports WHICH build is serving, not just that something is.
+//
+// A static {status:'ok'} cannot distinguish "the new container is live" from "the Railway
+// build failed and the previous container is still happily answering 200" — which makes
+// any post-deploy verification meaningless, and an auto-revert that keys off it actively
+// dangerous. Railway injects RAILWAY_GIT_COMMIT_SHA; GIT_COMMIT_SHA is the manual escape
+// hatch for other hosts. Unknown is reported honestly rather than faked.
+const COMMIT_SHA =
+  process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'unknown';
+const BOOTED_AT = new Date().toISOString();
+
+app.get('/health', (req, res) => {
+  const mongoState = require('mongoose').connection.readyState; // 1 = connected
+  res.json({
+    status: mongoState === 1 ? 'ok' : 'degraded',
+    commit: COMMIT_SHA,
+    mongo: mongoState,
+    bootedAt: BOOTED_AT,
+  });
+});
 
 // Serve the widget demo page (test.html + chatbot.js/css) from the backend
 // so the login form and API calls share the same origin with no CORS friction.
