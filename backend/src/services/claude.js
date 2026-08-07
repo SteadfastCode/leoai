@@ -13,9 +13,13 @@ const PROMPT_PATH = path.join(__dirname, '../../prompts/leo-system-prompt.md');
 // everything after it. Match the opening fence to the LAST fence in the file instead; the
 // trailing "Prompt Variables Reference" / "Version History" sections live outside it and are
 // correctly excluded. Verify with `node src/scripts/verify-prompt.js` after editing.
+// \r?\n throughout: .gitattributes sets `* text=auto`, so a fresh checkout on Windows gets
+// CRLF and a \n-only pattern matches NOTHING — the fallback then feeds the entire file,
+// Version History and all, to Claude as the system prompt. Linux hosts are unaffected,
+// which is exactly what makes it the kind of bug that survives to production untouched.
 function getRawPrompt() {
   const template = fs.readFileSync(PROMPT_PATH, 'utf8');
-  const match = template.match(/```\n([\s\S]*)\n```/);
+  const match = template.match(/```\r?\n([\s\S]*)\r?\n```/);
   return match ? match[1] : template;
 }
 

@@ -84,8 +84,12 @@ const next = { version: 1, items: fresh, openCluster: prior.openCluster ?? null 
 const serialized = JSON.stringify(next, null, 2) + '\n';
 
 if (process.argv.includes('--check')) {
-  const current = fs.existsSync(STATE) ? fs.readFileSync(STATE, 'utf8') : '';
-  if (current !== serialized) {
+  // Normalise line endings before comparing. `* text=auto` in .gitattributes means a fresh
+  // Windows checkout has CRLF while this script writes LF, so a raw byte comparison reports
+  // "out of sync" on a tree that is perfectly in sync.
+  const norm = (s) => s.replace(/\r\n/g, '\n');
+  const current = fs.existsSync(STATE) ? norm(fs.readFileSync(STATE, 'utf8')) : '';
+  if (current !== norm(serialized)) {
     console.error('✗ state.json is out of sync with FEATURES.md — run: node ops/leo-nightly/build-state.js');
     process.exit(1);
   }

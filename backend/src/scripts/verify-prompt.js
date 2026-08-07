@@ -64,7 +64,7 @@ const INTENTIONAL_LITERALS = [
 // Mirrors getRawPrompt() in services/claude.js. Kept in sync deliberately: if that
 // extraction changes, this must change with it and the assertions below re-run.
 function extract(template) {
-  const match = template.match(/```\n([\s\S]*)\n```/);
+  const match = template.match(/```\r?\n([\s\S]*)\r?\n```/);
   return match ? match[1] : template;
 }
 
