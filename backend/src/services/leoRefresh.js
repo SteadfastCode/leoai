@@ -35,8 +35,23 @@ async function runRefreshForEntity(entity, io) {
     const result = await rescrapeSite(url, storedPages, opts);
 
     if (result.embeddedChunks.length > 0) {
-      await Chunk.deleteMany({ domain, url: { $in: result.changedUrls } });
-      await Chunk.insertMany(result.embeddedChunks.map((c) => ({ ...c, domain })));
+      // Insert BEFORE delete, and never delete a preserved source.
+      //
+      // This previously ran deleteMany then insertMany with no source filter, so every
+      // nightly refresh destroyed manual, upload, owner_reply and unanswered_qa chunks for
+      // any changed URL — and left a window where a changed page had no chunks at all if
+      // the process died between the two calls (a Railway redeploy is enough).
+      //
+      // Mirrors the per-URL pattern in routes/scrape.js: insert first, then delete only
+      // scraped chunks for those URLs, excluding the ids just written.
+      const inserted = await Chunk.insertMany(result.embeddedChunks.map((c) => ({ ...c, domain })));
+      const insertedIds = inserted.map((d) => d._id);
+      await Chunk.deleteMany({
+        domain,
+        url: { $in: result.changedUrls },
+        source: { $nin: Chunk.PRESERVED_SOURCES },
+        _id: { $nin: insertedIds },
+      });
 
       for (const { url: pageUrl, hash, priority } of result.pageHashUpdates) {
         await ScrapedPage.findOneAndUpdate(

@@ -18,4 +18,21 @@ const chunkSchema = new mongoose.Schema(
 
 chunkSchema.index({ domain: 1 });
 
-module.exports = mongoose.model('Chunk', chunkSchema);
+const Chunk = mongoose.model('Chunk', chunkSchema);
+
+// Sources a scrape is allowed to delete. Everything else is human-authored or
+// human-derived and must survive a rescrape.
+//
+// Lives on the model so every destructive path shares one definition. This drifted once
+// already: the list was spelled out inline in routes/scrape.js and services/leoRefresh.js
+// never filtered by source at all, so the nightly job deleted owner replies and
+// unanswered_qa chunks for any changed URL.
+//
+// Derived from the enum so a new source is preserved by default. Over-preserving leaves a
+// stale chunk you can delete; over-deleting destroys owner-authored content permanently.
+Chunk.DESTROYABLE_SOURCES = ['scraped'];
+Chunk.PRESERVED_SOURCES = chunkSchema
+  .path('source')
+  .enumValues.filter((s) => !Chunk.DESTROYABLE_SOURCES.includes(s));
+
+module.exports = Chunk;

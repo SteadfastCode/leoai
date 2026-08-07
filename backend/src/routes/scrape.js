@@ -12,20 +12,8 @@ const logger = require('../services/logger');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
-// Chunk sources a scrape is allowed to delete. Everything else on the Chunk.source enum is
-// human-authored or human-derived (manual, upload, owner_reply, unanswered_qa) and must
-// survive a rescrape.
-//
-// Derived from the model rather than hardcoded on purpose. This list was previously spelled
-// out inline in five places and drifted the moment 'unanswered_qa' was added — a force
-// rescrape would have deleted every chunk created by the KB "add to knowledge base" button.
-// Deriving it means a new enum value is preserved by default: over-preserving leaves a
-// stale chunk, which is recoverable; over-deleting destroys owner-authored content, which
-// is not.
-const DESTROYABLE_SOURCES = ['scraped'];
-const PRESERVED_SOURCES = Chunk.schema
-  .path('source')
-  .enumValues.filter((s) => !DESTROYABLE_SOURCES.includes(s));
+// Chunk sources a scrape may never delete — defined once on the model, see Chunk.js.
+const { PRESERVED_SOURCES } = Chunk;
 
 // In-memory tracking of currently active scrapes
 // domain → { url, name, startedAt, mode }
