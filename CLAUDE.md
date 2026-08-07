@@ -209,9 +209,40 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 
 ---
 
+## leo-nightly — unattended feature routine
+
+Scheduled task `leo-nightly` fires hourly, works only 22:00–06:00 local, caps at 2 items/night,
+and implements the next item from root [`FEATURES.md`](FEATURES.md) in its own git worktree at
+`.claude/worktrees/leo-nightly`. It verifies, merges to `main`, lets Railway/Netlify deploy,
+smoke-tests production, and auto-reverts if the smoke fails.
+
+- **Queue:** `FEATURES.md` (human-readable) + `ops/leo-nightly/state.json` (machine state).
+  Regenerate state with `node ops/leo-nightly/build-state.js` after editing the queue.
+- **Backpressure:** halts after 14 completed-but-unacknowledged items. Release with
+  `git tag -f -a leo-nightly-ack -m ack origin/main && git push -f origin leo-nightly-ack`.
+  The routine may never touch that tag — see [`ops/leo-nightly/README.md`](ops/leo-nightly/README.md).
+- **Never touches:** `index.js`, webhooks, billing, embeddings, the `$vectorSearch` stage,
+  nixpacks, its own safety net. `chat.js`/`rag.js`/`scraper.js` are restricted to ≤30-line diffs.
+- **Its own merges go server-side**, so Daniel's local `main` goes stale — `git pull --ff-only`.
+
+**This is authorised only because LeoAI is pre-alpha with no customers.** When alpha begins, the
+deploy gate must be revisited — see the pre-alpha note above.
+
+---
+
 ## Known Issues (Fix Before Ship)
 
-None currently logged.
+- **No test suite.** `backend/package.json` has no `test` script and there are no test files
+  anywhere; `.github/` does not exist, so a merged PR runs zero checks. `node --check` is the only
+  gate and it passes on a `require()` of a nonexistent module. FEATURES.md Block A (LEO-001..005)
+  exists to close this and is deliberately first in the queue.
+- **RAG misses "what are your hours?"** — confirmed on dosiedough.com (19 chunks): returns no
+  context at all, while "what kind of bread do you make?" retrieves fine. Hours is the most common
+  small-business question. Queued as LEO-018; diagnose before changing any threshold.
+- **`billing.js` uses a different superadmin check** than the rest of the codebase —
+  `memberships.some(m => m.entityDomain === 'steadfastcode.tech')` rather than the `superadmin`
+  role, so any member of that domain in any capacity gets billing access to every entity.
+- **113 Dependabot vulnerabilities** on the default branch (50 high, 57 moderate).
 
 ---
 
