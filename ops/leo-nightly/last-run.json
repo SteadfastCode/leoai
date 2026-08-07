@@ -1,5 +1,6 @@
 {
-  "lastRunUtc": null,
-  "decision": "never-run",
-  "note": "Initialised at setup. The routine overwrites this every run, including no-ops."
+  "lastRunUtc": "2026-08-07T07:11:00.234Z",
+  "decision": "deferred-afk-guard",
+  "note": "AFK guard triggered: session local_275db384-2208-43e6-bbec-a60eb2f1d589 (\"LeoAI status check\", cwd C:\\repos\\LeoAI, no scheduledTaskId) had lastActivityAt 2026-08-07T07:05:59.569Z, ~5 min before this run started -- within the 120-min lookback. That session is the one that just armed leo-nightly; its closing message explicitly flagged this first-fire scenario and unresolved tool pre-approval. No item claimed, no code written. Preflight/queue/backpressure/nightly-cap checks all passed cleanly before the activity gate stopped the run (eligible item was LEO-001; unreviewed ledger count via git ls-remote leo-nightly-ack: 0; nightly claim count for this nightId: 0).",
+  "nightId": "2026-08-06"
 }
