@@ -11,17 +11,10 @@ const ApiKey = require('../models/ApiKey');
 // Auth — accepts either a valid superadmin JWT or a valid X-API-Key header
 // ---------------------------------------------------------------------------
 
-async function requireAdminAuth(req, res, next) {
-  const rawKey = req.headers['x-api-key'];
-  if (rawKey) {
-    const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-    const key = await ApiKey.findOne({ keyHash }).catch(() => null);
-    if (!key) return res.status(401).json({ error: 'Invalid API key' });
-    ApiKey.updateOne({ _id: key._id }, { lastUsedAt: new Date() }).catch(() => {});
-    req.apiKey = key;
-    return next();
-  }
-
+// The X-API-Key branch now lives in requireAuth (middleware/auth.js), which resolves a
+// valid key to a superadmin principal — so this is just "authenticate, then require
+// superadmin" and works identically for a key or a JWT.
+function requireAdminAuth(req, res, next) {
   return requireAuth()(req, res, () => {
     if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
     next();
