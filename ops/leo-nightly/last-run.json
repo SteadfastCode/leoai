@@ -1,19 +1,12 @@
 {
-  "lastRunUtc": "2026-08-07T08:36:58.579Z",
-  "decision": "deferred-afk-guard",
-  "note": "Third consecutive AFK deferral, but on a NEW signal. The LeoAI interactive session that blocked the 07:11Z and 07:40Z fires (local_275db384, \"LeoAI status check\") has gone quiet -- last activity 2026-08-07T07:05:59.569Z, ~91 min before this run, now outside the 70-minute lookback this routine uses. What blocks this fire instead is local_488a1388 (\"Plumb\", cwd C:\\repos\\plumb, opus-5/xhigh, NO scheduledTaskId), last activity 2026-08-07T08:16:19.043Z -- 21 min before this run and squarely inside the lookback. Its final transcript entry is a /compact; the assistant turn before it closed a hardware-watchdog debugging session with \"Go get some sleep.\" Per the activity gate, a session with no scheduledTaskId is a real interactive session and always counts, regardless of repo. The other three in-window sessions were all confirmed automated and do not count: local_b2998136 (tethered-e2ee-autopilot, 08:32:46Z), local_471421fd (tethered-nightly-canary, 08:30:51Z), local_582781d8 (leo-nightly's own 07:40Z fire, 08:05:22Z). Two of those are another repo's routines, which would carry a 2-fire defer cap, but that cap is not what is operative here -- same-machine interactive engagement has no fire-count cap, so deferral continues until Daniel is quiet for 70 minutes. No item claimed, no code written, no branch pushed beyond this heartbeat commit.",
+  "lastRunUtc": "2026-08-07T09:44:52Z",
+  "runId": "2026-08-07T09:36:59.121Z",
+  "decision": "baseline-failed",
   "nightId": "2026-08-06",
-  "eligibleItem": "LEO-001",
+  "item": null,
+  "note": "STEP 9 production baseline smoke failed: GET /demo/chatbot.js -> 404 (pre-existing; nothing was deployed by this run). Checks 1-4 passed. Zero item work performed; LEO-001 not claimed. See incident-20260807T094452Z.md.",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08f840068b47c853b64f661e0bc5a6c61b (annotated; ^{commit} = d63d44243cd4210ea4886d9fe1b1f2ccb1923e49), confirmed ancestor of origin/main (2d8b8376267db857248165901f31857ddfe644ae) via 'git merge-base --is-ancestor'; unreviewed = count of ledger 'complete' events whose mergeSha is not an ancestor of that sha = 0 (ops/leo-nightly/ledger.jsonl on origin/main is empty)",
-  "gatesPassed": [
-    "lock-acquired-fresh (no takeover, no crash recovery)",
-    "work-window (04:37 local, inside 22:00-06:00)",
-    "debounce (ledger empty, no claim event in last 55 min)",
-    "preflight (fetch ok; HEAD not main; toplevel is leo-nightly worktree; status clean; gh auth ok; yarn 1.22.22; exactly one enabled leo- scheduled task)",
-    "queue (LEO-001 eligible: pending, no deps, attempts 0)",
-    "backpressure (ack anchor resolved and ancestor; unreviewed 0 < 14)",
-    "nightly-cap (0 claims for nightId 2026-08-06, limit 2)"
-  ],
-  "gateFailed": "activity-gate-afk"
+  "unreviewedCommand": "count of ledger \"complete\" events whose mergeSha is not an ancestor of the leo-nightly-ack sha (git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08 -> commit d63d442); ledger.jsonl is empty, so 0",
+  "ackSha": "d63d44243cd4210ea4886d9fe1b1f2ccb1923e49",
+  "smokeEntityCreated": "smoke.leo-ai.chat"
 }

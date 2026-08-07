@@ -28,6 +28,27 @@ every commit in this repo is authored `Daniel Ecker`, including ones written by 
 bot pushes with Daniel's own GitHub token — so there is no signal in git or GitHub history the
 bot could not forge. A tag it is forbidden to touch is the only trustworthy one.
 
+## The smoke entity
+
+Created 2026-08-07 by the routine, per STEP 14. Checks 3 and 4 of the production smoke run against it.
+
+| | |
+|---|---|
+| Domain | `smoke.leo-ai.chat` |
+| Name | Leo Nightly Smoke Shop |
+| Plan | `infinity` — so an exhausted free-tier quota can never fail the smoke spuriously |
+| `ownerPhone` / `ownerEmail` | **both blank, deliberately** — `chat.js` guards handoff on `if (entity.ownerPhone \|\| entity.ownerEmail)`, so with both empty no SMS or email can ever fire from a smoke run |
+| `offerHandoffBeforeContact` | `false` |
+| Chunks | 4, `source: 'manual'` — `Chunk.DESTROYABLE_SOURCES` is `['scraped']` only, so a rescrape can never delete them |
+
+It is a fixture, not a site: the chunks were written by hand and embedded directly. **No scrape has
+ever run against it and none should** — there is nothing at that hostname to crawl.
+
+The seeded question the smoke asserts on is **"What are your opening hours?"**, which must return at
+least one hit scoring >= 0.75. Measured 0.7912 on 2026-08-07 — that is only 0.04 above the bar, so if
+this check starts flapping, the margin is the reason, not necessarily a RAG regression. Widen the
+seeded content before lowering the threshold.
+
 ## Editing the queue
 
 Edit `FEATURES.md`, then:
