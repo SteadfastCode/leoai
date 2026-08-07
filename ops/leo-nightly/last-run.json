@@ -1,6 +1,19 @@
 {
-  "lastRunUtc": "2026-08-07T07:40:20.000Z",
+  "lastRunUtc": "2026-08-07T08:36:58.579Z",
   "decision": "deferred-afk-guard",
-  "note": "AFK guard triggered again: session local_275db384-2208-43e6-bbec-a60eb2f1d589 (\"LeoAI status check\", cwd C:\\repos\\LeoAI, no scheduledTaskId, opus-5/xhigh) had lastActivityAt 2026-08-07T07:05:59.569Z, ~34 min before this run started at 07:40:20Z -- still within the 120-min lookback. Paged its transcript: it is the session that armed leo-nightly (created the scheduled task, pushed the ack tag, wired FEATURES.md/state.json) and is unambiguously Daniel's interactive session, not automated. No item claimed, no code written. Preflight/queue/backpressure/nightly-cap checks all passed cleanly before the activity gate stopped the run (eligible item was LEO-001; unreviewed ledger count via git ls-remote leo-nightly-ack: 0, ack sha c15c4a08 confirmed ancestor of origin/main; nightly claim count for nightId 2026-08-06: 0, ledger still empty). This is the second consecutive deferral for this reason (previous fire at 07:11:00Z recorded the same session as active 5 min prior); per the activity-gate rules there is no fire-count cap on same-repo Daniel engagement, so deferral continues until he goes quiet for 120 minutes.",
-  "nightId": "2026-08-06"
+  "note": "Third consecutive AFK deferral, but on a NEW signal. The LeoAI interactive session that blocked the 07:11Z and 07:40Z fires (local_275db384, \"LeoAI status check\") has gone quiet -- last activity 2026-08-07T07:05:59.569Z, ~91 min before this run, now outside the 70-minute lookback this routine uses. What blocks this fire instead is local_488a1388 (\"Plumb\", cwd C:\\repos\\plumb, opus-5/xhigh, NO scheduledTaskId), last activity 2026-08-07T08:16:19.043Z -- 21 min before this run and squarely inside the lookback. Its final transcript entry is a /compact; the assistant turn before it closed a hardware-watchdog debugging session with \"Go get some sleep.\" Per the activity gate, a session with no scheduledTaskId is a real interactive session and always counts, regardless of repo. The other three in-window sessions were all confirmed automated and do not count: local_b2998136 (tethered-e2ee-autopilot, 08:32:46Z), local_471421fd (tethered-nightly-canary, 08:30:51Z), local_582781d8 (leo-nightly's own 07:40Z fire, 08:05:22Z). Two of those are another repo's routines, which would carry a 2-fire defer cap, but that cap is not what is operative here -- same-machine interactive engagement has no fire-count cap, so deferral continues until Daniel is quiet for 70 minutes. No item claimed, no code written, no branch pushed beyond this heartbeat commit.",
+  "nightId": "2026-08-06",
+  "eligibleItem": "LEO-001",
+  "unreviewedCount": 0,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08f840068b47c853b64f661e0bc5a6c61b (annotated; ^{commit} = d63d44243cd4210ea4886d9fe1b1f2ccb1923e49), confirmed ancestor of origin/main (2d8b8376267db857248165901f31857ddfe644ae) via 'git merge-base --is-ancestor'; unreviewed = count of ledger 'complete' events whose mergeSha is not an ancestor of that sha = 0 (ops/leo-nightly/ledger.jsonl on origin/main is empty)",
+  "gatesPassed": [
+    "lock-acquired-fresh (no takeover, no crash recovery)",
+    "work-window (04:37 local, inside 22:00-06:00)",
+    "debounce (ledger empty, no claim event in last 55 min)",
+    "preflight (fetch ok; HEAD not main; toplevel is leo-nightly worktree; status clean; gh auth ok; yarn 1.22.22; exactly one enabled leo- scheduled task)",
+    "queue (LEO-001 eligible: pending, no deps, attempts 0)",
+    "backpressure (ack anchor resolved and ancestor; unreviewed 0 < 14)",
+    "nightly-cap (0 claims for nightId 2026-08-06, limit 2)"
+  ],
+  "gateFailed": "activity-gate-afk"
 }
