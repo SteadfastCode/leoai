@@ -16,7 +16,11 @@
 nixPkgs = ["nodejs_20", "yarn", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "dbus", "libxkbcommon", "gtk3", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "expat", "at-spi2-atk", "at-spi2-core", "alsa-lib"]
 
 [phases.install]
-cmds = ["cd backend && yarn install --frozen-lockfile"]
+# --ignore-engines: the nix yarn package runs under its own internal node 18
+# (shebang into its dependency closure), so engine checks see 18 and reject
+# undici@7 (needs >=20.18.1). The app itself runs under nodejs_20 from PATH;
+# the /health healthcheck gates the deploy if that were ever untrue.
+cmds = ["cd backend && yarn install --frozen-lockfile --ignore-engines"]
 
 [variables]
 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
