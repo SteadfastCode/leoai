@@ -1,0 +1,24 @@
+# Railway build config — repo root.
+#
+# Effective only once the Railway service's Root Directory is set to "/"
+# (until then Railway builds from backend/ and reads backend/nixpacks.toml).
+# The root directory must include the whole repo so backend/index.js can serve
+# ../widget at /demo — with the root dir scoped to backend/, the widget files
+# never entered the container and /demo/chatbot.js 404'd in production.
+#
+# No package.json exists at repo root, so no Nixpacks provider auto-detects;
+# everything is explicit: node + yarn in setup, install and start cd into backend/.
+# nodejs_20 chosen because backend/package.json pins no engines field — if the
+# previous build log shows a different major, match it here.
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "yarn", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "dbus", "libxkbcommon", "gtk3", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "expat", "at-spi2-atk", "at-spi2-core", "alsa-lib"]
+
+[phases.install]
+cmds = ["cd backend && yarn install --frozen-lockfile"]
+
+[variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+
+[start]
+cmd = "cd backend && PUPPETEER_EXECUTABLE_PATH=$(which chromium) node index.js"
