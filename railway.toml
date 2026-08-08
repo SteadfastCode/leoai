@@ -1,0 +1,15 @@
+# Railway config-as-code — repo root.
+#
+# Forces the NIXPACKS builder. The service was migrated to Railway's newer
+# Railpack builder, which does NOT read nixpacks.toml and cannot detect a
+# provider at the repo root (no root package.json) — every build after the
+# Root Directory moved to "/" failed in ~5s with "Railpack could not
+# determine how to build the app" (deploy 6dc50de7, 2026-08-08). Nixpacks
+# needs no provider detection here because nixpacks.toml declares every
+# phase explicitly.
+#
+# Only the builder is set — healthcheck path, replicas, restart policy etc.
+# stay in the Railway service settings.
+
+[build]
+builder = "NIXPACKS"
