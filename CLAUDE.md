@@ -211,7 +211,8 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 
 ## leo-nightly — unattended feature routine
 
-Scheduled task `leo-nightly` fires hourly, works only 22:00–06:00 local, caps at 2 items/night,
+Scheduled task `leo-nightly` fires hourly at :35 within its 20:00–09:00 local work window (the
+cron schedule itself is window-restricted — no daytime no-op fires), caps at 2 items/night,
 and implements the next item from root [`FEATURES.md`](FEATURES.md) in its own git worktree at
 `.claude/worktrees/leo-nightly`. It verifies, merges to `main`, lets Railway/Netlify deploy,
 smoke-tests production, and auto-reverts if the smoke fails.
