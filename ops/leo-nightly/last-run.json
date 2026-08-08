@@ -1,12 +1,11 @@
 {
-  "lastRunUtc": "2026-08-08T07:40:18Z",
-  "runId": "2026-08-08T07:37:18.528Z",
-  "decision": "baseline-failed",
-  "nightId": "2026-08-07",
+  "lastRunUtc": "2026-08-08T14:09:29Z",
+  "runId": "2026-08-08T14:08:43.953Z",
+  "decision": "outside-window",
+  "nightId": "2026-08-08",
   "item": null,
-  "note": "STEP 9 baseline RED on 2 of 5 checks. Check 1: production /health serves commit 239a3a7 while origin/main is fdd96fc (root nixpacks.toml, landed 2026-08-07 23:27 local) — the fix commit is not deployed 4h after landing. Check 5: GET /demo/chatbot.js still 404, consistent with fdd96fc not being live. Checks 2 (dashboard+asset), 3 (POST /chat with third-party Origin, 228-char reply, ACAO present) and 4 (admin search topScore 0.79115) all passed. Gates 1-8 passed before this: lock acquired at the absolute path, preflight clean, exactly one enabled leo- task, LEO-001 eligible, ack anchor resolved and an ancestor of origin/main, 0 unreviewed, 0 claims tonight, AFK guard clear (both in-window sessions were scheduled routines that hit a session limit with no Daniel-authored message). Zero item work performed; LEO-001.attempts remains 0. See ops/leo-nightly/incident-20260808T074018Z.md.",
-  "unreviewedCount": 0,
-  "unreviewedCommand": "count of ledger \"complete\" events whose mergeSha is not an ancestor of the leo-nightly-ack sha (git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08 -> peeled commit d63d442, confirmed ancestor of origin/main via git merge-base --is-ancestor); ledger.jsonl contains 0 \"complete\" events, so 0",
-  "ackSha": "d63d44243cd4210ea4886d9fe1b1f2ccb1923e49",
-  "openBlocker": "fdd96fc not deployed (prod serves 239a3a7) and GET https://api.leo-ai.chat/demo/chatbot.js -> 404; see ops/leo-nightly/incident-20260808T074018Z.md"
+  "note": "STEP 3 window gate: local time 10:08 EDT is outside the 22:00-06:00 work window. Exited before preflight, queue gate, backpressure, and baseline smoke. No item work, no state.json or ledger writes. The open blocker from the previous run (2026-08-08T07:40:18Z, baseline-failed) is carried forward unchanged and untested this fire: production /health served commit 239a3a7 while origin/main was fdd96fc, and GET /demo/chatbot.js returned 404. origin/main has since advanced to 89091c9 (that run own report commit). Deploy state was NOT re-checked this fire.",
+  "unreviewedCount": null,
+  "unreviewedCommand": "not computed - STEP 6 not reached on an outside-window exit",
+  "openBlocker": "CARRIED FORWARD, unverified this fire: fdd96fc not deployed as of 2026-08-08T07:40Z (prod served 239a3a7) and GET https://api.leo-ai.chat/demo/chatbot.js -> 404; see ops/leo-nightly/incident-20260808T074018Z.md"
 }
