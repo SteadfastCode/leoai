@@ -1,12 +1,12 @@
 {
-  "lastRunUtc": "2026-08-07T09:44:52Z",
-  "runId": "2026-08-07T09:36:59.121Z",
-  "decision": "baseline-failed",
-  "nightId": "2026-08-06",
+  "lastRunUtc": "2026-08-08T02:39:00Z",
+  "runId": "2026-08-08T02:37:10.682Z",
+  "decision": "deferred-afk-guard",
+  "nightId": "2026-08-07",
   "item": null,
-  "note": "STEP 9 production baseline smoke failed: GET /demo/chatbot.js -> 404 (pre-existing; nothing was deployed by this run). Checks 1-4 passed. Zero item work performed; LEO-001 not claimed. See incident-20260807T094452Z.md.",
+  "note": "STEP 8 AFK guard active: interactive session 'Plumb' (cwd C:\\repos\\plumb, no scheduledTaskId, isRunning) had activity at 2026-08-08T02:38:46Z, inside the 70-minute window. An interactive session always counts, and the 2-consecutive-fire cap does not apply to it (that clause covers another repo's routine, not a human at the keyboard). Gates 1-7 all passed before this: lock acquired, preflight clean, LEO-001 eligible, ack anchor resolved, 0 unreviewed, 0 claims tonight. No item claimed; LEO-001.attempts remains 0. STEP 9 baseline was NOT run this fire. NOTE: the routine remains hard-blocked by the unresolved production 404 on GET /demo/chatbot.js documented in incident-20260807T094452Z.md — until Daniel resolves that, every fire that clears the AFK guard will stop at the STEP 9 baseline.",
   "unreviewedCount": 0,
-  "unreviewedCommand": "count of ledger \"complete\" events whose mergeSha is not an ancestor of the leo-nightly-ack sha (git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08 -> commit d63d442); ledger.jsonl is empty, so 0",
+  "unreviewedCommand": "count of ledger \"complete\" events whose mergeSha is not an ancestor of the leo-nightly-ack sha (git ls-remote --tags origin refs/tags/leo-nightly-ack -> c15c4a08 -> peeled commit d63d442, confirmed ancestor of origin/main); ledger.jsonl contains 1 \"skip\" event and 0 \"complete\" events, so 0",
   "ackSha": "d63d44243cd4210ea4886d9fe1b1f2ccb1923e49",
-  "smokeEntityCreated": "smoke.leo-ai.chat"
+  "openBlocker": "GET https://api.leo-ai.chat/demo/chatbot.js -> 404 (smoke check 5); see ops/leo-nightly/incident-20260807T094452Z.md"
 }
