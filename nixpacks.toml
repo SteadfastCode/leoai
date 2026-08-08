@@ -8,11 +8,12 @@
 #
 # No package.json exists at repo root, so no Nixpacks provider auto-detects;
 # everything is explicit: node + yarn in setup, install and start cd into backend/.
-# nodejs_22 matches the last successful production build (Railpack resolved
-# node 22.23.1 on 2026-08-08); backend/package.json pins no engines field.
+# nodejs_20, NOT nodejs_22: nixpacks' pinned nixpkgs archive (5148520b) does not
+# define nodejs_22 — a build with it failed on "undefined variable" 2026-08-08.
+# Production ran node 22 under Railpack; backend pins no engines, 20 is fine.
 
 [phases.setup]
-nixPkgs = ["nodejs_22", "yarn", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "dbus", "libxkbcommon", "gtk3", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "expat", "at-spi2-atk", "at-spi2-core", "alsa-lib"]
+nixPkgs = ["nodejs_20", "yarn", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "dbus", "libxkbcommon", "gtk3", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "expat", "at-spi2-atk", "at-spi2-core", "alsa-lib"]
 
 [phases.install]
 cmds = ["cd backend && yarn install --frozen-lockfile"]
