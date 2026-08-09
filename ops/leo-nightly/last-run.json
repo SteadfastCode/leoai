@@ -1,11 +1,9 @@
 {
-  "runId": "2026-08-09T01:36:59.998Z",
+  "runId": "2026-08-09T02:37:03.150Z",
   "nightId": "2026-08-08",
-  "atUtc": "2026-08-09T01:47:09.984Z",
-  "decision": "item-blocked",
-  "item": "LEO-002",
-  "detail": "LEO-002 blocked after 3 vitest install attempts (yarn 1 linker invariant); everything reverted, no code merged; nightly claim cap (2) reached so no further item started",
+  "atUtc": "2026-08-09T02:40:00Z",
+  "decision": "nightly-cap-reached",
+  "detail": "2 claim events already logged for nightId 2026-08-08 (LEO-001 completed, LEO-002 blocked); cap is 2, no work started",
   "unreviewedCount": 1,
-  "unreviewedCommand": "ledger complete events whose mergeSha fails: git merge-base --is-ancestor <mergeSha> c15c4a08f840068b47c853b64f661e0bc5a6c61b (leo-nightly-ack via git ls-remote)",
-  "baseline": "all 5 smoke checks passed against 0cdedae before work began"
+  "unreviewedCommand": "ledger complete events whose mergeSha fails: git merge-base --is-ancestor <mergeSha> c15c4a08f840068b47c853b64f661e0bc5a6c61b (leo-nightly-ack via git ls-remote --tags origin refs/tags/leo-nightly-ack)"
 }
