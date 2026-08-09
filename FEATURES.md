@@ -39,15 +39,6 @@ also safe by construction: a bug here cannot reach production.
   (comment out the quota check), confirm the suite goes red, restore. **Demonstrate both states
   in the PR body** — a suite that cannot fail is worse than none.
 
-- [ ] **(LEO-002) Dashboard headless test harness (vitest)**
-  Add `vitest` + `@vue/test-utils` + `happy-dom` to `dashboard/`, a `vitest.config.js` reusing
-  the existing Vue plugin, and a `test` script. First specs against pure logic only:
-  `Signup.vue`'s draft save/load, `UsagePanel.vue`'s burn-rate thresholds. Globally stub `v-*`
-  components; do not attempt full Vuetify rendering.
-  *Verify:* `yarn test` exits 0 and `yarn build` still succeeds. If vitest cannot resolve
-  against Vite 8 within three attempts, revert everything and mark the item `blocked` with the
-  resolution error. Do not force a version.
-
 - [ ] **(LEO-003) Widget load-and-render smoke test**
   Add `widget/smoke.mjs`: boot happy-dom, stub `fetch`/`localStorage`/`WebSocket`/
   `document.currentScript`, `await import('./chatbot.js')`, assert the bubble exists in
@@ -363,6 +354,24 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 ## Blocked Items
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
+
+- [ ] **(LEO-002) Dashboard headless test harness (vitest)**
+  Add `vitest` + `@vue/test-utils` + `happy-dom` to `dashboard/`, a `vitest.config.js` reusing
+  the existing Vue plugin, and a `test` script. First specs against pure logic only:
+  `Signup.vue`'s draft save/load, `UsagePanel.vue`'s burn-rate thresholds. Globally stub `v-*`
+  components; do not attempt full Vuetify rendering.
+  *Verify:* `yarn test` exits 0 and `yarn build` still succeeds. If vitest cannot resolve
+  against Vite 8 within three attempts, revert everything and mark the item `blocked` with the
+  resolution error. Do not force a version.
+  **BLOCKED 2026-08-09 (leo-nightly):** not a version conflict — vitest 4.1.10 peer-supports
+  vite ^8.0.0. All three install attempts failed on the same yarn 1.22.22 linker bug:
+  `Invariant Violation: could not find a copy of vite to link in dashboard\node_modules\vitest\node_modules`.
+  Attempted: (1) `yarn add -D vitest @vue/test-utils happy-dom`, (2) same after deleting
+  `node_modules`, (3) deps written to package.json + `yarn install`. Everything reverted;
+  `yarn install --frozen-lockfile` on the untouched tree still succeeds. Likely needs Daniel:
+  yarn ≥1.22.x behaves the same — consider installing with `npm` once to generate the tree, or
+  moving `dashboard/` to a newer package manager. Item selection skips `blocked`, so LEO-023
+  (needs LEO-002) is parked until this is released.
 
 ## Completed Items
 
