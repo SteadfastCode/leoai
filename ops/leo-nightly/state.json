@@ -2,13 +2,13 @@
   "version": 1,
   "items": {
     "LEO-001": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "leo-nightly/item/LEO-001",
       "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-08-09T00:40:42.926Z",
+      "runId": "2026-08-09T00:37:00.453Z",
       "lastFail": null
     },
     "LEO-002": {

@@ -23,7 +23,7 @@ and no build gate for the backend at all** — `node --check` is the only check,
 a `require()` of a nonexistent module. Until these land, every later gate is theatre. They are
 also safe by construction: a bug here cannot reach production.
 
-- [ ] **(LEO-001) Backend chat-flow regression harness**
+- [x] **(LEO-001) Backend chat-flow regression harness**
   Add `backend/test/chat-flow.test.js` (`node --test`) driving the real `/chat` router against
   `mongodb-memory-server`, plus `verify` and `test` scripts in `backend/package.json`. Cover:
   free-tier quota at 99/100/101 messages, first handoff fires exactly once (the atomic
