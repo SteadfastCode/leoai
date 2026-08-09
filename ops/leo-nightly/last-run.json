@@ -1,7 +1,7 @@
 {
-  "runId": "2026-08-09T02:37:03.150Z",
+  "runId": "2026-08-09T03:37:03.823Z",
   "nightId": "2026-08-08",
-  "atUtc": "2026-08-09T02:40:00Z",
+  "atUtc": "2026-08-09T03:40:00Z",
   "decision": "nightly-cap-reached",
   "detail": "2 claim events already logged for nightId 2026-08-08 (LEO-001 completed, LEO-002 blocked); cap is 2, no work started",
   "unreviewedCount": 1,
