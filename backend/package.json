@@ -8,7 +8,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "dev:clean": "npx kill-port 3001 && nodemon index.js"
+    "dev:clean": "npx kill-port 3001 && nodemon index.js",
+    "verify": "node scripts/verify.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -36,6 +38,7 @@
     "voyageai": "^0.2.1"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.0"
   },
   "resolutions": {
