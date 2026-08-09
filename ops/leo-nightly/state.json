@@ -2,7 +2,7 @@
   "version": 1,
   "items": {
     "LEO-001": {
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "leo-nightly/item/LEO-001",

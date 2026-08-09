@@ -8,6 +8,13 @@ already shipped — treating it as a queue re-implements live code.
 `ops/leo-nightly/state.json` on `origin/main` and nothing else. The routine updates both in the
 same commit; if they ever disagree, `state.json` wins.
 
+> **Routine note (2026-08-09, leo-nightly):** do NOT tick an item checkbox at claim and do NOT
+> move completed lines into Completed Items yet — build-state.js parse() only reads unticked
+> lines, so either edit turns the STEP 12 build-state --check gate red (and moving done items
+> would drop them from state.json, starving LEO-005/Block E dependsOn). Claims and completions
+> live in state.json ONLY until Daniel patches build-state.js (proposed diff in PR #1).
+> LEO-001 is DONE (state.json) despite its unticked box below.
+
 **Selection rule:** lowest-numbered item whose `state.json` status is `pending`, whose
 `dependsOn` are all `done`, and whose `attempts < 2`. Never by list position.
 
