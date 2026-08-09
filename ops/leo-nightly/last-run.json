@@ -1,11 +1,11 @@
 {
-  "lastRunUtc": "2026-08-08T19:37:05Z",
-  "runId": "2026-08-08T19:36:52.000Z",
-  "decision": "outside-window",
+  "runId": "2026-08-09T01:36:59.998Z",
   "nightId": "2026-08-08",
-  "item": null,
-  "note": "STEP 3 window gate: local time 15:37 EDT is outside the 22:00-06:00 work window. Exited before preflight, queue gate, backpressure, and baseline smoke. No item work, no state.json or ledger writes. Worktree was clean and in sync with origin/main (8d6c43f) on branch leo-nightly/idle. The open blocker from 2026-08-08T07:40:18Z is carried forward and was NOT re-tested this fire.",
-  "unreviewedCount": null,
-  "unreviewedCommand": "not computed - STEP 6 not reached on an outside-window exit",
-  "openBlocker": "CARRIED FORWARD, unverified since 2026-08-08T07:40Z: fdd96fc was not deployed (prod /health served 239a3a7) and GET https://api.leo-ai.chat/demo/chatbot.js -> 404; see ops/leo-nightly/incident-20260808T074018Z.md. Next in-window fire must re-run the STEP 9 baseline before any work."
+  "atUtc": "2026-08-09T01:47:09.984Z",
+  "decision": "item-blocked",
+  "item": "LEO-002",
+  "detail": "LEO-002 blocked after 3 vitest install attempts (yarn 1 linker invariant); everything reverted, no code merged; nightly claim cap (2) reached so no further item started",
+  "unreviewedCount": 1,
+  "unreviewedCommand": "ledger complete events whose mergeSha fails: git merge-base --is-ancestor <mergeSha> c15c4a08f840068b47c853b64f661e0bc5a6c61b (leo-nightly-ack via git ls-remote)",
+  "baseline": "all 5 smoke checks passed against 0cdedae before work began"
 }
