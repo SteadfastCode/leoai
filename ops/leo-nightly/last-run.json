@@ -1,9 +1,9 @@
 {
-  "runId": "2026-08-10T09:37:28Z",
-  "atUtc": "2026-08-10T09:38:39.463Z",
-  "decision": "nightly-cap-reached",
-  "detail": "2/2 claims for nightId 2026-08-09 (LEO-003, LEO-004); window/debounce/preflight/queue/backpressure all passed",
+  "runId": "2026-08-10T10:37:32Z",
+  "atUtc": "2026-08-10T10:38:35.523Z",
   "nightId": "2026-08-09",
-  "unreviewedCount": 3,
-  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event==complete | git merge-base --is-ancestor <mergeSha> c15c4a08f840068b47c853b64f661e0bc5a6c61b (count non-ancestors)"
+  "decision": "nightly-cap-reached",
+  "detail": "2/2 claims for nightId 2026-08-09 (LEO-003, LEO-004, both completed); window OK (06:37 local), debounce OK (last claim ~9h ago), ack anchor OK",
+  "unreviewed": 3,
+  "unreviewedCommand": "ledger complete events (cd66716, c821d7d, b9e0b88) each tested with: git merge-base --is-ancestor <mergeSha> c15c4a08 (leo-nightly-ack from git ls-remote)"
 }
