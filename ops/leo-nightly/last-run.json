@@ -1,10 +1,18 @@
 {
-  "runId": "2026-08-10T00:37:14.837Z",
-  "atUtc": "2026-08-10T00:48:19.036Z",
-  "localTime": "2026-08-09 20:48:19 GMT−04:00",
-  "decision": "item-completed",
-  "detail": "LEO-003 widget smoke test implemented, merged as c821d7d, post-deploy smoke 5/5 green",
+  "runId": "2026-08-10T01:37:22.700Z",
+  "decision": "completed-item",
+  "item": "LEO-004",
+  "mergeSha": "b9e0b88a0343eb04555e44c8ea2f47dc02fb08aa",
   "nightId": "2026-08-09",
-  "unreviewedCount": 2,
-  "unreviewedCommand": "count of ledger complete events whose mergeSha is not an ancestor of leo-nightly-ack (c15c4a0, via git ls-remote --tags origin + git merge-base --is-ancestor); 2 of 2 complete events unreviewed (cd66716 LEO-001, c821d7d LEO-003)"
+  "nightlyClaimsUsed": 2,
+  "unreviewed": 3,
+  "unreviewedItems": [
+    "LEO-001",
+    "LEO-003",
+    "LEO-004"
+  ],
+  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event==complete | git merge-base --is-ancestor <mergeSha> <ack c15c4a0> per item; not-ancestor => unreviewed",
+  "smokeBaseline": "pass 5/5",
+  "smokePostDeploy": "pass 5/5",
+  "atUtc": "2026-08-10T01:49:45.288Z"
 }
