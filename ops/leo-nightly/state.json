@@ -12,7 +12,7 @@
       "lastFail": null
     },
     "LEO-003": {
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "leo-nightly/item/LEO-003",
