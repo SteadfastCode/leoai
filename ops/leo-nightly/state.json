@@ -11,6 +11,16 @@
       "runId": "2026-08-09T00:37:00.453Z",
       "lastFail": null
     },
+    "LEO-002": {
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "claimedAtUtc": "2026-08-09T01:40:34.972Z",
+      "runId": "2026-08-09T01:36:59.998Z",
+      "lastFail": null
+    },
     "LEO-003": {
       "status": "done",
       "attempts": 1,
@@ -329,16 +339,6 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": null
-    },
-    "LEO-002": {
-      "status": "blocked",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "leo-nightly/item/LEO-002",
-      "dependsOn": [],
-      "claimedAtUtc": "2026-08-09T01:40:34.972Z",
-      "runId": "2026-08-09T01:36:59.998Z",
-      "lastFail": "yarn 1.22.22 linker Invariant Violation: could not find a copy of vite to link in dashboard/node_modules/vitest/node_modules — 3 attempts (yarn add; clean-tree yarn add; manual package.json + yarn install); vitest 4.1.10 peer range includes vite ^8.0.0 so this is a package-manager bug, not a resolution conflict"
     }
   },
   "openCluster": null

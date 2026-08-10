@@ -13,7 +13,9 @@ same commit; if they ever disagree, `state.json` wins.
 > lines, so either edit turns the STEP 12 build-state --check gate red (and moving done items
 > would drop them from state.json, starving LEO-005/Block E dependsOn). Claims and completions
 > live in state.json ONLY until Daniel patches build-state.js (proposed diff in PR #1).
-> LEO-001 is DONE (state.json) despite its unticked box below.
+> LEO-001, LEO-002, LEO-003 and LEO-004 are all DONE (state.json) despite their unticked boxes
+> below. Moving them would also drop them from state.json entirely, breaking the `dependsOn`
+> lookups that LEO-005, LEO-023, LEO-025 and LEO-030 make against them.
 
 **Selection rule:** lowest-numbered item whose `state.json` status is `pending`, whose
 `dependsOn` are all `done`, and whose `attempts < 2`. Never by list position.
@@ -38,6 +40,20 @@ also safe by construction: a bug here cannot reach production.
   *Verify:* `yarn test` exits 0 on unmodified `main`. Then deliberately break one branch
   (comment out the quota check), confirm the suite goes red, restore. **Demonstrate both states
   in the PR body** — a suite that cannot fail is worse than none.
+
+- [ ] **(LEO-002) Dashboard headless test harness (vitest)**
+  Add `vitest` + `@vue/test-utils` + `happy-dom` to `dashboard/`, a `vitest.config.js` reusing
+  the existing Vue plugin, and a `test` script. First specs against pure logic only:
+  `Signup.vue`'s draft save/load, `UsagePanel.vue`'s burn-rate thresholds. Globally stub `v-*`
+  components; do not attempt full Vuetify rendering.
+  *Verify:* `yarn test` exits 0 and `yarn build` still succeeds.
+  **UNBLOCKED 2026-08-09 (Daniel + Claude):** the earlier failure was never a version conflict
+  and never a yarn *version* problem — 1.22.22 is the newest Yarn Classic there is. It is a yarn 1
+  bug in *incremental* linking: `yarn add` cannot graft vitest's `vite` peer link onto an
+  already-resolved tree, but the identical dependency set resolves cleanly in one pass with the
+  lockfile deleted. Fix was to regenerate `dashboard/yarn.lock`. Done: harness, 30 specs, all
+  three mutation checks red. Note the regen also bumped 70 transitive packages, `@rolldown/*`
+  `1.0.0-rc.9 → 1.2.3` among them.
 
 - [ ] **(LEO-003) Widget load-and-render smoke test**
   Add `widget/smoke.mjs`: boot happy-dom, stub `fetch`/`localStorage`/`WebSocket`/
@@ -355,23 +371,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
-- [ ] **(LEO-002) Dashboard headless test harness (vitest)**
-  Add `vitest` + `@vue/test-utils` + `happy-dom` to `dashboard/`, a `vitest.config.js` reusing
-  the existing Vue plugin, and a `test` script. First specs against pure logic only:
-  `Signup.vue`'s draft save/load, `UsagePanel.vue`'s burn-rate thresholds. Globally stub `v-*`
-  components; do not attempt full Vuetify rendering.
-  *Verify:* `yarn test` exits 0 and `yarn build` still succeeds. If vitest cannot resolve
-  against Vite 8 within three attempts, revert everything and mark the item `blocked` with the
-  resolution error. Do not force a version.
-  **BLOCKED 2026-08-09 (leo-nightly):** not a version conflict — vitest 4.1.10 peer-supports
-  vite ^8.0.0. All three install attempts failed on the same yarn 1.22.22 linker bug:
-  `Invariant Violation: could not find a copy of vite to link in dashboard\node_modules\vitest\node_modules`.
-  Attempted: (1) `yarn add -D vitest @vue/test-utils happy-dom`, (2) same after deleting
-  `node_modules`, (3) deps written to package.json + `yarn install`. Everything reverted;
-  `yarn install --frozen-lockfile` on the untouched tree still succeeds. Likely needs Daniel:
-  yarn ≥1.22.x behaves the same — consider installing with `npm` once to generate the tree, or
-  moving `dashboard/` to a newer package manager. Item selection skips `blocked`, so LEO-023
-  (needs LEO-002) is parked until this is released.
+*(nothing currently blocked)*
 
 ## Completed Items
 
