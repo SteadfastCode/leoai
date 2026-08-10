@@ -22,10 +22,10 @@
       "lastFail": null
     },
     "LEO-004": {
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "leo-nightly/item/LEO-004",
       "dependsOn": [],
       "claimedAtUtc": "2026-08-10T01:41:55.489Z",
       "runId": "2026-08-10T01:37:22.700Z",

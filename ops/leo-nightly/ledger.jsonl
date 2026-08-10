@@ -7,3 +7,4 @@
 {"event":"claim","runId":"2026-08-10T00:37:14.837Z","item":"LEO-003","nightId":"2026-08-09","atUtc":"2026-08-10T00:40:05.435Z"}
 {"event":"complete","runId":"2026-08-10T00:37:14.837Z","item":"LEO-003","mergeSha":"c821d7dbfe8dfcfe51eaa649d11385392a0aa7e9","nightId":"2026-08-09","atUtc":"2026-08-10T00:47:46.853Z"}
 {"event":"claim","runId":"2026-08-10T01:37:22.700Z","item":"LEO-004","nightId":"2026-08-09","atUtc":"2026-08-10T01:41:55.489Z"}
+{"event":"complete","runId":"2026-08-10T01:37:22.700Z","item":"LEO-004","mergeSha":"b9e0b88a0343eb04555e44c8ea2f47dc02fb08aa","nightId":"2026-08-09","atUtc":"2026-08-10T01:48:57.671Z"}
