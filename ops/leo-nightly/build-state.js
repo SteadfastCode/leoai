@@ -41,7 +41,10 @@ function parse() {
     if (/^## Blocked Items/.test(line)) inCompleted = false;
     if (inCompleted) continue;
 
-    const m = line.match(/^- \[ \] \*\*\((LEO-\d+)\)/);
+    // Ticked lines parse too. Matching only "- [ ]" meant that ticking a box in place
+    // silently dropped the item from state.json, taking every dependsOn reference to it
+    // down as well.
+    const m = line.match(/^- \[[ xX]\] \*\*\((LEO-\d+)\)/);
     if (!m) continue;
     const id = m[1];
 
@@ -78,6 +81,19 @@ for (const [id, item] of Object.entries(fresh)) {
     item.runId = was.runId;
     item.lastFail = was.lastFail;
   }
+}
+
+// Carry forward items FEATURES.md no longer lists but the routine has already worked —
+// chiefly ones moved into "## Completed Items", which parse() skips by design. Without this,
+// finishing an item and filing it away deletes its state, and LEO-005/LEO-023/LEO-025/LEO-030
+// stop resolving the dependsOn entries that gate them.
+//
+// Deliberately narrower than "carry forward everything": an item still at pending/0 attempts
+// has no history worth keeping, so deleting one from FEATURES.md really does retire it.
+for (const [id, was] of Object.entries(prior.items || {})) {
+  if (fresh[id]) continue;
+  if (was.status === 'pending' && was.attempts === 0) continue;
+  fresh[id] = was;
 }
 
 const next = { version: 1, items: fresh, openCluster: prior.openCluster ?? null };

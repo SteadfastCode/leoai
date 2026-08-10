@@ -8,14 +8,11 @@ already shipped — treating it as a queue re-implements live code.
 `ops/leo-nightly/state.json` on `origin/main` and nothing else. The routine updates both in the
 same commit; if they ever disagree, `state.json` wins.
 
-> **Routine note (2026-08-09, leo-nightly):** do NOT tick an item checkbox at claim and do NOT
-> move completed lines into Completed Items yet — build-state.js parse() only reads unticked
-> lines, so either edit turns the STEP 12 build-state --check gate red (and moving done items
-> would drop them from state.json, starving LEO-005/Block E dependsOn). Claims and completions
-> live in state.json ONLY until Daniel patches build-state.js (proposed diff in PR #1).
-> LEO-001, LEO-002, LEO-003 and LEO-004 are all DONE (state.json) despite their unticked boxes
-> below. Moving them would also drop them from state.json entirely, breaking the `dependsOn`
-> lookups that LEO-005, LEO-023, LEO-025 and LEO-030 make against them.
+> **Resolved 2026-08-10:** build-state.js now parses ticked lines and carries forward items it
+> has already worked but that FEATURES.md no longer lists. Ticking a box and moving a finished
+> line into Completed Items are both safe — neither drops the item from state.json, so the
+> `dependsOn` lookups LEO-005, LEO-023, LEO-025 and LEO-030 make against completed items keep
+> resolving. Deleting an item that was never started still retires it.
 
 **Selection rule:** lowest-numbered item whose `state.json` status is `pending`, whose
 `dependsOn` are all `done`, and whose `attempts < 2`. Never by list position.
@@ -32,7 +29,7 @@ and no build gate for the backend at all** — `node --check` is the only check,
 a `require()` of a nonexistent module. Until these land, every later gate is theatre. They are
 also safe by construction: a bug here cannot reach production.
 
-- [ ] **(LEO-001) Backend chat-flow regression harness**
+- [x] **(LEO-001) Backend chat-flow regression harness**
   Add `backend/test/chat-flow.test.js` (`node --test`) driving the real `/chat` router against
   `mongodb-memory-server`, plus `verify` and `test` scripts in `backend/package.json`. Cover:
   free-tier quota at 99/100/101 messages, first handoff fires exactly once (the atomic
@@ -41,7 +38,7 @@ also safe by construction: a bug here cannot reach production.
   (comment out the quota check), confirm the suite goes red, restore. **Demonstrate both states
   in the PR body** — a suite that cannot fail is worse than none.
 
-- [ ] **(LEO-002) Dashboard headless test harness (vitest)**
+- [x] **(LEO-002) Dashboard headless test harness (vitest)**
   Add `vitest` + `@vue/test-utils` + `happy-dom` to `dashboard/`, a `vitest.config.js` reusing
   the existing Vue plugin, and a `test` script. First specs against pure logic only:
   `Signup.vue`'s draft save/load, `UsagePanel.vue`'s burn-rate thresholds. Globally stub `v-*`
@@ -55,7 +52,7 @@ also safe by construction: a bug here cannot reach production.
   three mutation checks red. Note the regen also bumped 70 transitive packages, `@rolldown/*`
   `1.0.0-rc.9 → 1.2.3` among them.
 
-- [ ] **(LEO-003) Widget load-and-render smoke test**
+- [x] **(LEO-003) Widget load-and-render smoke test**
   Add `widget/smoke.mjs`: boot happy-dom, stub `fetch`/`localStorage`/`WebSocket`/
   `document.currentScript`, `await import('./chatbot.js')`, assert the bubble exists in
   `document.body`, that a stubbed 200 from `/chat` renders an assistant bubble, and that
@@ -64,7 +61,7 @@ also safe by construction: a bug here cannot reach production.
   *Verify:* `node widget/smoke.mjs` exits 0. Then introduce a module-scope TypeError in a
   scratch copy and confirm non-zero exit.
 
-- [ ] **(LEO-004) MCP `send_test_message`: multi-turn + handoff state**
+- [x] **(LEO-004) MCP `send_test_message`: multi-turn + handoff state**
   Add an optional `sessionToken` input so an agent can drive turn 2 into the same conversation,
   and surface `handoffTriggered` alongside the existing debug fields. Document a worked two-turn
   example in `mcp/README.md`. `mcp/` is a local stdio server and never deploys.
