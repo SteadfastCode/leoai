@@ -1,0 +1,12 @@
+{
+  "name": "leoai-widget",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LeoAI embeddable chat widget — chatbot.js is a plain IIFE served as a static file; this package exists only for the smoke-test dev dependency.",
+  "scripts": {
+    "test": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "happy-dom": "^16.0.0"
+  }
+}
