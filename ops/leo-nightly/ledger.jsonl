@@ -4,3 +4,4 @@
 {"event":"complete","runId":"2026-08-09T00:37:00.453Z","item":"LEO-001","mergeSha":"cd667169fae1c54b5f2e30e7e4d357b5cafa7ceb","nightId":"2026-08-08","atUtc":"2026-08-09T00:52:02.081Z"}
 {"event":"claim","runId":"2026-08-09T01:36:59.998Z","item":"LEO-002","nightId":"2026-08-08","atUtc":"2026-08-09T01:40:34.972Z"}
 {"event":"blocked","runId":"2026-08-09T01:36:59.998Z","item":"LEO-002","nightId":"2026-08-08","detail":"yarn 1 linker invariant on vitest install, 3 attempts, everything reverted, no code merged","atUtc":"2026-08-09T01:46:16.320Z"}
+{"event":"claim","runId":"2026-08-10T00:37:14.837Z","item":"LEO-003","nightId":"2026-08-09","atUtc":"2026-08-10T00:40:05.435Z"}
