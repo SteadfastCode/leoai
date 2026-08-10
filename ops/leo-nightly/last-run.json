@@ -1,10 +1,10 @@
 {
-  "runId": "2026-08-09T12:37:25Z",
-  "atUtc": "2026-08-09T12:39:00Z",
-  "localTime": "2026-08-09 08:37 -04:00",
-  "decision": "nightly-cap-reached",
-  "detail": "2 claim events for nightId 2026-08-08 (LEO-001 complete, LEO-002 blocked); cap is 2",
-  "nightId": "2026-08-08",
-  "unreviewedCount": 1,
-  "unreviewedCommand": "count of ledger complete events whose mergeSha is not an ancestor of leo-nightly-ack (c15c4a0, via git ls-remote --tags origin + git merge-base --is-ancestor); 1 of 1 complete events unreviewed (cd66716 LEO-001)"
+  "runId": "2026-08-10T00:37:14.837Z",
+  "atUtc": "2026-08-10T00:48:19.036Z",
+  "localTime": "2026-08-09 20:48:19 GMT−04:00",
+  "decision": "item-completed",
+  "detail": "LEO-003 widget smoke test implemented, merged as c821d7d, post-deploy smoke 5/5 green",
+  "nightId": "2026-08-09",
+  "unreviewedCount": 2,
+  "unreviewedCommand": "count of ledger complete events whose mergeSha is not an ancestor of leo-nightly-ack (c15c4a0, via git ls-remote --tags origin + git merge-base --is-ancestor); 2 of 2 complete events unreviewed (cd66716 LEO-001, c821d7d LEO-003)"
 }
