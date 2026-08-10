@@ -79,12 +79,13 @@ const TOOLS = [
   },
   {
     name: 'send_test_message',
-    description: 'Send a test chat message to an entity\'s Leo and return full debug output: reply, model used, classifier route/reason, top RAG score, context hit, and message count. This is the primary RAG quality and routing QA tool.',
+    description: 'Send a test chat message to an entity\'s Leo and return full debug output: reply, model used, classifier route/reason, top RAG score, context hit, handoff state, and message count. This is the primary RAG quality and routing QA tool. Pass the sessionToken from a previous call to continue the same conversation (multi-turn testing).',
     inputSchema: {
       type: 'object',
       properties: {
         domain: { type: 'string', description: 'Entity domain, e.g. "example.com"' },
         message: { type: 'string', description: 'The test message to send' },
+        sessionToken: { type: 'string', description: 'Optional. Reuse the sessionToken returned by a previous call to send this message into the same conversation — Leo sees the earlier turns as history. Omit to start a fresh conversation.' },
       },
       required: ['domain', 'message'],
     },
@@ -182,7 +183,7 @@ async function handleKickOffRescrape(args) {
 
 async function handleSendTestMessage(args) {
   const { domain, message } = args;
-  const sessionToken = `mcp-test-${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const sessionToken = args.sessionToken || `mcp-test-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
   // Send the chat message (public endpoint — no auth)
   const chatResponse = await apiPublic('POST', '/chat', { domain, sessionToken, message });
@@ -202,9 +203,10 @@ async function handleSendTestMessage(args) {
       classifierReason: lastAssistant?.classifierReason ?? null,
       topScore: lastAssistant?.topScore ?? null,
       hadContext: lastAssistant?.hadContext ?? null,
+      handoffTriggered: chatResponse.handoffTriggered ?? null,
     },
     sessionToken,
-    note: 'Test message counted against entity quota. Use sparingly on free-tier entities.',
+    note: 'Test message counted against entity quota. Use sparingly on free-tier entities. Pass sessionToken back in to continue this conversation.',
   };
 }
 

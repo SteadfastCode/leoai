@@ -53,7 +53,7 @@ The project-root `.mcp.json` configures this server for Claude Code (the CLI) au
 
 | Tool | Description |
 |---|---|
-| `send_test_message(domain, message)` | **Most useful.** Send a test chat message and get the reply + full debug output: model, classifierRoute, classifierReason, topScore, hadContext. |
+| `send_test_message(domain, message, sessionToken?)` | **Most useful.** Send a test chat message and get the reply + full debug output: model, classifierRoute, classifierReason, topScore, hadContext, handoffTriggered. Pass the returned `sessionToken` back in to continue the same conversation (multi-turn testing). |
 | `search_chunks(domain, query)` | Run RAG retrieval and return top matching chunks with similarity scores. Debug why Leo does/doesn't have context. |
 | `kick_off_scrape(domain)` | Trigger a full scrape (wipes + re-crawls). |
 | `kick_off_rescrape(domain)` | Trigger a smart rescrape (hash-diff, only re-embeds changed pages). |
@@ -61,6 +61,44 @@ The project-root `.mcp.json` configures this server for Claude Code (the CLI) au
 | `get_entity(domain)` | Full entity details + stats (chunks, pages, conversations). |
 | `get_quota_usage(domain)` | Current billing period usage vs. limit. |
 | `get_recent_logs(level?, source?, domain?)` | Pull from the backend log buffer (50/page). |
+
+## Multi-turn testing with `send_test_message`
+
+Each call without a `sessionToken` starts a **fresh** conversation. To test conversation memory,
+returning-visitor behavior, or handoff flows, feed the `sessionToken` from the first response
+into the next call:
+
+**Turn 1** — omit `sessionToken`:
+
+```json
+{ "domain": "smoke.leo-ai.chat", "message": "What are your opening hours?" }
+```
+
+Response (abridged):
+
+```json
+{
+  "reply": "We're open Tuesday to Saturday, 8am to 4pm! ...",
+  "debug": { "model": "claude-haiku-...", "topScore": 0.79, "hadContext": true, "handoffTriggered": false },
+  "sessionToken": "mcp-test-1754790000000-ab12cd34"
+}
+```
+
+**Turn 2** — pass that token back; Leo now has turn 1 as history:
+
+```json
+{
+  "domain": "smoke.leo-ai.chat",
+  "message": "And are you open on the weekend?",
+  "sessionToken": "mcp-test-1754790000000-ab12cd34"
+}
+```
+
+Leo's reply will resolve "you" against the turn-1 context (hours), which a fresh session could not.
+
+`debug.handoffTriggered` is `true` on any turn where Leo fired `[HANDOFF_REQUESTED]` — i.e. the
+turn that would alert the owner. Combined with token reuse you can drive a conversation up to a
+handoff and assert exactly which turn triggers it.
 
 ## Notes
 
