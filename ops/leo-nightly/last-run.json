@@ -1,8 +1,7 @@
 {
-  "runId": "2026-08-10T01:37:22.700Z",
-  "decision": "completed-item",
-  "item": "LEO-004",
-  "mergeSha": "b9e0b88a0343eb04555e44c8ea2f47dc02fb08aa",
+  "runId": "2026-08-10T02:37:20.706Z",
+  "decision": "nightly-cap-reached",
+  "detail": "2 claims already recorded for nightId 2026-08-09 (LEO-003, LEO-004, both completed); cap is 2/night",
   "nightId": "2026-08-09",
   "nightlyClaimsUsed": 2,
   "unreviewed": 3,
@@ -12,7 +11,5 @@
     "LEO-004"
   ],
   "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event==complete | git merge-base --is-ancestor <mergeSha> <ack c15c4a0> per item; not-ancestor => unreviewed",
-  "smokeBaseline": "pass 5/5",
-  "smokePostDeploy": "pass 5/5",
-  "atUtc": "2026-08-10T01:49:45.288Z"
+  "atUtc": "2026-08-10T02:39:30Z"
 }
