@@ -1,16 +1,9 @@
 {
-  "runId": "2026-08-11T03:37:00.662Z",
+  "runId": "2026-08-11T04:36:59.684Z",
+  "decision": "nightly-cap-reached",
+  "detail": "2/2 claims for nightId 2026-08-10 (LEO-006, LEO-007); no work attempted",
   "nightId": "2026-08-10",
-  "decision": "completed LEO-007",
-  "detail": "claimed 3b3756b, merged PR #5 as d2e94db (merge deferred ~25min for the 02:50-04:10 UTC blackout; /scrape/active empty at merge time), post-deploy smoke passed on poll 4 (~2min after merge), completion pushed as 4e4e6ce",
-  "unreviewed": 5,
-  "unreviewedItems": [
-    "LEO-001",
-    "LEO-003",
-    "LEO-004",
-    "LEO-006",
-    "LEO-007"
-  ],
-  "unreviewedCommand": "ledger complete events whose mergeSha fails: git merge-base --is-ancestor <mergeSha> <sha of git ls-remote --tags origin refs/tags/leo-nightly-ack>",
-  "atUtc": "2026-08-11T04:15:42.975Z"
+  "unreviewedCount": 5,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete-event: git merge-base --is-ancestor <mergeSha> c15c4a08f840068b47c853b64f661e0bc5a6c61b (count ledger complete events not ancestors of ack)",
+  "atUtc": "2026-08-11T04:38:32.080Z"
 }
