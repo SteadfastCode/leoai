@@ -1,10 +1,8 @@
 {
-  "runId": "2026-08-11T10:37:03.816Z",
-  "atUtc": "2026-08-11T10:38:54.412Z",
+  "atUtc": "2026-08-11T11:38:30Z",
+  "runId": "2026-08-11T11:37:11Z-run",
   "decision": "nightly-cap-reached",
-  "detail": "2/2 claims for nightId 2026-08-10 (LEO-006, LEO-007); no work done",
-  "nightId": "2026-08-10",
+  "detail": "2/2 claims for nightId 2026-08-10 (LEO-006, LEO-007); debounce ok (last claim 03:40 UTC); backpressure ok",
   "unreviewedCount": 5,
-  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event==complete | git merge-base --is-ancestor <mergeSha> c15c4a08 (ack tag from git ls-remote --tags origin refs/tags/leo-nightly-ack)",
-  "eligibleNext": "LEO-008"
+  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl complete events' mergeSha each tested with git merge-base --is-ancestor <sha> c15c4a08 (leo-nightly-ack); 5 of 5 not ancestors"
 }
