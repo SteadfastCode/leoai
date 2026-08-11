@@ -1,6 +1,6 @@
 {
-  "runId": "2026-08-11T07:37:04.826Z",
-  "atUtc": "2026-08-11T07:39:01.805Z",
+  "runId": "2026-08-11T08:37:04Z-run",
+  "atUtc": "2026-08-11T08:38:18.162Z",
   "nightId": "2026-08-10",
   "decision": "nightly-cap-reached",
   "detail": "2/2 claims for nightId 2026-08-10 (LEO-006, LEO-007); no work attempted",
