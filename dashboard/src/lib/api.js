@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { sessionExpired, lastKnownEmail } from './session'
+import { notify, apiErrorMessage } from './notify'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const api = axios.create({ baseURL: API_URL })
@@ -42,6 +43,13 @@ api.interceptors.response.use(
           sessionExpired.value = true
         }
       }
+    }
+    // Surface everything the 401 refresh branch didn't absorb. Pass
+    // { silent: true } in the request config to opt out and handle the
+    // error locally instead.
+    if (!err.config?.silent) {
+      const message = apiErrorMessage(err)
+      if (message) notify(message)
     }
     return Promise.reject(err)
   }
