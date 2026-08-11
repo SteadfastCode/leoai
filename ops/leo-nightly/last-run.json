@@ -1,9 +1,16 @@
 {
-  "runId": "2026-08-11T02:37:05Z-run",
-  "atUtc": "2026-08-11T02:40:00Z",
+  "runId": "2026-08-11T03:37:00.662Z",
   "nightId": "2026-08-10",
-  "decision": "debounce",
-  "detail": "Last ledger claim (LEO-006, 2026-08-11T01:42:32.792Z) was 54.96 min old at check time — under the 55-min debounce threshold. Exited without work; did not wait out the remaining seconds. 2/2 nightly claims would also have been a near-term factor (1 claim + 1 blocked event for nightId 2026-08-10, so 1/2 used).",
-  "unreviewed": 4,
-  "unreviewedCommand": "ledger complete events (cd66716, c821d7d, b9e0b88, 36ce1e2) each tested with: git merge-base --is-ancestor <mergeSha> c15c4a08 (leo-nightly-ack from git ls-remote --tags origin refs/tags/leo-nightly-ack)"
+  "decision": "completed LEO-007",
+  "detail": "claimed 3b3756b, merged PR #5 as d2e94db (merge deferred ~25min for the 02:50-04:10 UTC blackout; /scrape/active empty at merge time), post-deploy smoke passed on poll 4 (~2min after merge), completion pushed as 4e4e6ce",
+  "unreviewed": 5,
+  "unreviewedItems": [
+    "LEO-001",
+    "LEO-003",
+    "LEO-004",
+    "LEO-006",
+    "LEO-007"
+  ],
+  "unreviewedCommand": "ledger complete events whose mergeSha fails: git merge-base --is-ancestor <mergeSha> <sha of git ls-remote --tags origin refs/tags/leo-nightly-ack>",
+  "atUtc": "2026-08-11T04:15:42.975Z"
 }
