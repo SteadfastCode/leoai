@@ -72,7 +72,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-006) Fix the false "Failed to send reply" toast**
+- [x] **(LEO-006) Fix the false "Failed to send reply" toast**
   `ConversationDetail.vue`'s `sendReply()` reads `data.addedToKb` from an identifier it never
   bound. The ReferenceError is swallowed by its own catch, so a *successful* POST shows a
   failure toast and leaves the textarea uncleared — the owner re-sends and the visitor gets a
