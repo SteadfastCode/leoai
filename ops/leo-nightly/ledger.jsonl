@@ -12,3 +12,4 @@
 {"event":"claim","runId":"2026-08-11T01:36:58.247Z","item":"LEO-006","nightId":"2026-08-10","atUtc":"2026-08-11T01:42:32.792Z"}
 {"event":"complete","runId":"2026-08-11T01:36:58.247Z","item":"LEO-006","mergeSha":"36ce1e24cf5d2a2c0de248e9aceb8100c24fc02e","nightId":"2026-08-10","atUtc":"2026-08-11T01:48:10.766Z"}
 {"event":"claim","runId":"2026-08-11T03:37:00.662Z","item":"LEO-007","nightId":"2026-08-10","atUtc":"2026-08-11T03:40:35.616Z"}
+{"event":"complete","runId":"2026-08-11T03:37:00.662Z","item":"LEO-007","mergeSha":"d2e94db25169dc070295fc1c0d3c64aee44bb2ee","nightId":"2026-08-10","atUtc":"2026-08-11T04:14:00.990Z"}

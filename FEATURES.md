@@ -72,15 +72,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-007) Consistent API error surfacing**
-  Add `dashboard/src/lib/notify.js` (shared reactive queue). In `lib/api.js`'s response
-  interceptor, after the 401/refresh branch, map 403/404/429/5xx/no-response to messages before
-  rejecting. Honour a `config.silent` flag. One app-level snackbar in `App.vue`; replace the
-  bare `catch {}` at `App.vue:78`.
-  *Verify:* vitest spec on the status→message mapping (exported as a pure function) for every
-  code plus no-response, and asserting the interceptor still **rejects** — swallowing the
-  rejection breaks every existing caller's error path.
-
 - [ ] **(LEO-008) Admin Entities — search, sort, expandable detail**
   Client-side search on name+domain, plan filter, sort select. Rows become expansion panels
   that lazily call `getStats(domain)`. Add a "Stale" chip when `lastScrapedAt` is null or
@@ -406,6 +397,10 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-007) Consistent API error surfacing** — d2e94db (PR #5, 2026-08-11).
+  lib/notify.js shared reactive queue + pure piErrorMessage mapping; api.js interceptor maps
+  403/404/429/5xx/no-response to messages after the 401 refresh branch, honours config.silent,
+  still rejects; one app-level snackbar in App.vue; bare catch {} in loadEntities now logs.
 - [x] **(LEO-006) Fix the false "Failed to send reply" toast** — `36ce1e2` (PR #4, 2026-08-11).
   `sendReply()` read `data.addedToKb` unbound; the ReferenceError hit its own catch, so every
   successful owner reply showed the error toast with the textarea uncleared. POST response now
