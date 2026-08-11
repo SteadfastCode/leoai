@@ -91,27 +91,33 @@ async function sendReply() {
   if (!replyText.value.trim()) return
   sending.value = true
   try {
-    await postOwnerReply(props.domain, route.params.id, {
+    const { data } = await postOwnerReply(props.domain, route.params.id, {
       replyText: replyText.value.trim(),
       answeredQuestions: checkedQuestions.value,
       addToKb: addToKb.value,
     })
+    replyText.value = ''
+    snackbarMsg.value = data.addedToKb ? 'Reply sent and added to knowledge base' : 'Reply sent'
+    snackbarColor.value = 'success'
+  } catch {
+    snackbarMsg.value = 'Failed to send reply'
+    snackbarColor.value = 'error'
+    sending.value = false
+    snackbar.value = true
+    return
+  }
+  // The send already succeeded — a failure refreshing below must not surface as a
+  // send failure. The newMessageTick watcher re-fetches on the next socket event.
+  try {
     // Re-fetch for a guaranteed-fresh state — avoids Mongoose doc serialization ambiguity
     const { data: fresh } = await getConversation(props.domain, route.params.id)
     conversation.value = fresh
     checkedQuestions.value = [...(fresh.pendingQuestions || []).map((q) => q.text)]
-    snackbarMsg.value = data.addedToKb ? 'Reply sent and added to knowledge base' : 'Reply sent'
-    snackbarColor.value = 'success'
-    replyText.value = ''
     await nextTick()
     jumpToBottom()
-  } catch {
-    snackbarMsg.value = 'Failed to send reply'
-    snackbarColor.value = 'error'
-  } finally {
-    sending.value = false
-    snackbar.value = true
-  }
+  } catch {}
+  sending.value = false
+  snackbar.value = true
 }
 
 // ---------------------------------------------------------------------------
