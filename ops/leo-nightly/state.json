@@ -41,20 +41,6 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-005": {
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [
-        "LEO-001",
-        "LEO-002",
-        "LEO-003"
-      ],
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
     "LEO-006": {
       "status": "pending",
       "attempts": 0,
@@ -339,6 +325,20 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": null
+    },
+    "LEO-005": {
+      "status": "blocked",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [
+        "LEO-001",
+        "LEO-002",
+        "LEO-003"
+      ],
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
     }
   },
   "openCluster": null

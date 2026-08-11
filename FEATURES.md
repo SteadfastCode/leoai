@@ -68,14 +68,6 @@ also safe by construction: a bug here cannot reach production.
   *Verify:* `node --check mcp/index.js`, then two calls with the same token against the smoke
   entity — the second reply must reference the first turn.
 
-- [ ] **(LEO-005) GitHub Actions CI + branch protection prerequisites** *(needs LEO-001, LEO-002, LEO-003)*
-  Add `.github/workflows/ci.yml` running `yarn install --frozen-lockfile`, `yarn verify`,
-  `yarn test` for `backend/`, and `yarn build` + `yarn test` for `dashboard/`, plus
-  `node widget/smoke.mjs`, on pull_request and push to main.
-  *Verify:* the workflow must go green on an unmodified tree **and** red on a deliberately
-  broken one, both demonstrated. Note in the PR body that enabling required-status-check
-  branch protection is Daniel's manual step — the routine cannot grant itself a gate.
-
 ## Block B — Superadmin and dashboard-only surfaces
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
@@ -368,7 +360,59 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
-*(nothing currently blocked)*
+- [ ] **(LEO-005) GitHub Actions CI + branch protection prerequisites** *(needs LEO-001, LEO-002, LEO-003)*
+  **Blocked 2026-08-11 (no implementation attempted, attempts not consumed):** the item requires
+  creating `.github/workflows/ci.yml`, but `.github/**` is on the routine's denylist ("you may
+  not edit your own safety net") with no exception carved out — unlike `widget/**`, which the
+  denylist explicitly lifts once LEO-003 lands. A CI gate the unattended routine authors, merges,
+  and could later weaken is exactly what that rule exists to prevent, so this one needs Daniel's
+  hand. All three prerequisites (LEO-001/002/003) are done; the workflow below is ready to paste.
+  Daniel: create the file, push, confirm both green and red runs, then enable required-status-check
+  branch protection (the item's own note says that last step is manual regardless).
+
+  Proposed `.github/workflows/ci.yml`:
+
+  ```yaml
+  name: CI
+  on:
+    pull_request:
+    push:
+      branches: [main]
+  jobs:
+    backend:
+      runs-on: ubuntu-latest
+      defaults: { run: { working-directory: backend } }
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with: { node-version: 20, cache: yarn, cache-dependency-path: backend/yarn.lock }
+        - run: yarn install --frozen-lockfile
+        - run: yarn verify
+        - run: yarn test
+    dashboard:
+      runs-on: ubuntu-latest
+      defaults: { run: { working-directory: dashboard } }
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with: { node-version: 20, cache: yarn, cache-dependency-path: dashboard/yarn.lock }
+        - run: yarn install --frozen-lockfile
+        - run: yarn build
+        - run: yarn test
+    widget:
+      runs-on: ubuntu-latest
+      defaults: { run: { working-directory: widget } }
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with: { node-version: 20, cache: yarn, cache-dependency-path: widget/yarn.lock }
+        - run: yarn install --frozen-lockfile
+        - run: node smoke.mjs
+  ```
+
+  Note for the red-run demonstration: open a scratch PR that comments out the quota check in
+  `chat.js` (the same mutation LEO-001 proved catches red), confirm the backend job fails, close
+  the PR unmerged.
 
 ## Completed Items
 
