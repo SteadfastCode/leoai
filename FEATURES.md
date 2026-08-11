@@ -72,7 +72,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-007) Consistent API error surfacing**
+- [x] **(LEO-007) Consistent API error surfacing**
   Add `dashboard/src/lib/notify.js` (shared reactive queue). In `lib/api.js`'s response
   interceptor, after the 401/refresh branch, map 403/404/429/5xx/no-response to messages before
   rejecting. Honour a `config.silent` flag. One app-level snackbar in `App.vue`; replace the
