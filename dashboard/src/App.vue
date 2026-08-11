@@ -7,6 +7,7 @@ import { getEntities } from './lib/api'
 import api from './lib/api'
 import { user, isAuthenticated, isSuperAdmin, login, logout, persist } from './lib/auth'
 import { sessionExpired, lastKnownEmail } from './lib/session'
+import { notifications, dismiss } from './lib/notify'
 import { socket, joinDomain, joinSuperadmin } from './lib/socket'
 
 const router = useRouter()
@@ -75,7 +76,11 @@ async function loadEntities() {
       selectedDomain.value = entities.value[0].domain
     }
     localStorage.setItem('leo_dashboard_domain', selectedDomain.value)
-  } catch { /* handled by api interceptor */ }
+  } catch (err) {
+    // The api interceptor has already queued a snackbar for this failure;
+    // swallowing here only prevents an unhandled rejection on mount.
+    console.error('loadEntities failed', err)
+  }
 }
 
 function onEntityUpdated(updated) {
@@ -313,6 +318,20 @@ async function handleReAuthPasskey() {
           View
         </v-btn>
         <v-btn variant="text" @click="handoffSnackbar = false">Dismiss</v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- ── API error snackbar — drains the shared notify queue one at a time ── -->
+    <v-snackbar
+      :model-value="notifications.length > 0"
+      :color="notifications[0]?.color || 'error'"
+      timeout="5000"
+      location="bottom"
+      @update:model-value="(open) => { if (!open && notifications[0]) dismiss(notifications[0].id) }"
+    >
+      {{ notifications[0]?.message }}
+      <template #actions>
+        <v-btn variant="text" @click="dismiss(notifications[0].id)">Dismiss</v-btn>
       </template>
     </v-snackbar>
 
