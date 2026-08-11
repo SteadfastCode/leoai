@@ -1,9 +1,9 @@
 {
-  "runId": "2026-08-11T01:36:58.247Z",
-  "atUtc": "2026-08-11T02:04:30Z",
+  "runId": "2026-08-11T02:37:05Z-run",
+  "atUtc": "2026-08-11T02:40:00Z",
   "nightId": "2026-08-10",
-  "decision": "completed-item",
-  "detail": "LEO-005 moved to Blocked Items without consuming an attempt (.github/** denylisted — ready-to-paste ci.yml left in FEATURES.md for Daniel); LEO-006 claimed, implemented, merged as 36ce1e2 (PR #4), post-deploy smoke green on attempt 3 (all 5 checks). Baseline smoke green before work. 1/2 claims used for nightId 2026-08-10.",
+  "decision": "debounce",
+  "detail": "Last ledger claim (LEO-006, 2026-08-11T01:42:32.792Z) was 54.96 min old at check time — under the 55-min debounce threshold. Exited without work; did not wait out the remaining seconds. 2/2 nightly claims would also have been a near-term factor (1 claim + 1 blocked event for nightId 2026-08-10, so 1/2 used).",
   "unreviewed": 4,
-  "unreviewedCommand": "ledger complete events (cd66716, c821d7d, b9e0b88, 36ce1e2) each tested with: git merge-base --is-ancestor <mergeSha> c15c4a08 (leo-nightly-ack from git ls-remote --tags origin)"
+  "unreviewedCommand": "ledger complete events (cd66716, c821d7d, b9e0b88, 36ce1e2) each tested with: git merge-base --is-ancestor <mergeSha> c15c4a08 (leo-nightly-ack from git ls-remote --tags origin refs/tags/leo-nightly-ack)"
 }
