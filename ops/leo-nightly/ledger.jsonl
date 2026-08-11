@@ -10,3 +10,4 @@
 {"event":"complete","runId":"2026-08-10T01:37:22.700Z","item":"LEO-004","mergeSha":"b9e0b88a0343eb04555e44c8ea2f47dc02fb08aa","nightId":"2026-08-09","atUtc":"2026-08-10T01:48:57.671Z"}
 {"event":"blocked","runId":"2026-08-11T01:37:05Z-run","item":"LEO-005","nightId":"2026-08-10","detail":"requires .github/workflows/ci.yml but .github/** is denylisted (own safety net); no implementation attempted, attempts left at 0; proposed workflow appended to FEATURES.md Blocked Items for Daniel to apply by hand","atUtc":"2026-08-11T01:41:56.646Z"}
 {"event":"claim","runId":"2026-08-11T01:36:58.247Z","item":"LEO-006","nightId":"2026-08-10","atUtc":"2026-08-11T01:42:32.792Z"}
+{"event":"complete","runId":"2026-08-11T01:36:58.247Z","item":"LEO-006","mergeSha":"36ce1e24cf5d2a2c0de248e9aceb8100c24fc02e","nightId":"2026-08-10","atUtc":"2026-08-11T01:48:10.766Z"}

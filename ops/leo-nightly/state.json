@@ -41,16 +41,6 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-006": {
-      "status": "claimed",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "leo-nightly/item/LEO-006",
-      "dependsOn": [],
-      "claimedAtUtc": "2026-08-11T01:42:32.789Z",
-      "runId": "2026-08-11T01:36:58.247Z",
-      "lastFail": null
-    },
     "LEO-007": {
       "status": "pending",
       "attempts": 0,
@@ -339,6 +329,16 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
+    },
+    "LEO-006": {
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "leo-nightly/item/LEO-006",
+      "dependsOn": [],
+      "claimedAtUtc": "2026-08-11T01:42:32.789Z",
+      "runId": "2026-08-11T01:36:58.247Z",
+      "lastFail": null
     }
   },
   "openCluster": null

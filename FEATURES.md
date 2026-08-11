@@ -72,16 +72,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-006) Fix the false "Failed to send reply" toast**
-  `ConversationDetail.vue`'s `sendReply()` reads `data.addedToKb` from an identifier it never
-  bound. The ReferenceError is swallowed by its own catch, so a *successful* POST shows a
-  failure toast and leaves the textarea uncleared — the owner re-sends and the visitor gets a
-  duplicate reply. Capture the POST response, move `replyText.value = ''` above anything that
-  can throw, narrow the catch.
-  *Verify:* `yarn build` + a repo-wide grep for other views referencing an unbound `data`.
-  Say plainly in the PR body that Vite does no undefined-variable analysis, so this is verified
-  by inspection, not by the build.
-
 - [ ] **(LEO-007) Consistent API error surfacing**
   Add `dashboard/src/lib/notify.js` (shared reactive queue). In `lib/api.js`'s response
   interceptor, after the 401/refresh branch, map 403/404/429/5xx/no-response to messages before
@@ -416,6 +406,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-006) Fix the false "Failed to send reply" toast** — `36ce1e2` (PR #4, 2026-08-11).
+  `sendReply()` read `data.addedToKb` unbound; the ReferenceError hit its own catch, so every
+  successful owner reply showed the error toast with the textarea uncleared. POST response now
+  captured, textarea cleared before anything that can throw, catch narrowed so a failed
+  post-send re-fetch no longer reports as a send failure.
 - [x] **(LEO-P0-1) Fix truncated system prompt** — `b7050b3`. Non-greedy fence regex delivered
   12,721 of 28,448 chars; RETURNING VISITORS, FORMATTING, all of Church Mode and A NOTE ON WHO
   YOU ARE never reached Claude. Added `verify-prompt.js`.
