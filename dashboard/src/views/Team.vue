@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { getTeam, removeMember, getInvites, sendInvite, cancelInvite } from '../lib/api'
+import { getTeam, removeMember, updateMemberRole, getInvites, sendInvite, cancelInvite } from '../lib/api'
 import { user, isOwnerOf } from '../lib/auth'
 
 const props = defineProps(['domain'])
@@ -20,6 +20,7 @@ const snackbarMsg = ref('')
 
 const removingId   = ref('')
 const cancellingId = ref('')
+const roleSavingId = ref('')
 
 const ROLES = ['owner', 'agent', 'readonly']
 
@@ -73,6 +74,22 @@ async function removeTeamMember(memberId, memberEmail) {
   }
 }
 
+async function changeMemberRole(member, role) {
+  if (!role || role === member.roles[0]) return
+  roleSavingId.value = member._id
+  try {
+    await updateMemberRole(props.domain, member._id, role)
+    snackbarMsg.value = `${member.name} is now ${role}`
+    snackbar.value = true
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Failed to change role'
+    snackbar.value = true
+  } finally {
+    roleSavingId.value = ''
+    await load()
+  }
+}
+
 async function cancelPendingInvite(inviteId, email) {
   cancellingId.value = inviteId
   try {
@@ -115,7 +132,22 @@ function formatExpiry(date) {
             <div class="text-body-2 font-weight-medium">{{ member.name }}</div>
             <div class="text-caption text-medium-emphasis">{{ member.email }}</div>
           </div>
+          <v-select
+            v-if="canManage && member._id !== user?._id"
+            :model-value="member.roles[0] ?? null"
+            :items="ROLES"
+            :loading="roleSavingId === member._id"
+            :disabled="roleSavingId === member._id"
+            label="Role"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="flex-shrink-0"
+            style="max-width: 130px"
+            @update:model-value="changeMemberRole(member, $event)"
+          />
           <v-chip
+            v-else
             :color="member.roles[0] === 'owner' ? 'primary' : 'default'"
             size="x-small"
             variant="tonal"

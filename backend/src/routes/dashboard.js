@@ -13,7 +13,8 @@ const { embedTexts } = require('../services/embeddings');
 const { retrieveContext } = require('../services/rag');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
-const { PERMISSIONS } = require('../models/Permission');
+const { PERMISSIONS, ROLE_PRESETS } = require('../models/Permission');
+const { isLastOwner } = require('../services/team');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { recordAudit } = require('../services/audit');
@@ -452,6 +453,47 @@ router.delete('/entities/:domain/invites/:inviteId', requireAuth(PERMISSIONS.USE
   try {
     await Invite.findByIdAndDelete(req.params.inviteId);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/dashboard/entities/:domain/team/:userId — change a member's role
+router.patch('/entities/:domain/team/:userId', requireAuth(PERMISSIONS.USERS_MANAGE), async (req, res) => {
+  try {
+    const { domain, userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !Object.prototype.hasOwnProperty.call(ROLE_PRESETS, role)) {
+      return res.status(400).json({ error: 'Unknown role' });
+    }
+    if (role === 'superadmin') {
+      return res.status(400).json({ error: 'superadmin cannot be assigned' });
+    }
+    if (req.user._id.toString() === userId) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+
+    const member = await User.findById(userId);
+    const membership = member?.memberships?.find((m) => m.entityDomain === domain);
+    if (!member || !membership) {
+      return res.status(404).json({ error: 'Not a member of this entity' });
+    }
+
+    if (role !== 'owner') {
+      const members = await User.find(
+        { 'memberships.entityDomain': domain },
+        { memberships: 1 }
+      );
+      if (isLastOwner(members, userId, domain)) {
+        return res.status(400).json({ error: 'Cannot demote the last owner' });
+      }
+    }
+
+    membership.roles = [role];
+    await member.save();
+    recordAudit(req, 'team.role_change', { domain, details: { userId, role } });
+    res.json({ _id: member._id, name: member.name, email: member.email, roles: membership.roles });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

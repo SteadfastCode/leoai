@@ -79,6 +79,7 @@ export const cancelLeoRefresh          = (domain)       => api.post(`/api/billin
 
 export const getTeam         = (domain)           => api.get(`/api/dashboard/entities/${domain}/team`)
 export const removeMember    = (domain, userId)   => api.delete(`/api/dashboard/entities/${domain}/team/${userId}`)
+export const updateMemberRole = (domain, userId, role) => api.patch(`/api/dashboard/entities/${domain}/team/${userId}`, { role })
 export const getInvites      = (domain)           => api.get(`/api/dashboard/entities/${domain}/invites`)
 export const sendInvite      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/invites`, data)
 export const cancelInvite    = (domain, inviteId) => api.delete(`/api/dashboard/entities/${domain}/invites/${inviteId}`)
