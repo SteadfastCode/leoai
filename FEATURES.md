@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-017) Close the learning loop on owner replies**
+- [x] **(LEO-017) Close the learning loop on owner replies**
   The reply handler clears `pendingQuestions` but never touches `UnansweredQuestion`, so an
   answered question stays on the Unanswered page and its "Add to KB" button embeds a redundant
   chunk. Match by the existing Jaccard similarity (≥0.6). Extract `questionSimilarity` —
