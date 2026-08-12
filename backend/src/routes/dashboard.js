@@ -169,6 +169,25 @@ router.get('/entities/:domain/pages', async (req, res) => {
   }
 });
 
+// POST /api/dashboard/entities/:domain/conversations/:id/resolve-handoff — owner
+// handled it out-of-band (phone, in person); stop the follow-up reminders.
+router.post('/entities/:domain/conversations/:id/resolve-handoff', requireAuth(PERMISSIONS.CONVERSATIONS_REPLY), async (req, res) => {
+  try {
+    const conversation = await Conversation.findOne({ _id: req.params.id, domain: req.params.domain });
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+    conversation.handoffPending = false;
+    conversation.pendingQuestions = [];
+    conversation.handoffReminderCount = 0;
+    await conversation.save();
+
+    recordAudit(req, 'handoff.resolve', { domain: req.params.domain, details: { conversationId: req.params.id } });
+    res.json({ conversation });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/dashboard/entities/:domain/conversations/:id/reply — owner replies to a conversation
 router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS.CONVERSATIONS_REPLY), async (req, res) => {
   const { replyText, answeredQuestions, addToKb } = req.body;

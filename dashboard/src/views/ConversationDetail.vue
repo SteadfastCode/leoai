@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getConversation, postOwnerReply } from '../lib/api'
+import { getConversation, postOwnerReply, resolveHandoff } from '../lib/api'
 import { newMessageTick } from '../lib/socket'
 
 const props = defineProps(['domain', 'entity'])
@@ -83,6 +83,29 @@ onMounted(async () => {
 })
 
 const hasPendingQuestions = computed(() => conversation.value?.pendingQuestions?.length > 0)
+const handoffOpen = computed(() => conversation.value?.handoffPending || hasPendingQuestions.value)
+
+// ---------------------------------------------------------------------------
+// Resolve handoff out-of-band (handled by phone / in person)
+// ---------------------------------------------------------------------------
+const resolving = ref(false)
+
+async function markHandoffResolved() {
+  resolving.value = true
+  try {
+    const { data } = await resolveHandoff(props.domain, route.params.id)
+    conversation.value = data.conversation
+    checkedQuestions.value = []
+    snackbarMsg.value = 'Handoff marked resolved — reminders stopped'
+    snackbarColor.value = 'success'
+  } catch {
+    snackbarMsg.value = 'Failed to resolve handoff'
+    snackbarColor.value = 'error'
+  } finally {
+    resolving.value = false
+    snackbar.value = true
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Reply
@@ -247,6 +270,19 @@ function formatDate(d) {
           Reply to visitor
         </v-card-title>
         <v-card-text class="pt-0">
+
+          <div v-if="handoffOpen" class="d-flex justify-end mb-2">
+            <v-btn
+              size="small"
+              variant="text"
+              color="secondary"
+              prepend-icon="mdi-check-circle-outline"
+              :loading="resolving"
+              @click="markHandoffResolved"
+            >
+              Handled outside chat — mark resolved
+            </v-btn>
+          </div>
 
           <template v-if="hasPendingQuestions">
             <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
