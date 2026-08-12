@@ -5,7 +5,8 @@ import { useTheme } from 'vuetify'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { getEntities } from './lib/api'
 import api from './lib/api'
-import { user, isAuthenticated, isSuperAdmin, login, logout, persist } from './lib/auth'
+import { user, isAuthenticated, isSuperAdmin, login, logout, persist, refreshUser } from './lib/auth'
+import { can } from './lib/permissions'
 import { sessionExpired, lastKnownEmail } from './lib/session'
 import { notifications, dismiss } from './lib/notify'
 import { socket, joinDomain, joinSuperadmin } from './lib/socket'
@@ -49,13 +50,19 @@ const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsW
 
 const entityNavItems = [
   { title: 'Overview',            icon: 'mdi-view-dashboard',       to: '/overview' },
-  { title: 'Conversations',       icon: 'mdi-chat',                 to: '/conversations' },
-  { title: 'Knowledge Base',      icon: 'mdi-database',             to: '/knowledge' },
-  { title: 'Unanswered',          icon: 'mdi-help-circle-outline',  to: '/unanswered' },
-  { title: 'Team',                icon: 'mdi-account-group',        to: '/team' },
-  { title: 'Settings',            icon: 'mdi-cog',                  to: '/settings' },
-  { title: 'Billing',             icon: 'mdi-credit-card',          to: '/billing' },
+  { title: 'Conversations',       icon: 'mdi-chat',                 to: '/conversations', permission: 'conversations.view' },
+  { title: 'Knowledge Base',      icon: 'mdi-database',             to: '/knowledge',     permission: 'knowledge.view' },
+  { title: 'Unanswered',          icon: 'mdi-help-circle-outline',  to: '/unanswered',    permission: 'knowledge.view' },
+  { title: 'Team',                icon: 'mdi-account-group',        to: '/team',          permission: 'users.view' },
+  { title: 'Settings',            icon: 'mdi-cog',                  to: '/settings',      permission: 'settings.view' },
+  { title: 'Billing',             icon: 'mdi-credit-card',          to: '/billing',       permission: 'billing.view' },
 ]
+
+// Nav filtered by the server-resolved permissions for the selected entity.
+// Overview carries no permission — any member of the entity sees it.
+const visibleEntityNavItems = computed(() =>
+  entityNavItems.filter((i) => !i.permission || can(selectedDomain.value, i.permission))
+)
 
 const adminNavItems = [
   { title: 'Fleet',    icon: 'mdi-view-grid-outline',   to: '/fleet' },
@@ -92,6 +99,9 @@ function onEntityUpdated(updated) {
 
 onMounted(() => {
   if (isAuthenticated.value) {
+    // Re-fetch /auth/me so a user persisted before resolvedPermissions existed
+    // (or whose role changed since last visit) gets fresh permissions.
+    refreshUser().catch(() => {})
     loadEntities()
     socket.connect()
     if (selectedDomain.value) joinDomain(selectedDomain.value)
@@ -234,7 +244,7 @@ async function handleReAuthPasskey() {
           </div>
           <v-list nav density="compact" class="pt-2">
             <v-list-item
-              v-for="item in entityNavItems"
+              v-for="item in visibleEntityNavItems"
               :key="item.to"
               :to="item.to"
               :prepend-icon="item.icon"

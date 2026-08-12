@@ -28,6 +28,7 @@ import Codes from './views/Codes.vue'
 import Logs from './views/Logs.vue'
 import ApiKeys from './views/ApiKeys.vue'
 import UnansweredQuestions from './views/UnansweredQuestions.vue'
+import { isSuperAdminUser } from './lib/permissions'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
 
@@ -72,26 +73,31 @@ const router = createRouter({
     { path: '/settings', component: Settings },
     { path: '/billing', component: Billing },
     { path: '/team', component: Team },
-    { path: '/crawls', component: Crawls },
-    { path: '/page-explorer', component: PageExplorer },
-    { path: '/entities', component: AdminEntities },
-    { path: '/fleet', component: Fleet },
-    { path: '/audit-log', component: AuditLog },
-    { path: '/chat-preview', component: Chat },
-    { path: '/ministry-requests', component: MinistryRequests },
-    { path: '/codes', component: Codes },
-    { path: '/logs', component: Logs },
-    { path: '/api-keys', component: ApiKeys },
+    { path: '/crawls', component: Crawls, meta: { superadmin: true } },
+    { path: '/page-explorer', component: PageExplorer, meta: { superadmin: true } },
+    { path: '/entities', component: AdminEntities, meta: { superadmin: true } },
+    { path: '/fleet', component: Fleet, meta: { superadmin: true } },
+    { path: '/audit-log', component: AuditLog, meta: { superadmin: true } },
+    { path: '/chat-preview', component: Chat, meta: { superadmin: true } },
+    { path: '/ministry-requests', component: MinistryRequests, meta: { superadmin: true } },
+    { path: '/codes', component: Codes, meta: { superadmin: true } },
+    { path: '/logs', component: Logs, meta: { superadmin: true } },
+    { path: '/api-keys', component: ApiKeys, meta: { superadmin: true } },
     { path: '/unanswered', component: UnansweredQuestions },
   ],
 })
 
-// Navigation guard — redirect to login if not authenticated
+// Navigation guard — redirect to login if not authenticated, and keep
+// non-superadmins out of admin routes (the backend enforces its own gates;
+// this just prevents rendering pages that would only 403).
 router.beforeEach((to) => {
   const token = localStorage.getItem('leo_access_token')
   const user = localStorage.getItem('leo_user')
   if (!to.meta.public && (!token || !user)) {
     return '/login'
+  }
+  if (to.meta.superadmin && !isSuperAdminUser(JSON.parse(user || 'null'))) {
+    return '/overview'
   }
 })
 
