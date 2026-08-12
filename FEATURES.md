@@ -72,7 +72,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-008) Admin Entities — search, sort, expandable detail**
+- [x] **(LEO-008) Admin Entities — search, sort, expandable detail**
   Client-side search on name+domain, plan filter, sort select. Rows become expansion panels
   that lazily call `getStats(domain)`. Add a "Stale" chip when `lastScrapedAt` is null or
   >30 days. No backend change.

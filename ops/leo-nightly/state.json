@@ -42,13 +42,13 @@
       "lastFail": null
     },
     "LEO-008": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "leo-nightly/item/LEO-008",
       "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-08-12T01:42:53.225Z",
+      "runId": "2026-08-12T01:40:02.763Z",
       "lastFail": null
     },
     "LEO-009": {
