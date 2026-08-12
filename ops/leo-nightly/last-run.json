@@ -1,8 +1,8 @@
 {
-  "atUtc": "2026-08-12T03:39:30Z",
-  "runId": "2026-08-12T03:36:25.510Z",
-  "decision": "deferred-activity",
-  "detail": "AFK guard: non-scheduled session 'LeoAI status check' (local_275db384) is running in C:\repos\LeoAI with activity seconds before this check (03:37:34Z, actively calling tools). Real interactive session always counts as activity - no claim made. All prior gates passed: window ok (23:36 local), debounce ok (~114 min since last claim), queue has eligible work (LEO-009 lowest order), backpressure clear.",
-  "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (fe45a9a -> commit cff41f6 == origin/main tip); ledger complete events checked with git merge-base --is-ancestor <mergeSha> cff41f6 - all ancestors"
+  "atUtc": "2026-08-12T07:16:55.371Z",
+  "runId": "2026-08-12T06:36:34Z",
+  "decision": "completed-items",
+  "detail": "Shipped 4 items back-to-back: LEO-009 fleet overview (10 min, PR 7, e7281d7), LEO-010 audit log (7 min, PR 8, b7e31f0), LEO-011 log persistence (8 min, PR 9, 9037470), LEO-012 handoff question list (6 min, PR 10, 703c403). All post-deploy smokes passed (5/5 checks each). Per-run 4-item cap reached. Night 2026-08-11 now at 5/10 claims. Usage snaps unavailable all run (workstation locked, capture exits 1) - governor did not evaluate; run model claude-fable-5 recorded on all 4 claims.",
+  "unreviewedCount": 4,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (fe45a9a -> peeled cff41f6); ledger complete events LEO-009/010/011/012 mergeShas are NOT ancestors of cff41f6; oldest ~35 min old - far under the 7-day age halt and the 40-item backstop"
 }
