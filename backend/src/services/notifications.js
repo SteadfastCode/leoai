@@ -1,6 +1,52 @@
 const twilio = require('twilio');
 const { sendEmailRaw } = require('./email');
 
+// Twilio segments at 160 chars — cap the SMS question list and tail with "+N more".
+const SMS_QUESTION_CAP = 3;
+
+// Shared pending-question block for handoff alerts and follow-ups. Pure.
+// cap = null renders every question (email); a number caps with a "+N more" tail.
+function buildQuestionBlock(pendingQuestions, cap = null) {
+  const questions = (pendingQuestions || []).filter(Boolean);
+  if (!questions.length) return '(no questions recorded)';
+  const shown = cap && questions.length > cap ? questions.slice(0, cap) : questions;
+  const lines = shown.map((q) => `• ${q}`);
+  if (shown.length < questions.length) lines.push(`+${questions.length - shown.length} more`);
+  return lines.join('\n');
+}
+
+// Pure message builders — unit-tested without any Twilio/Resend involvement.
+function buildHandoffSms({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions }) {
+  return [
+    `🦁 Leo handoff — ${entityName}`,
+    `Visitor needs help: "${reason}"`,
+    buildQuestionBlock(pendingQuestions, SMS_QUESTION_CAP),
+    `Last message: "${lastMessage.slice(0, 100)}${lastMessage.length > 100 ? '…' : ''}"`,
+    `View chat: ${conversationLink}`,
+    `Session: ${shortSession}`,
+  ].join('\n');
+}
+
+function buildHandoffEmail({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions }) {
+  return {
+    subject: `${entityName} — Leo needs your help`,
+    text: [
+      `Hey! Leo flagged a conversation that needs a human.`,
+      ``,
+      `Business: ${entityName}`,
+      `Reason: ${reason}`,
+      `Open question(s):`,
+      buildQuestionBlock(pendingQuestions),
+      `Last message: "${lastMessage}"`,
+      ``,
+      `View the full conversation: ${conversationLink}`,
+      `Session: ${shortSession}`,
+      ``,
+      `— LeoAI by Steadfast Code`,
+    ].join('\n'),
+  };
+}
+
 /**
  * Send a handoff notification to the business owner via SMS and/or email,
  * depending on what's configured on the entity and in the environment.
@@ -11,26 +57,23 @@ const { sendEmailRaw } = require('./email');
  * @param {object} opts
  * @param {object} opts.entity        - The Entity document
  * @param {string} opts.reason        - The reason Leo flagged for handoff
+ * @param {string[]} [opts.pendingQuestions] - Open question texts on the conversation
  * @param {string} opts.sessionToken  - Visitor's session token
  * @param {string} opts.conversationId - MongoDB _id of the Conversation
  * @param {string} opts.lastMessage   - The visitor's last message
  */
-async function sendHandoffNotification({ entity, reason, sessionToken, conversationId, lastMessage }) {
+async function sendHandoffNotification({ entity, reason, pendingQuestions, sessionToken, conversationId, lastMessage }) {
   const shortSession = sessionToken.slice(0, 10);
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
   const conversationLink = `${dashboardUrl}/#/conversations/${conversationId}`;
 
-  const smsBody = [
-    `🦁 Leo handoff — ${entity.name}`,
-    `Visitor needs help: "${reason}"`,
-    `Last message: "${lastMessage.slice(0, 100)}${lastMessage.length > 100 ? '…' : ''}"`,
-    `View chat: ${conversationLink}`,
-    `Session: ${shortSession}`,
-  ].join('\n');
+  const parts = { entityName: entity.name, reason, lastMessage, conversationLink, shortSession, pendingQuestions };
+  const smsBody = buildHandoffSms(parts);
+  const { subject, text } = buildHandoffEmail(parts);
 
   const results = await Promise.allSettled([
     sendSms(entity.ownerPhone, smsBody),
-    sendEmail(entity.ownerEmail, entity.name, reason, lastMessage, conversationLink, shortSession),
+    sendEmailRaw(entity.ownerEmail, subject, text),
   ]);
 
   // Log failures without throwing — notifications are best-effort
@@ -48,23 +91,6 @@ async function sendSms(toNumber, body) {
 
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
   await client.messages.create({ from: TWILIO_FROM_NUMBER, to: toNumber, body });
-}
-
-async function sendEmail(toAddress, businessName, reason, lastMessage, conversationLink, shortSession) {
-  const subject = `${businessName} — Leo needs your help`;
-  const text = [
-    `Hey! Leo flagged a conversation that needs a human.`,
-    ``,
-    `Business: ${businessName}`,
-    `Reason: ${reason}`,
-    `Last message: "${lastMessage}"`,
-    ``,
-    `View the full conversation: ${conversationLink}`,
-    `Session: ${shortSession}`,
-    ``,
-    `— LeoAI by Steadfast Code`,
-  ].join('\n');
-  await sendEmailRaw(toAddress, subject, text);
 }
 
 async function sendQuotaWarning({ entity, threshold, messageCountThisPeriod, limit }) {
@@ -162,14 +188,10 @@ async function sendHandoffFollowUpNotification({ entity, conversationId, session
   const shortSession = sessionToken.slice(0, 10);
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
   const conversationLink = `${dashboardUrl}/#/conversations/${conversationId}`;
-  const questionList = pendingQuestions?.length
-    ? pendingQuestions.map((q) => `• ${q}`).join('\n')
-    : '(no questions recorded)';
-
   const smsBody = [
     `🦁 Leo reminder — ${entity.name}`,
     `A visitor is still waiting for your reply.`,
-    questionList,
+    buildQuestionBlock(pendingQuestions, SMS_QUESTION_CAP),
     `View chat: ${conversationLink}`,
     `Session: ${shortSession}`,
   ].join('\n');
@@ -181,7 +203,7 @@ async function sendHandoffFollowUpNotification({ entity, conversationId, session
     `A visitor on ${entity.name} is still waiting for a response from your team.`,
     ``,
     `Open question(s):`,
-    questionList,
+    buildQuestionBlock(pendingQuestions),
     ``,
     `View and reply: ${conversationLink}`,
     `Session: ${shortSession}`,
@@ -227,4 +249,16 @@ async function sendMinistryPlanRequest({ entityName, domain, requestedBy }) {
   });
 }
 
-module.exports = { sendHandoffNotification, sendHandoffFollowUpNotification, sendQuotaWarning, sendQuotaExceededNotification, sendEmailRaw, sendMinistryPlanRequest };
+module.exports = {
+  sendHandoffNotification,
+  sendHandoffFollowUpNotification,
+  sendQuotaWarning,
+  sendQuotaExceededNotification,
+  sendEmailRaw,
+  sendMinistryPlanRequest,
+  // Pure builders, exported for unit tests — no send path touches them directly.
+  buildHandoffSms,
+  buildHandoffEmail,
+  buildQuestionBlock,
+  SMS_QUESTION_CAP,
+};
