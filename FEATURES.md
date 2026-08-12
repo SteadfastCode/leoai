@@ -77,7 +77,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-011) Persist backend logs to MongoDB + searchable history**
+- [x] **(LEO-011) Persist backend logs to MongoDB + searchable history**
   `models/Log.js` exists with a 30-day TTL and nothing writes to it. In `consoleBuf.js`, batch to
   `Log.insertMany` on a 5s timer or 50 entries, persisting **warn and error only** by default via
   `LOG_PERSIST_LEVEL` (`off|warn|all`). Extend `GET /api/admin/logs` with a `mode=history`
