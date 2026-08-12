@@ -222,6 +222,16 @@ back-to-back — up to 4 per run, 10 claims/night, last claim 07:45 local — so
 items ships several and a night of 40-minute items ships fewer. Every ledger `complete` carries
 `durationMin`; `run-end` events summarise each run's active minutes.
 
+**Usage telemetry + Fable pace governor** (since 2026-08-12): working runs bracket themselves
+with plan-usage snapshots (night-start + after every item, via Daniel's `capture-usage.ps1`
+screenshot tool) logged as `usage-snap` ledger events — per-item cost falls out of the deltas.
+When weekly Fable burn runs ahead of the week's pace (>10 points over elapsed-week %, weeks
+reset Sat 22:00), the routine flips its own scheduled-task frontmatter to `model:
+claude-sonnet-5` for subsequent runs, and back once pace catches up — preserving Fable budget
+for Daniel's interactive use. Frontmatter model control is experimental: runs record their
+actual model on `claim` events, and the governor disables itself with a notification if flips
+provably don't take effect. Snaps and governor are best-effort telemetry — never a gate.
+
 - **Queue:** `FEATURES.md` (human-readable) + `ops/leo-nightly/state.json` (machine state).
   Regenerate state with `node ops/leo-nightly/build-state.js` after editing the queue.
 - **Backpressure:** halts after 14 completed-but-unacknowledged items. Release with
