@@ -9,10 +9,14 @@ with **zero memory of any previous run**. Git is the only durable state that sur
 | `state.json` | routine + `build-state.js` | The only machine-readable queue state. Item status, attempts, dependencies, cluster membership. |
 | `build-state.js` | Daniel | Regenerates `state.json` from `FEATURES.md`, preserving run history. Run after editing the queue. `--check` verifies they are in sync. |
 | `ledger.jsonl` | routine | Append-only event log: claims, completions, skips, crash recoveries. One JSON object per line. This is what the backpressure counter reads. |
-| `last-run.json` | routine | Overwritten every run **including no-ops**. The heartbeat that distinguishes "the routine is working and had nothing to do" from "the routine has been silently dead for a fortnight." |
+| `last-run.json` | routine | The **committed heartbeat** — distinguishes "the routine is working and had nothing to do" from "the routine has been silently dead for a fortnight." Committed only when the run's decision differs from the committed one, or the committed copy is >6 hours stale (identical hourly heartbeat commits were noise). The every-exit copy lives **outside** the repo — see below. |
 
 The run lock lives **outside** the repo, at `C:\Users\danie\.claude\leo-nightly\run.lock`, so
-`git status` stays clean and it survives the worktree being recreated.
+`git status` stays clean and it survives the worktree being recreated. Since 2026-08-12 the
+every-exit status write goes to `C:\Users\danie\.claude\leo-nightly\last-run.json` (same
+directory) for the same reason: a local-only write to the tracked repo path left the worktree
+dirty between fires, which would have tripped the next fire's clean-tree preflight. The repo's
+`last-run.json` is synced from it only at the commit points described above.
 
 ## Backpressure
 
