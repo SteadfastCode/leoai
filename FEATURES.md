@@ -72,13 +72,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-008) Admin Entities — search, sort, expandable detail**
-  Client-side search on name+domain, plan filter, sort select. Rows become expansion panels
-  that lazily call `getStats(domain)`. Add a "Stale" chip when `lastScrapedAt` is null or
-  >30 days. No backend change.
-  *Verify:* `yarn build` + vitest on the extracted filter/sort helpers (empty list, missing
-  `lastScrapedAt`, ties on sort key).
-
 - [ ] **(LEO-009) Superadmin fleet overview page**
   `GET /api/admin/fleet` returning one row per entity from a single `Entity.find()` plus exactly
   two `$match`-scoped grouped aggregates. `Fleet.vue` as a sortable table with over-quota /
@@ -397,6 +390,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-008) Admin Entities — search, sort, expandable detail** — 13e1abd (PR #6, 2026-08-12).
+  Client-side search on name+domain, plan filter, sort select (pure helpers in
+  dashboard/src/lib/entityFilters.js, 16 vitest specs); rows are expansion panels lazily
+  fetching getStats(domain) once, cached; amber Stale chip when lastScrapedAt is null or
+  >30 days. No backend change.
 - [x] **(LEO-007) Consistent API error surfacing** — d2e94db (PR #5, 2026-08-11).
   lib/notify.js shared reactive queue + pure piErrorMessage mapping; api.js interceptor maps
   403/404/429/5xx/no-response to messages after the 401 refresh branch, honours config.silent,
