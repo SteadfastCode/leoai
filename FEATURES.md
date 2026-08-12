@@ -79,13 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-013) Change an existing team member's role**
-  `PATCH /entities/:domain/team/:userId` gated on `USERS_MANAGE`. Reject roles outside
-  `ROLE_PRESETS`, reject `superadmin`, reject self-demotion, reject removing the last owner.
-  Replace the display-only role chip in `Team.vue` with a select.
-  *Verify:* extract `isLastOwner(members, userId, domain)` as a pure function and unit-test it:
-  sole owner, two owners, owner+agent, target not a member.
-
 - [ ] **(LEO-014) Permission-aware dashboard nav and route guards**
   The RBAC backend is fully built and the frontend ignores it — every user sees all seven nav
   items and any authenticated user can navigate to `/logs`, `/api-keys`, `/entities`. Have
@@ -381,6 +374,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-013) Change an existing team member's role** — 2896c77 (PR #11, 2026-08-12).
+  PATCH /entities/:domain/team/:userId gated on USERS_MANAGE; rejects unknown roles,
+  superadmin, any self role-change (superset of self-demotion), and demoting the last
+  owner. isLastOwner pure function in services/team.js, 7 node --test specs, mutation
+  check red then restored. Team.vue role select for managers; updateMemberRole in api.js.
 - [x] **(LEO-012) Pending question list in the first handoff alert** — 703c403 (PR #10, 2026-08-12).
   chat.js already passed pendingQuestions; sendHandoffNotification now consumes it. Pure
   builders buildQuestionBlock/buildHandoffSms/buildHandoffEmail; SMS capped at 3 questions
