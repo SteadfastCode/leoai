@@ -9,6 +9,7 @@ const { scrapeSite, rescrapeSite } = require('../services/scraper');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
+const { recordAudit } = require('../services/audit');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
@@ -128,6 +129,11 @@ router.post('/snapshots/:id/restore', requireAuth(), async (req, res) => {
   await Chunk.deleteMany({ domain, url: { $in: urlsToRestore }, source: { $nin: PRESERVED_SOURCES } });
   await Chunk.insertMany(archived.map(({ _id, snapshotId, __v, createdAt, updatedAt, ...c }) => c));
 
+  recordAudit(req, 'snapshot.restore', {
+    domain,
+    details: { snapshotId: req.params.id, restoredChunks: archived.length, url: url || null },
+  });
+
   res.json({ restored: archived.length, urls: urlsToRestore.length });
 });
 
@@ -164,6 +170,7 @@ router.post('/', requireAuth(), async (req, res) => {
     if (isForce) {
       // Force rescrape: same as full scrape but triggered on an existing entity.
       // Snapshot current chunks before wiping so they can be restored.
+      recordAudit(req, 'scrape.force', { domain, details: { url } });
       await createSnapshot(domain, 'force');
       await Chunk.deleteMany({ domain, source: { $nin: PRESERVED_SOURCES } });
       await ScrapedPage.deleteMany({ domain });

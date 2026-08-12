@@ -6,6 +6,8 @@ const Chunk = require('../models/Chunk');
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const { buildFleetRows } = require('../services/fleet');
+const { recordAudit } = require('../services/audit');
+const AuditLog = require('../models/AuditLog');
 const { embedQuery } = require('../services/embeddings');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const ApiKey = require('../models/ApiKey');
@@ -121,6 +123,35 @@ router.get('/search', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/admin/audit-log
+// Read-only. There is intentionally no write/update/delete route — the trail
+// is append-only and only services/audit.js writes to it.
+// ---------------------------------------------------------------------------
+
+router.get('/audit-log', async (req, res) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const filter = {};
+    if (req.query.action) filter.action = req.query.action;
+    if (req.query.domain) filter.domain = req.query.domain;
+
+    const [entries, total] = await Promise.all([
+      AuditLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      AuditLog.countDocuments(filter),
+    ]);
+
+    res.json({ entries, total, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // API Keys — list / create / revoke
 // API key requests can't manage keys (prevents escalation via stolen key)
 // ---------------------------------------------------------------------------
@@ -147,6 +178,7 @@ router.post('/api-keys', jwtSuperadminOnly, async (req, res) => {
     const rawKey = 'leoai_' + crypto.randomBytes(32).toString('hex');
     const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
     const key = await ApiKey.create({ keyHash, label: label.trim(), scope: 'mcp' });
+    recordAudit(req, 'api_key.create', { details: { label: key.label } });
     res.status(201).json({
       key: {
         _id: key._id,
@@ -167,6 +199,7 @@ router.delete('/api-keys/:id', jwtSuperadminOnly, async (req, res) => {
   try {
     const key = await ApiKey.findByIdAndDelete(req.params.id);
     if (!key) return res.status(404).json({ error: 'API key not found' });
+    recordAudit(req, 'api_key.revoke', { details: { label: key.label } });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
