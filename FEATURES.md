@@ -79,14 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-015) Conversations list — "Needs reply" filter and status badges**
-  Accept `?filter=all|needs_reply|answered`, keeping pagination and totals consistent and the
-  default response byte-identical. Chip-group filter synced to a router query param, amber
-  "Needs reply" chip, first user message promoted to the row title. **Out of scope:** full-text
-  search (unindexed regex on the conversations collection).
-  *Verify:* unit-test the filter→Mongo-query mapping as an exported pure function for all three
-  values plus an unknown value, which must fall back to unfiltered rather than throw.
-
 - [ ] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap**
   `handoffPending` can only be cleared by a visitor cancel or a reply answering every pending
   question. Handled by phone, `runHandoffFollowUpTick` re-sends forever. Add
@@ -365,6 +357,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-015) Conversations list — "Needs reply" filter and status badges** — d8a6d54 (PR #13, 2026-08-12).
+  ?filter=all|needs_reply|answered via pure conversationFilterQuery (same query for find and
+  count, so totals stay consistent); absent/unknown unfiltered — default response byte-identical.
+  Chip-group synced to router query param, amber Needs-reply chip, first user message as row
+  title. 5 node --test specs on the mapping.
 - [x] **(LEO-014) Permission-aware dashboard nav and route guards** — b772b70 (PR #12, 2026-08-12).
   /auth/me returns isSuperAdmin + per-domain resolvedPermissions (server-side ROLE_PRESETS
   resolution; API-key principal guarded). lib/permissions.js pure userCan/isSuperAdminUser +
