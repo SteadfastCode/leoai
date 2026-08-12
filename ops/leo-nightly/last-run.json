@@ -1,8 +1,13 @@
 {
-  "atUtc": "2026-08-12T09:36:30.730Z",
-  "runId": "2026-08-12T09:36:30.730Z",
-  "decision": "debounce",
-  "detail": "Last claim event (LEO-016) at 2026-08-12T09:07:58Z is ~28 min old, under the 55-minute debounce. Predecessor run 2026-08-12T08:36:43.314Z shipped 4 items and ended cleanly at 09:15:56Z. No work this fire.",
-  "unreviewedCount": 8,
-  "unreviewedCommand": "ledger complete events whose mergeSha is not ancestor of leo-nightly-ack (fe45a9a): LEO-009..LEO-016"
+  "decision": "completed-items",
+  "atUtc": "2026-08-12T10:50:19.892Z",
+  "runId": "2026-08-12T10:36:33.530Z",
+  "nightId": "2026-08-11",
+  "items": [
+    "LEO-017"
+  ],
+  "claimsUsedTonight": 10,
+  "unreviewedCount": 9,
+  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter complete events whose mergeSha is not an ancestor of $(git ls-remote --tags origin refs/tags/leo-nightly-ack)^{commit} (cff41f6)",
+  "notes": "usage snaps unavailable both attempts - workstation locked (capture-usage.ps1 exit 1); no governor action possible without a snap"
 }
