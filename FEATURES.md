@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-012) Include the pending question list in the first handoff alert**
+- [x] **(LEO-012) Include the pending question list in the first handoff alert**
   `chat.js` passes `pendingQuestions` into `sendHandoffNotification`, which never destructures
   it — the first alert shows one reason line while the 24h follow-up renders a proper list.
   Extract `buildHandoffSms`/`buildHandoffEmail` as pure functions, render the same block in
