@@ -77,14 +77,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-009) Superadmin fleet overview page**
-  `GET /api/admin/fleet` returning one row per entity from a single `Entity.find()` plus exactly
-  two `$match`-scoped grouped aggregates. `Fleet.vue` as a sortable table with over-quota /
-  near-quota / stale-crawl highlighting.
-  *Verify:* unit-test the row-assembly function with fixtures including entities with zero
-  chunks and zero conversations. **Grep-assert no `await` inside a loop** — that is the property
-  that matters for production and it is checkable by reading.
-
 - [ ] **(LEO-010) Admin audit log — model, write helper, viewer**
   `AuditLog` model (append-only, no update/delete route) and `services/audit.js` exporting
   `recordAudit(req, action, fields)` that can never throw. Fire-and-forget from entity
@@ -417,6 +409,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-009) Superadmin fleet overview page** — e7281d7 (PR #7, 2026-08-12).
+  GET /api/admin/fleet: one Entity.find() + exactly two -scoped grouped aggregates
+  (chunks; conversations with -summed messages), pure synchronous buildFleetRows() in
+  services/fleet.js. Fleet.vue sortable v-data-table, over/near-quota row tinting, stale-crawl
+  chips, admin nav item. Tests: fixtures incl. zero-chunk/zero-convo entities + source asserts
+  (no await in fleet.js, no loops and exactly 2 aggregates in the handler).
 - [x] **(LEO-008) Admin Entities — search, sort, expandable detail** — 13e1abd (PR #6, 2026-08-12).
   Client-side search on name+domain, plan filter, sort select (pure helpers in
   dashboard/src/lib/entityFilters.js, 16 vitest specs); rows are expansion panels lazily
