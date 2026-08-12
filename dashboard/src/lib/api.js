@@ -70,6 +70,7 @@ export const getChunks        = (domain, url)  => api.get(`/api/dashboard/entiti
 export const getActiveScrapes = ()             => api.get('/scrape/active')
 export const getScrapedPages  = (params)       => api.get('/scrape/pages', { params })
 export const postOwnerReply   = (domain, id, data) => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/reply`, data)
+export const resolveHandoff   = (domain, id)       => api.post(`/api/dashboard/entities/${domain}/conversations/${id}/resolve-handoff`)
 
 export const getBilling                = (domain)       => api.get(`/api/billing/${domain}`)
 export const createCheckoutSession     = (domain, plan) => api.post(`/api/billing/${domain}/checkout`, { plan })

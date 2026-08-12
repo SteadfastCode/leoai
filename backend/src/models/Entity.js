@@ -57,6 +57,7 @@ const entitySchema = new mongoose.Schema(
     handoffFollowUp: {
       enabled:       { type: Boolean, default: true },
       intervalHours: { type: Number, default: 24 },
+      maxReminders:  { type: Number, default: 3 },
     },
     crawlSettings: {
       keepSocialHandles:  { type: Boolean, default: false },

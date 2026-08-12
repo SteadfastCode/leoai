@@ -29,6 +29,7 @@ const conversationSchema = new mongoose.Schema(
     lastActiveAt: { type: Date, default: Date.now },
     handoffPending: { type: Boolean, default: false },
     lastHandoffNotifiedAt: { type: Date },
+    handoffReminderCount: { type: Number, default: 0 },
     pendingQuestions: [{ text: { type: String }, askedAt: { type: Date, default: Date.now }, _id: false }],
   },
   { timestamps: true }

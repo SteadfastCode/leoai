@@ -6,6 +6,7 @@ const Conversation = require('../models/Conversation');
 const { rescrapeSite } = require('./scraper');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const { sendHandoffFollowUpNotification } = require('./notifications');
+const { reminderDue } = require('./handoff');
 
 const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
 
@@ -128,19 +129,16 @@ async function runHandoffFollowUpTick() {
   for (const [domain, convos] of domainMap) {
     const entity = await Entity.findOne({ domain }).lean();
     if (!entity) continue;
-    if (!entity.handoffFollowUp?.enabled) continue;
-    if (!entity.ownerPhone && !entity.ownerEmail) continue;
-
-    const intervalMs = (entity.handoffFollowUp.intervalHours || 24) * 60 * 60 * 1000;
-    const cutoff = new Date(Date.now() - intervalMs);
 
     for (const convo of convos) {
-      if (new Date(convo.lastHandoffNotifiedAt) > cutoff) continue;
+      if (!reminderDue(entity, convo)) continue;
 
-      // Atomic update to prevent duplicate sends on concurrent runs
+      // Atomic update to prevent duplicate sends on concurrent runs; the
+      // reminder counter increments in the same operation so the cap can
+      // never be outrun by concurrent ticks.
       const updated = await Conversation.findOneAndUpdate(
         { _id: convo._id, lastHandoffNotifiedAt: convo.lastHandoffNotifiedAt },
-        { $set: { lastHandoffNotifiedAt: new Date() } }
+        { $set: { lastHandoffNotifiedAt: new Date() }, $inc: { handoffReminderCount: 1 } }
       );
       if (!updated) continue; // another process beat us to it
 
