@@ -77,7 +77,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-010) Admin audit log — model, write helper, viewer**
+- [x] **(LEO-010) Admin audit log — model, write helper, viewer**
   `AuditLog` model (append-only, no update/delete route) and `services/audit.js` exporting
   `recordAudit(req, action, fields)` that can never throw. Fire-and-forget from entity
   hard-delete, API-key create/revoke, snapshot restore, force rescrape, superadmin PATCH fields.
