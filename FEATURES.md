@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap**
+- [x] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap**
   `handoffPending` can only be cleared by a visitor cancel or a reply answering every pending
   question. Handled by phone, `runHandoffFollowUpTick` re-sends forever. Add
   `POST /conversations/:id/resolve-handoff`, `handoffFollowUp.maxReminders` (default 3), and
