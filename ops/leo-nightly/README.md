@@ -60,5 +60,8 @@ Edit `FEATURES.md`, then:
 node ops/leo-nightly/build-state.js
 ```
 
-Reordering items is safe — selection reads `state.json` by lowest id with satisfied
-dependencies, never by position in the file.
+**Priority is file position; the `LEO-nnn` id is permanent identity.** Selection picks the
+lowest-`order` eligible item, and `order` is regenerated from where each block sits in the file —
+so to reprioritize, move the whole block and regen. Never renumber an id: ledger events join on
+it, and renumbering silently rewrites what history refers to. (Forgetting the regen self-heals —
+the routine regenerates at claim time.)

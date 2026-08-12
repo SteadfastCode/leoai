@@ -54,6 +54,12 @@ function parse() {
     dependsOn.delete(id);
 
     items[id] = {
+      // order: position of this item's checkbox in FEATURES.md, counting from 1.
+      // PRIORITY IS FILE POSITION; the LEO-nnn id is permanent identity and is never
+      // renumbered — ledger events join on it, so renumbering would silently rewrite
+      // history. To reprioritize an item, move its whole block in FEATURES.md and
+      // regenerate. Refreshed on every regen, never carried forward.
+      order: Object.keys(items).length + 1,
       status: 'pending',
       attempts: 0,
       cluster: CLUSTERS[id] || null,
@@ -93,7 +99,9 @@ for (const [id, item] of Object.entries(fresh)) {
 for (const [id, was] of Object.entries(prior.items || {})) {
   if (fresh[id]) continue;
   if (was.status === 'pending' && was.attempts === 0) continue;
-  fresh[id] = was;
+  // No file position — carried items are done/blocked history, never selectable, so they
+  // hold no place in the priority order.
+  fresh[id] = { ...was, order: null };
 }
 
 const next = { version: 1, items: fresh, openCluster: prior.openCluster ?? null };
@@ -119,3 +127,9 @@ console.log(`wrote ${Object.keys(fresh).length} items to state.json`);
 console.log(`  clustered: ${Object.entries(fresh).filter(([, v]) => v.cluster).map(([k]) => k).join(', ') || 'none'}`);
 console.log(`  with dependencies: ${withDeps.length}`);
 for (const [id, v] of withDeps) console.log(`    ${id} ← ${v.dependsOn.join(', ')}`);
+const nextUp = Object.entries(fresh)
+  .filter(([, v]) => v.status === 'pending' && v.order != null)
+  .sort((a, b) => a[1].order - b[1].order)
+  .slice(0, 5)
+  .map(([id, v]) => `#${v.order} ${id}`);
+console.log(`  next up (by file order): ${nextUp.join('  ·  ') || '(none pending)'}`);

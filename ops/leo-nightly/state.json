@@ -2,6 +2,7 @@
   "version": 1,
   "items": {
     "LEO-001": {
+      "order": 1,
       "status": "done",
       "attempts": 1,
       "cluster": null,
@@ -12,6 +13,7 @@
       "lastFail": null
     },
     "LEO-002": {
+      "order": 2,
       "status": "done",
       "attempts": 1,
       "cluster": null,
@@ -22,6 +24,7 @@
       "lastFail": null
     },
     "LEO-003": {
+      "order": 3,
       "status": "done",
       "attempts": 1,
       "cluster": null,
@@ -32,6 +35,7 @@
       "lastFail": null
     },
     "LEO-004": {
+      "order": 4,
       "status": "done",
       "attempts": 1,
       "cluster": null,
@@ -42,6 +46,7 @@
       "lastFail": null
     },
     "LEO-009": {
+      "order": 5,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -52,6 +57,7 @@
       "lastFail": null
     },
     "LEO-010": {
+      "order": 6,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -62,6 +68,7 @@
       "lastFail": null
     },
     "LEO-011": {
+      "order": 7,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -72,6 +79,7 @@
       "lastFail": null
     },
     "LEO-012": {
+      "order": 8,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -82,6 +90,7 @@
       "lastFail": null
     },
     "LEO-013": {
+      "order": 9,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -92,6 +101,7 @@
       "lastFail": null
     },
     "LEO-014": {
+      "order": 10,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -102,6 +112,7 @@
       "lastFail": null
     },
     "LEO-015": {
+      "order": 11,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -112,6 +123,7 @@
       "lastFail": null
     },
     "LEO-016": {
+      "order": 12,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -122,6 +134,7 @@
       "lastFail": null
     },
     "LEO-017": {
+      "order": 13,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -132,6 +145,18 @@
       "lastFail": null
     },
     "LEO-018": {
+      "order": 14,
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-033": {
+      "order": 15,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -142,6 +167,7 @@
       "lastFail": null
     },
     "LEO-019": {
+      "order": 16,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -152,6 +178,7 @@
       "lastFail": null
     },
     "LEO-020": {
+      "order": 17,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -162,6 +189,7 @@
       "lastFail": null
     },
     "LEO-021": {
+      "order": 18,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -172,6 +200,7 @@
       "lastFail": null
     },
     "LEO-022": {
+      "order": 19,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -182,6 +211,7 @@
       "lastFail": null
     },
     "LEO-023": {
+      "order": 20,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -193,17 +223,8 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-033": {
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
     "LEO-024": {
+      "order": 21,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -216,6 +237,7 @@
       "lastFail": null
     },
     "LEO-025": {
+      "order": 22,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -229,6 +251,7 @@
       "lastFail": null
     },
     "LEO-026": {
+      "order": 23,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -241,6 +264,7 @@
       "lastFail": null
     },
     "LEO-027": {
+      "order": 24,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -251,6 +275,7 @@
       "lastFail": null
     },
     "LEO-028": {
+      "order": 25,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -261,6 +286,7 @@
       "lastFail": null
     },
     "LEO-029": {
+      "order": 26,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -271,6 +297,7 @@
       "lastFail": null
     },
     "LEO-030": {
+      "order": 27,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -283,6 +310,7 @@
       "lastFail": null
     },
     "LEO-031": {
+      "order": 28,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -295,6 +323,7 @@
       "lastFail": null
     },
     "LEO-032": {
+      "order": 29,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -307,6 +336,7 @@
       "lastFail": null
     },
     "LEO-005": {
+      "order": 30,
       "status": "blocked",
       "attempts": 0,
       "cluster": null,
@@ -328,7 +358,8 @@
       "dependsOn": [],
       "claimedAtUtc": "2026-08-12T01:42:53.225Z",
       "runId": "2026-08-12T01:40:02.763Z",
-      "lastFail": null
+      "lastFail": null,
+      "order": null
     },
     "LEO-007": {
       "status": "done",
@@ -338,7 +369,8 @@
       "dependsOn": [],
       "claimedAtUtc": "2026-08-11T03:40:35.612Z",
       "runId": "2026-08-11T03:37:00.662Z",
-      "lastFail": null
+      "lastFail": null,
+      "order": null
     },
     "LEO-006": {
       "status": "done",
@@ -348,7 +380,8 @@
       "dependsOn": [],
       "claimedAtUtc": "2026-08-11T01:42:32.789Z",
       "runId": "2026-08-11T01:36:58.247Z",
-      "lastFail": null
+      "lastFail": null,
+      "order": null
     }
   },
   "openCluster": null
