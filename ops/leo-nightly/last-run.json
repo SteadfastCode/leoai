@@ -1,8 +1,8 @@
 {
-  "atUtc": "2026-08-12T09:15:56.081Z",
-  "runId": "2026-08-12T08:36:43.314Z",
-  "decision": "completed-items",
-  "detail": "4 items shipped back-to-back (LEO-013 role change, LEO-014 permission nav/guards, LEO-015 needs-reply filter, LEO-016 handoff resolve+cap); all post-deploy smokes green; per-run cap reached. Usage snaps unavailable all run (workstation locked) - no governor action. Model: claude-fable-5.",
+  "atUtc": "2026-08-12T09:36:30.730Z",
+  "runId": "2026-08-12T09:36:30.730Z",
+  "decision": "debounce",
+  "detail": "Last claim event (LEO-016) at 2026-08-12T09:07:58Z is ~28 min old, under the 55-minute debounce. Predecessor run 2026-08-12T08:36:43.314Z shipped 4 items and ended cleanly at 09:15:56Z. No work this fire.",
   "unreviewedCount": 8,
   "unreviewedCommand": "ledger complete events whose mergeSha is not ancestor of leo-nightly-ack (fe45a9a): LEO-009..LEO-016"
 }
