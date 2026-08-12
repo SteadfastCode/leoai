@@ -1,8 +1,8 @@
 {
-  "atUtc": "2026-08-12T07:16:55.371Z",
-  "runId": "2026-08-12T06:36:34Z",
-  "decision": "completed-items",
-  "detail": "Shipped 4 items back-to-back: LEO-009 fleet overview (10 min, PR 7, e7281d7), LEO-010 audit log (7 min, PR 8, b7e31f0), LEO-011 log persistence (8 min, PR 9, 9037470), LEO-012 handoff question list (6 min, PR 10, 703c403). All post-deploy smokes passed (5/5 checks each). Per-run 4-item cap reached. Night 2026-08-11 now at 5/10 claims. Usage snaps unavailable all run (workstation locked, capture exits 1) - governor did not evaluate; run model claude-fable-5 recorded on all 4 claims.",
+  "atUtc": "2026-08-12T07:37:08.742Z",
+  "runId": "2026-08-12T07:36:25.829Z",
+  "decision": "debounce",
+  "detail": "Fire at 03:36 local; last claim event (LEO-012, run 2026-08-12T06:36:34Z) was ~27 min old, under the 55-min debounce. Previous run is finished (run-end logged) but this fire is still within its debounce window. No work.",
   "unreviewedCount": 4,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (fe45a9a -> peeled cff41f6); ledger complete events LEO-009/010/011/012 mergeShas are NOT ancestors of cff41f6; oldest ~35 min old - far under the 7-day age halt and the 40-item backstop"
+  "unreviewedCommand": "inherited from previous run 07:16Z; debounce exit did not recompute"
 }
