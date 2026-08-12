@@ -19,6 +19,7 @@ import AcceptInvite from './views/AcceptInvite.vue'
 import Crawls from './views/Crawls.vue'
 import PageExplorer from './views/PageExplorer.vue'
 import AdminEntities from './views/AdminEntities.vue'
+import Fleet from './views/Fleet.vue'
 import Chat from './views/Chat.vue'
 import MinistryRequests from './views/MinistryRequests.vue'
 import Signup from './views/Signup.vue'
@@ -73,6 +74,7 @@ const router = createRouter({
     { path: '/crawls', component: Crawls },
     { path: '/page-explorer', component: PageExplorer },
     { path: '/entities', component: AdminEntities },
+    { path: '/fleet', component: Fleet },
     { path: '/chat-preview', component: Chat },
     { path: '/ministry-requests', component: MinistryRequests },
     { path: '/codes', component: Codes },
