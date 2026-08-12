@@ -77,17 +77,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-011) Persist backend logs to MongoDB + searchable history**
-  `models/Log.js` exists with a 30-day TTL and nothing writes to it. In `consoleBuf.js`, batch to
-  `Log.insertMany` on a 5s timer or 50 entries, persisting **warn and error only** by default via
-  `LOG_PERSIST_LEVEL` (`off|warn|all`). Extend `GET /api/admin/logs` with a `mode=history`
-  branch; leave the live buffer path byte-identical. Live/History toggle in `Logs.vue`.
-  Also truncate buffered entries to 2000 chars and skip the socket emit when the `superadmin`
-  room is empty — a `console.log` of chunks with 512-float embeddings is ~60KB per line.
-  *Verify:* stubbed-model unit test asserting (a) flush at the size threshold, (b) a rejecting
-  `insertMany` does not propagate, and (c) **the flush path calls no `console` method** —
-  infinite recursion through the monkey-patched console is the one catastrophic failure here.
-
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
 - [ ] **(LEO-012) Include the pending question list in the first handoff alert**
@@ -400,6 +389,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-011) Persist backend logs to MongoDB + searchable history** — 9037470 (PR #9, 2026-08-12).
+  consoleBuf batches to Log.insertMany at 50 entries/5s; LOG_PERSIST_LEVEL off|warn|all
+  (default warn), http lines map to info/source:http; flush never throws and never calls
+  console (recursion guard, unit-proven); 2000-char message bound; socket emit skipped when
+  superadmin room empty. GET /api/admin/logs?mode=history paginated + level/search filters,
+  live path unchanged. Logs.vue Live/History toggle. Verified persisting in prod post-deploy.
 - [x] **(LEO-010) Admin audit log — model, write helper, viewer** — b7e31f0 (PR #8, 2026-08-12).
   Append-only AuditLog model (no update/delete route exists); recordAudit(req, action, fields)
   never throws/rejects, fired bare from entity delete, api-key create/revoke, snapshot restore,
