@@ -27,3 +27,4 @@
 {"event":"claim","runId":"2026-08-12T08:36:43.314Z","item":"LEO-013","nightId":"2026-08-11","model":"claude-fable-5","atUtc":"2026-08-12T08:41:46.695Z"}
 {"event":"complete","runId":"2026-08-12T08:36:43.314Z","item":"LEO-013","mergeSha":"2896c77968b3bad224de5db27f245ffe0745d5b0","nightId":"2026-08-11","durationMin":8,"atUtc":"2026-08-12T08:50:11.654Z"}
 {"event":"claim","runId":"2026-08-12T08:36:43.314Z","item":"LEO-014","nightId":"2026-08-11","model":"claude-fable-5","atUtc":"2026-08-12T08:51:16.874Z"}
+{"event":"complete","runId":"2026-08-12T08:36:43.314Z","item":"LEO-014","mergeSha":"b772b706c55bef60c9ed263cd32c07696fa3d1f4","nightId":"2026-08-11","durationMin":9,"atUtc":"2026-08-12T08:59:50.784Z"}

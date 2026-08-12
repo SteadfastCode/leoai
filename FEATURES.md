@@ -79,15 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-014) Permission-aware dashboard nav and route guards**
-  The RBAC backend is fully built and the frontend ignores it — every user sees all seven nav
-  items and any authenticated user can navigate to `/logs`, `/api-keys`, `/entities`. Have
-  `GET /auth/me` return `resolvedPermissions` plus `isSuperAdmin`. Add `lib/permissions.js`
-  exporting `can(domain, permission)`, filter nav through it, tag admin routes `meta.superadmin`,
-  add a `router.beforeEach` redirect.
-  *Verify:* vitest on `can()` for superadmin/owner/agent/readonly/no-membership, checked against
-  the exact arrays in `models/Permission.js`.
-
 - [ ] **(LEO-015) Conversations list — "Needs reply" filter and status badges**
   Accept `?filter=all|needs_reply|answered`, keeping pagination and totals consistent and the
   default response byte-identical. Chip-group filter synced to a router query param, amber
@@ -374,6 +365,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-014) Permission-aware dashboard nav and route guards** — b772b70 (PR #12, 2026-08-12).
+  /auth/me returns isSuperAdmin + per-domain resolvedPermissions (server-side ROLE_PRESETS
+  resolution; API-key principal guarded). lib/permissions.js pure userCan/isSuperAdminUser +
+  can(); entity nav filtered by permission tags; 10 admin routes meta.superadmin with
+  beforeEach redirect; refreshUser() on mount. 8 vitest specs against the real backend arrays.
 - [x] **(LEO-013) Change an existing team member's role** — 2896c77 (PR #11, 2026-08-12).
   PATCH /entities/:domain/team/:userId gated on USERS_MANAGE; rejects unknown roles,
   superadmin, any self role-change (superset of self-demotion), and demoting the last
