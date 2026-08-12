@@ -1,13 +1,11 @@
 {
-  "decision": "completed-items",
-  "atUtc": "2026-08-12T10:50:19.892Z",
-  "runId": "2026-08-12T10:36:33.530Z",
+  "decision": "cap-reached",
+  "atUtc": "2026-08-12T11:37:30Z",
+  "runId": "2026-08-12T11:36:41.135Z",
   "nightId": "2026-08-11",
-  "items": [
-    "LEO-017"
-  ],
   "claimsUsedTonight": 10,
+  "claimsCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | count lines matching \"event\":\"claim\" AND \"nightId\":\"2026-08-11\" = 10",
   "unreviewedCount": 9,
-  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter complete events whose mergeSha is not an ancestor of $(git ls-remote --tags origin refs/tags/leo-nightly-ack)^{commit} (cff41f6)",
-  "notes": "usage snaps unavailable both attempts - workstation locked (capture-usage.ps1 exit 1); no governor action possible without a snap"
+  "unreviewedCommand": "unchanged from previous run (no new completes this fire): complete events whose mergeSha is not an ancestor of leo-nightly-ack (cff41f6)",
+  "notes": "nightly backstop reached (10/10 claims for nightId 2026-08-11); no work attempted this fire"
 }
