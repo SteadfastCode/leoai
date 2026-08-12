@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-015) Conversations list — "Needs reply" filter and status badges**
+- [x] **(LEO-015) Conversations list — "Needs reply" filter and status badges**
   Accept `?filter=all|needs_reply|answered`, keeping pagination and totals consistent and the
   default response byte-identical. Chip-group filter synced to a router query param, amber
   "Needs reply" chip, first user message promoted to the row title. **Out of scope:** full-text
