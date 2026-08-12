@@ -77,7 +77,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [ ] **(LEO-009) Superadmin fleet overview page**
+- [x] **(LEO-009) Superadmin fleet overview page**
   `GET /api/admin/fleet` returning one row per entity from a single `Entity.find()` plus exactly
   two `$match`-scoped grouped aggregates. `Fleet.vue` as a sortable table with over-quota /
   near-quota / stale-crawl highlighting.
