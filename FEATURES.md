@@ -79,14 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-012) Include the pending question list in the first handoff alert**
-  `chat.js` passes `pendingQuestions` into `sendHandoffNotification`, which never destructures
-  it — the first alert shows one reason line while the 24h follow-up renders a proper list.
-  Extract `buildHandoffSms`/`buildHandoffEmail` as pure functions, render the same block in
-  both, cap the SMS at three questions plus `+N more` (Twilio segments at 160 chars).
-  *Verify:* `node --test` on the rendered strings for zero/one/many and both sides of the
-  truncation boundary. **Never attempt a real send.**
-
 - [ ] **(LEO-013) Change an existing team member's role**
   `PATCH /entities/:domain/team/:userId` gated on `USERS_MANAGE`. Reject roles outside
   `ROLE_PRESETS`, reject `superadmin`, reject self-demotion, reject removing the last owner.
@@ -389,6 +381,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-012) Pending question list in the first handoff alert** — 703c403 (PR #10, 2026-08-12).
+  chat.js already passed pendingQuestions; sendHandoffNotification now consumes it. Pure
+  builders buildQuestionBlock/buildHandoffSms/buildHandoffEmail; SMS capped at 3 questions
+  plus a +N-more tail (follow-up SMS gains the same cap); email never truncated; dead
+  sendEmail helper removed. 6 pure rendering tests, no send path invoked. No chat.js change.
 - [x] **(LEO-011) Persist backend logs to MongoDB + searchable history** — 9037470 (PR #9, 2026-08-12).
   consoleBuf batches to Log.insertMany at 50 entries/5s; LOG_PERSIST_LEVEL off|warn|all
   (default warn), http lines map to info/source:http; flush never throws and never calls
