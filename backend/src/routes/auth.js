@@ -13,7 +13,8 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Code = require('../models/Code');
 const Invite = require('../models/Invite');
-const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET } = require('../middleware/auth');
+const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin } = require('../middleware/auth');
+const { ROLE_PRESETS } = require('../models/Permission');
 const { sendEmailRaw } = require('../services/notifications');
 
 const RP_NAME = 'LeoAI Dashboard';
@@ -165,7 +166,20 @@ router.post('/logout', requireAuth(), async (req, res) => {
 
 // GET /auth/me
 router.get('/me', requireAuth(), (req, res) => {
-  res.json(safeUser(req.user));
+  const out = safeUser(req.user);
+  out.isSuperAdmin = isSuperAdmin(req.user);
+  // Per-domain resolved permission arrays so the dashboard never re-implements
+  // role→permission mapping. Guarded: an X-API-Key principal is a plain object,
+  // not a User doc, and has no resolvePermissions method.
+  out.resolvedPermissions = {};
+  if (typeof req.user.resolvePermissions === 'function') {
+    for (const m of req.user.memberships || []) {
+      out.resolvedPermissions[m.entityDomain] = [
+        ...req.user.resolvePermissions(m.entityDomain, ROLE_PRESETS),
+      ];
+    }
+  }
+  res.json(out);
 });
 
 // ---------------------------------------------------------------------------
