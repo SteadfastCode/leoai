@@ -1,8 +1,8 @@
 {
-  "atUtc": "2026-08-12T02:37:30Z",
-  "runId": "2026-08-12T02:36:19Z-run",
-  "decision": "debounce",
-  "detail": "last ledger claim (LEO-008) at 2026-08-12T01:42:53Z is ~54 min old, under the 55-min debounce; window ok (22:36 local); exited before backpressure/queue checks",
-  "unreviewedCount": null,
-  "unreviewedCommand": "not computed - run exited at debounce gate before backpressure evaluation"
+  "atUtc": "2026-08-12T03:39:30Z",
+  "runId": "2026-08-12T03:36:25.510Z",
+  "decision": "deferred-activity",
+  "detail": "AFK guard: non-scheduled session 'LeoAI status check' (local_275db384) is running in C:\repos\LeoAI with activity seconds before this check (03:37:34Z, actively calling tools). Real interactive session always counts as activity - no claim made. All prior gates passed: window ok (23:36 local), debounce ok (~114 min since last claim), queue has eligible work (LEO-009 lowest order), backpressure clear.",
+  "unreviewedCount": 0,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (fe45a9a -> commit cff41f6 == origin/main tip); ledger complete events checked with git merge-base --is-ancestor <mergeSha> cff41f6 - all ancestors"
 }
