@@ -15,6 +15,7 @@ const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
 const { PERMISSIONS, ROLE_PRESETS } = require('../models/Permission');
 const { isLastOwner } = require('../services/team');
+const { conversationFilterQuery } = require('../services/conversations');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { recordAudit } = require('../services/audit');
@@ -98,13 +99,16 @@ router.get('/entities/:domain/conversations', async (req, res) => {
     const limit = 20;
     const skip = (page - 1) * limit;
 
+    // Same query for find and count so totals/pages stay consistent with the
+    // filtered rows. No filter param (or an unknown value) is unfiltered.
+    const query = conversationFilterQuery(domain, req.query.filter);
     const [conversations, total] = await Promise.all([
-      Conversation.find({ domain })
+      Conversation.find(query)
         .sort({ lastActiveAt: -1 })
         .skip(skip)
         .limit(limit)
         .select('-messages.embedding'),
-      Conversation.countDocuments({ domain }),
+      Conversation.countDocuments(query),
     ]);
 
     res.json({ conversations, total, page, pages: Math.ceil(total / limit) });

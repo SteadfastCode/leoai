@@ -1,22 +1,30 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getConversations } from '../lib/api'
 import { newMessageTick } from '../lib/socket'
 
 const props = defineProps(['domain'])
 const router = useRouter()
+const route = useRoute()
 const conversations = ref([])
 const total = ref(0)
 const page = ref(1)
 const pages = ref(1)
 const loading = ref(false)
 
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'needs_reply', label: 'Needs reply' },
+  { value: 'answered', label: 'Answered' },
+]
+const filter = ref(FILTERS.some((f) => f.value === route.query.filter) ? route.query.filter : 'all')
+
 async function load() {
   if (!props.domain) return
   loading.value = true
   try {
-    const { data } = await getConversations(props.domain, page.value)
+    const { data } = await getConversations(props.domain, page.value, filter.value)
     conversations.value = data.conversations
     total.value = data.total
     pages.value = data.pages
@@ -28,11 +36,29 @@ async function load() {
 watch(() => props.domain, () => { page.value = 1; load() }, { immediate: true })
 watch(page, load)
 
+watch(filter, (val) => {
+  router.replace({ query: { ...route.query, filter: val === 'all' ? undefined : val } })
+  if (page.value !== 1) {
+    page.value = 1 // its watcher reloads
+  } else {
+    load()
+  }
+})
+
 // Refresh the list silently when a new message arrives for this domain
 watch(newMessageTick, load)
 
 function formatDate(d) {
   return new Date(d).toLocaleString()
+}
+
+function needsReply(conv) {
+  return conv.handoffPending || (conv.pendingQuestions?.length ?? 0) > 0
+}
+
+function title(conv) {
+  const firstUser = conv.messages.find((m) => m.role === 'user')
+  return firstUser ? firstUser.content.slice(0, 60) + (firstUser.content.length > 60 ? '…' : '') : conv.sessionToken
 }
 
 function preview(conv) {
@@ -44,7 +70,25 @@ function preview(conv) {
 <template>
   <div class="pa-6">
     <div class="text-h5 font-weight-bold mb-1">Conversations</div>
-    <div class="text-body-2 text-secondary mb-6">{{ total }} total</div>
+    <div class="text-body-2 text-secondary mb-4">{{ total }} total</div>
+
+    <v-chip-group
+      v-model="filter"
+      mandatory
+      selected-class="text-primary"
+      class="mb-4"
+    >
+      <v-chip
+        v-for="f in FILTERS"
+        :key="f.value"
+        :value="f.value"
+        size="small"
+        variant="outlined"
+        filter
+      >
+        {{ f.label }}
+      </v-chip>
+    </v-chip-group>
 
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
 
@@ -58,9 +102,18 @@ function preview(conv) {
             rounded="0"
           >
             <template #title>
-              <span class="text-body-2 font-weight-medium">{{ conv.sessionToken }}</span>
+              <span class="text-body-2 font-weight-medium">{{ title(conv) }}</span>
               <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">
                 {{ conv.messages.length }} msgs
+              </v-chip>
+              <v-chip
+                v-if="needsReply(conv)"
+                size="x-small"
+                class="ml-2"
+                color="amber-darken-2"
+                variant="tonal"
+              >
+                Needs reply
               </v-chip>
             </template>
             <template #append>
