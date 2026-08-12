@@ -79,16 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-017) Close the learning loop on owner replies**
-  The reply handler clears `pendingQuestions` but never touches `UnansweredQuestion`, so an
-  answered question stays on the Unanswered page and its "Add to KB" button embeds a redundant
-  chunk. Match by the existing Jaccard similarity (≥0.6). Extract `questionSimilarity` —
-  duplicated verbatim in `chat.js` and `dashboard.js` — into `services/questions.js`. Give
-  owner-reply chunks a unique URL (`owner-reply://<domain>/<conversationId>/<n>`) so repeat
-  answers stop accumulating as contradictory duplicates under one shared URL.
-  *Verify:* `node --test` on the extracted similarity function. The DB mutation cannot be
-  exercised offline, so keep it strictly additive — **never delete a doc that was not matched**.
-
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
 - [ ] **(LEO-018) Investigate and fix the "what are your hours?" retrieval miss**
@@ -349,6 +339,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-017) Close the learning loop on owner replies** — d00b489 (PR #15, 2026-08-12).
+  questionSimilarity extracted to services/questions.js (shared 0.6 threshold, both routes
+  import it); owner replies mark matching UnansweredQuestion docs resolvedByReply/resolvedAt
+  (additive updateMany on matched ids only); Unanswered page queries exclude resolved entries;
+  owner-reply chunks get unique owner-reply://<domain>/<conversationId>/<n> URLs with
+  similarity-matched replacement of stale answers. 11 node --test specs incl. drift guard.
 - [x] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap** — 82cce19 (PR #14, 2026-08-12).
   resolve-handoff endpoint (CONVERSATIONS_REPLY, domain-scoped, audited); pure reminderDue in
   services/handoff.js drives the follow-up tick; handoffReminderCount $inc inside the existing
