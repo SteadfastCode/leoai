@@ -79,14 +79,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [x] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap**
-  `handoffPending` can only be cleared by a visitor cancel or a reply answering every pending
-  question. Handled by phone, `runHandoffFollowUpTick` re-sends forever. Add
-  `POST /conversations/:id/resolve-handoff`, `handoffFollowUp.maxReminders` (default 3), and
-  `handoffReminderCount` incremented inside the existing atomic `findOneAndUpdate`.
-  *Verify:* extract the "due for a reminder" decision as a pure function and cover
-  under-interval, over-interval, at cap, over cap, disabled, no owner contact.
-
 - [ ] **(LEO-017) Close the learning loop on owner replies**
   The reply handler clears `pendingQuestions` but never touches `UnansweredQuestion`, so an
   answered question stays on the Unanswered page and its "Add to KB" button embeds a redundant
@@ -357,6 +349,11 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-016) Handoff resolution — mark resolved, plus a reminder cap** — 82cce19 (PR #14, 2026-08-12).
+  resolve-handoff endpoint (CONVERSATIONS_REPLY, domain-scoped, audited); pure reminderDue in
+  services/handoff.js drives the follow-up tick; handoffReminderCount $inc inside the existing
+  atomic findOneAndUpdate; Entity.handoffFollowUp.maxReminders default 3 (optional fields only).
+  Mark-resolved button in ConversationDetail. 12 node --test specs.
 - [x] **(LEO-015) Conversations list — "Needs reply" filter and status badges** — d8a6d54 (PR #13, 2026-08-12).
   ?filter=all|needs_reply|answered via pure conversationFilterQuery (same query for find and
   count, so totals stay consistent); absent/unknown unfiltered — default response byte-identical.
