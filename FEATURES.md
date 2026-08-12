@@ -77,15 +77,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-010) Admin audit log — model, write helper, viewer**
-  `AuditLog` model (append-only, no update/delete route) and `services/audit.js` exporting
-  `recordAudit(req, action, fields)` that can never throw. Fire-and-forget from entity
-  hard-delete, API-key create/revoke, snapshot restore, force rescrape, superadmin PATCH fields.
-  Add `GET /api/admin/audit-log` and `AuditLog.vue`. Record `req.apiKey.label` when the actor is
-  a key rather than a person.
-  *Verify:* unit-test `recordAudit` with a stubbed model whose `create` rejects; assert the
-  returned promise **resolves**. Grep-assert no route's success path reads its return value.
-
 - [ ] **(LEO-011) Persist backend logs to MongoDB + searchable history**
   `models/Log.js` exists with a 30-day TTL and nothing writes to it. In `consoleBuf.js`, batch to
   `Log.insertMany` on a 5s timer or 50 entries, persisting **warn and error only** by default via
@@ -409,6 +400,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Completed Items
 
+- [x] **(LEO-010) Admin audit log — model, write helper, viewer** — b7e31f0 (PR #8, 2026-08-12).
+  Append-only AuditLog model (no update/delete route exists); recordAudit(req, action, fields)
+  never throws/rejects, fired bare from entity delete, api-key create/revoke, snapshot restore,
+  force rescrape, superadmin PATCH (only when SA fields applied). API-key actors recorded by
+  label. GET /api/admin/audit-log paginated/filterable; AuditLog.vue viewer. scrape.js touched
+  +7 lines (restricted-file cap 30).
 - [x] **(LEO-009) Superadmin fleet overview page** — e7281d7 (PR #7, 2026-08-12).
   GET /api/admin/fleet: one Entity.find() + exactly two -scoped grouped aggregates
   (chunks; conversations with -summed messages), pure synchronous buildFleetRows() in
