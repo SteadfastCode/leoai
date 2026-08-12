@@ -8,6 +8,7 @@ const Conversation = require('../models/Conversation');
 const { buildFleetRows } = require('../services/fleet');
 const { recordAudit } = require('../services/audit');
 const AuditLog = require('../models/AuditLog');
+const Log = require('../models/Log');
 const { embedQuery } = require('../services/embeddings');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const ApiKey = require('../models/ApiKey');
@@ -32,7 +33,29 @@ router.use(requireAdminAuth);
 // GET /api/admin/logs
 // ---------------------------------------------------------------------------
 
-router.get('/logs', (req, res) => {
+router.get('/logs', async (req, res) => {
+  // mode=history reads the persisted Log collection (30-day TTL); everything
+  // else falls through to the original in-memory live-buffer path, unchanged.
+  if (req.query.mode === 'history') {
+    try {
+      const page = Math.max(Number(req.query.page) || 1, 1);
+      const limit = Math.min(Number(req.query.limit) || 100, 500);
+      const filter = {};
+      if (req.query.level === 'error') filter.level = 'error';
+      else if (req.query.level === 'warn') filter.level = { $in: ['warn', 'error'] };
+      if (req.query.search) {
+        const escaped = String(req.query.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.message = { $regex: escaped, $options: 'i' };
+      }
+      const [logs, total] = await Promise.all([
+        Log.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        Log.countDocuments(filter),
+      ]);
+      return res.json({ logs, total, page, limit });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
   const { level } = req.query;
   let logs = getRecentLogs().reverse();
   if (level === 'error') logs = logs.filter(e => e.level === 'error');

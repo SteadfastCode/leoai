@@ -4,29 +4,44 @@
     <div class="d-flex align-center justify-space-between mb-4">
       <div class="d-flex align-center gap-3">
         <h2 class="text-h6 font-weight-bold">System Logs</h2>
+        <v-btn-toggle
+          v-model="mode"
+          mandatory
+          density="compact"
+          variant="outlined"
+          divided
+        >
+          <v-btn value="live" size="small">Live</v-btn>
+          <v-btn value="history" size="small">History</v-btn>
+        </v-btn-toggle>
         <v-chip
+          v-if="mode === 'live'"
           :color="socketConnected ? 'success' : 'error'"
           size="x-small"
           variant="tonal"
         >{{ socketConnected ? 'live' : 'disconnected' }}</v-chip>
       </div>
       <div class="d-flex align-center gap-2">
-        <span class="text-caption text-medium-emphasis">{{ allLogs.length }} entries</span>
-        <v-btn
-          :color="autoScroll ? undefined : 'warning'"
-          :prepend-icon="autoScroll ? 'mdi-pause' : 'mdi-play'"
-          variant="text"
-          density="compact"
-          size="small"
-          @click="togglePause"
-        >{{ autoScroll ? 'Pause' : 'Resume' }}</v-btn>
-        <v-btn
-          prepend-icon="mdi-delete-outline"
-          variant="text"
-          density="compact"
-          size="small"
-          @click="clearLogs"
-        >Clear</v-btn>
+        <span class="text-caption text-medium-emphasis">
+          {{ mode === 'history' ? `${historyTotal} persisted` : `${allLogs.length} entries` }}
+        </span>
+        <template v-if="mode === 'live'">
+          <v-btn
+            :color="autoScroll ? undefined : 'warning'"
+            :prepend-icon="autoScroll ? 'mdi-pause' : 'mdi-play'"
+            variant="text"
+            density="compact"
+            size="small"
+            @click="togglePause"
+          >{{ autoScroll ? 'Pause' : 'Resume' }}</v-btn>
+          <v-btn
+            prepend-icon="mdi-delete-outline"
+            variant="text"
+            density="compact"
+            size="small"
+            @click="clearLogs"
+          >Clear</v-btn>
+        </template>
       </div>
     </div>
 
@@ -44,11 +59,25 @@
         <v-btn value="error" size="small" color="error">Errors ({{ errorCount }})</v-btn>
       </v-btn-toggle>
       <v-checkbox
+        v-if="mode === 'live'"
         v-model="hideHttp"
         label="Hide HTTP"
         density="compact"
         hide-details
         class="flex-grow-0"
+      />
+      <v-text-field
+        v-if="mode === 'history'"
+        v-model="historySearch"
+        variant="outlined"
+        density="compact"
+        hide-details
+        clearable
+        prepend-inner-icon="mdi-magnify"
+        placeholder="Search messages — Enter to run"
+        style="max-width: 320px; min-width: 220px"
+        @keyup.enter="historyPage = 1; loadHistory()"
+        @click:clear="historySearch = ''; historyPage = 1; loadHistory()"
       />
     </div>
 
@@ -58,7 +87,7 @@
         Loading…
       </div>
       <div v-else-if="!loading && visibleLogs.length === 0" class="pa-8 text-center text-medium-emphasis text-body-2">
-        No log entries yet.
+        {{ mode === 'history' ? 'No persisted log entries match.' : 'No log entries yet.' }}
       </div>
       <div ref="logEl" class="log-stream" @scroll.passive="onScroll">
         <div
@@ -78,6 +107,10 @@
         </div>
       </div>
     </v-card>
+
+    <div v-if="mode === 'history' && historyPageCount > 1" class="d-flex justify-center mt-3">
+      <v-pagination v-model="historyPage" :length="historyPageCount" :total-visible="7" density="comfortable" />
+    </div>
   </v-container>
 </template>
 
@@ -94,7 +127,18 @@ const hideHttp    = ref(false)
 const logEl       = ref(null)
 const seenIds     = new Set()
 
+// Live = in-memory ring buffer + socket stream. History = persisted Log
+// collection (30-day TTL), server-side filtered and paginated.
+const mode          = ref('live')
+const historyLogs   = ref([])
+const historySearch = ref('')
+const historyPage   = ref(1)
+const historyTotal  = ref(0)
+const HISTORY_LIMIT = 100
+const historyPageCount = computed(() => Math.max(1, Math.ceil(historyTotal.value / HISTORY_LIMIT)))
+
 const visibleLogs = computed(() => {
+  if (mode.value === 'history') return historyLogs.value
   let logs = allLogs.value
   if (levelFilter.value === 'error') logs = logs.filter(e => e.level === 'error')
   else if (levelFilter.value === 'warn') logs = logs.filter(e => e.level !== 'info' && e.level !== 'http')
@@ -130,8 +174,32 @@ function togglePause() {
 
 function onLogEntry(entry) {
   addEntry(entry)
-  if (autoScroll.value) scrollToBottom()
+  if (mode.value === 'live' && autoScroll.value) scrollToBottom()
 }
+
+async function loadHistory() {
+  loading.value = true
+  try {
+    const params = { mode: 'history', page: historyPage.value, limit: HISTORY_LIMIT }
+    if (levelFilter.value !== 'all') params.level = levelFilter.value
+    if (historySearch.value) params.search = historySearch.value
+    const { data } = await getLogs(params)
+    historyTotal.value = data.total
+    // Server returns newest-first; reverse for terminal order (oldest at top).
+    historyLogs.value = [...data.logs].reverse().map(d => ({
+      id: d._id, ts: d.createdAt, level: d.level, message: d.message,
+    }))
+    scrollToBottom()
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(mode, (m) => {
+  if (m === 'history') { historyPage.value = 1; loadHistory() }
+  else if (autoScroll.value) scrollToBottom()
+})
+watch(historyPage, () => { if (mode.value === 'history') loadHistory() })
 
 async function load() {
   loading.value = true
@@ -151,8 +219,9 @@ function clearLogs() {
   seenIds.clear()
 }
 
-// Scroll to bottom when filters change (if auto-scroll is on)
+// Filters: in history mode they re-query the server; live just re-scrolls.
 watch([levelFilter, hideHttp], () => {
+  if (mode.value === 'history') { historyPage.value = 1; loadHistory(); return }
   if (autoScroll.value) scrollToBottom()
 })
 
