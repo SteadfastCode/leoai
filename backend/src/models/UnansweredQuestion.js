@@ -9,6 +9,10 @@ const unansweredQuestionSchema = new mongoose.Schema(
     handoffOffered: { type: Boolean, default: false },
     addedToKb:      { type: Boolean, default: false },
     addedAt:        { type: Date },
+    // Set when an owner reply answered a matching question (LEO-017) —
+    // resolved entries leave the Unanswered page without being deleted.
+    resolvedByReply: { type: Boolean, default: false },
+    resolvedAt:      { type: Date },
   },
   { timestamps: true }
 );
