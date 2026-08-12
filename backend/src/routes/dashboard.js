@@ -16,6 +16,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { PERMISSIONS } = require('../models/Permission');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
+const { recordAudit } = require('../services/audit');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -229,11 +230,16 @@ router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async 
     const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp'];
     const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
+    let appliedSuperadminFields = [];
     if (isSuperAdmin(req.user)) {
+      appliedSuperadminFields = Object.keys(req.body).filter((k) => superadminOnly.includes(k));
       Object.assign(updates, Object.fromEntries(Object.entries(req.body).filter(([k]) => superadminOnly.includes(k))));
     }
     const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
+    if (appliedSuperadminFields.length) {
+      recordAudit(req, 'entity.superadmin_patch', { domain: req.params.domain, details: { fields: appliedSuperadminFields } });
+    }
     res.json(entity);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -494,6 +500,17 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
     ]);
 
     await Entity.deleteOne({ domain });
+
+    recordAudit(req, 'entity.delete', {
+      domain,
+      details: {
+        name: entity.name,
+        chunks: chunks.deletedCount,
+        pages: pages.deletedCount,
+        conversations: conversations.deletedCount,
+        snapshots: snapshots.deletedCount,
+      },
+    });
 
     res.json({
       ok: true,

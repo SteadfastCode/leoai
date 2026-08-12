@@ -98,6 +98,7 @@ export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/
 
 export const getLogs = (params) => api.get('/api/admin/logs', { params })
 export const getFleet = () => api.get('/api/admin/fleet')
+export const getAuditLog = (params) => api.get('/api/admin/audit-log', { params })
 
 export const getUnanswered     = (domain)     => api.get(`/api/dashboard/entities/${domain}/unanswered`)
 export const addUnansweredToKb = (domain, id) => api.post(`/api/dashboard/entities/${domain}/unanswered/${id}/add-to-kb`)
