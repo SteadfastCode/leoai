@@ -3,6 +3,9 @@ const router = express.Router();
 const crypto = require('crypto');
 const { getRecentLogs } = require('../services/consoleBuf');
 const Chunk = require('../models/Chunk');
+const Entity = require('../models/Entity');
+const Conversation = require('../models/Conversation');
+const { buildFleetRows } = require('../services/fleet');
 const { embedQuery } = require('../services/embeddings');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const ApiKey = require('../models/ApiKey');
@@ -33,6 +36,42 @@ router.get('/logs', (req, res) => {
   if (level === 'error') logs = logs.filter(e => e.level === 'error');
   else if (level === 'warn') logs = logs.filter(e => e.level !== 'info');
   res.json({ logs });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/fleet
+// One row per entity: plan/quota, crawl freshness, KB and conversation volume.
+// A single Entity.find() plus exactly two $match-scoped grouped aggregates —
+// never a per-entity query. Row shaping lives in services/fleet.js.
+// ---------------------------------------------------------------------------
+
+router.get('/fleet', async (req, res) => {
+  try {
+    const entities = await Entity.find().lean();
+    const domains = entities.map((e) => e.domain);
+
+    const [chunkGroups, conversationGroups] = await Promise.all([
+      Chunk.aggregate([
+        { $match: { domain: { $in: domains } } },
+        { $group: { _id: '$domain', chunkCount: { $sum: 1 } } },
+      ]),
+      Conversation.aggregate([
+        { $match: { domain: { $in: domains } } },
+        {
+          $group: {
+            _id: '$domain',
+            conversationCount: { $sum: 1 },
+            totalMessages: { $sum: { $size: { $ifNull: ['$messages', []] } } },
+            lastActiveAt: { $max: '$lastActiveAt' },
+          },
+        },
+      ]),
+    ]);
+
+    res.json({ rows: buildFleetRows(entities, chunkGroups, conversationGroups) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------------------------------------------------------------------------
