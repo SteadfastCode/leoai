@@ -212,6 +212,25 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
   *Verify:* vitest — mount with a seeded marker and stubbed socket; assert step 3 and the
   `join_domain` emit; assert it does **not** restore when stale or unauthenticated.
 
+- [ ] **(LEO-033) Owner-facing KB search — "is this actually in Leo's knowledge base?"**
+  Daniel's ask (2026-08-11): explicitly search the KB to see whether specific data was actually
+  scraped. The superadmin version exists (`GET /api/admin/search`, MCP `search_chunks`) — this is
+  the owner-facing surface. Add `GET /api/dashboard/entities/:domain/kb/search` in `knowledge.js`
+  (entity-scoped by the existing `router.param` guard) with `q` and `mode=semantic|text`.
+  Semantic: embed via the existing Voyage path, same `$vectorSearch` shape as `admin.js`'s search,
+  scoped to the domain, return top 20 with scores. Text: escaped-literal case-insensitive match
+  over `content` (this answers "is the string '9am' anywhere in my KB" exactly — semantic scores
+  can't), limit 50, always domain-scoped. Both return `url`, `label`, `pageH1`, `source`, a
+  content snippet with the match highlighted, and `score` (semantic only). Dashboard: search bar
+  at the top of KnowledgeBase.vue with a semantic/text toggle; results open the existing chunk
+  viewer. Show each result's score so owners start building intuition for why Leo does or
+  doesn't retrieve something.
+  *Verify:* backend `node --test` for text mode against `mongodb-memory-server` (seed chunks,
+  assert scoping — a hit on domain A must never surface for domain B, and regex metacharacters in
+  `q` must be treated as literals). Semantic mode is NOT testable offline ($vectorSearch needs
+  real Atlas) — say so in the PR body; post-deploy, compare one query's results against MCP
+  `search_chunks` for the smoke entity and assert same top hit.
+
 ## Block E — Chat path (gated on LEO-001)
 
 Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs must be ≤30

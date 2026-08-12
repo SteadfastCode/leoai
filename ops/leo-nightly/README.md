@@ -16,8 +16,11 @@ The run lock lives **outside** the repo, at `C:\Users\danie\.claude\leo-nightly\
 
 ## Backpressure
 
-The routine halts after **14 completed-but-unacknowledged items** and notifies once. The anchor
-is the `leo-nightly-ack` tag on `origin/main`. Only Daniel moves it:
+The routine halts when the **oldest unacknowledged item is more than 7 days old**, or at **40
+unacknowledged items** (runaway backstop), and notifies once. The age rule replaced a flat
+14-item ceiling on 2026-08-11 when the nightly cap became time-budgeted — a count sized for
+2 items/night would have halted the first budgeted night. The anchor is the `leo-nightly-ack`
+tag on `origin/main`. Only Daniel moves it:
 
 ```bash
 git tag -f -a leo-nightly-ack -m ack origin/main && git push -f origin leo-nightly-ack

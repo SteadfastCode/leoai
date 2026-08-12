@@ -212,10 +212,15 @@ See [`docs/wishlist.md`](docs/wishlist.md) for post-MVP ideas (tiered model rout
 ## leo-nightly — unattended feature routine
 
 Scheduled task `leo-nightly` fires hourly at :35 within its 20:00–09:00 local work window (the
-cron schedule itself is window-restricted — no daytime no-op fires), caps at 2 items/night,
-and implements the next item from root [`FEATURES.md`](FEATURES.md) in its own git worktree at
-`.claude/worktrees/leo-nightly`. It verifies, merges to `main`, lets Railway/Netlify deploy,
-smoke-tests production, and auto-reverts if the smoke fails.
+cron schedule itself is window-restricted — no daytime no-op fires) and implements items from
+root [`FEATURES.md`](FEATURES.md) in its own git worktree at `.claude/worktrees/leo-nightly`.
+It verifies, merges to `main`, lets Railway/Netlify deploy, smoke-tests production, and
+auto-reverts if the smoke fails.
+
+**Throughput is time-budgeted, not item-capped** (since 2026-08-11): a run keeps claiming items
+back-to-back — up to 4 per run, 10 claims/night, last claim 07:45 local — so a night of 7-minute
+items ships several and a night of 40-minute items ships fewer. Every ledger `complete` carries
+`durationMin`; `run-end` events summarise each run's active minutes.
 
 - **Queue:** `FEATURES.md` (human-readable) + `ops/leo-nightly/state.json` (machine state).
   Regenerate state with `node ops/leo-nightly/build-state.js` after editing the queue.
