@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-014) Permission-aware dashboard nav and route guards**
+- [x] **(LEO-014) Permission-aware dashboard nav and route guards**
   The RBAC backend is fully built and the frontend ignores it — every user sees all seven nav
   items and any authenticated user can navigate to `/logs`, `/api-keys`, `/entities`. Have
   `GET /auth/me` return `resolvedPermissions` plus `isSuperAdmin`. Add `lib/permissions.js`
