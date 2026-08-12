@@ -47,13 +47,13 @@
     },
     "LEO-013": {
       "order": 5,
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "leo-nightly/item/LEO-013",
       "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-08-12T08:41:46.695Z",
+      "runId": "2026-08-12T08:36:43.314Z",
       "lastFail": null
     },
     "LEO-014": {

@@ -79,7 +79,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
-- [ ] **(LEO-013) Change an existing team member's role**
+- [x] **(LEO-013) Change an existing team member's role**
   `PATCH /entities/:domain/team/:userId` gated on `USERS_MANAGE`. Reject roles outside
   `ROLE_PRESETS`, reject `superadmin`, reject self-demotion, reject removing the last owner.
   Replace the display-only role chip in `Team.vue` with a select.
