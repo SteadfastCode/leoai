@@ -6,6 +6,7 @@ const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { retrieveContext } = require('../services/rag');
 const { chat, classifyQuery, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
+const { questionSimilarity, SIMILARITY_THRESHOLD: DUPLICATE_THRESHOLD } = require('../services/questions');
 const logger = require('../services/logger');
 
 // Phrases Leo uses when it can't find an answer in the KB
@@ -34,18 +35,6 @@ function isUnanswered(replyText, hadContext) {
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
 const HANDOFF_CANCEL_RE = /\[HANDOFF_CANCEL:\s*([^\]]+)\]\s*$/;
 const OPTIONS_RE        = /\[OPTIONS:\s*([^\]]+)\]\s*$/;
-
-// Returns Jaccard similarity (0–1) between two strings based on word sets.
-// Used to suppress near-duplicate handoff questions Leo rephrases across turns.
-function questionSimilarity(a, b) {
-  const words = (s) => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean));
-  const wa = words(a);
-  const wb = words(b);
-  const intersection = [...wa].filter((w) => wb.has(w)).length;
-  const union = new Set([...wa, ...wb]).size;
-  return union === 0 ? 1 : intersection / union;
-}
-const DUPLICATE_THRESHOLD = 0.6;
 
 const PAGE_SIZE = 20;
 

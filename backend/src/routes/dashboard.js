@@ -18,6 +18,7 @@ const { isLastOwner } = require('../services/team');
 const { conversationFilterQuery } = require('../services/conversations');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
+const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD } = require('../services/questions');
 const { recordAudit } = require('../services/audit');
 
 // All dashboard routes require auth
@@ -217,15 +218,61 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 
     await conversation.save();
 
+    // Close the learning loop: an owner-answered question no longer belongs on
+    // the Unanswered page. Mark matching log entries resolved — strictly
+    // additive, only docs matched by similarity are ever touched.
+    if (answeredQuestions?.length) {
+      try {
+        const openQuestions = await UnansweredQuestion.find({
+          entityDomain: req.params.domain,
+          addedToKb: false,
+          resolvedByReply: { $ne: true },
+        }).select('question').lean();
+        const resolvedIds = openQuestions
+          .filter((uq) => answeredQuestions.some(
+            (aq) => questionSimilarity(aq, uq.question) >= UNANSWERED_SIMILARITY_THRESHOLD
+          ))
+          .map((uq) => uq._id);
+        if (resolvedIds.length) {
+          await UnansweredQuestion.updateMany(
+            { _id: { $in: resolvedIds } },
+            { resolvedByReply: true, resolvedAt: new Date() }
+          );
+        }
+      } catch (err) {
+        console.error('Unanswered-question resolution error:', err.message);
+      }
+    }
+
     // Optionally embed answered Q&A pairs into the knowledge base
     const shouldAddToKb = addToKb ?? entity.autoAddRepliesToKb;
     if (shouldAddToKb && answeredQuestions?.length) {
+      // A repeat answer to the same question replaces the old chunk instead of
+      // accumulating a contradictory duplicate — match prior replies by label.
+      const priorReplies = await Chunk.find({ domain: req.params.domain, source: 'owner_reply' })
+        .select('label').lean();
+      const staleIds = priorReplies
+        .filter((c) => c.label && answeredQuestions.some(
+          (q) => questionSimilarity(q, c.label) >= UNANSWERED_SIMILARITY_THRESHOLD
+        ))
+        .map((c) => c._id);
+      if (staleIds.length) await Chunk.deleteMany({ _id: { $in: staleIds } });
+
+      // Unique per-pair URLs (owner-reply://<domain>/<conversationId>/<n>) so
+      // pairs no longer pile up under one shared URL.
+      const urlBase = `owner-reply://${req.params.domain}/${conversation._id}`;
+      const escaped = (urlBase + '/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingCount = await Chunk.countDocuments({
+        domain: req.params.domain,
+        url: { $regex: `^${escaped}` },
+      });
+
       const pairs = answeredQuestions.map((q) => `Q: ${q}\nA: ${replyText.trim()}`);
       const embeddings = await embedTexts(pairs);
       await Promise.all(pairs.map((content, i) =>
         Chunk.create({
           domain: req.params.domain,
-          url: `owner-reply://${req.params.domain}`,
+          url: `${urlBase}/${existingCount + i}`,
           label: answeredQuestions[i].slice(0, 120),
           content,
           embedding: embeddings[i],
@@ -596,23 +643,12 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
 // Unanswered Questions
 // ---------------------------------------------------------------------------
 
-// Jaccard similarity — same logic as chat.js
-function questionSimilarity(a, b) {
-  const words = (s) => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean));
-  const wa = words(a);
-  const wb = words(b);
-  const intersection = [...wa].filter((w) => wb.has(w)).length;
-  const union = new Set([...wa, ...wb]).size;
-  return union === 0 ? 1 : intersection / union;
-}
-const UNANSWERED_SIMILARITY_THRESHOLD = 0.6;
-
 // GET /api/dashboard/entities/:domain/unanswered
 // Returns questions grouped by similarity, sorted by frequency desc.
 router.get('/entities/:domain/unanswered', async (req, res) => {
   try {
     const { domain } = req.params;
-    const questions = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false })
+    const questions = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false, resolvedByReply: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -657,7 +693,7 @@ router.post('/entities/:domain/unanswered/:id/add-to-kb', async (req, res) => {
     if (!doc) return res.status(404).json({ error: 'Not found' });
 
     // Find all similar questions and mark the whole group as added
-    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false }).lean();
+    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false, resolvedByReply: { $ne: true } }).lean();
     const similarIds = all
       .filter((q) => questionSimilarity(q.question, doc.question) >= UNANSWERED_SIMILARITY_THRESHOLD)
       .map((q) => q._id);
@@ -690,7 +726,7 @@ router.delete('/entities/:domain/unanswered/:id', async (req, res) => {
     const doc = await UnansweredQuestion.findOne({ _id: id, entityDomain: domain });
     if (!doc) return res.status(404).json({ error: 'Not found' });
 
-    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false }).lean();
+    const all = await UnansweredQuestion.find({ entityDomain: domain, addedToKb: false, resolvedByReply: { $ne: true } }).lean();
     const similarIds = all
       .filter((q) => questionSimilarity(q.question, doc.question) >= UNANSWERED_SIMILARITY_THRESHOLD)
       .map((q) => q._id);
