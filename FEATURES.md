@@ -81,16 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only**
-  `services/leoscan.js` exporting `scanText(text)`. Ship exactly: labelled password, common API
-  key prefixes, JWT, PEM BEGIN blocks, SSN, Luhn-valid 13–16 digit runs. **Deliberately exclude
-  bank routing numbers** (they collide with product SKUs). Wire into `ingestText` only — abort
-  with 422 and a `flags` array. **Explicitly NOT the scraper path and not a Haiku tier:** a false
-  positive there silently drops legitimate chunks from a KB during an unattended LeoRefresh.
-  *Verify:* a positive fixture per rule, and — the check that actually decides safety — a
-  **negative corpus** of 20–30 real chunks pulled via MCP `search_chunks` (menu text, prices,
-  phone numbers, addresses, SKUs). `scanText` must return `[]` for every one. Commit the corpus.
-
 - [ ] **(LEO-022) Create the Entity at signup with owner contact and alert channels**
   `POST /auth/onboard` creates the User and membership but never touches Entity — the Entity is
   only upserted after a scrape *succeeds*. So every signup today has an Entity with empty
@@ -289,6 +279,14 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only** — e9d064b (PR #20, 2026-08-13).
+  services/leoscan.js scanText(): labelled password, API key prefixes, JWT, PEM BEGIN, dashed
+  SSN, Luhn-valid 13–16 digit runs; routing numbers deliberately excluded. Wired into
+  knowledge.js ingestText only (scan before deleteMany — rejected re-upload keeps existing
+  chunks); 422 + redacted flags. 14 tests incl. committed 28-chunk real negative corpus
+  (test/fixtures/leoscan-negative-corpus.json, 5 entities) — zero false positives, also clean
+  on the full 108-chunk pull.
 
 - [x] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting** — 02fe70a (PR #19, 2026-08-13).
   Packing loop extracted as exported pure packContext(chunks, maxChars); break → continue so

@@ -49,3 +49,4 @@
 {"event":"usage-snap","when":"run-start","runId":"2026-08-13T05:36:38.734Z","nightId":"2026-08-12","ok":true,"fiveHourPct":25,"weeklyAllPct":57,"weeklyFablePct":86,"atUtc":"2026-08-13T05:42:10.230Z"}
 {"event":"model-governor","action":"fable-off","fablePct":86,"weekElapsedPct":59.3,"runId":"2026-08-13T05:36:38.734Z","atUtc":"2026-08-13T05:42:10.230Z"}
 {"event":"claim","runId":"2026-08-13T05:36:38.734Z","item":"LEO-021","nightId":"2026-08-12","model":"claude-fable-5","atUtc":"2026-08-13T05:42:10.230Z"}
+{"event":"complete","runId":"2026-08-13T05:36:38.734Z","item":"LEO-021","mergeSha":"e9d064bee048db0c815795f70872a746d9aad888","nightId":"2026-08-12","durationMin":19,"atUtc":"2026-08-13T06:00:54.170Z"}
