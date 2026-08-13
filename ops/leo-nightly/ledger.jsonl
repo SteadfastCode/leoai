@@ -55,3 +55,4 @@
 {"event":"complete","runId":"2026-08-13T05:36:38.734Z","item":"LEO-022","mergeSha":"7e847f1e0fb0bb1075f7aedce2778a2dfdbd7821","nightId":"2026-08-12","durationMin":7,"atUtc":"2026-08-13T06:08:40.493Z"}
 {"event":"usage-snap","when":"post-item","item":"LEO-022","runId":"2026-08-13T05:36:38.734Z","nightId":"2026-08-12","ok":true,"fiveHourPct":40,"weeklyAllPct":58,"weeklyFablePct":89,"atUtc":"2026-08-13T06:10:00.481Z"}
 {"event":"claim","runId":"2026-08-13T05:36:38.734Z","item":"LEO-023","nightId":"2026-08-12","model":"claude-fable-5","atUtc":"2026-08-13T06:10:00.481Z"}
+{"event":"complete","runId":"2026-08-13T05:36:38.734Z","item":"LEO-023","mergeSha":"8fffc917d3b4b68a39b21082c81c268ec0dcbe15","nightId":"2026-08-12","durationMin":5,"atUtc":"2026-08-13T06:15:08.918Z"}

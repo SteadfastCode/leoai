@@ -81,15 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-023) Restore signup progress after a page reload** *(needs LEO-002)*
-  `startSetup()` clears the draft then sets step 3, so a reload during the scrape drops an
-  already-authenticated user back to step 1 with a crawl running invisibly. Persist
-  `{step, domain, siteUrl, businessName, startedAt}` under a separate key; on mount restore
-  **only** when the marker is under an hour old and a valid access token is present, reconnect
-  the socket, re-emit `join_domain`.
-  *Verify:* vitest — mount with a seeded marker and stubbed socket; assert step 3 and the
-  `join_domain` emit; assert it does **not** restore when stale or unauthenticated.
-
 ## Block E — Chat path (gated on LEO-001)
 
 Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs must be ≤30
@@ -267,6 +258,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-023) Restore signup progress after a page reload** — 8fffc91 (PR #22, 2026-08-13).
+  leo_signup_progress marker ({step, domain, siteUrl, businessName, startedAt}) written at
+  account creation; on mount honored only when <1h old AND isAuthenticated — restores step 3/4,
+  reconnects socket, re-emits join_domain; stale/unauthed/corrupted markers discarded;
+  goToDashboard clears it. 7 vitest specs; dashboard suite 70 green. Frontend-only.
 
 - [x] **(LEO-022) Create the Entity at signup with owner contact and alert channels** — 7e847f1 (PR #21, 2026-08-13).
   /auth/onboard upserts Entity right after user creation: ownerEmail from signup email, optional
