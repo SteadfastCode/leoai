@@ -2,7 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { onboard, triggerScrape } from '../lib/api'
-import { persist } from '../lib/auth'
+import { persist, isAuthenticated } from '../lib/auth'
 import { socket } from '../lib/socket'
 import EmbedSnippet from '../components/EmbedSnippet.vue'
 
@@ -24,6 +24,27 @@ function clearDraft() {
 }
 
 const draft = loadDraft()
+
+// ── Step-3 resume marker (LEO-023) ─────────────────────────────────────────
+// startSetup() clears the draft the moment the account exists, so a reload
+// during the scrape used to dump an already-authenticated user back to step 1
+// with the crawl running invisibly. A separate marker survives that reload;
+// it is only honored when fresh (<1h) AND a signed-in session is present.
+const PROGRESS_KEY = 'leo_signup_progress'
+const PROGRESS_MAX_AGE_MS = 60 * 60 * 1000
+
+function saveProgress(stepVal) {
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+    step: stepVal,
+    domain: domain.value,
+    siteUrl: siteUrl.value,
+    businessName: businessName.value,
+    startedAt: Date.now(),
+  }))
+}
+function clearProgress() {
+  localStorage.removeItem(PROGRESS_KEY)
+}
 
 // ── Step 1 — Account ───────────────────────────────────────────────────────
 const name      = ref(draft.name      || '')
@@ -136,6 +157,7 @@ async function startSetup() {
     })
 
     clearDraft()
+    saveProgress(3)
     step.value = 3
   } catch (err) {
     step2Error.value = err.response?.data?.error || 'Something went wrong. Please try again.'
@@ -144,8 +166,14 @@ async function startSetup() {
   }
 }
 
+// Keep the marker's step current while the user is past account creation.
+watch(step, (v) => {
+  if ((v === 3 || v === 4) && localStorage.getItem(PROGRESS_KEY)) saveProgress(v)
+})
+
 // ── Finish ─────────────────────────────────────────────────────────────────
 function goToDashboard() {
+  clearProgress()
   socket.off('scrape_progress', onScrapeProgress)
   socket.off('scrape_complete', onScrapeCompleteEvent)
   router.replace('/overview')
@@ -166,6 +194,28 @@ function onLeoFill(e) {
 }
 window.addEventListener('leo-fill', onLeoFill)
 onUnmounted(() => window.removeEventListener('leo-fill', onLeoFill))
+
+// ── Resume after reload (LEO-023) ──────────────────────────────────────────
+// Runs on mount, after the handlers above exist. Restores step 3/4 only when
+// the marker is fresh and the session is still signed in; anything else
+// discards the marker so the next visitor starts clean.
+;(function restoreProgress() {
+  let marker = null
+  try { marker = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null') } catch { /* corrupted */ }
+  if (!marker || !marker.domain) return
+  const fresh = typeof marker.startedAt === 'number' && Date.now() - marker.startedAt <= PROGRESS_MAX_AGE_MS
+  if (!fresh || !isAuthenticated.value) {
+    clearProgress()
+    return
+  }
+  businessName.value = marker.businessName || businessName.value
+  siteUrl.value = marker.siteUrl || siteUrl.value
+  step.value = marker.step === 4 ? 4 : 3
+  socket.connect()
+  socket.emit('join_domain', marker.domain)
+  socket.on('scrape_progress', onScrapeProgress)
+  socket.on('scrape_complete', onScrapeCompleteEvent)
+})()
 </script>
 
 <template>

@@ -10,12 +10,16 @@ const triggerScrape = vi.fn()
 const persist = vi.fn()
 const routerReplace = vi.fn()
 const socket = { connect: vi.fn(), emit: vi.fn(), on: vi.fn(), off: vi.fn() }
+const authState = { value: false } // stands in for auth's isAuthenticated computed
 
 vi.mock('../src/lib/api', () => ({
   onboard: (...args) => onboard(...args),
   triggerScrape: (...args) => triggerScrape(...args),
 }))
-vi.mock('../src/lib/auth', () => ({ persist: (...args) => persist(...args) }))
+vi.mock('../src/lib/auth', () => ({
+  persist: (...args) => persist(...args),
+  isAuthenticated: authState,
+}))
 vi.mock('../src/lib/socket', () => ({ socket }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ replace: routerReplace }) }))
 
@@ -43,6 +47,7 @@ function fillForm(vm) {
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
+  authState.value = false
 })
 
 describe('Signup draft — restoring', () => {
@@ -190,5 +195,95 @@ describe('Signup — draft lifecycle through setup', () => {
 
     expect(onboard).not.toHaveBeenCalled()
     expect(vm.step2Error).toContain('valid site URL')
+  })
+})
+
+describe('Signup — step-3 resume after reload (LEO-023)', () => {
+  const PROGRESS_KEY = 'leo_signup_progress'
+
+  const seedMarker = (overrides = {}) => localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+    step: 3,
+    domain: 'dosiedough.com',
+    siteUrl: 'https://www.dosiedough.com/',
+    businessName: 'Dosie Dough',
+    startedAt: Date.now(),
+    ...overrides,
+  }))
+
+  it('startSetup writes the marker so a reload can resume', async () => {
+    onboard.mockResolvedValue({ data: { accessToken: 'a', refreshToken: 'r', user: {} } })
+    triggerScrape.mockResolvedValue({})
+
+    const { vm } = mountSignup()
+    fillForm(vm)
+    await nextTick()
+    await vm.startSetup()
+
+    const marker = JSON.parse(localStorage.getItem(PROGRESS_KEY))
+    expect(marker).toMatchObject({ step: 3, domain: 'dosiedough.com', businessName: 'Dosie Dough' })
+    expect(typeof marker.startedAt).toBe('number')
+  })
+
+  it('restores step 3 and rejoins the domain room when fresh and authenticated', () => {
+    authState.value = true
+    seedMarker()
+
+    const { vm } = mountSignup()
+
+    expect(vm.step).toBe(3)
+    expect(vm.businessName).toBe('Dosie Dough')
+    expect(socket.connect).toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith('join_domain', 'dosiedough.com')
+    expect(socket.on).toHaveBeenCalledWith('scrape_progress', expect.any(Function))
+    expect(socket.on).toHaveBeenCalledWith('scrape_complete', expect.any(Function))
+  })
+
+  it('restores step 4 when the marker says the user had already advanced', () => {
+    authState.value = true
+    seedMarker({ step: 4 })
+
+    expect(mountSignup().vm.step).toBe(4)
+  })
+
+  it('does NOT restore a stale marker (>1h old) — and discards it', () => {
+    authState.value = true
+    seedMarker({ startedAt: Date.now() - 2 * 60 * 60 * 1000 })
+
+    const { vm } = mountSignup()
+
+    expect(vm.step).toBe(1)
+    expect(socket.emit).not.toHaveBeenCalled()
+    expect(localStorage.getItem(PROGRESS_KEY)).toBeNull()
+  })
+
+  it('does NOT restore without a signed-in session — and discards the marker', () => {
+    authState.value = false
+    seedMarker()
+
+    const { vm } = mountSignup()
+
+    expect(vm.step).toBe(1)
+    expect(socket.connect).not.toHaveBeenCalled()
+    expect(socket.emit).not.toHaveBeenCalled()
+    expect(localStorage.getItem(PROGRESS_KEY)).toBeNull()
+  })
+
+  it('survives a corrupted marker instead of failing to mount', () => {
+    authState.value = true
+    localStorage.setItem(PROGRESS_KEY, '{definitely not json')
+
+    expect(() => mountSignup()).not.toThrow()
+    expect(mountSignup().vm.step).toBe(1)
+  })
+
+  it('finishing signup clears the marker', () => {
+    authState.value = true
+    seedMarker({ step: 4 })
+
+    const { vm } = mountSignup()
+    vm.goToDashboard()
+
+    expect(localStorage.getItem(PROGRESS_KEY)).toBeNull()
+    expect(routerReplace).toHaveBeenCalledWith('/overview')
   })
 })
