@@ -1,11 +1,10 @@
 {
-  "decision": "debounced",
-  "runId": "2026-08-13T06:36:38.848Z",
-  "atUtc": "2026-08-13T06:38:30.000Z",
+  "decision": "completed-1-item-early-stop",
+  "reason": "cwd-reset anomaly: shell cwd silently reverted to primary checkout mid-run; completion commit 6b5b8ef made there (content correct, FEATURES.md move missing, repaired in dce44ed); stopped claiming as a precaution",
+  "runId": "2026-08-13T07:36:39.025Z",
   "nightId": "2026-08-12",
-  "detail": "last claim (LEO-024) at 2026-08-13T06:16:15.732Z, ~20 min before this fire — under the 55-min debounce",
-  "unreviewedCount": 4,
-  "unreviewedNote": "LEO-021..024 from run 2026-08-13T05:36:38.734Z; ack tag unmoved at 61aba75 (peeled), all 4 mergeShas not ancestors of it; oldest unreviewed ~35 min",
-  "unreviewedCommand": "git ls-remote origin 'refs/tags/leo-nightly-ack^{}' then per complete event: git merge-base --is-ancestor <mergeSha> <ackSha>",
-  "modelNote": "this fire ran on claude-fable-5 despite last run's governor flip to claude-sonnet-5 (effective-next-fire); no claim event this fire so it does not count toward the two-run governor verification, recorded here as telemetry only"
+  "unreviewedCount": 5,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per ledger complete event, git merge-base --is-ancestor <mergeSha> <ack-commit>",
+  "governorNote": "frontmatter model: claude-sonnet-5 since 05:42Z; this run still ran claude-fable-5 — post-flip evidence run 1 of 2",
+  "atUtc": "2026-08-13T07:56:25.117Z"
 }

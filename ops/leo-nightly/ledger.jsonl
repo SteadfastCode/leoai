@@ -64,3 +64,5 @@
 {"event":"usage-snap","when":"run-start","runId":"2026-08-13T07:36:39.025Z","nightId":"2026-08-12","ok":true,"fiveHourPct":51,"weeklyAllPct":60,"weeklyFablePct":91,"atUtc":"2026-08-13T07:41:15.571Z"}
 {"event":"claim","runId":"2026-08-13T07:36:39.025Z","item":"LEO-025","nightId":"2026-08-12","model":"claude-fable-5","atUtc":"2026-08-13T07:41:15.571Z"}
 {"event":"complete","runId":"2026-08-13T07:36:39.025Z","item":"LEO-025","mergeSha":"e7ab9826f8c3f20668e92c9fa79c69d31f65893c","nightId":"2026-08-12","durationMin":7,"atUtc":"2026-08-13T07:48:22.783Z"}
+{"event":"usage-snap","when":"post-item","item":"LEO-025","runId":"2026-08-13T07:36:39.025Z","nightId":"2026-08-12","ok":true,"fiveHourPct":61,"weeklyAllPct":61,"weeklyFablePct":93,"atUtc":"2026-08-13T07:56:25.117Z"}
+{"event":"run-end","runId":"2026-08-13T07:36:39.025Z","nightId":"2026-08-12","items":[{"id":"LEO-025","result":"complete","durationMin":7}],"activeMin":7,"atUtc":"2026-08-13T07:56:25.117Z"}
