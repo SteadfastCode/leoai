@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-033) Owner-facing KB search — "is this actually in Leo's knowledge base?"**
+- [x] **(LEO-033) Owner-facing KB search — "is this actually in Leo's knowledge base?"**
   *(Id 033 because it was queued 2026-08-11, positioned here because priority is file order —
   it pairs with LEO-018's diagnosis: 018 finds why retrieval misses, this is the tool an owner
   uses to check the same thing themselves.)*
