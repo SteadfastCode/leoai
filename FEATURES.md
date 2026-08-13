@@ -87,7 +87,7 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [ ] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF**
+- [x] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF**
   `unansweredDigest: { enabled: false, ... }` on Entity and the PATCH allowlist. Extract the
   greedy Jaccard grouping from the `/unanswered` handler into `services/questions.js` so the
   digest and dashboard cannot drift. `runUnansweredDigestTick()` beside the existing hourly tick:
