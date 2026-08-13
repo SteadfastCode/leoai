@@ -47,7 +47,7 @@
     },
     "LEO-025": {
       "order": 5,
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": null,
