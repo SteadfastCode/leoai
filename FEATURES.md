@@ -87,18 +87,6 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [x] **(LEO-025) Test-mode chat sessions** *(needs LEO-004)*
-  Every MCP test message today writes a real Conversation, increments the real quota counter, can
-  create UnansweredQuestion rows, and if it trips a handoff fires a real SMS and email. Accept
-  `X-API-Key` on `POST /chat` as a test-mode credential **validated against the ApiKey model; a
-  request-body flag must never be sufficient**. When and only when valid: skip notification
-  sends, both counters, `UnansweredQuestion.create`, and the socket broadcast; mark the
-  Conversation `isTest: true`. Still run RAG, the classifier, and the Claude call so debug output
-  stays faithful.
-  *Verify:* `node --test` on the gate helper — false for no-key, bad key, and body-flag-only;
-  true only for a valid key. `yarn test` must stay green. **"No SMS arrived" is not observable to
-  the agent** — say so in the PR body rather than claiming it was verified.
-
 - [ ] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF**
   `unansweredDigest: { enabled: false, ... }` on Entity and the PATCH allowlist. Extract the
   greedy Jaccard grouping from the `/unanswered` handler into `services/questions.js` so the
@@ -249,6 +237,13 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-025) Test-mode chat sessions** — e7ab982 (PR #24, 2026-08-13).
+  Valid X-API-Key on POST /chat (validated against ApiKey via exported resolveApiKey) skips
+  handoff SMS/email, both usage counters + quota warnings, UnansweredQuestion.create, and
+  socket broadcasts; Conversation saved isTest: true. RAG/classifier/Claude still run. Body
+  flag never sufficient; invalid key degrades to normal visitor. chat.js diff 27 lines;
+  quota/handoff/save untouched. 6 node --test gate specs; backend 124 green.
 
 - [x] **(LEO-024) Fix unanswered-question logging precision** — 40fde9b (PR #23, 2026-08-13).
   Extracted to services/unanswered.js: logs only on !hadContext AND (handoff offered OR
