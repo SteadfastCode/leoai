@@ -87,15 +87,6 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [x] **(LEO-024) Fix unanswered-question logging precision**
-  `isUnanswered` short-circuits on `if (!hadContext) return true`, so *every* message retrieving
-  no context is logged — "hi", "thanks", "that answered it!". The phrase list also matches
-  substrings, so a real answer containing "I'm not sure what time you mean — we're open 9-5"
-  logs as unanswered. Extract into `services/unanswered.js`: log only when `!hadContext` **and**
-  (a handoff was offered this turn **or** the reply matches an anchored phrase), never for
-  greetings/closers/thanks or interactive selections.
-  *Verify:* `node --test` — pure string handling, no DB, no network.
-
 - [ ] **(LEO-025) Test-mode chat sessions** *(needs LEO-004)*
   Every MCP test message today writes a real Conversation, increments the real quota counter, can
   create UnansweredQuestion rows, and if it trips a handoff fires a real SMS and email. Accept
@@ -258,6 +249,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-024) Fix unanswered-question logging precision** — 40fde9b (PR #23, 2026-08-13).
+  Extracted to services/unanswered.js: logs only on !hadContext AND (handoff offered OR
+  sentence-anchored uncertainty phrase; KB-failure phrases match anywhere, "aren't" variant
+  added). Small talk (normalized set) and interactive clicks never log. chat.js diff 26 lines,
+  quota/handoff/save untouched. 11 node --test specs incl. the spec's exact false positive.
 
 - [x] **(LEO-023) Restore signup progress after a page reload** — 8fffc91 (PR #22, 2026-08-13).
   leo_signup_progress marker ({step, domain, siteUrl, businessName, startedAt}) written at
