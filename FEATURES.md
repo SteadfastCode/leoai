@@ -81,16 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-018) Investigate and fix the "what are your hours?" retrieval miss**
-  Confirmed live: `retrieveContext('dosiedough.com', 'what are your hours?')` returns **no
-  context** on an entity with 19 chunks, while "what kind of bread do you make?" retrieves fine.
-  Hours is the single most common question a small business gets. Diagnose first — is the text
-  absent from the KB, present but below threshold, or lost to `keepPara`/dedup during chunking?
-  **Write up the diagnosis in the PR body before proposing a fix**, and do not change the global
-  `ragThreshold` to paper over a chunking bug.
-  *Verify:* MCP `search_chunks` for hours-related phrasings across several entities, before and
-  after. State the topScore figures explicitly.
-
 - [ ] **(LEO-033) Owner-facing KB search — "is this actually in Leo's knowledge base?"**
   *(Id 033 because it was queued 2026-08-11, positioned here because priority is file order —
   it pairs with LEO-018's diagnosis: 018 finds why retrieval misses, this is the tool an owner
@@ -338,6 +328,14 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-018) Investigate and fix the "what are your hours?" retrieval miss** — be2f083 (PR #16, 2026-08-13).
+  Diagnosis: KB stale (scraped 2026-03-25, pre-[SB] pipeline dropped footer hours entirely);
+  even current extraction left hours diluted in a testimonial chunk at ~0.68 vs 0.75 threshold.
+  Fix: hoursChunk.js emits a standalone [H2] Hours chunk from day/time paragraph runs (0.7911
+  measured on the target query, voyage-3-lite); h4-h6 added to SEMANTIC_LEAF_TAGS. No threshold
+  changes. Production KBs stay stale until Daniel force-rescrapes (routine may not scrape real
+  entities). 10 node --test specs.
 
 - [x] **(LEO-017) Close the learning loop on owner replies** — d00b489 (PR #15, 2026-08-12).
   questionSimilarity extracted to services/questions.js (shared 0.6 threshold, both routes
