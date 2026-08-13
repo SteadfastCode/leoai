@@ -1,10 +1,10 @@
 {
-  "decision": "run-complete-4-items",
-  "runId": "2026-08-13T00:36:41.142Z",
-  "nightId": "2026-08-12",
+  "unreviewedCount": null,
   "claimsTonight": 4,
-  "unreviewedCount": 13,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-item git merge-base --is-ancestor <mergeSha> <ack-peeled>; count ledger complete events not ancestors",
-  "usageSnaps": "unavailable all run (capture-usage.ps1: Claude window not found, both presets)",
-  "atUtc": "2026-08-13T01:25:39.683Z"
+  "runId": "2026-08-13T01:36:39Z",
+  "atUtc": "2026-08-13T01:37:42.525Z",
+  "reason": "last claim event (LEO-020) 17 min old, under 55-min debounce",
+  "decision": "debounced",
+  "unreviewedNote": "backpressure not evaluated - exited at STEP 3 debounce",
+  "nightId": "2026-08-12"
 }
