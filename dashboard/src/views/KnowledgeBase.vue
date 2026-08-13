@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { getPages, triggerScrape, getKbEntries, addKbEntry, uploadKbFile, deleteKbEntry, getChunks } from '../lib/api'
+import { getPages, triggerScrape, getKbEntries, addKbEntry, uploadKbFile, deleteKbEntry, getChunks, searchKb } from '../lib/api'
 import { isSuperAdmin } from '../lib/auth'
 import { socket } from '../lib/socket'
 
@@ -135,6 +135,50 @@ const pageChunks   = ref([])           // chunks for the expanded page
 const chunksLoading = ref(false)
 const expandedChunk = ref(null)        // index of the open chunk accordion item
 
+// ── KB search (LEO-033) ────────────────────────────────────────────────────
+const kbSearchQ = ref('')
+const kbSearchMode = ref('semantic')   // 'semantic' | 'text'
+const kbSearchResults = ref(null)      // null = no search yet; [] = searched, no hits
+const kbSearching = ref(false)
+
+async function runKbSearch() {
+  const q = kbSearchQ.value.trim()
+  if (!q) { kbSearchResults.value = null; return }
+  kbSearching.value = true
+  try {
+    const { data } = await searchKb(props.domain, q, kbSearchMode.value)
+    kbSearchResults.value = data.results
+  } catch {
+    snackbarMsg.value = 'Search failed — please try again'
+    snackbar.value = true
+  } finally {
+    kbSearching.value = false
+  }
+}
+
+function clearKbSearch() {
+  kbSearchQ.value = ''
+  kbSearchResults.value = null
+}
+
+// Split a snippet into plain/highlighted segments using the server-reported
+// match position — no HTML round-tripping, so content can never inject markup.
+function snippetParts(r) {
+  if (r.matchStart == null || r.matchStart < 0) return [{ text: r.snippet, hl: false }]
+  return [
+    { text: r.snippet.slice(0, r.matchStart), hl: false },
+    { text: r.snippet.slice(r.matchStart, r.matchStart + r.matchLength), hl: true },
+    { text: r.snippet.slice(r.matchStart + r.matchLength), hl: false },
+  ].filter(p => p.text)
+}
+
+// Open the existing chunk viewer for a result whose URL is a tracked page.
+function openSearchResult(r) {
+  if (pages.value.some(p => p.url === r.url) && expandedPage.value !== r.url) {
+    togglePageExpand(r.url)
+  }
+}
+
 async function togglePageExpand(url) {
   if (expandedPage.value === url) {
     expandedPage.value = null
@@ -183,6 +227,7 @@ async function load() {
 watch(() => props.domain, () => {
   scrapeLog.value = []
   scrapeResult.value = null
+  clearKbSearch()
   load()
   loadKbEntries()
 }, { immediate: true })
@@ -327,6 +372,72 @@ function sourceColor(source) {
       </div>
     </div>
     <div class="text-body-2 text-secondary mb-6">{{ pages.length }} pages tracked</div>
+
+    <!-- KB search card (LEO-033) -->
+    <v-card rounded="lg" elevation="0" border class="mb-6">
+      <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">
+        Search the Knowledge Base
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <div class="text-body-2 text-secondary mb-3">
+          Check whether something is actually in Leo's knowledge base. Semantic search shows
+          what Leo would retrieve (with scores); text search finds an exact phrase.
+        </div>
+        <div class="d-flex align-center" style="gap: 12px">
+          <v-text-field
+            v-model="kbSearchQ"
+            density="compact"
+            variant="outlined"
+            hide-details
+            clearable
+            placeholder="e.g. what are your hours?  ·  9am"
+            prepend-inner-icon="mdi-magnify"
+            :loading="kbSearching"
+            @keyup.enter="runKbSearch"
+            @click:clear="clearKbSearch"
+          />
+          <v-btn-toggle v-model="kbSearchMode" density="compact" mandatory variant="outlined" divided>
+            <v-btn value="semantic" size="small">Semantic</v-btn>
+            <v-btn value="text" size="small">Text</v-btn>
+          </v-btn-toggle>
+          <v-btn color="primary" :loading="kbSearching" @click="runKbSearch">Search</v-btn>
+        </div>
+
+        <div v-if="kbSearchResults !== null" class="mt-4">
+          <div v-if="kbSearchResults.length === 0" class="text-body-2 text-secondary">
+            No matches. {{ kbSearchMode === 'text'
+              ? 'That exact phrase is not in the knowledge base.'
+              : 'Nothing scored close to this query — Leo likely could not answer it either.' }}
+          </div>
+          <v-list v-else density="compact" class="py-0">
+            <v-list-item
+              v-for="(r, i) in kbSearchResults"
+              :key="r._id || i"
+              class="px-2 kb-search-result"
+              @click="openSearchResult(r)"
+            >
+              <div class="d-flex align-center mb-1" style="gap: 8px">
+                <v-chip v-if="r.score != null" size="x-small" :color="r.score >= 0.75 ? 'success' : 'warning'" variant="tonal">
+                  {{ r.score.toFixed(3) }}
+                </v-chip>
+                <v-chip size="x-small" variant="tonal">{{ r.source }}</v-chip>
+                <span class="text-caption text-secondary text-truncate">{{ r.label || r.pageH1 || r.url }}</span>
+              </div>
+              <div class="text-body-2 kb-search-snippet">
+                <template v-for="(part, j) in snippetParts(r)" :key="j">
+                  <mark v-if="part.hl">{{ part.text }}</mark>
+                  <template v-else>{{ part.text }}</template>
+                </template>
+              </div>
+            </v-list-item>
+          </v-list>
+          <div v-if="kbSearchResults.length && kbSearchMode === 'semantic'" class="text-caption text-secondary mt-2">
+            Leo retrieves content scoring ≥ 0.75. Lower-scoring results appear here so you can see
+            what almost matched.
+          </div>
+        </div>
+      </v-card-text>
+    </v-card>
 
     <!-- Manual KB entries card -->
     <v-card
@@ -607,6 +718,28 @@ function sourceColor(source) {
 </template>
 
 <style scoped>
+.kb-search-result {
+  display: block;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.kb-search-result:hover {
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.kb-search-snippet {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.kb-search-snippet mark {
+  background: rgba(var(--v-theme-primary), 0.25);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 .drop-zone-active {
   border-color: rgb(var(--v-theme-primary)) !important;
   background: rgba(var(--v-theme-primary), 0.04);
