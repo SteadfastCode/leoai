@@ -28,6 +28,9 @@ const conversationSchema = new mongoose.Schema(
     lastTopic: String,
     lastActiveAt: { type: Date, default: Date.now },
     handoffPending: { type: Boolean, default: false },
+    // True when the session was opened with a valid X-API-Key (MCP test traffic) —
+    // excluded from quota counting and owner-facing side effects in chat.js
+    isTest: { type: Boolean, default: false },
     lastHandoffNotifiedAt: { type: Date },
     handoffReminderCount: { type: Number, default: 0 },
     pendingQuestions: [{ text: { type: String }, askedAt: { type: Date, default: Date.now }, _id: false }],
