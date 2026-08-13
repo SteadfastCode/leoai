@@ -87,7 +87,7 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [ ] **(LEO-024) Fix unanswered-question logging precision**
+- [x] **(LEO-024) Fix unanswered-question logging precision**
   `isUnanswered` short-circuits on `if (!hadContext) return true`, so *every* message retrieving
   no context is logged — "hi", "thanks", "that answered it!". The phrase list also matches
   substrings, so a real answer containing "I'm not sure what time you mean — we're open 9-5"
