@@ -71,3 +71,4 @@
 {"event":"complete","runId":"2026-08-13T08:36:41.283Z","item":"LEO-026","mergeSha":"af06c4d686c211ddf333a88cc799e306acb3fdc9","nightId":"2026-08-12","durationMin":8,"atUtc":"2026-08-13T08:49:10.574Z"}
 {"event":"usage-snap","when":"post-item","item":"LEO-026","runId":"2026-08-13T08:36:41.283Z","nightId":"2026-08-12","ok":false,"reason":"locked-exit2","atUtc":"2026-08-13T08:49:32.494Z"}
 {"event":"run-end","runId":"2026-08-13T08:36:41.283Z","nightId":"2026-08-12","items":[{"id":"LEO-026","result":"complete","durationMin":8}],"activeMin":8,"atUtc":"2026-08-13T08:49:32.495Z"}
+{"event":"model-governor","action":"disabled","reason":"two consecutive post-flip runs recorded claude-fable-5; frontmatter model control does not take effect; model: line removed, governorDisabled set in local status","runId":"2026-08-13T08:36:41.283Z","atUtc":"2026-08-13T08:50:31.957Z"}

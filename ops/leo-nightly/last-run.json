@@ -1,10 +1,11 @@
 {
-  "decision": "completed-1-item-early-stop",
-  "reason": "cwd-reset anomaly: shell cwd silently reverted to primary checkout mid-run; completion commit 6b5b8ef made there (content correct, FEATURES.md move missing, repaired in dce44ed); stopped claiming as a precaution",
-  "runId": "2026-08-13T07:36:39.025Z",
+  "decision": "completed-1-item-night-backstop-reached",
+  "reason": "shipped LEO-026 (claim 10 of 10 for nightId 2026-08-12); nightly claim backstop reached, run ended cleanly",
+  "runId": "2026-08-13T08:36:41.283Z",
   "nightId": "2026-08-12",
-  "unreviewedCount": 5,
+  "unreviewedCount": 6,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per ledger complete event, git merge-base --is-ancestor <mergeSha> <ack-commit>",
-  "governorNote": "frontmatter model: claude-sonnet-5 since 05:42Z; this run still ran claude-fable-5 — post-flip evidence run 1 of 2",
-  "atUtc": "2026-08-13T07:56:25.117Z"
+  "governorDisabled": true,
+  "governorNote": "frontmatter flip to claude-sonnet-5 (05:42Z) followed by two runs (07:36Z, 08:36Z) both recording claude-fable-5 on claim events — mechanism provably ineffective; model: line removed from frontmatter, no further flips",
+  "atUtc": "2026-08-13T08:50:31.957Z"
 }
