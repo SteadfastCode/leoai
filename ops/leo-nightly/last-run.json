@@ -1,10 +1,17 @@
 {
-  "decision": "afk-active",
-  "runId": "2026-08-13T04:36:38.450Z",
-  "atUtc": "2026-08-13T04:40:08.779Z",
+  "decision": "completed-4-items",
+  "runId": "2026-08-13T05:36:38.734Z",
+  "atUtc": "2026-08-13T06:24:02.483Z",
   "nightId": "2026-08-12",
-  "reason": "AFK guard positive: two interactive sessions (no scheduledTaskId) within 70-min lookback - 'LeoAI status check' (C:\reposLeoAI) lastActivityAt 2026-08-13T03:35:26Z and 'Add adaptive-mode liveness heartbeat' (tethered worktree) lastActivityAt 2026-08-13T03:58:16Z; Daniel also moved leo-nightly-ack (~03:38Z+). No item claimed.",
-  "unreviewedCount": 0,
-  "unreviewedNote": "ack tag (peeled 61aba7563ea3f7773466dceb86c6f512ed4978ad) is ancestor of origin/main; all 19 ledger complete mergeShas are ancestors of the ack sha",
+  "items": [
+    "LEO-021",
+    "LEO-022",
+    "LEO-023",
+    "LEO-024"
+  ],
+  "nightClaimsUsed": 8,
+  "governor": "fable-off (Fable 86% vs week-elapsed 59.3% at run start; frontmatter set to claude-sonnet-5, effective next fire)",
+  "unreviewedCount": 4,
+  "unreviewedNote": "ack tag (peeled 61aba75) covered everything at run start; the 4 items this run completed are the only unreviewed ones, oldest ~50 min",
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (peeled); per complete event: git merge-base --is-ancestor <mergeSha> <ackSha>"
 }
