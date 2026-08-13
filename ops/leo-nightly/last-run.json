@@ -1,11 +1,11 @@
 {
-  "decision": "completed-1-item-night-backstop-reached",
-  "reason": "shipped LEO-026 (claim 10 of 10 for nightId 2026-08-12); nightly claim backstop reached, run ended cleanly",
-  "runId": "2026-08-13T08:36:41.283Z",
+  "decision": "cap-reached",
+  "reason": "10 of 10 claims already recorded for nightId 2026-08-12; nightly backstop reached, no claim allowed this fire",
+  "runId": "2026-08-13T10:36:39.043Z",
   "nightId": "2026-08-12",
   "unreviewedCount": 6,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per ledger complete event, git merge-base --is-ancestor <mergeSha> <ack-commit>",
   "governorDisabled": true,
-  "governorNote": "frontmatter flip to claude-sonnet-5 (05:42Z) followed by two runs (07:36Z, 08:36Z) both recording claude-fable-5 on claim events — mechanism provably ineffective; model: line removed from frontmatter, no further flips",
-  "atUtc": "2026-08-13T08:50:31.957Z"
+  "governorNote": "frontmatter model control provably ineffective (disabled 2026-08-13T08:50Z); model: line removed, no further flips",
+  "atUtc": "2026-08-13T10:38:30.000Z"
 }
