@@ -12,6 +12,7 @@ const {
 const crypto = require('crypto');
 const User = require('../models/User');
 const Code = require('../models/Code');
+const Entity = require('../models/Entity');
 const Invite = require('../models/Invite');
 const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin } = require('../middleware/auth');
 const { ROLE_PRESETS } = require('../models/Permission');
@@ -64,7 +65,7 @@ router.post('/register', async (req, res) => {
 
 // POST /auth/onboard — alpha signup: validate code, create user + entity membership, return tokens
 router.post('/onboard', async (req, res) => {
-  const { name, email, password, alphaCode, domain } = req.body;
+  const { name, email, password, alphaCode, domain, businessName, ownerPhone, quotaAlertChannels } = req.body;
   if (!name || !email || !password || !alphaCode || !domain) {
     return res.status(400).json({ error: 'name, email, password, alphaCode, and domain are required' });
   }
@@ -86,6 +87,27 @@ router.post('/onboard', async (req, res) => {
       hashedPassword,
       memberships: [{ entityDomain: domain, roles: ['owner'], permissions: [] }],
     });
+
+    // Create the Entity NOW, not after the first scrape succeeds (LEO-022):
+    // handoff SMS/email and quota warnings read ownerEmail/ownerPhone off the
+    // Entity, and a failed first crawl must not leave the account with no
+    // Entity at all. The scrape's own upsert later only sets name/timezone/
+    // lastScrapedAt, so nothing here gets clobbered.
+    const phone = typeof ownerPhone === 'string' ? ownerPhone.trim() : '';
+    const channels = Array.isArray(quotaAlertChannels)
+      ? quotaAlertChannels.filter((c) => c === 'email' || c === 'sms')
+      : null;
+    const entityUpdate = {
+      $set: {
+        ownerEmail: email.trim(),
+        ...(phone && { ownerPhone: phone }),
+        ...(channels && channels.length && { quotaAlertChannels: channels }),
+      },
+    };
+    if (typeof businessName === 'string' && businessName.trim()) {
+      entityUpdate.$setOnInsert = { name: businessName.trim() };
+    }
+    await Entity.findOneAndUpdate({ domain }, entityUpdate, { upsert: true });
 
     const accessToken  = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
