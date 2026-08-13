@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-019) Contain per-batch embedding failures**
+- [x] **(LEO-019) Contain per-batch embedding failures**
   `fetchPage` errors are caught per URL but the embed call is not — Voyage rethrows after
   `MAX_RETRIES` and unwinds the entire crawl loop, leaving a half-populated KB and a 500. Wrap
   `embedPageData` (both call sites) and `embedThinPageGroups`, log affected URLs, continue, and
