@@ -87,7 +87,7 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [ ] **(LEO-025) Test-mode chat sessions** *(needs LEO-004)*
+- [x] **(LEO-025) Test-mode chat sessions** *(needs LEO-004)*
   Every MCP test message today writes a real Conversation, increments the real quota counter, can
   create UnansweredQuestion rows, and if it trips a handoff fires a real SMS and email. Accept
   `X-API-Key` on `POST /chat` as a test-mode credential **validated against the ApiKey model; a
