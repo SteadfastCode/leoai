@@ -18,7 +18,7 @@ const { isLastOwner } = require('../services/team');
 const { conversationFilterQuery } = require('../services/conversations');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
-const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD } = require('../services/questions');
+const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD, groupQuestions } = require('../services/questions');
 const { recordAudit } = require('../services/audit');
 
 // All dashboard routes require auth
@@ -298,7 +298,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 // PATCH /api/dashboard/entities/:domain — update entity settings (owner only)
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
-    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp'];
+    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest'];
     const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     let appliedSuperadminFields = [];
@@ -652,33 +652,7 @@ router.get('/entities/:domain/unanswered', async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Greedy grouping by Jaccard similarity
-    const groups = [];
-    for (const q of questions) {
-      const match = groups.find(
-        (g) => questionSimilarity(g.question, q.question) >= UNANSWERED_SIMILARITY_THRESHOLD
-      );
-      if (match) {
-        match.count++;
-        match.allIds.push(q._id);
-        if (new Date(q.createdAt) > new Date(match.lastAskedAt)) {
-          match.lastAskedAt = q.createdAt;
-          match.id = q._id; // most recent is the representative
-          match.question = q.question;
-        }
-      } else {
-        groups.push({
-          id: q._id,
-          question: q.question,
-          count: 1,
-          lastAskedAt: q.createdAt,
-          allIds: [q._id],
-        });
-      }
-    }
-
-    groups.sort((a, b) => b.count - a.count);
-    res.json(groups);
+    res.json(groupQuestions(questions));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

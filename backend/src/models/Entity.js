@@ -64,6 +64,15 @@ const entitySchema = new mongoose.Schema(
       keepShortUrls:      { type: Boolean, default: false },
       variantPriceSweep:  { type: Boolean, default: false },
     },
+    unansweredDigest: {
+      enabled:   { type: Boolean, default: false },
+      frequency: { type: String, enum: ['weekly', 'daily'], default: 'weekly' },
+      hourUtc:   { type: Number, default: 13, min: 0, max: 23 },
+      dayOfWeek: { type: Number, default: 1, min: 0, max: 6 }, // 0=Sunday; weekly only
+    },
+    // Deliberately outside unansweredDigest: the PATCH handler replaces that
+    // whole subdocument, which would wipe a nested send stamp.
+    unansweredDigestLastSentAt: { type: Date },
   },
   { timestamps: true }
 );
