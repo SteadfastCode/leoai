@@ -1,11 +1,10 @@
 {
-  "decision": "cap-reached",
-  "atUtc": "2026-08-12T11:37:30Z",
-  "runId": "2026-08-12T11:36:41.135Z",
-  "nightId": "2026-08-11",
-  "claimsUsedTonight": 10,
-  "claimsCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | count lines matching \"event\":\"claim\" AND \"nightId\":\"2026-08-11\" = 10",
-  "unreviewedCount": 9,
-  "unreviewedCommand": "unchanged from previous run (no new completes this fire): complete events whose mergeSha is not an ancestor of leo-nightly-ack (cff41f6)",
-  "notes": "nightly backstop reached (10/10 claims for nightId 2026-08-11); no work attempted this fire"
+  "decision": "run-complete-4-items",
+  "runId": "2026-08-13T00:36:41.142Z",
+  "nightId": "2026-08-12",
+  "claimsTonight": 4,
+  "unreviewedCount": 13,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-item git merge-base --is-ancestor <mergeSha> <ack-peeled>; count ledger complete events not ancestors",
+  "usageSnaps": "unavailable all run (capture-usage.ps1: Claude window not found, both presets)",
+  "atUtc": "2026-08-13T01:25:39.683Z"
 }
