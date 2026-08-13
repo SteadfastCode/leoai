@@ -10,6 +10,21 @@ const DEFAULT_THRESHOLD = 0.75;
 const SIBLING_THRESHOLD_OFFSET = 0.15;
 const MIN_SIBLING_THRESHOLD = 0.50;
 
+// Pack chunks into a context string up to maxChars. An oversized chunk is
+// SKIPPED rather than aborting the loop (LEO-020) — small high-scoring
+// siblings later in the list still fit. Chunk order is score order, so the
+// packing remains greedy-by-relevance.
+function packContext(chunks, maxChars) {
+  let context = '';
+  const sources = [];
+  for (const chunk of chunks) {
+    if (context.length + chunk.content.length > maxChars) continue;
+    context += chunk.content + '\n\n';
+    if (!sources.includes(chunk.url)) sources.push(chunk.url);
+  }
+  return { context, sources };
+}
+
 // Voyage AI embeddings are unit-normalized — dot product equals cosine similarity.
 function dotProduct(a, b) {
   let sum = 0;
@@ -71,13 +86,7 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
   const pageChunks  = relevant.filter(c => c.source !== 'owner_reply');
   const replyChunks = relevant.filter(c => c.source === 'owner_reply');
 
-  let context = '';
-  const sources = [];
-  for (const chunk of [...pageChunks, ...siblings]) {
-    if (context.length + chunk.content.length > MAX_CONTEXT_CHARS) break;
-    context += chunk.content + '\n\n';
-    if (!sources.includes(chunk.url)) sources.push(chunk.url);
-  }
+  const { context, sources } = packContext([...pageChunks, ...siblings], MAX_CONTEXT_CHARS);
 
   let ownerReplyContext = '';
   for (const chunk of replyChunks) {
@@ -87,4 +96,4 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
   return { context: context.trim(), ownerReplyContext: ownerReplyContext.trim(), sources, topScore: relevant[0].score };
 }
 
-module.exports = { retrieveContext };
+module.exports = { retrieveContext, packContext };
