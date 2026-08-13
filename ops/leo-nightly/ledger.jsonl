@@ -46,3 +46,6 @@
 {"event":"complete","runId":"2026-08-13T00:36:41.142Z","item":"LEO-020","mergeSha":"02fe70a3fee2efa4365ec5f4c7f0f14010ad0bbf","nightId":"2026-08-12","durationMin":5,"atUtc":"2026-08-13T01:24:24.870Z"}
 {"event":"run-end","runId":"2026-08-13T00:36:41.142Z","nightId":"2026-08-12","items":[{"id":"LEO-018","result":"complete","durationMin":19},{"id":"LEO-033","result":"complete","durationMin":10},{"id":"LEO-019","result":"complete","durationMin":7},{"id":"LEO-020","result":"complete","durationMin":5}],"activeMin":41,"atUtc":"2026-08-13T01:25:39.683Z"}
 {"event":"crash-recovered","runId":"2026-08-13T03:37:04.940Z","deadRunId":"2026-08-13T02:36:35.955Z","deadPid":12592,"deadPhase":"preflight","worktreeClean":true,"stash":null,"nightId":"2026-08-12","atUtc":"2026-08-13T03:38:30Z"}
+{"event":"usage-snap","when":"run-start","runId":"2026-08-13T05:36:38.734Z","nightId":"2026-08-12","ok":true,"fiveHourPct":25,"weeklyAllPct":57,"weeklyFablePct":86,"atUtc":"2026-08-13T05:42:10.230Z"}
+{"event":"model-governor","action":"fable-off","fablePct":86,"weekElapsedPct":59.3,"runId":"2026-08-13T05:36:38.734Z","atUtc":"2026-08-13T05:42:10.230Z"}
+{"event":"claim","runId":"2026-08-13T05:36:38.734Z","item":"LEO-021","nightId":"2026-08-12","model":"claude-fable-5","atUtc":"2026-08-13T05:42:10.230Z"}

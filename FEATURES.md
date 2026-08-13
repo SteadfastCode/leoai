@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only**
+- [x] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only**
   `services/leoscan.js` exporting `scanText(text)`. Ship exactly: labelled password, common API
   key prefixes, JWT, PEM BEGIN blocks, SSN, Luhn-valid 13–16 digit runs. **Deliberately exclude
   bank routing numbers** (they collide with product SKUs). Wire into `ingestText` only — abort
