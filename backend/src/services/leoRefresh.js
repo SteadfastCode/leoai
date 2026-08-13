@@ -7,6 +7,7 @@ const { rescrapeSite } = require('./scraper');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const { sendHandoffFollowUpNotification } = require('./notifications');
 const { reminderDue } = require('./handoff');
+const { runUnansweredDigestTick } = require('./unansweredDigest');
 
 const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
 
@@ -159,6 +160,7 @@ function startLeoRefreshScheduler(io) {
     console.log('[LeoRefresh] Hourly tick');
     runHourlyTick(io).catch((err) => console.error('[LeoRefresh] Unexpected error:', err));
     runHandoffFollowUpTick().catch((err) => console.error('[HandoffFollowUp] Unexpected error:', err));
+    runUnansweredDigestTick().catch((err) => console.error('[UnansweredDigest] Unexpected error:', err));
   });
 
   console.log('[LeoRefresh] Scheduler started — checks every hour for entities due to refresh');
