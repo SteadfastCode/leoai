@@ -81,14 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting**
-  The packing loop `break`s the moment one chunk would exceed `MAX_CONTEXT_CHARS`, discarding
-  every remaining chunk including small high-scoring siblings that would have fit. Change to
-  `continue` and extract as an exported pure `packContext(chunks, maxChars)`. **Do not touch
-  thresholds, the sibling offset, or the Phase 2 query.**
-  *Verify:* `node --test` with synthetic arrays (oversized first, mixed, all oversized, empty).
-  `rag.js` is restricted — diff under 30 lines, must not touch the `$vectorSearch` stage.
-
 - [ ] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only**
   `services/leoscan.js` exporting `scanText(text)`. Ship exactly: labelled password, common API
   key prefixes, JWT, PEM BEGIN blocks, SSN, Luhn-valid 13–16 digit runs. **Deliberately exclude
@@ -297,6 +289,12 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting** — 02fe70a (PR #19, 2026-08-13).
+  Packing loop extracted as exported pure packContext(chunks, maxChars); break → continue so
+  small high-scoring siblings after an oversized chunk still fit. Thresholds, sibling offset,
+  Phase 2 query, $vectorSearch untouched. rag.js diff 25 lines. 6 node --test specs
+  (oversized-first/mid, all-oversized, empty, cumulative cap, source dedup).
 
 - [x] **(LEO-019) Contain per-batch embedding failures** — 368c2b6 (PR #18, 2026-08-13).
   tryEmbed guard (new services/embedGuard.js) wraps all four embed call sites in
