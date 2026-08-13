@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 const { analyzePageStructure } = require('./claude');
+const { buildHoursChunk } = require('./hoursChunk');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -146,7 +147,9 @@ function detectsJsFramework($) {
 
 // Semantic leaf elements — their content gets a lower keepPara floor (4 chars vs 20).
 // Inline elements (a, span, button, label) are absent and retain the standard 20-char floor.
-const SEMANTIC_LEAF_TAGS = new Set(['p', 'dt', 'dd', 'td', 'th', 'blockquote', 'figcaption', 'address']);
+// h4-h6 are included so short minor headings ("Hours", "Menu") survive the floor —
+// only h1-h3 get [H*] markers, so without this a 5-char h4 was silently dropped.
+const SEMANTIC_LEAF_TAGS = new Set(['p', 'dt', 'dd', 'td', 'th', 'blockquote', 'figcaption', 'address', 'h4', 'h5', 'h6']);
 
 // Block-level tags that warrant a paragraph break in extracted text.
 const BLOCK_TAGS = new Set([
@@ -624,6 +627,12 @@ function chunkText(text, url, cs = {}) {
     }
   }
   flushMergeBuf();
+
+  // Standalone opening-hours chunk (LEO-018): terse footer hours embedded in a
+  // mixed chunk score below the retrieval threshold; an isolated [H2] Hours
+  // chunk clears it. Upstream seenParaHashes dedup limits this to one per crawl.
+  const hoursChunk = buildHoursChunk(allParas, url);
+  if (hoursChunk) chunks.push({ ...hoursChunk, chunkIndex: chunks.length });
 
   return chunks;
 }
