@@ -1,10 +1,14 @@
 {
+  "decision": "crash-recovered",
+  "runId": "2026-08-13T03:37:04.940Z",
+  "atUtc": "2026-08-13T03:39:30Z",
+  "nightId": "2026-08-12",
+  "deadRunId": "2026-08-13T02:36:35.955Z",
+  "deadPid": 12592,
+  "deadPhase": "preflight",
+  "stash": null,
+  "reason": "took over dead lock (heartbeat 60 min old, pid not running); worktree was clean at origin/main, no stash needed; takeover run is recover-only, no item claimed",
   "unreviewedCount": null,
-  "claimsTonight": 4,
-  "runId": "2026-08-13T01:36:39Z",
-  "atUtc": "2026-08-13T01:37:42.525Z",
-  "reason": "last claim event (LEO-020) 17 min old, under 55-min debounce",
-  "decision": "debounced",
-  "unreviewedNote": "backpressure not evaluated - exited at STEP 3 debounce",
-  "nightId": "2026-08-12"
+  "unreviewedNote": "backpressure not evaluated - recovery-only run per STEP 2",
+  "unreviewedCommand": "n/a"
 }
