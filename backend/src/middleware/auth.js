@@ -114,4 +114,4 @@ function signRefreshToken(user) {
   );
 }
 
-module.exports = { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin };
+module.exports = { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin, resolveApiKey };

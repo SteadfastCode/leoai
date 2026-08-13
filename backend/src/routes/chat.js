@@ -8,6 +8,7 @@ const { chat, classifyQuery, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 const { questionSimilarity, SIMILARITY_THRESHOLD: DUPLICATE_THRESHOLD } = require('../services/questions');
 const { shouldLogUnanswered } = require('../services/unanswered');
+const { isTestModeRequest } = require('../services/testMode');
 const logger = require('../services/logger');
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
@@ -37,6 +38,9 @@ router.post('/', async (req, res) => {
     if (!entity) {
       return res.status(404).json({ error: 'Entity not found' });
     }
+
+    // Test-mode (LEO-025): valid X-API-Key only — a body flag is never sufficient
+    const isTest = await isTestModeRequest(req);
 
     // --- Quota check & usage tracking ---
     const now = new Date();
@@ -101,6 +105,7 @@ router.post('/', async (req, res) => {
     if (!conversation) {
       conversation = new Conversation({ sessionToken, domain, messages: [] });
     }
+    if (isTest) conversation.isTest = true;
 
     const userMsg = { role: 'user', content: message };
     if (type === 'interactive' && interactiveData) {
@@ -133,7 +138,7 @@ router.post('/', async (req, res) => {
       if (!isDuplicate) conversation.pendingQuestions.push({ text: question, askedAt: new Date() });
       conversation.handoffPending = true;
 
-      if (entity.ownerPhone || entity.ownerEmail) {
+      if (!isTest && (entity.ownerPhone || entity.ownerEmail)) {
         // Atomic test-and-set: only the request that transitions handoffPending false→true
         // fires the notification, preventing race-condition duplicate alerts.
         // New conversations (not yet in DB) can't race — treat as first handoff directly.
@@ -158,12 +163,14 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Increment usage counters
-    entity.messageCount = (entity.messageCount || 0) + 1;
-    entity.messageCountThisPeriod = (entity.messageCountThisPeriod || 0) + 1;
+    // Increment usage counters (skipped for test-mode sessions)
+    if (!isTest) {
+      entity.messageCount = (entity.messageCount || 0) + 1;
+      entity.messageCountThisPeriod = (entity.messageCountThisPeriod || 0) + 1;
+    }
 
     // Fire quota warning notifications for free tier when thresholds are crossed
-    if (entity.plan === 'free') {
+    if (!isTest && entity.plan === 'free') {
       const thresholds = entity.quotaWarningThresholds?.length ? entity.quotaWarningThresholds : [50, 75, 90];
       const alreadyNotified = entity.notifiedThresholds || [];
       const newlyHit = thresholds.filter((t) => {
@@ -185,7 +192,7 @@ router.post('/', async (req, res) => {
     await Promise.all([conversation.save(), entity.save()]);
 
     // Fire-and-forget — log questions Leo couldn't answer (skip interactive button clicks)
-    if (shouldLogUnanswered({ message, reply, hadContext, handoffOffered: !!handoffMatch, interactive: type === 'interactive' })) {
+    if (!isTest && shouldLogUnanswered({ message, reply, hadContext, handoffOffered: !!handoffMatch, interactive: type === 'interactive' })) {
       UnansweredQuestion.create({
         entityDomain: domain,
         question: message,
@@ -195,9 +202,9 @@ router.post('/', async (req, res) => {
       }).catch((err) => console.error('UnansweredQuestion save error:', err));
     }
 
-    // Notify dashboard clients watching this domain
-    const io = req.app.get('io');
-    io.to(`domain:${domain}`).emit('new_message', {
+    // Notify dashboard clients watching this domain (suppressed for test-mode sessions)
+    const io = isTest ? null : req.app.get('io');
+    io?.to(`domain:${domain}`).emit('new_message', {
       conversationId: conversation._id,
       sessionToken,
       domain,
@@ -207,7 +214,7 @@ router.post('/', async (req, res) => {
       handoffPending: conversation.handoffPending,
     });
     if (handoffMatch) {
-      io.to(`domain:${domain}`).emit('handoff_requested', {
+      io?.to(`domain:${domain}`).emit('handoff_requested', {
         conversationId: conversation._id,
         sessionToken,
         domain,
