@@ -81,18 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-022) Create the Entity at signup with owner contact and alert channels**
-  `POST /auth/onboard` creates the User and membership but never touches Entity — the Entity is
-  only upserted after a scrape *succeeds*. So every signup today has an Entity with empty
-  `ownerEmail`/`ownerPhone`, meaning handoff SMS, handoff email and quota warnings **have no
-  recipient**; a failed first crawl leaves the user logged in with no Entity at all. Upsert in
-  `onboard` with `ownerEmail` from the signup email plus optional phone and channels. Add the
-  controls to Signup step 2. Drop the dead `draft.password` read. **Do not attempt the
-  conversational version** — there is no Leo widget on the signup page.
-  *Verify:* point `MONGODB_URI` at the local mongod (this path needs no vector search), seed one
-  alpha `Code`, POST `/auth/onboard`, assert the Entity exists with the right `ownerEmail`, and
-  assert a duplicate email still 409s.
-
 - [ ] **(LEO-023) Restore signup progress after a page reload** *(needs LEO-002)*
   `startSetup()` clears the draft then sets step 3, so a reload during the scrape drops an
   already-authenticated user back to step 1 with a crawl running invisibly. Persist
@@ -279,6 +267,13 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-022) Create the Entity at signup with owner contact and alert channels** — 7e847f1 (PR #21, 2026-08-13).
+  /auth/onboard upserts Entity right after user creation: ownerEmail from signup email, optional
+  ownerPhone, quotaAlertChannels filtered to email/sms, businessName via $setOnInsert (curated
+  names never clobbered). Signup step 2: phone field + SMS-alerts checkbox; dead draft.password
+  read dropped. 5 specs drive the real auth router over in-memory MongoDB incl. duplicate-email
+  409 and defaults-intact cases.
 
 - [x] **(LEO-021) LeoScan pattern scanner — manual KB ingest paths only** — e9d064b (PR #20, 2026-08-13).
   services/leoscan.js scanText(): labelled password, API key prefixes, JWT, PEM BEGIN, dashed
