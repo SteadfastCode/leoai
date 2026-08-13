@@ -8,6 +8,7 @@ const router = express.Router({ mergeParams: true });
 const Chunk = require('../models/Chunk');
 const { embedTexts, embedQuery } = require('../services/embeddings');
 const { chunkText } = require('../services/scraper');
+const { scanText } = require('../services/leoscan');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { PERMISSIONS } = require('../models/Permission');
 
@@ -254,6 +255,17 @@ router.get('/search', async (req, res) => {
 // ── Shared ingest helper ───────────────────────────────────────────────────
 async function ingestText({ domain, label, text, source, res }) {
   try {
+    // LeoScan (LEO-021): manual/upload paths only — never the scraper, where a
+    // false positive would silently drop chunks unattended. Must run BEFORE the
+    // deleteMany below so a rejected re-upload leaves existing chunks intact.
+    const flags = scanText(text);
+    if (flags.length) {
+      return res.status(422).json({
+        error: 'This content appears to contain sensitive data (passwords, keys, or personal numbers) and was not added to the knowledge base. Remove the flagged items and try again.',
+        flags,
+      });
+    }
+
     const url = `${source}://${domain}/${label}`;
 
     // Replace any existing chunks for this label (idempotent re-upload)
