@@ -1,14 +1,10 @@
 {
-  "decision": "crash-recovered",
-  "runId": "2026-08-13T03:37:04.940Z",
-  "atUtc": "2026-08-13T03:39:30Z",
+  "decision": "afk-active",
+  "runId": "2026-08-13T04:36:38.450Z",
+  "atUtc": "2026-08-13T04:40:08.779Z",
   "nightId": "2026-08-12",
-  "deadRunId": "2026-08-13T02:36:35.955Z",
-  "deadPid": 12592,
-  "deadPhase": "preflight",
-  "stash": null,
-  "reason": "took over dead lock (heartbeat 60 min old, pid not running); worktree was clean at origin/main, no stash needed; takeover run is recover-only, no item claimed",
-  "unreviewedCount": null,
-  "unreviewedNote": "backpressure not evaluated - recovery-only run per STEP 2",
-  "unreviewedCommand": "n/a"
+  "reason": "AFK guard positive: two interactive sessions (no scheduledTaskId) within 70-min lookback - 'LeoAI status check' (C:\reposLeoAI) lastActivityAt 2026-08-13T03:35:26Z and 'Add adaptive-mode liveness heartbeat' (tethered worktree) lastActivityAt 2026-08-13T03:58:16Z; Daniel also moved leo-nightly-ack (~03:38Z+). No item claimed.",
+  "unreviewedCount": 0,
+  "unreviewedNote": "ack tag (peeled 61aba7563ea3f7773466dceb86c6f512ed4978ad) is ancestor of origin/main; all 19 ledger complete mergeShas are ancestors of the ack sha",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (peeled); per complete event: git merge-base --is-ancestor <mergeSha> <ackSha>"
 }
