@@ -1,17 +1,11 @@
 {
-  "decision": "completed-4-items",
-  "runId": "2026-08-13T05:36:38.734Z",
-  "atUtc": "2026-08-13T06:24:02.483Z",
+  "decision": "debounced",
+  "runId": "2026-08-13T06:36:38.848Z",
+  "atUtc": "2026-08-13T06:38:30.000Z",
   "nightId": "2026-08-12",
-  "items": [
-    "LEO-021",
-    "LEO-022",
-    "LEO-023",
-    "LEO-024"
-  ],
-  "nightClaimsUsed": 8,
-  "governor": "fable-off (Fable 86% vs week-elapsed 59.3% at run start; frontmatter set to claude-sonnet-5, effective next fire)",
+  "detail": "last claim (LEO-024) at 2026-08-13T06:16:15.732Z, ~20 min before this fire — under the 55-min debounce",
   "unreviewedCount": 4,
-  "unreviewedNote": "ack tag (peeled 61aba75) covered everything at run start; the 4 items this run completed are the only unreviewed ones, oldest ~50 min",
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (peeled); per complete event: git merge-base --is-ancestor <mergeSha> <ackSha>"
+  "unreviewedNote": "LEO-021..024 from run 2026-08-13T05:36:38.734Z; ack tag unmoved at 61aba75 (peeled), all 4 mergeShas not ancestors of it; oldest unreviewed ~35 min",
+  "unreviewedCommand": "git ls-remote origin 'refs/tags/leo-nightly-ack^{}' then per complete event: git merge-base --is-ancestor <mergeSha> <ackSha>",
+  "modelNote": "this fire ran on claude-fable-5 despite last run's governor flip to claude-sonnet-5 (effective-next-fire); no claim event this fire so it does not count toward the two-run governor verification, recorded here as telemetry only"
 }
