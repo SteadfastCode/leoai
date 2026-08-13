@@ -28,23 +28,25 @@ const draft = loadDraft()
 // ── Step 1 — Account ───────────────────────────────────────────────────────
 const name      = ref(draft.name      || '')
 const email     = ref(draft.email     || '')
-const password  = ref(draft.password  || '')
+const password  = ref('') // never persisted to the draft — always retyped after reload
 const alphaCode = ref(draft.alphaCode || '')
 const showPass  = ref(false)
 const step1Error = ref('')
 
 watch([name, email, alphaCode], () => {
-  saveDraft({ name: name.value, email: email.value, alphaCode: alphaCode.value, businessName: businessName.value, siteUrl: siteUrl.value })
+  saveDraft({ name: name.value, email: email.value, alphaCode: alphaCode.value, businessName: businessName.value, siteUrl: siteUrl.value, ownerPhone: ownerPhone.value, smsAlerts: smsAlerts.value })
 })
 
 // ── Step 2 — Business info ─────────────────────────────────────────────────
 const businessName = ref(draft.businessName || '')
 const siteUrl      = ref(draft.siteUrl      || '')
+const ownerPhone   = ref(draft.ownerPhone   || '')
+const smsAlerts    = ref(draft.smsAlerts    || false)
 const step2Error   = ref('')
 const submitting   = ref(false)
 
-watch([businessName, siteUrl], () => {
-  saveDraft({ name: name.value, email: email.value, alphaCode: alphaCode.value, businessName: businessName.value, siteUrl: siteUrl.value })
+watch([businessName, siteUrl, ownerPhone, smsAlerts], () => {
+  saveDraft({ name: name.value, email: email.value, alphaCode: alphaCode.value, businessName: businessName.value, siteUrl: siteUrl.value, ownerPhone: ownerPhone.value, smsAlerts: smsAlerts.value })
 })
 
 const domain = computed(() => {
@@ -106,11 +108,14 @@ async function startSetup() {
   try {
     // Create account
     const { data } = await onboard({
-      name:       name.value.trim(),
-      email:      email.value.trim(),
-      password:   password.value,
-      alphaCode:  alphaCode.value.trim(),
-      domain:     domain.value,
+      name:              name.value.trim(),
+      email:             email.value.trim(),
+      password:          password.value,
+      alphaCode:         alphaCode.value.trim(),
+      domain:            domain.value,
+      businessName:      businessName.value.trim(),
+      ownerPhone:        ownerPhone.value.trim(),
+      quotaAlertChannels: ownerPhone.value.trim() && smsAlerts.value ? ['email', 'sms'] : ['email'],
     })
     persist(data.accessToken, data.refreshToken, data.user)
 
@@ -153,8 +158,8 @@ onUnmounted(() => {
 
 // ── JS bridge — Leo can fill fields via custom events ─────────────────────
 // Leo dispatches: new CustomEvent('leo-fill', { detail: { field, value } })
-// Fields: 'name', 'email', 'password', 'alphaCode', 'businessName', 'siteUrl'
-const fieldMap = { name, email, password, alphaCode, businessName, siteUrl }
+// Fields: 'name', 'email', 'password', 'alphaCode', 'businessName', 'siteUrl', 'ownerPhone'
+const fieldMap = { name, email, password, alphaCode, businessName, siteUrl, ownerPhone }
 function onLeoFill(e) {
   const { field, value } = e.detail || {}
   if (field && fieldMap[field] !== undefined) fieldMap[field].value = value
@@ -272,10 +277,32 @@ onUnmounted(() => window.removeEventListener('leo-fill', onLeoFill))
           hide-details="auto"
           placeholder="https://example.com"
         />
-        <div v-if="domain" class="text-caption text-medium-emphasis mb-6">
+        <div v-if="domain" class="text-caption text-medium-emphasis mb-4">
           <v-icon size="12" class="mr-1">mdi-domain</v-icon>{{ domain }}
         </div>
-        <div v-else class="mb-6" />
+        <div v-else class="mb-4" />
+
+        <v-text-field
+          v-model="ownerPhone"
+          label="Mobile number (optional)"
+          type="tel"
+          variant="outlined"
+          density="comfortable"
+          autocomplete="tel"
+          class="mb-1"
+          hide-details="auto"
+          placeholder="+1 717 555 0123"
+          hint="Leo texts you when a visitor needs a human."
+          persistent-hint
+        />
+        <v-checkbox
+          v-model="smsAlerts"
+          :disabled="!ownerPhone.trim()"
+          density="compact"
+          hide-details
+          class="mb-4"
+          label="Also send usage alerts by text"
+        />
 
         <div class="d-flex gap-3">
           <v-btn variant="text" @click="step = 1">Back</v-btn>
