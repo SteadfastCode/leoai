@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting**
+- [x] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting**
   The packing loop `break`s the moment one chunk would exceed `MAX_CONTEXT_CHARS`, discarding
   every remaining chunk including small high-scoring siblings that would have fit. Change to
   `continue` and extract as an exported pure `packContext(chunks, maxChars)`. **Do not touch
