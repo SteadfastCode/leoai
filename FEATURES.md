@@ -81,15 +81,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-019) Contain per-batch embedding failures**
-  `fetchPage` errors are caught per URL but the embed call is not — Voyage rethrows after
-  `MAX_RETRIES` and unwinds the entire crawl loop, leaving a half-populated KB and a 500. Wrap
-  `embedPageData` (both call sites) and `embedThinPageGroups`, log affected URLs, continue, and
-  surface `skippedUrls` in the scrape summary so the dashboard reports the partial result
-  honestly.
-  *Verify:* a node script overriding `require.cache` for `./embeddings` with a stub throwing on
-  the second call; assert `scrapeSite` **resolves** with a non-empty `skippedUrls`.
-
 - [ ] **(LEO-020) RAG context packing — skip oversized chunks instead of aborting**
   The packing loop `break`s the moment one chunk would exceed `MAX_CONTEXT_CHARS`, discarding
   every remaining chunk including small high-scoring siblings that would have fit. Change to
@@ -306,6 +297,14 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-019) Contain per-batch embedding failures** — 368c2b6 (PR #18, 2026-08-13).
+  tryEmbed guard (new services/embedGuard.js) wraps all four embed call sites in
+  scrapeSite/rescrapeSite; a Voyage failure after retries skips that batch's pages instead of
+  unwinding the crawl; skippedUrls surfaced in both scrape summaries. Offline node --test spec
+  drives real scrapeSite against a local HTTP server with embeddings stubbed to throw on call 2
+  (puppeteer + Haiku analysis stubbed): resolves, batch 2's 5 pages in skippedUrls, batch 1's
+  chunks delivered, all 7 pages crawled. scraper.js diff exactly 30 lines.
 
 - [x] **(LEO-033) Owner-facing KB search — "is this actually in Leo's knowledge base?"** — fd817ec (PR #17, 2026-08-13).
   GET .../kb/search, mode=semantic (admin.js $vectorSearch shape, top 20 scored) | text
