@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-018) Investigate and fix the "what are your hours?" retrieval miss**
+- [x] **(LEO-018) Investigate and fix the "what are your hours?" retrieval miss**
   Confirmed live: `retrieveContext('dosiedough.com', 'what are your hours?')` returns **no
   context** on an entity with 19 chunks, while "what kind of bread do you make?" retrieves fine.
   Hours is the single most common question a small business gets. Diagnose first — is the text
