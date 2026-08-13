@@ -94,6 +94,7 @@ export const getModelStats         = (domain, days) => api.get(`/api/dashboard/e
 export const onboard             = (data)         => api.post('/auth/onboard', data)
 
 export const getKbEntries    = (domain)           => api.get(`/api/dashboard/entities/${domain}/kb/entries`)
+export const searchKb        = (domain, q, mode)  => api.get(`/api/dashboard/entities/${domain}/kb/search`, { params: { q, mode } })
 export const addKbEntry      = (domain, data)     => api.post(`/api/dashboard/entities/${domain}/kb/entries`, data)
 export const uploadKbFile    = (domain, file)     => { const fd = new FormData(); fd.append('file', file); return api.post(`/api/dashboard/entities/${domain}/kb/upload`, fd) }
 export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/entities/${domain}/kb/entries/${encodeURIComponent(label)}`)
