@@ -6,6 +6,7 @@ const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 const { analyzePageStructure } = require('./claude');
 const { buildHoursChunk } = require('./hoursChunk');
+const { tryEmbed } = require('./embedGuard');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -806,6 +807,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   const queue = [baseUrl];
   const allPageData = []; // kept for page record building in the route
   const thinPageBuffer = []; // thin pages accumulated across all batches
+  const skippedUrls = []; // pages whose embedding failed after retries (LEO-019)
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
@@ -880,7 +882,9 @@ async function scrapeSite(baseUrl, opts = {}) {
       // Embed normal chunks immediately — thin pages are buffered for end-of-crawl grouping
       if (batchPageData.length > 0) {
         if (onChunks) {
-          const { normalChunks, thinPageData } = await embedPageData(batchPageData, seenChunkHashes, seenParaHashes, cs);
+          const { normalChunks, thinPageData } = await tryEmbed(
+            () => embedPageData(batchPageData, seenChunkHashes, seenParaHashes, cs),
+            batchPageData, skippedUrls, { normalChunks: [], thinPageData: [] });
           if (normalChunks.length > 0) {
             // Tell the route which pages produced chunks so it can upsert ScrapedPage records
             const normalPageUrls = new Set(normalChunks.map(c => c.url));
@@ -896,7 +900,9 @@ async function scrapeSite(baseUrl, opts = {}) {
 
     // After full crawl: group thin pages and embed them together
     if (thinPageBuffer.length > 0) {
-      const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageBuffer, seenChunkHashes, cs);
+      const { chunks: thinGroupChunks } = await tryEmbed(
+        () => embedThinPageGroups(thinPageBuffer, seenChunkHashes, cs),
+        thinPageBuffer, skippedUrls, { chunks: [] });
       // No page records — thin group pages' ScrapedPage records are handled by bulkWrite at end
       if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks, []);
     }
@@ -906,12 +912,16 @@ async function scrapeSite(baseUrl, opts = {}) {
 
   // If no onChunks callback (e.g. tests), embed everything at the end
   if (!onChunks) {
-    const { normalChunks, thinPageData } = await embedPageData(allPageData, seenChunkHashes, seenParaHashes, cs);
-    const { chunks: thinGroupChunks } = await embedThinPageGroups(thinPageData, seenChunkHashes, cs);
-    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, durationMs: Date.now() - startedAt };
+    const { normalChunks, thinPageData } = await tryEmbed(
+      () => embedPageData(allPageData, seenChunkHashes, seenParaHashes, cs),
+      allPageData, skippedUrls, { normalChunks: [], thinPageData: [] });
+    const { chunks: thinGroupChunks } = await tryEmbed(
+      () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
+      thinPageData, skippedUrls, { chunks: [] });
+    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, durationMs: Date.now() - startedAt };
   }
 
-  return { chunks: [], pageData: allPageData, durationMs: Date.now() - startedAt };
+  return { chunks: [], pageData: allPageData, skippedUrls, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed.
@@ -1017,8 +1027,10 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   // Embed normal changed pages
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
+  const skippedUrls = []; // pages whose embedding failed after retries (LEO-019)
   const { normalChunks: embeddedChunks } = changedPages.length > 0
-    ? await embedPageData(changedPages, seenChunkHashes, seenParaHashes, cs)
+    ? await tryEmbed(() => embedPageData(changedPages, seenChunkHashes, seenParaHashes, cs),
+        changedPages, skippedUrls, { normalChunks: [] })
     : { normalChunks: [] };
 
   // Thin pages: re-group all thin pages; only re-embed groups with ≥1 changed page
@@ -1043,13 +1055,15 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const thinGroupUrls = [...changedThinGroups.keys()];
   if (changedThinGroups.size > 0) {
     const thinPagesForEmbedding = [...changedThinGroups.values()].flat();
-    const result = await embedThinPageGroups(thinPagesForEmbedding, seenChunkHashes, cs);
+    const result = await tryEmbed(() => embedThinPageGroups(thinPagesForEmbedding, seenChunkHashes, cs),
+      thinPagesForEmbedding, skippedUrls, { chunks: [] });
     thinGroupChunks = result.chunks;
   }
 
   return {
     embeddedChunks,
     thinGroupChunks,
+    skippedUrls,
     changedUrls:    changedPages.map(p => p.url),
     thinGroupUrls,
     unchangedUrls,

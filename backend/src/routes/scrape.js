@@ -244,6 +244,7 @@ router.post('/', requireAuth(), async (req, res) => {
         pagesChanged,
         pagesUnchanged: result.unchangedUrls.length,
         chunksUpdated: result.embeddedChunks.length + result.thinGroupChunks.length,
+        skippedUrls: result.skippedUrls || [],
         durationMs: result.durationMs,
         durationFormatted: formatDuration(result.durationMs),
       };
@@ -262,7 +263,7 @@ router.post('/', requireAuth(), async (req, res) => {
       let totalChunks = 0;
       const chunkCountByUrl = {};
 
-      const { pageData, durationMs } = await scrapeSite(url, {
+      const { pageData, durationMs, skippedUrls } = await scrapeSite(url, {
         ...opts,
         // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
         onChunks: async (batchChunks, pageRecords = []) => {
@@ -311,6 +312,7 @@ router.post('/', requireAuth(), async (req, res) => {
         mode: 'full',
         pagesScraped: pageData.length,
         chunksStored: totalChunks,
+        skippedUrls: skippedUrls || [],
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };
