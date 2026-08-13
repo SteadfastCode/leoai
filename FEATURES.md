@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-023) Restore signup progress after a page reload** *(needs LEO-002)*
+- [x] **(LEO-023) Restore signup progress after a page reload** *(needs LEO-002)*
   `startSetup()` clears the draft then sets step 3, so a reload during the scrape drops an
   already-authenticated user back to step 1 with a crawl running invisibly. Persist
   `{step, domain, siteUrl, businessName, startedAt}` under a separate key; on mount restore
