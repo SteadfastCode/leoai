@@ -81,7 +81,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [ ] **(LEO-022) Create the Entity at signup with owner contact and alert channels**
+- [x] **(LEO-022) Create the Entity at signup with owner contact and alert channels**
   `POST /auth/onboard` creates the User and membership but never touches Entity — the Entity is
   only upserted after a scrape *succeeds*. So every signup today has an Entity with empty
   `ownerEmail`/`ownerPhone`, meaning handoff SMS, handoff email and quota warnings **have no
