@@ -45,21 +45,8 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-026": {
-      "order": 5,
-      "status": "claimed",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "leo-nightly/item/LEO-026",
-      "dependsOn": [
-        "LEO-001"
-      ],
-      "claimedAtUtc": "2026-08-13T08:40:56.340Z",
-      "runId": "2026-08-13T08:36:41.283Z",
-      "lastFail": null
-    },
     "LEO-027": {
-      "order": 6,
+      "order": 5,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -70,7 +57,7 @@
       "lastFail": null
     },
     "LEO-028": {
-      "order": 7,
+      "order": 6,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -81,7 +68,7 @@
       "lastFail": null
     },
     "LEO-029": {
-      "order": 8,
+      "order": 7,
       "status": "pending",
       "attempts": 0,
       "cluster": "scrape-pipeline",
@@ -92,7 +79,7 @@
       "lastFail": null
     },
     "LEO-030": {
-      "order": 9,
+      "order": 8,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -105,7 +92,7 @@
       "lastFail": null
     },
     "LEO-031": {
-      "order": 10,
+      "order": 9,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -118,7 +105,7 @@
       "lastFail": null
     },
     "LEO-032": {
-      "order": 11,
+      "order": 10,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -131,7 +118,7 @@
       "lastFail": null
     },
     "LEO-005": {
-      "order": 12,
+      "order": 11,
       "status": "blocked",
       "attempts": 0,
       "cluster": null,
@@ -144,6 +131,19 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
+    },
+    "LEO-026": {
+      "order": null,
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "leo-nightly/item/LEO-026",
+      "dependsOn": [
+        "LEO-001"
+      ],
+      "claimedAtUtc": "2026-08-13T08:40:56.340Z",
+      "runId": "2026-08-13T08:36:41.283Z",
+      "lastFail": null
     },
     "LEO-025": {
       "order": null,

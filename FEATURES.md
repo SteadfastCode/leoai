@@ -87,16 +87,6 @@ Every item here touches `backend/src/routes/chat.js`, a restricted file. Diffs m
 changed lines, must not touch the quota block, the handoff atomic test-and-set, or
 `conversation.save()`, and `yarn test` must be green.
 
-- [x] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF**
-  `unansweredDigest: { enabled: false, ... }` on Entity and the PATCH allowlist. Extract the
-  greedy Jaccard grouping from the `/unanswered` handler into `services/questions.js` so the
-  digest and dashboard cannot drift. `runUnansweredDigestTick()` beside the existing hourly tick:
-  **skip silently when the list is empty**, stamp `lastDigestSentAt` idempotently via the same
-  atomic `findOneAndUpdate` the handoff follow-up uses. Default-off is what makes this shippable
-  unattended — no entity can receive one until Daniel opts in.
-  *Verify:* `node --test` on the due-date calculation (weekly and daily, DST-adjacent) and the
-  body renderer (empty-list suppression). **Never trigger a real send.**
-
 ## Cluster: scrape-pipeline *(shared branch, built across multiple runs)*
 
 **These three items share one branch, `leo-nightly/cluster/scrape-pipeline`, and merge to
@@ -237,6 +227,14 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF** — af06c4d (PR #25, 2026-08-13).
+  unansweredDigest subdoc on Entity (enabled: false, weekly/daily, UTC schedule) + PATCH
+  allowlist; send stamp top-level (unansweredDigestLastSentAt) so a settings PATCH can't clobber
+  it. Jaccard grouping extracted to questions.js#groupQuestions, shared by dashboard + digest.
+  runUnansweredDigestTick beside the LeoRefresh hourly tick: empty list skips silently,
+  match-on-previous-value atomic stamp, Resend send. 18 node --test specs (due gates,
+  weekly/daily, DST both directions, empty suppression, grouping). Backend 142 green.
 
 - [x] **(LEO-025) Test-mode chat sessions** — e7ab982 (PR #24, 2026-08-13).
   Valid X-API-Key on POST /chat (validated against ApiKey via exported resolveApiKey) skips
