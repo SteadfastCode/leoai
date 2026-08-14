@@ -98,35 +98,6 @@ Cluster rules: at most one open cluster; hard cap of 3 items and 48 hours from t
 commit; `origin/main` merged in at the **start of every run that touches it** with the full verify
 gate re-run after each merge; any conflict the routine did not author aborts and notifies.
 
-- [x] **(LEO-027) Extract `scrapePersist.js` and unify LeoRefresh with the scrape route**
-  `leoRefresh.js` still diverges from `routes/scrape.js` two ways after the P0 ordering fix: it
-  ignores `thinGroupChunks`/`thinGroupUrls` entirely (group chunks are never refreshed by the
-  nightly job) and it never calls `createSnapshot`, so a bad nightly run has no restore path.
-  Extract the route's persistence block into `services/scrapePersist.js` exporting
-  `persistRescrapeResult({ domain, result, io })` and call it from both. **Do not change
-  `rescrapeSite` itself.** Riskiest item in the queue — snapshotting must land in the same change.
-  *Verify:* seed synthetic chunks and ScrapedPage rows under a scratch domain, hand
-  `persistRescrapeResult` a hand-built result, assert: chunk count never reaches zero, all four
-  preserved sources survive, group chunks are replaced by group URL, a `ScrapeSnapshot` was
-  written. Delete the scratch domain after.
-
-- [x] **(LEO-028) Attribute group-chunk counts to member thin pages**
-  `chunkCountByUrl` is keyed by `chunk.url` and group chunks carry the *group* URL — so every thin
-  page folded into a multi-URL group is written back with `chunkCount: 0` and Page Explorer
-  reports it as having produced nothing. That is exactly the failure multi-URL chunking was built
-  to fix. Credit each URL in a chunk's `sourceUrls`, in both the full-scrape and rescrape
-  branches. Bookkeeping only — do not alter chunk content, URLs, or retrieval.
-  *Verify:* `node --test` on the extracted tally function (single-URL chunks, a group chunk with
-  three `sourceUrls`, mixed).
-
-- [x] **(LEO-029) Staleness-based force re-embed (per-entity `staleDays`)**
-  `crawlSettings.staleDays` (Number, **default 0 = disabled**, so every existing entity is
-  unaffected). In `rescrapeSite`, build a stale-URL set from `storedPages` and treat membership as
-  a change signal alongside `hashChanged` and `isPriority`. Thread through exactly the way
-  `variantPriceSweep` already is. Worst case is over-eager re-embedding.
-  *Verify:* extract the staleness predicate as a pure function; assert 0/disabled, exactly N days,
-  missing `lastScrapedAt`, a future date.
-
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
 - [ ] **(LEO-030) Widget "Clear conversation" does not reset the session token** *(needs LEO-003)*
@@ -227,6 +198,35 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-027) Extract `scrapePersist.js` and unify LeoRefresh with the scrape route** — 584725e (PR #26, 2026-08-13).
+  `leoRefresh.js` still diverges from `routes/scrape.js` two ways after the P0 ordering fix: it
+  ignores `thinGroupChunks`/`thinGroupUrls` entirely (group chunks are never refreshed by the
+  nightly job) and it never calls `createSnapshot`, so a bad nightly run has no restore path.
+  Extract the route's persistence block into `services/scrapePersist.js` exporting
+  `persistRescrapeResult({ domain, result, io })` and call it from both. **Do not change
+  `rescrapeSite` itself.** Riskiest item in the queue — snapshotting must land in the same change.
+  *Verify:* seed synthetic chunks and ScrapedPage rows under a scratch domain, hand
+  `persistRescrapeResult` a hand-built result, assert: chunk count never reaches zero, all four
+  preserved sources survive, group chunks are replaced by group URL, a `ScrapeSnapshot` was
+  written. Delete the scratch domain after.
+
+- [x] **(LEO-028) Attribute group-chunk counts to member thin pages** — 584725e (PR #26, 2026-08-13).
+  `chunkCountByUrl` is keyed by `chunk.url` and group chunks carry the *group* URL — so every thin
+  page folded into a multi-URL group is written back with `chunkCount: 0` and Page Explorer
+  reports it as having produced nothing. That is exactly the failure multi-URL chunking was built
+  to fix. Credit each URL in a chunk's `sourceUrls`, in both the full-scrape and rescrape
+  branches. Bookkeeping only — do not alter chunk content, URLs, or retrieval.
+  *Verify:* `node --test` on the extracted tally function (single-URL chunks, a group chunk with
+  three `sourceUrls`, mixed).
+
+- [x] **(LEO-029) Staleness-based force re-embed (per-entity `staleDays`)** — 584725e (PR #26, 2026-08-13).
+  `crawlSettings.staleDays` (Number, **default 0 = disabled**, so every existing entity is
+  unaffected). In `rescrapeSite`, build a stale-URL set from `storedPages` and treat membership as
+  a change signal alongside `hashChanged` and `isPriority`. Thread through exactly the way
+  `variantPriceSweep` already is. Worst case is over-eager re-embedding.
+  *Verify:* extract the staleness predicate as a pure function; assert 0/disabled, exactly N days,
+  missing `lastScrapedAt`, a future date.
 
 - [x] **(LEO-026) Weekly unanswered-questions email digest — DEFAULT OFF** — af06c4d (PR #25, 2026-08-13).
   unansweredDigest subdoc on Entity (enabled: false, weekly/daily, UTC schedule) + PATCH

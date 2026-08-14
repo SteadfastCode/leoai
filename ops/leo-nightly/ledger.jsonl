@@ -76,3 +76,6 @@
 {"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-027","nightId":"2026-08-13","model":"claude-opus-5","atUtc":"2026-08-14T00:41:39.444Z"}
 {"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-028","nightId":"2026-08-13","model":"claude-opus-5","cluster":"scrape-pipeline","atUtc":"2026-08-14T00:46:07.687Z"}
 {"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-029","nightId":"2026-08-13","model":"claude-opus-5","cluster":"scrape-pipeline","atUtc":"2026-08-14T00:48:06.495Z"}
+{"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-027","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":14,"atUtc":"2026-08-14T00:55:26.963Z"}
+{"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-028","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":9,"atUtc":"2026-08-14T00:55:26.963Z"}
+{"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-029","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":7,"atUtc":"2026-08-14T00:55:26.963Z"}
