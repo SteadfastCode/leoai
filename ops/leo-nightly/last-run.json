@@ -1,44 +1,18 @@
 {
-  "decision": "shipped",
-  "reason": "4 items merged and smoke-verified: LEO-027/028/029 as the scrape-pipeline cluster (584725e, PR #26) and LEO-030 (064d0c8, PR #27). Per-run cap of 4 reached; run ended cleanly.",
-  "runId": "2026-08-14T00:37:06.004Z",
+  "decision": "debounced",
+  "reason": "Fire at 21:37 local is inside the 20:00-09:00 window, but the most recent ledger claim (LEO-030, 2026-08-14T00:56:42.619Z) is ~41 minutes old, under the 55-minute run-start debounce. No item claimed; no work performed.",
+  "runId": "2026-08-14T01:37:07.082Z",
   "nightId": "2026-08-13",
-  "items": [
-    {
-      "id": "LEO-027",
-      "durationMin": 14
-    },
-    {
-      "id": "LEO-028",
-      "durationMin": 9
-    },
-    {
-      "id": "LEO-029",
-      "durationMin": 7
-    },
-    {
-      "id": "LEO-030",
-      "durationMin": 6
-    }
-  ],
-  "activeMin": 36,
+  "lastClaim": {
+    "item": "LEO-030",
+    "atUtc": "2026-08-14T00:56:42.619Z",
+    "minutesAgo": 41
+  },
   "claimsUsedThisNight": 4,
   "unreviewedCount": 10,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per ledger complete event, git merge-base --is-ancestor <mergeSha> <ack-commit>",
-  "oldestUnreviewedAgeDays": 0.79,
+  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event=complete; for each: git merge-base --is-ancestor <mergeSha> af4164facefd0efa86251d4010445884b04f1627",
+  "oldestUnreviewedAgeDays": 0.82,
   "governorDisabled": true,
   "governorNote": "frontmatter model control provably ineffective (disabled 2026-08-13T08:50Z); no flips attempted. This run recorded model claude-opus-5.",
-  "usage": {
-    "runStart": {
-      "fiveHourPct": 2,
-      "weeklyAllPct": 66,
-      "weeklyFablePct": 98
-    },
-    "runEnd": {
-      "fiveHourPct": 6,
-      "weeklyAllPct": 67,
-      "weeklyFablePct": 98
-    }
-  },
-  "atUtc": "2026-08-14T01:03:56.978Z"
+  "atUtc": "2026-08-14T01:38:22.894Z"
 }
