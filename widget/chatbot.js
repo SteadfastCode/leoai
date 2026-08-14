@@ -19,21 +19,39 @@
     return token;
   }
 
-  const sessionToken = getSessionToken();
+  // Mutable: "Clear conversation" mints a fresh token, and every read of it
+  // (the socket join, the history fetch, the /chat body) must see the new one.
+  let sessionToken = getSessionToken();
 
   // --- Socket.io for real-time owner replies ---
+  let socket = null;
+  let socketRequested = false;
+
   function initSocket() {
+    if (socketRequested) return; // one script load, one socket, however often this is called
+    socketRequested = true;
     const script = document.createElement('script');
     script.src = BACKEND_URL + '/socket.io/socket.io.js';
     script.onload = () => {
-      const socket = window.io(BACKEND_URL);
-      socket.emit('join', sessionToken);
+      socket = window.io(BACKEND_URL);
+      // Join on every (re)connect, always reading the CURRENT token. Emitting once
+      // at creation meant a transient reconnect silently left the room behind.
+      socket.on('connect', () => socket.emit('join', sessionToken));
       socket.on('owner_reply', ({ message }) => {
         appendMessage('owner_reply', message);
         appendMessage('assistant', `Great news! The team just got back to you — see their reply above. Is there anything else I can help with?`);
       });
     };
     document.head.appendChild(script);
+  }
+
+  // The backend's 'join' handler only ever ADDS a room, so a reconnect is the
+  // only way to stop receiving owner replies for the conversation just cleared.
+  // The 'connect' handler above re-joins under the new token.
+  function rejoinSessionRoom() {
+    if (!socket) return;
+    socket.disconnect();
+    socket.connect();
   }
 
   // --- Inject styles ---
@@ -498,7 +516,26 @@
   document.getElementById('leo-menu-clear').addEventListener('click', () => {
     messagesEl.innerHTML = '';
     clearActiveOptions();
+
+    // Removing the key alone left the OLD token in play until the next page
+    // load: the pane looked empty while every subsequent message still posted
+    // under it, so Leo kept the cleared history and the dashboard transcript
+    // never broke. Mint a fresh token and reset everything keyed to it.
     localStorage.removeItem(SESSION_KEY);
+    sessionToken = getSessionToken();
+
+    oldestTimestamp = null;
+    hasMoreHistory = false;
+    messageQueue = [];
+    historyLoaded = false;
+
+    rejoinSessionRoom();
+
+    // Re-run the normal first-visit path so the greeting comes from the same
+    // place it always does, rather than a second copy that can drift.
+    historyLoaded = true;
+    loadHistory();
+
     menu.hidden = true;
   });
 
