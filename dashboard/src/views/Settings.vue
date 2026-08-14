@@ -43,6 +43,7 @@ watch(() => props.entity, (e) => {
       keepSocialHandles: e.crawlSettings?.keepSocialHandles  ?? false,
       keepShortUrls:     e.crawlSettings?.keepShortUrls      ?? false,
       variantPriceSweep: e.crawlSettings?.variantPriceSweep  ?? false,
+      staleDays:         e.crawlSettings?.staleDays          ?? 0,
     },
     leoRefreshHour: e.leoRefreshHour ?? 3,
     leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
@@ -408,6 +409,23 @@ async function save() {
             On pages with a price range or no single price, iterates product option dropdowns
             and captures the live price for each variant (e.g. Small: $3.25, Large: $4.50).
             Adds ~1–2s per product page. Recommended for sites with a shop subdomain.
+          </div>
+          <v-divider class="my-4" />
+          <v-text-field
+            v-model.number="form.crawlSettings.staleDays"
+            label="Re-embed pages older than (days)"
+            type="number"
+            min="0"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 240px"
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis">
+            A rescrape normally skips any page whose content hash is unchanged. Set a number of
+            days to also re-embed pages that simply haven't been scraped in a while — useful after
+            a chunking or embedding change. <strong>0 disables it</strong> (the default).
           </div>
         </v-card-text>
       </v-card>
