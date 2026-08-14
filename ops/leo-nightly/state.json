@@ -69,13 +69,13 @@
     },
     "LEO-029": {
       "order": 7,
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": "scrape-pipeline",
       "branch": null,
       "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-08-14T00:48:06.495Z",
+      "runId": "2026-08-14T00:37:06.004Z",
       "lastFail": null
     },
     "LEO-030": {
@@ -389,7 +389,8 @@
     "branch": "leo-nightly/cluster/scrape-pipeline",
     "members": [
       "LEO-027",
-      "LEO-028"
+      "LEO-028",
+      "LEO-029"
     ],
     "openedAtUtc": "2026-08-14T00:41:39.444Z"
   }
