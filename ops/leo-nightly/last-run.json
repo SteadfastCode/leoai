@@ -1,11 +1,44 @@
 {
-  "decision": "cap-reached",
-  "reason": "10 of 10 claims already recorded for nightId 2026-08-12; nightly backstop reached, no claim allowed this fire",
-  "runId": "2026-08-13T10:36:39.043Z",
-  "nightId": "2026-08-12",
-  "unreviewedCount": 6,
+  "decision": "shipped",
+  "reason": "4 items merged and smoke-verified: LEO-027/028/029 as the scrape-pipeline cluster (584725e, PR #26) and LEO-030 (064d0c8, PR #27). Per-run cap of 4 reached; run ended cleanly.",
+  "runId": "2026-08-14T00:37:06.004Z",
+  "nightId": "2026-08-13",
+  "items": [
+    {
+      "id": "LEO-027",
+      "durationMin": 14
+    },
+    {
+      "id": "LEO-028",
+      "durationMin": 9
+    },
+    {
+      "id": "LEO-029",
+      "durationMin": 7
+    },
+    {
+      "id": "LEO-030",
+      "durationMin": 6
+    }
+  ],
+  "activeMin": 36,
+  "claimsUsedThisNight": 4,
+  "unreviewedCount": 10,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per ledger complete event, git merge-base --is-ancestor <mergeSha> <ack-commit>",
+  "oldestUnreviewedAgeDays": 0.79,
   "governorDisabled": true,
-  "governorNote": "frontmatter model control provably ineffective (disabled 2026-08-13T08:50Z); model: line removed, no further flips",
-  "atUtc": "2026-08-13T10:38:30.000Z"
+  "governorNote": "frontmatter model control provably ineffective (disabled 2026-08-13T08:50Z); no flips attempted. This run recorded model claude-opus-5.",
+  "usage": {
+    "runStart": {
+      "fiveHourPct": 2,
+      "weeklyAllPct": 66,
+      "weeklyFablePct": 98
+    },
+    "runEnd": {
+      "fiveHourPct": 6,
+      "weeklyAllPct": 67,
+      "weeklyFablePct": 98
+    }
+  },
+  "atUtc": "2026-08-14T01:03:56.978Z"
 }
