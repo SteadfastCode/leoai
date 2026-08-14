@@ -100,18 +100,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [x] **(LEO-030) Widget "Clear conversation" does not reset the session token** *(needs LEO-003)*
-  `sessionToken` is a `const` captured at load; the clear handler removes the localStorage key but
-  cannot reassign it. The visitor sees an empty pane while the next message posts under the **old**
-  token — Leo still has the old history, the dashboard transcript never breaks, and on next page
-  load a new token is minted and the prior conversation is orphaned. Change to `let`, mint a fresh
-  token, reset `historyLoaded`/`oldestTimestamp`/`hasMoreHistory`/`messageQueue`, re-join the
-  socket room, append the first-visit greeting.
-  *Verify:* `node widget/smoke.mjs` plus a grep audit that every read of `sessionToken` resolves
-  through the mutable binding — specifically `initSocket`'s emit and `sendMessage`'s body.
-  Post-deploy, fetch `/demo/chatbot.js`, assert 200, byte length within ±25% of the committed
-  file, and `node --check` the **downloaded** body.
-
 - [ ] **(LEO-031) Teach Leo to link the source page in his answer** *(needs LEO-025)*
   The plumbing exists and is unused: `rag.js` returns `sources[]`, `claude.js` injects them as a
   bare list, the widget already renders markdown links with a per-entity `linksOpenInNewTab`
@@ -198,6 +186,18 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-030) Widget "Clear conversation" does not reset the session token** — 064d0c8 (PR #27, 2026-08-13).
+  `sessionToken` is a `const` captured at load; the clear handler removes the localStorage key but
+  cannot reassign it. The visitor sees an empty pane while the next message posts under the **old**
+  token — Leo still has the old history, the dashboard transcript never breaks, and on next page
+  load a new token is minted and the prior conversation is orphaned. Change to `let`, mint a fresh
+  token, reset `historyLoaded`/`oldestTimestamp`/`hasMoreHistory`/`messageQueue`, re-join the
+  socket room, append the first-visit greeting.
+  *Verify:* `node widget/smoke.mjs` plus a grep audit that every read of `sessionToken` resolves
+  through the mutable binding — specifically `initSocket`'s emit and `sendMessage`'s body.
+  Post-deploy, fetch `/demo/chatbot.js`, assert 200, byte length within ±25% of the committed
+  file, and `node --check` the **downloaded** body.
 
 - [x] **(LEO-027) Extract `scrapePersist.js` and unify LeoRefresh with the scrape route** — 584725e (PR #26, 2026-08-13).
   `leoRefresh.js` still diverges from `routes/scrape.js` two ways after the P0 ordering fix: it

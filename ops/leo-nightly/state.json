@@ -45,21 +45,8 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-030": {
-      "order": 5,
-      "status": "claimed",
-      "attempts": 1,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [
-        "LEO-003"
-      ],
-      "claimedAtUtc": "2026-08-14T00:56:42.619Z",
-      "runId": "2026-08-14T00:37:06.004Z",
-      "lastFail": null
-    },
     "LEO-031": {
-      "order": 6,
+      "order": 5,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -72,7 +59,7 @@
       "lastFail": null
     },
     "LEO-032": {
-      "order": 7,
+      "order": 6,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -85,7 +72,7 @@
       "lastFail": null
     },
     "LEO-005": {
-      "order": 8,
+      "order": 7,
       "status": "blocked",
       "attempts": 0,
       "cluster": null,
@@ -98,6 +85,19 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
+    },
+    "LEO-030": {
+      "order": null,
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "leo-nightly/item/LEO-030",
+      "dependsOn": [
+        "LEO-003"
+      ],
+      "claimedAtUtc": "2026-08-14T00:56:42.619Z",
+      "runId": "2026-08-14T00:37:06.004Z",
+      "lastFail": null
     },
     "LEO-027": {
       "order": null,
