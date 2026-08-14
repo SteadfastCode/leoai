@@ -29,7 +29,10 @@ test('oversized first chunk is skipped, later small chunks still pack', () => {
   assert.ok(!context.includes('X'.repeat(100)));
   assert.ok(context.includes('small one'));
   assert.ok(context.includes('small two'));
-  assert.deepEqual(sources, ['https://x.com/s1', 'https://x.com/s2']);
+  assert.deepEqual(sources, [
+    { url: 'https://x.com/s1', name: 's1' },
+    { url: 'https://x.com/s2', name: 's2' },
+  ]);
 });
 
 test('mixed: oversized chunk mid-list does not abort the loop', () => {
@@ -75,5 +78,36 @@ test('duplicate URLs appear once in sources', () => {
     chunk('one', 'https://x.com/p'),
     chunk('two', 'https://x.com/p'),
   ], 6000);
-  assert.deepEqual(sources, ['https://x.com/p']);
+  assert.deepEqual(sources, [{ url: 'https://x.com/p', name: 'p' }]);
+});
+
+// Source-page linking (LEO-031). Leo links using the page NAME as anchor text, so
+// every source must resolve to one. pageH1 is the scraped page title; manual and
+// uploaded chunks have no H1, which is why the label and URL-slug fallbacks exist —
+// without them the smoke entity (manual chunks only) could never produce a link.
+test('page name prefers pageH1, then label, then the URL slug', () => {
+  const { sources } = packContext([
+    { content: 'a', url: 'https://x.com/hours', pageH1: 'Opening Hours', label: 'Hours' },
+    { content: 'b', url: 'https://x.com/menu', label: 'Our Menu' },
+    { content: 'c', url: 'https://x.com/contact-us' },
+  ], 6000);
+  assert.deepEqual(sources, [
+    { url: 'https://x.com/hours', name: 'Opening Hours' },
+    { url: 'https://x.com/menu', name: 'Our Menu' },
+    { url: 'https://x.com/contact-us', name: 'contact us' },
+  ]);
+});
+
+test('slug fallback strips query, hash, trailing slash and extension', () => {
+  const { sources } = packContext([
+    { content: 'a', url: 'https://x.com/about_us/' },
+    { content: 'b', url: 'https://x.com/pricing.html?ref=nav' },
+    { content: 'c', url: 'https://x.com/staff#team' },
+  ], 6000);
+  assert.deepEqual(sources.map((s) => s.name), ['about us', 'pricing', 'staff']);
+});
+
+test('root URL falls back to a generic name rather than an empty one', () => {
+  const { sources } = packContext([{ content: 'a', url: 'https://x.com/' }], 6000);
+  assert.equal(sources[0].name, 'this page');
 });
