@@ -100,7 +100,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [ ] **(LEO-030) Widget "Clear conversation" does not reset the session token** *(needs LEO-003)*
+- [x] **(LEO-030) Widget "Clear conversation" does not reset the session token** *(needs LEO-003)*
   `sessionToken` is a `const` captured at load; the clear handler removes the localStorage key but
   cannot reassign it. The visitor sees an empty pane while the next message posts under the **old**
   token — Leo still has the old history, the dashboard transcript never breaks, and on next page
