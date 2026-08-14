@@ -79,3 +79,4 @@
 {"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-027","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":14,"atUtc":"2026-08-14T00:55:26.963Z"}
 {"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-028","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":9,"atUtc":"2026-08-14T00:55:26.963Z"}
 {"event":"complete","runId":"2026-08-14T00:37:06.004Z","item":"LEO-029","mergeSha":"584725e60687b54fc558eff3d30acbef9e8ab6a8","nightId":"2026-08-13","cluster":"scrape-pipeline","durationMin":7,"atUtc":"2026-08-14T00:55:26.963Z"}
+{"event":"usage-snap","when":"post-item","item":"LEO-029","clusterItems":["LEO-027","LEO-028","LEO-029"],"runId":"2026-08-14T00:37:06.004Z","nightId":"2026-08-13","ok":true,"fiveHourPct":6,"weeklyAllPct":67,"weeklyFablePct":98,"atUtc":"2026-08-14T00:56:06.849Z"}
