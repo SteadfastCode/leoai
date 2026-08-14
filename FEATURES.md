@@ -100,7 +100,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [ ] **(LEO-032) Store section anchors on chunks** *(needs LEO-031)*
+- [x] **(LEO-032) Store section anchors on chunks** *(needs LEO-031)*
   Thread heading DOM ids through the existing `[H1]`/`[H2]`/`[H3]` scheme: `[H2#the-id] Title`.
   Widen the **four** marker regexes (`keepPara`, the chunkText H1/H2 split, `buildGroupChunks`,
   the `hasH1` Puppeteer trigger) to tolerate an optional `#anchor` and strip it when reading
