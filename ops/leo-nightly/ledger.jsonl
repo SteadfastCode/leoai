@@ -72,3 +72,5 @@
 {"event":"usage-snap","when":"post-item","item":"LEO-026","runId":"2026-08-13T08:36:41.283Z","nightId":"2026-08-12","ok":false,"reason":"locked-exit2","atUtc":"2026-08-13T08:49:32.494Z"}
 {"event":"run-end","runId":"2026-08-13T08:36:41.283Z","nightId":"2026-08-12","items":[{"id":"LEO-026","result":"complete","durationMin":8}],"activeMin":8,"atUtc":"2026-08-13T08:49:32.495Z"}
 {"event":"model-governor","action":"disabled","reason":"two consecutive post-flip runs recorded claude-fable-5; frontmatter model control does not take effect; model: line removed, governorDisabled set in local status","runId":"2026-08-13T08:36:41.283Z","atUtc":"2026-08-13T08:50:31.957Z"}
+{"event":"usage-snap","when":"run-start","runId":"2026-08-14T00:37:06.004Z","nightId":"2026-08-13","ok":true,"fiveHourPct":2,"weeklyAllPct":66,"weeklyFablePct":98,"atUtc":"2026-08-14T00:41:39.444Z"}
+{"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-027","nightId":"2026-08-13","model":"claude-opus-5","atUtc":"2026-08-14T00:41:39.444Z"}

@@ -98,7 +98,7 @@ Cluster rules: at most one open cluster; hard cap of 3 items and 48 hours from t
 commit; `origin/main` merged in at the **start of every run that touches it** with the full verify
 gate re-run after each merge; any conflict the routine did not author aborts and notifies.
 
-- [ ] **(LEO-027) Extract `scrapePersist.js` and unify LeoRefresh with the scrape route**
+- [x] **(LEO-027) Extract `scrapePersist.js` and unify LeoRefresh with the scrape route**
   `leoRefresh.js` still diverges from `routes/scrape.js` two ways after the P0 ordering fix: it
   ignores `thinGroupChunks`/`thinGroupUrls` entirely (group chunks are never refreshed by the
   nightly job) and it never calls `createSnapshot`, so a bad nightly run has no restore path.
