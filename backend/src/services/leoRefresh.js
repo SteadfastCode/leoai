@@ -1,9 +1,9 @@
 const cron = require('node-cron');
 const Entity = require('../models/Entity');
-const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
 const Conversation = require('../models/Conversation');
 const { rescrapeSite } = require('./scraper');
+const { persistRescrapeResult } = require('./scrapePersist');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const { sendHandoffFollowUpNotification } = require('./notifications');
 const { reminderDue } = require('./handoff');
@@ -33,43 +33,18 @@ async function runRefreshForEntity(entity, io) {
 
   try {
     const storedPages = await ScrapedPage.find({ domain });
-    const opts = { io: makeBroadcastIo(io, domain), domain, crawlSettings: entity.crawlSettings || {} };
+    const broadcastedIo = makeBroadcastIo(io, domain);
+    const opts = { io: broadcastedIo, domain, crawlSettings: entity.crawlSettings || {} };
     const result = await rescrapeSite(url, storedPages, opts);
 
-    if (result.embeddedChunks.length > 0) {
-      // Insert BEFORE delete, and never delete a preserved source.
-      //
-      // This previously ran deleteMany then insertMany with no source filter, so every
-      // nightly refresh destroyed manual, upload, owner_reply and unanswered_qa chunks for
-      // any changed URL — and left a window where a changed page had no chunks at all if
-      // the process died between the two calls (a Railway redeploy is enough).
-      //
-      // Mirrors the per-URL pattern in routes/scrape.js: insert first, then delete only
-      // scraped chunks for those URLs, excluding the ids just written.
-      const inserted = await Chunk.insertMany(result.embeddedChunks.map((c) => ({ ...c, domain })));
-      const insertedIds = inserted.map((d) => d._id);
-      await Chunk.deleteMany({
-        domain,
-        url: { $in: result.changedUrls },
-        source: { $nin: Chunk.PRESERVED_SOURCES },
-        _id: { $nin: insertedIds },
-      });
-
-      for (const { url: pageUrl, hash, priority } of result.pageHashUpdates) {
-        await ScrapedPage.findOneAndUpdate(
-          { domain, url: pageUrl },
-          { contentHash: hash, priority, lastScrapedAt: new Date(), lastChangedAt: new Date() },
-          { upsert: true }
-        );
-      }
-    }
-
-    if (result.unchangedUrls.length > 0) {
-      await ScrapedPage.updateMany(
-        { domain, url: { $in: result.unchangedUrls } },
-        { lastScrapedAt: new Date() }
-      );
-    }
+    // Single shared persistence path with routes/scrape.js (LEO-027). Before the
+    // extraction this branch ignored thin group chunks entirely and never wrote a
+    // ScrapeSnapshot, so a bad nightly refresh had no restore path.
+    const { pagesChanged, chunksUpdated } = await persistRescrapeResult({
+      domain,
+      result,
+      io: broadcastedIo,
+    });
 
     await Entity.findOneAndUpdate({ domain }, { lastScrapedAt: new Date(), leoRefreshLastRun: new Date() });
 
@@ -78,9 +53,9 @@ async function runRefreshForEntity(entity, io) {
       mode: 'rescrape',
       source: 'leorefresh',
       pagesChecked: result.changedUrls.length + result.unchangedUrls.length,
-      pagesChanged: result.changedUrls.length,
+      pagesChanged,
       pagesUnchanged: result.unchangedUrls.length,
-      chunksUpdated: result.embeddedChunks.length,
+      chunksUpdated,
       durationMs: result.durationMs,
       durationFormatted: formatDuration(result.durationMs),
     };

@@ -6,12 +6,11 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
+const { createSnapshot, persistRescrapeResult } = require('../services/scrapePersist');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
 const { recordAudit } = require('../services/audit');
-
-const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
 // Chunk sources a scrape may never delete — defined once on the model, see Chunk.js.
 const { PRESERVED_SOURCES } = Chunk;
@@ -19,40 +18,6 @@ const { PRESERVED_SOURCES } = Chunk;
 // In-memory tracking of currently active scrapes
 // domain → { url, name, startedAt, mode }
 const activeScrapes = new Map();
-
-// Create a snapshot of current scraped chunks before a destructive operation.
-// mode: 'full'|'force' archives all scraped chunks; 'rescrape' archives only affected URLs.
-// Prunes oldest snapshots if count exceeds MAX_SNAPSHOTS_PER_DOMAIN.
-async function createSnapshot(domain, mode, affectedUrls = null) {
-  const query = { domain, source: { $nin: PRESERVED_SOURCES } };
-  if (affectedUrls) query.url = { $in: affectedUrls };
-
-  const chunksToArchive = await Chunk.find(query).lean();
-  if (chunksToArchive.length === 0) return null;
-
-  const snapshot = await ScrapeSnapshot.create({
-    domain,
-    mode,
-    chunkCount: chunksToArchive.length,
-    pageCount: new Set(chunksToArchive.map(c => c.url)).size,
-    affectedUrls: affectedUrls ?? [...new Set(chunksToArchive.map(c => c.url))],
-  });
-
-  await ArchivedChunk.insertMany(
-    chunksToArchive.map(({ _id, __v, createdAt, updatedAt, ...c }) => ({ ...c, snapshotId: snapshot._id }))
-  );
-
-  // Prune oldest snapshots for this domain
-  const allSnapshots = await ScrapeSnapshot.find({ domain }).sort({ createdAt: 1 });
-  if (allSnapshots.length > MAX_SNAPSHOTS_PER_DOMAIN) {
-    const toDelete = allSnapshots.slice(0, allSnapshots.length - MAX_SNAPSHOTS_PER_DOMAIN);
-    const toDeleteIds = toDelete.map(s => s._id);
-    await ArchivedChunk.deleteMany({ snapshotId: { $in: toDeleteIds } });
-    await ScrapeSnapshot.deleteMany({ _id: { $in: toDeleteIds } });
-  }
-
-  return snapshot;
-}
 
 function formatDuration(ms) {
   const s = Math.round(ms / 1000);
@@ -179,64 +144,10 @@ router.post('/', requireAuth(), async (req, res) => {
     if (isRescrape) {
       result = await rescrapeSite(url, storedPages, opts);
 
-      const hasNormalChanges = result.embeddedChunks.length > 0;
-      const hasThinChanges   = result.thinGroupChunks.length > 0;
+      // Snapshot + per-URL insert-before-delete + ScrapedPage upserts.
+      // Shared with LeoRefresh — see services/scrapePersist.js.
+      const { pagesChanged } = await persistRescrapeResult({ domain, result, io: broadcastedIo });
 
-      if (hasNormalChanges || hasThinChanges) {
-        // Snapshot first — before any mutations so a restore is always possible
-        const allAffectedUrls = [...result.changedUrls, ...result.thinGroupUrls];
-        await createSnapshot(domain, 'rescrape', allAffectedUrls);
-
-        // Group normal chunks by URL for per-URL saves
-        const normalByUrl = new Map();
-        for (const chunk of result.embeddedChunks) {
-          if (!normalByUrl.has(chunk.url)) normalByUrl.set(chunk.url, []);
-          normalByUrl.get(chunk.url).push(chunk);
-        }
-
-        // Per-URL: insert new chunks FIRST (no gap), then delete old ones, then upsert ScrapedPage.
-        // Using _id exclusion so the delete never touches the chunks we just inserted.
-        const PRESERVED = { $nin: PRESERVED_SOURCES };
-        for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of result.pageHashUpdates) {
-          const chunks = normalByUrl.get(pageUrl) || [];
-          if (chunks.length > 0) {
-            const inserted = await Chunk.insertMany(chunks.map(c => ({ ...c, domain })));
-            const insertedIds = inserted.map(d => d._id);
-            await Chunk.deleteMany({ domain, url: pageUrl, source: PRESERVED, _id: { $nin: insertedIds } });
-          }
-          const update = { contentHash: hash, priority, usedPuppeteer: !!usedPuppeteer, hasVariants: !!hasVariants, lastScrapedAt: new Date(), chunkCount: chunks.length };
-          if (contentChanged) update.lastChangedAt = new Date();
-          await ScrapedPage.findOneAndUpdate({ domain, url: pageUrl }, update, { upsert: true });
-          broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { url: pageUrl });
-        }
-
-        // Thin group chunks: same insert-before-delete pattern per group URL
-        if (hasThinChanges) {
-          const thinByUrl = new Map();
-          for (const chunk of result.thinGroupChunks) {
-            if (!thinByUrl.has(chunk.url)) thinByUrl.set(chunk.url, []);
-            thinByUrl.get(chunk.url).push(chunk);
-          }
-          for (const groupUrl of result.thinGroupUrls) {
-            const chunks = thinByUrl.get(groupUrl) || [];
-            if (chunks.length > 0) {
-              const inserted = await Chunk.insertMany(chunks.map(c => ({ ...c, domain })));
-              const insertedIds = inserted.map(d => d._id);
-              await Chunk.deleteMany({ domain, url: groupUrl, source: PRESERVED, _id: { $nin: insertedIds } });
-            }
-            broadcastedIo.to(`domain:${domain}`).emit('scrape_page_saved', { url: groupUrl });
-          }
-        }
-      }
-
-      if (result.unchangedUrls.length > 0) {
-        await ScrapedPage.updateMany(
-          { domain, url: { $in: result.unchangedUrls } },
-          { lastScrapedAt: new Date() }
-        );
-      }
-
-      const pagesChanged = result.changedUrls.length + result.thinGroupUrls.length;
       const summary = {
         success: true,
         mode: 'rescrape',
