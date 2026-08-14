@@ -10,17 +10,35 @@ const DEFAULT_THRESHOLD = 0.75;
 const SIBLING_THRESHOLD_OFFSET = 0.15;
 const MIN_SIBLING_THRESHOLD = 0.50;
 
+// Human-readable name for a source page, so Leo can link it as prose rather than
+// pasting a bare URL (LEO-031). pageH1 is the scraped page title; manual/uploaded
+// chunks have no H1, so fall back to the chunk label and finally to the URL path.
+function pageName(chunk) {
+  if (chunk.pageH1) return chunk.pageH1.trim();
+  if (chunk.label) return chunk.label.trim();
+  // Parse the pathname rather than the raw string: query and hash drop out for free,
+  // and a root URL yields '' instead of a stray piece of the hostname.
+  let slug = '';
+  try {
+    slug = new URL(chunk.url).pathname.replace(/\/+$/, '').split('/').pop() || '';
+  } catch {
+    slug = '';
+  }
+  return slug.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim() || 'this page';
+}
+
 // Pack chunks into a context string up to maxChars. An oversized chunk is
 // SKIPPED rather than aborting the loop (LEO-020) — small high-scoring
 // siblings later in the list still fit. Chunk order is score order, so the
 // packing remains greedy-by-relevance.
+// sources entries are { url, name } — the name is what Leo uses as link text.
 function packContext(chunks, maxChars) {
   let context = '';
   const sources = [];
   for (const chunk of chunks) {
     if (context.length + chunk.content.length > maxChars) continue;
     context += chunk.content + '\n\n';
-    if (!sources.includes(chunk.url)) sources.push(chunk.url);
+    if (!sources.some((s) => s.url === chunk.url)) sources.push({ url: chunk.url, name: pageName(chunk) });
   }
   return { context, sources };
 }
@@ -49,7 +67,7 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       },
     },
     {
-      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, score: { $meta: 'vectorSearchScore' } },
+      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, pageH1: 1, label: 1, score: { $meta: 'vectorSearchScore' } },
     },
   ]);
 
@@ -70,13 +88,13 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       domain,
       url: { $in: matchedUrls },
       source: { $nin: ['owner_reply'] },
-    }).select('content url source chunkIndex embedding').lean();
+    }).select('content url source chunkIndex pageH1 label embedding').lean();
 
     for (const c of candidates) {
       if (primaryIds.has(c._id.toString())) continue;
       const score = dotProduct(queryEmbedding, c.embedding);
       if (score >= siblingThreshold) {
-        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, score });
+        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, score });
       }
     }
     siblings.sort((a, b) => b.score - a.score);

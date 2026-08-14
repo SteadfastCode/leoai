@@ -131,8 +131,12 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
 
   const messages = [];
 
+  // Name–URL pairs, so Leo can close with a readable markdown link instead of a bare
+  // URL (LEO-031). Tolerates the pre-LEO-031 shape (plain string) defensively.
   const sourceNote = sources?.length
-    ? `\n\nSource pages this content came from:\n${sources.map((s) => `- ${s}`).join('\n')}`
+    ? `\n\nSource pages this content came from. If you link, the URL must be copied exactly from this list:\n${sources
+        .map((s) => (typeof s === 'string' ? `- ${s}` : `- ${s.name} — ${s.url}`))
+        .join('\n')}`
     : '';
 
   let contextContent;
