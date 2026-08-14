@@ -185,6 +185,25 @@ test('hasVariants is preserved when the result does not report it', async () => 
   assert.equal(page.chunkCount, 2);
 });
 
+test('a thin page folded into a group chunk is credited on its own row (LEO-028)', async () => {
+  await seed();
+  const ANN = `${GROUP}ann`;
+  // A thin page: it produced no chunk of its own, only a contribution to the
+  // group chunk. rescrapeSite still reports it in pageHashUpdates.
+  const result = {
+    ...RESULT,
+    pageHashUpdates: [
+      ...RESULT.pageHashUpdates,
+      { url: ANN, hash: 'ann-new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+    ],
+  };
+  await persistRescrapeResult({ domain: DOMAIN, result });
+
+  const annPage = await ScrapedPage.findOne({ domain: DOMAIN, url: ANN }).lean();
+  assert.equal(annPage.chunkCount, 1, 'a group member must not be written back as producing nothing');
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: ANN }), 0, 'and it still owns no chunk of its own');
+});
+
 test('an empty result mutates nothing and writes no snapshot', async () => {
   await seed();
   const emptyResult = {

@@ -52,6 +52,26 @@ async function createSnapshot(domain, mode, affectedUrls = null) {
   return snapshot;
 }
 
+// Tally how many chunks each page URL contributed to (LEO-028).
+//
+// A group chunk (multi-URL chunking for thin pages) carries the GROUP url on
+// `chunk.url` and lists its member pages in `sourceUrls`. Counting by
+// `chunk.url` alone therefore writes `chunkCount: 0` back to every thin page
+// folded into a group, and Page Explorer reports it as having produced
+// nothing — exactly the failure multi-URL chunking exists to fix.
+//
+// Each URL is credited at most once per chunk: single-URL chunks have
+// `sourceUrls: [url]`, so a naive sum would double-count them.
+function tallyChunkCounts(chunks, into = {}) {
+  for (const chunk of chunks) {
+    for (const url of new Set([chunk.url, ...(chunk.sourceUrls || [])])) {
+      if (!url) continue;
+      into[url] = (into[url] || 0) + 1;
+    }
+  }
+  return into;
+}
+
 function groupByUrl(chunks) {
   const byUrl = new Map();
   for (const chunk of chunks) {
@@ -105,6 +125,10 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     // Snapshot first — before any mutations so a restore is always possible
     snapshot = await createSnapshot(domain, 'rescrape', [...changedUrls, ...thinGroupUrls]);
 
+    // Counted across BOTH chunk sets so a thin page folded into a group chunk is
+    // credited on its own ScrapedPage row rather than written back as zero.
+    const chunkCountByUrl = tallyChunkCounts([...embeddedChunks, ...thinGroupChunks]);
+
     const normalByUrl = groupByUrl(embeddedChunks);
     for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of pageHashUpdates) {
       const chunks = normalByUrl.get(pageUrl) || [];
@@ -115,7 +139,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
         priority,
         usedPuppeteer: !!usedPuppeteer,
         lastScrapedAt: new Date(),
-        chunkCount: chunks.length,
+        chunkCount: chunkCountByUrl[pageUrl] || 0,
       };
       // rescrapeSite does not report hasVariants on pageHashUpdates. Writing
       // `!!undefined` would clear the flag on every rescrape of a variant page,
@@ -156,5 +180,6 @@ module.exports = {
   createSnapshot,
   persistRescrapeResult,
   replaceChunksForUrl,
+  tallyChunkCounts,
   MAX_SNAPSHOTS_PER_DOMAIN,
 };

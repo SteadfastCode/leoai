@@ -6,7 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
-const { createSnapshot, persistRescrapeResult } = require('../services/scrapePersist');
+const { createSnapshot, persistRescrapeResult, tallyChunkCounts } = require('../services/scrapePersist');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
@@ -180,9 +180,8 @@ router.post('/', requireAuth(), async (req, res) => {
         onChunks: async (batchChunks, pageRecords = []) => {
           await Chunk.insertMany(batchChunks.map(c => ({ ...c, domain })));
           totalChunks += batchChunks.length;
-          for (const c of batchChunks) {
-            chunkCountByUrl[c.url] = (chunkCountByUrl[c.url] || 0) + 1;
-          }
+          // Credits every URL in a group chunk's sourceUrls, not just the group URL.
+          tallyChunkCounts(batchChunks, chunkCountByUrl);
           // Upsert ScrapedPage records progressively for non-thin pages
           if (pageRecords.length > 0) {
             await Promise.all(pageRecords.map(p =>
