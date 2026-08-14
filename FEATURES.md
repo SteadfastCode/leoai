@@ -100,19 +100,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [x] **(LEO-031) Teach Leo to link the source page in his answer** *(needs LEO-025)*
-  The plumbing exists and is unused: `rag.js` returns `sources[]`, `claude.js` injects them as a
-  bare list, the widget already renders markdown links with a per-entity `linksOpenInNewTab`
-  setting — and the prompt says nothing about links. Carry `pageH1` through the rag projection so
-  each URL pairs with a page name, and add one prompt section (bump to v2.4 + a version-history
-  row): when the answer came primarily from one page, end with **exactly one** markdown link using
-  the page name as text; only ever use a URL from the supplied list; never invent one; never link
-  when no context was retrieved; never link on handoff or clarifying-question replies.
-  *Verify:* `node backend/src/scripts/verify-prompt.js` must pass — mandatory for any prompt edit.
-  Then POST `/chat` with the admin API key (test mode) against the smoke entity for a fixed
-  10-question set: replies with context contain exactly one link, every linked URL appears in that
-  request's `sources`, an off-topic question yields zero links.
-
 - [ ] **(LEO-032) Store section anchors on chunks** *(needs LEO-031)*
   Thread heading DOM ids through the existing `[H1]`/`[H2]`/`[H3]` scheme: `[H2#the-id] Title`.
   Widen the **four** marker regexes (`keepPara`, the chunkText H1/H2 split, `buildGroupChunks`,
@@ -186,6 +173,19 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   the PR unmerged.
 
 ## Completed Items
+
+- [x] **(LEO-031) Teach Leo to link the source page in his answer** — 11d0e41 (PR #28, 2026-08-14).
+  The plumbing exists and is unused: `rag.js` returns `sources[]`, `claude.js` injects them as a
+  bare list, the widget already renders markdown links with a per-entity `linksOpenInNewTab`
+  setting — and the prompt says nothing about links. Carry `pageH1` through the rag projection so
+  each URL pairs with a page name, and add one prompt section (bump to v2.4 + a version-history
+  row): when the answer came primarily from one page, end with **exactly one** markdown link using
+  the page name as text; only ever use a URL from the supplied list; never invent one; never link
+  when no context was retrieved; never link on handoff or clarifying-question replies.
+  *Verify:* `node backend/src/scripts/verify-prompt.js` must pass — mandatory for any prompt edit.
+  Then POST `/chat` with the admin API key (test mode) against the smoke entity for a fixed
+  10-question set: replies with context contain exactly one link, every linked URL appears in that
+  request's `sources`, an off-topic question yields zero links.
 
 - [x] **(LEO-030) Widget "Clear conversation" does not reset the session token** — 064d0c8 (PR #27, 2026-08-13).
   `sessionToken` is a `const` captured at load; the clear handler removes the localStorage key but

@@ -45,21 +45,8 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-031": {
-      "order": 5,
-      "status": "claimed",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "leo-nightly/item/LEO-031",
-      "dependsOn": [
-        "LEO-025"
-      ],
-      "claimedAtUtc": "2026-08-14T02:41:16.570Z",
-      "runId": "2026-08-14T02:37:08.861Z",
-      "lastFail": null
-    },
     "LEO-032": {
-      "order": 6,
+      "order": 5,
       "status": "pending",
       "attempts": 0,
       "cluster": null,
@@ -72,7 +59,7 @@
       "lastFail": null
     },
     "LEO-005": {
-      "order": 7,
+      "order": 6,
       "status": "blocked",
       "attempts": 0,
       "cluster": null,
@@ -85,6 +72,20 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
+    },
+    "LEO-031": {
+      "order": null,
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "leo-nightly/item/LEO-031",
+      "dependsOn": [
+        "LEO-025"
+      ],
+      "claimedAtUtc": "2026-08-14T02:41:16.570Z",
+      "runId": "2026-08-14T02:37:08.861Z",
+      "lastFail": null,
+      "mergeSha": "11d0e4100c34adeb4630deee41c218d4a8c2e6dd"
     },
     "LEO-030": {
       "order": null,
