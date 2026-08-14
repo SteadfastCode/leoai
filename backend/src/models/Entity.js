@@ -63,6 +63,9 @@ const entitySchema = new mongoose.Schema(
       keepSocialHandles:  { type: Boolean, default: false },
       keepShortUrls:      { type: Boolean, default: false },
       variantPriceSweep:  { type: Boolean, default: false },
+      // Days after which a page is re-embedded even if its content hash matches.
+      // 0 = disabled (the default) — existing entities are unaffected.
+      staleDays:          { type: Number,  default: 0, min: 0 },
     },
     unansweredDigest: {
       enabled:   { type: Boolean, default: false },

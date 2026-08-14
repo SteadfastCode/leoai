@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 const { analyzePageStructure } = require('./claude');
+const { isStale } = require('./staleness');
 const { buildHoursChunk } = require('./hoursChunk');
 const { tryEmbed } = require('./embedGuard');
 
@@ -934,6 +935,11 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
   // Pages tagged from a previous crawl as having variants — skip trigger detection, always sweep
   const variantUrlKeys = new Set(storedPages.filter(p => p.hasVariants).map(p => urlKey(p.url)));
+  // Pages older than crawlSettings.staleDays — re-embedded even if the hash matches (LEO-029)
+  const staleNow = Date.now();
+  const staleUrlKeys = new Set(
+    storedPages.filter(p => isStale(p.lastScrapedAt, cs.staleDays, staleNow)).map(p => urlKey(p.url))
+  );
   const visited = new Set();
   const queue = [baseUrl];
   const allPageData = []; // all fetched pages (text available for thin grouping)
@@ -979,18 +985,20 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           const isPriority  = isPriorityUrl(url);
           const hashChanged = storedHashMap.get(urlKey(url)) !== hash;
           const isThin      = estimateContentLen(text) < THIN_PAGE_THRESHOLD;
+          const staleRefresh = staleUrlKeys.has(urlKey(url));
+          const needsRefresh = hashChanged || staleRefresh;
 
-          const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants, contentChanged: hashChanged };
+          const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants, contentChanged: hashChanged, staleRefresh };
           allPageData.push(pageEntry);
 
           if (!isThin) {
-            // High-priority pages are always re-embedded even if hash matches
-            if (hashChanged || isPriority) {
+            // High-priority and stale pages are re-embedded even if hash matches
+            if (needsRefresh || isPriority) {
               changedPages.push(pageEntry);
             } else {
               unchangedUrls.push(url);
             }
-          } else if (!hashChanged) {
+          } else if (!needsRefresh) {
             // Unchanged thin pages still need lastScrapedAt updated even though they're re-grouped
             unchangedUrls.push(url);
           }
@@ -1035,7 +1043,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
   // Thin pages: re-group all thin pages; only re-embed groups with ≥1 changed page
   const allThinPages = allPageData.filter(p => estimateContentLen(p.text) < THIN_PAGE_THRESHOLD);
-  const changedThinUrls = new Set(allThinPages.filter(p => p.contentChanged).map(p => p.url));
+  const changedThinUrls = new Set(allThinPages.filter(p => p.contentChanged || p.staleRefresh).map(p => p.url));
 
   // Group all thin pages; identify which groups contain at least one changed page
   const thinGroups = new Map(); // groupUrl → pages[]
@@ -1069,7 +1077,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     unchangedUrls,
     // pageHashUpdates covers ALL changed pages (normal + thin) for ScrapedPage record updates
     pageHashUpdates: allPageData
-      .filter(p => p.contentChanged || (isPriorityUrl(p.url) && p.text.length >= THIN_PAGE_THRESHOLD))
+      .filter(p => p.contentChanged || p.staleRefresh || (isPriorityUrl(p.url) && p.text.length >= THIN_PAGE_THRESHOLD))
       .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged })),
     durationMs: Date.now() - startedAt,
   };
