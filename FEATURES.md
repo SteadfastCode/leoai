@@ -100,7 +100,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [ ] **(LEO-031) Teach Leo to link the source page in his answer** *(needs LEO-025)*
+- [x] **(LEO-031) Teach Leo to link the source page in his answer** *(needs LEO-025)*
   The plumbing exists and is unused: `rag.js` returns `sources[]`, `claude.js` injects them as a
   bare list, the widget already renders markdown links with a per-entity `linksOpenInNewTab`
   setting — and the prompt says nothing about links. Carry `pageH1` through the rag projection so
