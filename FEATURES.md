@@ -119,7 +119,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   *Verify:* `node --test` on the extracted tally function (single-URL chunks, a group chunk with
   three `sourceUrls`, mixed).
 
-- [ ] **(LEO-029) Staleness-based force re-embed (per-entity `staleDays`)**
+- [x] **(LEO-029) Staleness-based force re-embed (per-entity `staleDays`)**
   `crawlSettings.staleDays` (Number, **default 0 = disabled**, so every existing entity is
   unaffected). In `rescrapeSite`, build a stale-URL set from `storedPages` and treat membership as
   a change signal alongside `hashChanged` and `isPriority`. Thread through exactly the way
