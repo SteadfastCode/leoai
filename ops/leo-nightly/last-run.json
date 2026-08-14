@@ -1,48 +1,20 @@
 {
-  "decision": "ran",
-  "runId": "2026-08-14T02:37:08.861Z",
+  "decision": "debounced",
+  "reason": "last ledger claim (LEO-032) was 17 min old at fire time; 55-minute debounce floor not met. Queue is also empty (31 done, 2 blocked, 0 pending), so no item was eligible either way.",
+  "runId": "2026-08-14T04:37:10.148Z",
   "nightId": "2026-08-13",
   "model": "claude-opus-5",
-  "items": [
-    {
-      "id": "LEO-031",
-      "result": "complete",
-      "mergeSha": "11d0e4100c34adeb4630deee41c218d4a8c2e6dd",
-      "durationMin": 98,
-      "activeMin": 17
-    },
-    {
-      "id": "LEO-032",
-      "result": "blocked",
-      "reason": "scraper.js 51+/25- exceeds 30-line restricted cap",
-      "branch": "leo-nightly/item/LEO-032",
-      "durationMin": 9
-    }
-  ],
-  "activeMin": 26,
+  "localFireTime": "2026-08-14T00:37 EDT",
+  "items": [],
+  "activeMin": 0,
   "claimsUsedThisNight": 6,
   "queue": "empty — 31 done, 2 blocked (LEO-005, LEO-032), 0 pending",
   "unreviewedCount": 11,
-  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event=complete; for each: git merge-base --is-ancestor <mergeSha> af4164facefd0efa86251d4010445884b04f1627",
+  "unreviewedCommand": "git show origin/main:ops/leo-nightly/ledger.jsonl | filter event=complete; for each: git merge-base --is-ancestor <mergeSha> 61aba7563ea3f7773466dceb86c6f512ed4978ad (ack tag af4164f -> commit 61aba75)",
   "oldestUnreviewedAgeDays": 0.94,
+  "backpressure": "ok — 11 of 40, oldest 0.94d of 7d",
   "governorDisabled": true,
   "governorNote": "frontmatter model control provably ineffective (disabled 2026-08-13T08:50Z); no flips attempted. This run recorded model claude-opus-5.",
-  "usage": {
-    "nightStart": {
-      "fiveHourPct": 2,
-      "weeklyAllPct": 66,
-      "weeklyFablePct": 98
-    },
-    "runStart": {
-      "fiveHourPct": 8,
-      "weeklyAllPct": 67,
-      "weeklyFablePct": 98
-    },
-    "last": {
-      "fiveHourPct": 15,
-      "weeklyAllPct": 67,
-      "weeklyFablePct": 98
-    }
-  },
-  "atUtc": "2026-08-14T04:29:46.623Z"
+  "usageNote": "no usage snap taken — snaps are a STEP 9 step for working runs only; this fire never reached baseline.",
+  "atUtc": "2026-08-14T04:38:35.460Z"
 }
