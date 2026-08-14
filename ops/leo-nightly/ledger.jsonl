@@ -88,3 +88,4 @@
 {"event":"complete","runId":"2026-08-14T02:37:08.861Z","item":"LEO-031","mergeSha":"11d0e4100c34adeb4630deee41c218d4a8c2e6dd","nightId":"2026-08-13","durationMin":98,"blackoutWaitMin":81,"activeMin":17,"atUtc":"2026-08-14T04:18:49.083Z"}
 {"event":"usage-snap","when":"post-item","item":"LEO-031","runId":"2026-08-14T02:37:08.861Z","nightId":"2026-08-13","ok":true,"fiveHourPct":13,"weeklyAllPct":67,"weeklyFablePct":98,"atUtc":"2026-08-14T04:19:39.329Z"}
 {"event":"claim","runId":"2026-08-14T02:37:08.861Z","item":"LEO-032","nightId":"2026-08-13","model":"claude-opus-5","atUtc":"2026-08-14T04:20:10.820Z"}
+{"event":"blocked","runId":"2026-08-14T02:37:08.861Z","item":"LEO-032","nightId":"2026-08-13","reason":"restricted-file-budget: backend/src/services/scraper.js 51+/25- vs 30-line cap","branch":"leo-nightly/item/LEO-032","durationMin":9,"atUtc":"2026-08-14T04:28:43.806Z"}

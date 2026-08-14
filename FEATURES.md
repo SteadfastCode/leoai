@@ -100,21 +100,26 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ## Block G — Visitor-facing behavior (last, after a full track record)
 
-- [x] **(LEO-032) Store section anchors on chunks** *(needs LEO-031)*
-  Thread heading DOM ids through the existing `[H1]`/`[H2]`/`[H3]` scheme: `[H2#the-id] Title`.
-  Widen the **four** marker regexes (`keepPara`, the chunkText H1/H2 split, `buildGroupChunks`,
-  the `hasH1` Puppeteer trigger) to tolerate an optional `#anchor` and strip it when reading
-  heading text — missing one silently degrades chunk labels for every entity on the next nightly
-  LeoRefresh. Record `sectionAnchor` on Chunk and ArchivedChunk; emit `url#anchor` from rag
-  sources when present.
-  *Verify:* **record the baseline BEFORE editing.** Add `backend/src/scripts/test-chunking.js`
-  with 3–4 committed static HTML fixtures; assert chunk count, `label`, `sectionH2` and `pageH1`
-  are **byte-identical** to the pre-change baseline, and `sectionAnchor` populated where the
-  fixture has ids. **Do NOT verify by running a real scrape.**
-
 ---
 
 ## Blocked Items
+
+- [ ] **(LEO-032) Store section anchors on chunks** *(needs LEO-031)*
+  **Blocked 2026-08-14 (implemented and verified, NOT merged — 1 attempt consumed):** the change
+  needs 51+/25- lines in `backend/src/services/scraper.js`, which the routine restricts to <=30
+  changed lines. Stripped of comments the semantic change is still ~36 lines, so it cannot be
+  squeezed under the cap without deleting explanation from a high-blast-radius file — the cap
+  exists to bound risk there, so gaming it would defeat the point. Needs Daniel to either raise
+  the cap for this item or land it himself.
+  **The full work is done and pushed on `leo-nightly/item/LEO-032`** (commit on that branch):
+  single `H_MARKER_RE` replacing all four literal marker regexes, both emit sites tagging the
+  DOM id, `stripMarkerAnchor()` keeping anchors out of chunk body text, `sectionAnchor` on Chunk
+  and ArchivedChunk, `url#anchor` from rag sources, plus `backend/src/scripts/test-chunking.js`
+  with 4 committed HTML fixtures asserting chunk count/label/sectionH2/pageH1/content-length
+  byte-identical to a pre-change baseline. All gates green: backend verify (76 files), backend
+  test (182), dashboard build + test (70), widget smoke, verify-prompt, build-state --check.
+  The fixture baseline already earned its keep — it caught an [H3] body marker leaking its
+  anchor and growing a chunk 650 -> 664 chars, which would have re-embedded every scraped page.
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
