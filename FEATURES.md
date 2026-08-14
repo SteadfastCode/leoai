@@ -110,7 +110,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
   preserved sources survive, group chunks are replaced by group URL, a `ScrapeSnapshot` was
   written. Delete the scratch domain after.
 
-- [ ] **(LEO-028) Attribute group-chunk counts to member thin pages**
+- [x] **(LEO-028) Attribute group-chunk counts to member thin pages**
   `chunkCountByUrl` is keyed by `chunk.url` and group chunks carry the *group* URL — so every thin
   page folded into a multi-URL group is written back with `chunkCount: 0` and Page Explorer
   reports it as having produced nothing. That is exactly the failure multi-URL chunking was built

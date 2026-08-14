@@ -74,3 +74,4 @@
 {"event":"model-governor","action":"disabled","reason":"two consecutive post-flip runs recorded claude-fable-5; frontmatter model control does not take effect; model: line removed, governorDisabled set in local status","runId":"2026-08-13T08:36:41.283Z","atUtc":"2026-08-13T08:50:31.957Z"}
 {"event":"usage-snap","when":"run-start","runId":"2026-08-14T00:37:06.004Z","nightId":"2026-08-13","ok":true,"fiveHourPct":2,"weeklyAllPct":66,"weeklyFablePct":98,"atUtc":"2026-08-14T00:41:39.444Z"}
 {"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-027","nightId":"2026-08-13","model":"claude-opus-5","atUtc":"2026-08-14T00:41:39.444Z"}
+{"event":"claim","runId":"2026-08-14T00:37:06.004Z","item":"LEO-028","nightId":"2026-08-13","model":"claude-opus-5","cluster":"scrape-pipeline","atUtc":"2026-08-14T00:46:07.687Z"}
