@@ -1,0 +1,61 @@
+name: CI
+
+# Runs the full verification gate on every PR and every push to main.
+# Node 20 matches the Railway production runtime (nixpacks nodejs_20).
+#
+# Three independent packages, three jobs — each has its own yarn.lock and is
+# installed with --frozen-lockfile so a drifted lockfile fails CI rather than
+# silently resolving something new.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: backend/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn verify
+      - run: yarn test
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: dashboard/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
+      - run: yarn test
+
+  widget:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: widget
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: widget/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn test
