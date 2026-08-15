@@ -227,6 +227,16 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Completed Items
 
+- [x] **(LEO-044) Fix billing.js superadmin check** — 7f71bbe (PR #30, 2026-08-15, by hand). requireEntityAccess
+  gated on membership in the hardcoded steadfastcode.tech domain (any member, readonly included, got
+  billing access to every entity); now uses the real isSuperAdmin role check.
+- [x] **(LEO-045) Superadmin impersonation (“view as user”)** — 7f71bbe (PR #30, 2026-08-15, by hand).
+  Header-based, no token minting: a verified superadmin activates X-Impersonate-User, requireAuth swaps
+  req.user to the target so the permission gate applies to THEM, req.impersonator keeps the real identity.
+  Inert for non-superadmins; bad target falls through (never denies). POST /api/admin/impersonate audits
+  the start; AuditLog attributes both identities. Dashboard banner + per-entity “view as owner”. 5 safety
+  tests. Auth/money surface — done by hand, not routine work.
+
 - [x] **(LEO-032) Store section anchors on chunks** — b664d26 (PR #29, 2026-08-15, by hand).
   Blocked only by the 30-line scraper cap, not any defect. Reviewed and landed through a PR so
   the new CI gate validated the merge. Heading markers carry the DOM id ([H2#id]); one H_MARKER_RE
