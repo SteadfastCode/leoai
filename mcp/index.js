@@ -185,8 +185,12 @@ async function handleSendTestMessage(args) {
   const { domain, message } = args;
   const sessionToken = args.sessionToken || `mcp-test-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
-  // Send the chat message (public endpoint — no auth)
-  const chatResponse = await apiPublic('POST', '/chat', { domain, sessionToken, message });
+  // Send the chat message THROUGH api() so the X-API-Key header goes with it. /chat is a public
+  // endpoint, but a valid key flips the backend into test-mode (LEO-025): the reply is still
+  // real (RAG, classifier, Claude call, conversation save all run), but quota counters,
+  // handoff SMS/email, unanswered logging, and the domain socket broadcast are all skipped, and
+  // the conversation is marked isTest. Without the key this tool silently ran as real traffic.
+  const chatResponse = await api('POST', '/chat', { domain, sessionToken, message });
 
   // Fetch history to get per-message debug fields stored in MongoDB
   const history = await apiPublic('GET', `/chat/history?domain=${encodeURIComponent(domain)}&sessionToken=${encodeURIComponent(sessionToken)}`);
@@ -206,7 +210,8 @@ async function handleSendTestMessage(args) {
       handoffTriggered: chatResponse.handoffTriggered ?? null,
     },
     sessionToken,
-    note: 'Test message counted against entity quota. Use sparingly on free-tier entities. Pass sessionToken back in to continue this conversation.',
+    isTest: chatResponse.isTest ?? true,
+    note: 'Test-mode: does NOT count against quota and fires no owner notifications (valid API key sent). Pass sessionToken back in to continue this conversation.',
   };
 }
 

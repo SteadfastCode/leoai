@@ -102,6 +102,6 @@ handoff and assert exactly which turn triggers it.
 
 ## Notes
 
-- **Test messages count against quota.** `send_test_message` sends a real `/chat` request. Use sparingly on free-tier entities.
+- **Test messages run in test-mode.** `send_test_message` sends its `/chat` request with the `X-API-Key`, which flips the backend into test-mode: the reply is real, but the message does **not** count against quota, fires no owner SMS/email, logs no unanswered question, and marks the conversation `isTest`. Safe to use freely, including on free-tier entities.
 - `kick_off_scrape` and `kick_off_rescrape` are **long-running** — the HTTP request won't return until the scrape completes (can be several minutes for large sites). If you need live progress, watch the dashboard KB page instead.
 - `API_BASE` defaults to `https://api.leo-ai.chat`. Set it to `http://localhost:3001` for local development.

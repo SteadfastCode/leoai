@@ -82,9 +82,11 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const express = require('express');
 
+const crypto = require('node:crypto');
 const chatRouter = require('../src/routes/chat');
 const Entity = require('../src/models/Entity');
 const Conversation = require('../src/models/Conversation');
+const ApiKey = require('../src/models/ApiKey');
 
 let mongod;
 let server;
@@ -123,10 +125,10 @@ function resetStubs() {
   stubState.lastChatArgs = null;
 }
 
-async function postChat(body) {
+async function postChat(body, extraHeaders = {}) {
   const res = await fetch(`${baseUrl}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
     body: JSON.stringify(body),
   });
   return { status: res.status, body: await res.json() };
@@ -267,4 +269,52 @@ test('returning visitor: history endpoint returns prior messages and /chat appen
   const convo = await Conversation.findOne({ sessionToken, domain });
   assert.equal(convo.messages.length, 4, 'user + assistant turns appended to existing history');
   assert.equal(convo.messages[2].content, 'What time do you open?');
+});
+
+// ---------------------------------------------------------------------------
+// 5. Test-mode (LEO-025): a valid X-API-Key suppresses quota + notifications,
+//    returns isTest:true, and marks the conversation. This is the end-to-end
+//    contract the MCP send_test_message tool depends on — the gate helper is
+//    unit-tested separately (test-mode-gate.test.js), but nothing asserted the
+//    live /chat behaviour, which is exactly where the MCP client silently ran
+//    as real traffic by not sending the key.
+// ---------------------------------------------------------------------------
+test('test-mode: keyed /chat returns isTest, skips the counter, and fires no owner notification', async () => {
+  resetStubs();
+  const domain = 'testmode.example.com';
+  // Free tier + owner contact so a real message WOULD count and WOULD notify —
+  // proving the suppression is the key's doing, not an absent trigger.
+  await Entity.create({ domain, name: 'Test Mode', plan: 'free', messageCountThisPeriod: 5, ownerEmail: 'stub-owner@example.invalid' });
+
+  const rawKey = 'leoai_testmode_' + crypto.randomBytes(8).toString('hex');
+  await ApiKey.create({
+    keyHash: crypto.createHash('sha256').update(rawKey).digest('hex'),
+    label: 'chat-flow-test',
+    scope: 'mcp',
+  });
+
+  // A reply that WOULD fire a handoff notification for a normal visitor.
+  stubState.replyText = "I'll check with the team. [HANDOFF_REQUESTED: Do you deliver on Sundays?]";
+  const r = await postChat(
+    { domain, sessionToken: 'testmode-session', message: 'Do you deliver Sundays?' },
+    { 'X-API-Key': rawKey }
+  );
+
+  assert.equal(r.status, 200);
+  assert.equal(r.body.isTest, true, 'a valid key must put the response in test-mode');
+  assert.equal(r.body.handoffTriggered, true, 'the reply still triggers a handoff...');
+  assert.equal(stubState.handoffCalls.length, 0, '...but test-mode fires NO owner notification');
+  assert.equal(r.body.usage.messageCountThisPeriod, 5, 'test-mode does not increment the live counter in the response');
+
+  const entity = await Entity.findOne({ domain });
+  assert.equal(entity.messageCountThisPeriod, 5, 'the persisted counter is unchanged');
+  const convo = await Conversation.findOne({ sessionToken: 'testmode-session', domain });
+  assert.equal(convo.isTest, true, 'the conversation is flagged isTest');
+
+  // Control: the SAME request WITHOUT the key is real traffic — counter moves,
+  // owner is notified. This is what the MCP tool was doing before the fix.
+  const rReal = await postChat({ domain, sessionToken: 'real-session', message: 'Do you deliver Sundays?' });
+  assert.equal(rReal.body.isTest, false, 'no key = real traffic');
+  assert.equal(stubState.handoffCalls.length, 1, 'real traffic DOES notify the owner');
+  await waitForEntity(domain, (e) => e.messageCountThisPeriod === 6);
 });

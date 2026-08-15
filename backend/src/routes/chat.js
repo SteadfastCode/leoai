@@ -233,6 +233,7 @@ router.post('/', async (req, res) => {
       reply,
       sessionToken,
       handoffTriggered: !!handoffMatch,
+      isTest,
       options,
       usage: {
         messageCountThisPeriod: entity.messageCountThisPeriod,
