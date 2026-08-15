@@ -185,6 +185,43 @@ test('hasVariants is preserved when the result does not report it', async () => 
   assert.equal(page.chunkCount, 2);
 });
 
+test('a page whose embedding failed keeps its OLD hash and chunks, so the next rescrape retries', async () => {
+  await seed();
+
+  // PAGE's embed failed this run (listed in skippedUrls, no embeddedChunks) while the
+  // group chunk succeeded — the mixed case where the persist block still runs.
+  // rescrapeSite always lists PAGE in pageHashUpdates carrying the NEW hash; persisting
+  // that hash while the chunks are stale would lock the stale content in forever, because
+  // the next rescrape would see the hash unchanged and never retry the embed.
+  const result = {
+    embeddedChunks: [],
+    thinGroupChunks: [chunk(GROUP, 'new group card A + B', 'scraped', { sourceUrls: [`${GROUP}ann`, `${GROUP}bob`] })],
+    thinGroupUrls: [GROUP],
+    changedUrls: [PAGE],
+    unchangedUrls: [UNCHANGED],
+    skippedUrls: [PAGE],
+    pageHashUpdates: [
+      { url: PAGE, hash: 'new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+    ],
+  };
+
+  const before = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  await new Promise((r) => setTimeout(r, 5));
+  await persistRescrapeResult({ domain: DOMAIN, result });
+
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  assert.equal(page.contentHash, 'old', 'a skipped-embed page must keep its OLD hash so the change is re-detected next run');
+  assert.equal(page.chunkCount, 2, 'its chunkCount must not be zeroed');
+  assert.ok(page.lastScrapedAt > before.lastScrapedAt, 'but lastScrapedAt still advances to record the attempt');
+
+  const scraped = await Chunk.find({ domain: DOMAIN, url: PAGE, source: 'scraped' }).lean();
+  assert.deepEqual(
+    scraped.map((c) => c.content).sort(),
+    ['old scraped body', 'second old scraped body'],
+    'the old scraped chunks must survive intact — not replaced by nothing'
+  );
+});
+
 test('a thin page folded into a group chunk is credited on its own row (LEO-028)', async () => {
   await seed();
   const ANN = `${GROUP}ann`;

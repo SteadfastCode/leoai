@@ -116,6 +116,13 @@ async function persistRescrapeResult({ domain, result, io = null }) {
   const pageHashUpdates = result.pageHashUpdates || [];
   const changedUrls     = result.changedUrls     || [];
   const unchangedUrls   = result.unchangedUrls   || [];
+  // URLs whose embedding failed this run (LEO-019). rescrapeSite still lists them
+  // in pageHashUpdates carrying the NEW content hash — but their chunks were never
+  // re-embedded. Writing the new hash here would mark the page "current" while its
+  // stored chunks are stale, and the next rescrape would see the hash unchanged and
+  // never retry — locking the stale content in permanently. Skip the hash bump for
+  // these so the change is re-detected next run.
+  const skippedUrls = new Set(result.skippedUrls || []);
 
   const hasNormalChanges = embeddedChunks.length > 0;
   const hasThinChanges   = thinGroupChunks.length > 0;
@@ -131,6 +138,14 @@ async function persistRescrapeResult({ domain, result, io = null }) {
 
     const normalByUrl = groupByUrl(embeddedChunks);
     for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of pageHashUpdates) {
+      // Embedding failed for this page — leave its old chunks AND its old contentHash
+      // intact so the next rescrape retries. Only bump lastScrapedAt to record we looked.
+      if (skippedUrls.has(pageUrl)) {
+        await ScrapedPage.updateOne({ domain, url: pageUrl }, { lastScrapedAt: new Date() });
+        emitPageSaved(io, domain, pageUrl);
+        continue;
+      }
+
       const chunks = normalByUrl.get(pageUrl) || [];
       await replaceChunksForUrl(domain, pageUrl, chunks);
 
