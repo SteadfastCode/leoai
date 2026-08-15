@@ -10,6 +10,7 @@ import { can } from './lib/permissions'
 import { sessionExpired, lastKnownEmail } from './lib/session'
 import { notifications, dismiss } from './lib/notify'
 import { socket, joinDomain, joinSuperadmin } from './lib/socket'
+import { impersonation, stopImpersonation } from './lib/impersonation'
 
 const router = useRouter()
 const theme  = useTheme()
@@ -204,6 +205,19 @@ async function handleReAuthPasskey() {
 
 <template>
   <v-app>
+    <!-- ── Impersonation banner (superadmin "view as user") ── -->
+    <div
+      v-if="impersonation"
+      style="position: fixed; top: 0; left: 0; right: 0; z-index: 3000; background: #ffb300; color: #000;
+             display: flex; align-items: center; gap: 10px; padding: 6px 16px; font-size: 13px; font-weight: 600;
+             box-shadow: 0 1px 4px rgba(0,0,0,0.25)"
+    >
+      <v-icon size="small">mdi-account-eye-outline</v-icon>
+      <span>Viewing as {{ impersonation.name }} ({{ impersonation.email }}) — you are seeing exactly what they see.</span>
+      <v-spacer />
+      <v-btn size="x-small" variant="flat" color="black" style="color: #ffb300" @click="stopImpersonation">Exit</v-btn>
+    </div>
+
     <!-- ── Authenticated layout chrome ── -->
     <template v-if="showLayout">
       <v-navigation-drawer v-model="drawer" :rail="rail" permanent width="240">

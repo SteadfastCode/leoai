@@ -1,12 +1,27 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { getEntities, getStats, deleteEntity } from '../lib/api'
+import { getEntities, getStats, deleteEntity, impersonate } from '../lib/api'
+import { beginImpersonation } from '../lib/impersonation'
 import { filterEntities, sortEntities, isStale } from '../lib/entityFilters'
 
 const entities   = ref([])
 const loading    = ref(false)
 const snackbar   = ref(false)
 const snackbarMsg = ref('')
+const impersonating = ref(null)
+
+// Enter "view as owner" for an entity: resolve the owner server-side, then reload as them.
+async function viewAsOwner(entity) {
+  impersonating.value = entity.domain
+  try {
+    const { data } = await impersonate({ domain: entity.domain })
+    beginImpersonation(data) // persists + reloads
+  } catch (err) {
+    impersonating.value = null
+    snackbarMsg.value = err.response?.data?.error || 'Could not view as this owner'
+    snackbar.value = true
+  }
+}
 
 // Filter / sort controls
 const search   = ref('')
@@ -181,6 +196,14 @@ function formatDate(d) {
               <span class="text-caption text-medium-emphasis mr-1" style="min-width: 80px; text-align: right">
                 {{ formatDate(entity.lastScrapedAt) }}
               </span>
+              <v-btn
+                icon="mdi-account-eye-outline"
+                size="small"
+                variant="text"
+                title="View dashboard as this entity's owner"
+                :loading="impersonating === entity.domain"
+                @click.stop="viewAsOwner(entity)"
+              />
               <v-btn
                 icon="mdi-delete-outline"
                 size="small"

@@ -12,6 +12,10 @@ const auditLogSchema = new mongoose.Schema(
     actorId: { type: mongoose.Schema.Types.ObjectId, default: null },
     actorEmail: { type: String, default: null },
     apiKeyLabel: { type: String, default: null },
+    // When a superadmin performed this while impersonating another user (LEO-045), the actor
+    // fields hold the impersonated target and these hold the real superadmin — attribute both.
+    impersonatorId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    impersonatorEmail: { type: String, default: null },
     domain: { type: String, default: null }, // entity the action touched, when there is one
     details: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
