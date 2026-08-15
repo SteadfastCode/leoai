@@ -102,6 +102,125 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 ---
 
+## Block H — Alpha-hardening (safe for real traffic)
+
+Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
+this block first — it is what stands between pre-alpha and real visitor traffic.
+
+- [ ] **(LEO-034) Rate-limit the public /chat endpoint**
+  `/chat` is public and unauthenticated — one script can hammer it and burn Claude + Voyage spend
+  with no ceiling. Add `services/rateLimit.js`: an in-memory sliding-window limiter keyed by
+  sessionToken, IP, and domain with per-minute and per-hour caps (generous defaults, e.g. 20/min
+  and 200/hr per session; a per-entity daily ceiling). Return 429 with a JSON body the widget
+  renders as a warm "you're sending a lot — give me a moment" bubble. **Test-mode requests (valid
+  X-API-Key) bypass all limits** — the routine's own smoke must never be throttled. In-memory is
+  fine for the single Railway instance; note the multi-instance caveat in a comment.
+  *Verify:* `node --test` on the limiter as a pure function (allow/deny given a call history + a
+  clock) covering under-limit, at-limit, window-rollover, and the keyed bypass; plus an
+  integration assertion that a rapid over-limit `/chat` returns 429 and a keyed one does not. The
+  `chat.js` change is ≤30 lines and must not touch the quota block, handoff test-and-set, or
+  `conversation.save()`.
+
+- [ ] **(LEO-035) Per-entity daily cost/volume guardrail**
+  A runaway (bug, abuse, or a viral page) could rack up spend before you notice. Track per-entity
+  message volume for the current UTC day; when it crosses a high, per-entity-configurable
+  threshold (`dailyVolumeAlert`, default e.g. 1000, 0 = off), fire ONE alert to the owner and
+  superadmin via the existing notification channels, once per day. It does NOT block traffic — it
+  warns. Reuse the atomic `findOneAndUpdate` idempotency pattern so concurrent messages fire
+  exactly one alert.
+  *Verify:* extract the "should alert now" decision as a pure function (today's count, threshold,
+  lastAlertedDay, now) and cover under/at/over threshold, disabled, and already-alerted-today
+  under `node --test`. **Never trigger a real send** in the test.
+
+- [ ] **(LEO-036) Widget graceful degradation on /chat failure**
+  When `/chat` errors or times out, the widget currently leaves a dead pane. Add bounded retry
+  (2 attempts, exponential backoff) in `chatbot.js`; on final failure show a warm inline error
+  bubble ("I'm having trouble reaching my brain — mind trying again in a moment?") and leave the
+  visitor's typed message recoverable, not lost. A 429 from LEO-034 renders its own message, not
+  the generic one.
+  *Verify:* `node widget/smoke.mjs` extended — stub `fetch` to reject twice then resolve (assert
+  retry succeeds) and to always reject (assert the error bubble renders and the input is
+  preserved). `widget/**` is off the denylist since LEO-003.
+
+## Block I — RAG quality (measurable, honest)
+
+- [ ] **(LEO-037) Retrieval eval harness — make answer quality measurable**
+  Leo's retrieval quality is invisible until a visitor hits a miss (as "what are your hours?"
+  did). Add `backend/src/scripts/rag-eval.js` + a committed question set
+  (`backend/test/fixtures/rag-eval/questions.json`) of universal small-business questions (hours,
+  location, parking, pricing, contact, hiring, "what do you sell/offer") and run each through
+  `retrieveContext` for a target domain, reporting per-question topScore, hadContext, and the
+  winning page, plus an overall hit-rate. Measurement infrastructure — every future RAG change
+  gets a before/after scorecard.
+  *Verify:* run it against `smoke.leo-ai.chat` and 2–3 real test entities (dosiedough.com,
+  campcalvary.com), commit the question set, and paste the resulting table in the PR body.
+  Read-only retrieval, no production mutation.
+
+- [ ] **(LEO-038) Low-confidence hedging + proactive handoff** *(restricted: chat.js)*
+  When context is retrieved but weak (topScore just above the retrieval threshold), Leo can answer
+  with false confidence. When `topScore` falls in a low band (retrieval threshold to threshold
+  +~0.05, tunable per-entity), inject a system hint that Leo should answer tentatively and offer to
+  connect the visitor with the team rather than assert. Honest-by-design — matches Leo's values.
+  *Verify:* `verify-prompt.js` still passes; `node --test` on the band decision as a pure function
+  (below-threshold, low-band, high-confidence). `chat.js` diff ≤30 lines, no touch to the quota
+  block, handoff test-and-set, or `conversation.save()`. The tone change rides on the model — say
+  so; do not claim it was live-verified.
+
+- [ ] **(LEO-039) Follow-up-aware retrieval** *(restricted: rag.js/chat.js)*
+  Each query embeds in isolation, so "what about that one?" or "and the price?" retrieve poorly.
+  When the message is short/anaphoric and prior history exists, prepend the last user turn (capped
+  length) to the text sent for query embedding — retrieval only; the message shown to Leo is
+  unchanged. Skip when there is no history or the message is already self-contained (length
+  heuristic).
+  *Verify:* extract the query construction as a pure function and `node --test` it: no history →
+  unchanged; short follow-up → prior turn prepended; long self-contained message → unchanged. Diff
+  ≤30 lines across rag.js/chat.js; must not touch the `$vectorSearch` stage.
+
+## Block J — Owner value (prove it's working)
+
+- [ ] **(LEO-040) In-dashboard "Test your bot" playground** *(needs test-mode extension)*
+  Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
+  their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
+  — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
+  to ALSO accept an authenticated dashboard session (valid JWT) **for the caller's own domain
+  only** — never cross-domain, never a body flag. Reuse the widget's chat rendering.
+  *Verify:* `node --test` the extended gate: owner JWT for own domain → test-mode true; owner JWT
+  for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
+  `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
+
+- [ ] **(LEO-041) Owner analytics — trends, top questions, unanswered over time**
+  The Overview shows counts, not movement. Add `GET /api/dashboard/entities/:domain/analytics`
+  returning daily conversation + message buckets (last 30 days), top visitor questions (grouped
+  via the shared Jaccard helper), and an unanswered-count trend — from `Conversation` aggregates,
+  domain-scoped, no `await` in a loop. Render as simple charts on Overview (reuse whatever chart
+  approach the dashboard already has; if none, a lightweight inline SVG — do not add a heavy
+  dependency).
+  *Verify:* unit-test the bucket/row-shaping function with fixtures (empty range, sparse days, ties
+  in top-questions). `yarn build`. Grep-assert the handler has no per-day query inside a loop.
+
+- [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
+  A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
+  `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
+  `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
+  zero activity**; stamp `lastWeeklyDigestAt` idempotently via the same atomic pattern the
+  unanswered digest uses. Default-off is what makes it shippable unattended.
+  *Verify:* `node --test` on the due-date calc (DST-adjacent) and the body renderer (zero-activity
+  suppression, ordering). **Never trigger a real send.** `yarn build` for the Settings toggle.
+
+## Block K — Privacy & trust (dignity-first)
+
+- [ ] **(LEO-043) Visitor "forget me" + conversation retention**
+  No way today for a visitor to erase their history, and anonymous conversations live forever. Add
+  `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
+  `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
+  forever) driving a daily sweep that deletes anonymous conversations older than the threshold. The
+  widget gets a "Clear my history from the server" action in its menu, distinct from the local-only
+  clear (LEO-030).
+  *Verify:* `node --test` — deletion is strictly scoped to the passed domain+sessionToken (a
+  mismatched token deletes nothing; another domain's conversation is untouched); the retention
+  predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
+  is the one that matters.
+
 ## Blocked Items
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
