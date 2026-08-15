@@ -1,5 +1,8 @@
-// Quick test: run Puppeteer variant sweep on a single product URL
-// Usage: node test-variant.js
+// Manual Puppeteer variant-sweep check on a single product URL. NOT an automated
+// test — it launches a real browser, so it lives in scripts/ (out of `node --test`
+// discovery) rather than at the backend root where it matched the test-* glob and
+// broke CI, which has no Chromium.
+// Usage: node scripts/variant-sweep-manual.js
 const puppeteer = require('puppeteer');
 
 const URL = 'https://shop.harvestlanefarmmarket.com/product/meadow-view-raw-milk/2615';
