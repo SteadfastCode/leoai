@@ -35,10 +35,18 @@ function pageName(chunk) {
 function packContext(chunks, maxChars) {
   let context = '';
   const sources = [];
+  const seenUrls = new Set();
   for (const chunk of chunks) {
     if (context.length + chunk.content.length > maxChars) continue;
     context += chunk.content + '\n\n';
-    if (!sources.some((s) => s.url === chunk.url)) sources.push({ url: chunk.url, name: pageName(chunk) });
+    // Dedup on the BARE page URL, not the anchored one, so a page contributing two
+    // sections still yields a single source entry (LEO-032).
+    if (seenUrls.has(chunk.url)) continue;
+    seenUrls.add(chunk.url);
+    sources.push({
+      url: chunk.sectionAnchor ? `${chunk.url}#${chunk.sectionAnchor}` : chunk.url,
+      name: pageName(chunk),
+    });
   }
   return { context, sources };
 }
@@ -67,7 +75,7 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       },
     },
     {
-      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, pageH1: 1, label: 1, score: { $meta: 'vectorSearchScore' } },
+      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, pageH1: 1, label: 1, sectionAnchor: 1, score: { $meta: 'vectorSearchScore' } },
     },
   ]);
 
@@ -88,13 +96,13 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       domain,
       url: { $in: matchedUrls },
       source: { $nin: ['owner_reply'] },
-    }).select('content url source chunkIndex pageH1 label embedding').lean();
+    }).select('content url source chunkIndex pageH1 label sectionAnchor embedding').lean();
 
     for (const c of candidates) {
       if (primaryIds.has(c._id.toString())) continue;
       const score = dotProduct(queryEmbedding, c.embedding);
       if (score >= siblingThreshold) {
-        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, score });
+        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, sectionAnchor: c.sectionAnchor, score });
       }
     }
     siblings.sort((a, b) => b.score - a.score);

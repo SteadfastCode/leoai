@@ -111,3 +111,29 @@ test('root URL falls back to a generic name rather than an empty one', () => {
   const { sources } = packContext([{ content: 'a', url: 'https://x.com/' }], 6000);
   assert.equal(sources[0].name, 'this page');
 });
+
+// Section deep-linking (LEO-032). A chunk carrying sectionAnchor contributes an
+// anchored URL, but dedup still keys on the bare page URL — two sections of one page
+// must not become two source entries.
+test('sectionAnchor produces an anchored source URL', () => {
+  const { sources } = packContext([
+    { content: 'a', url: 'https://x.com/about', label: 'About', sectionAnchor: 'team' },
+  ], 6000);
+  assert.deepEqual(sources, [{ url: 'https://x.com/about#team', name: 'About' }]);
+});
+
+test('two anchored sections of the same page yield one source entry', () => {
+  const { sources } = packContext([
+    { content: 'a', url: 'https://x.com/p', label: 'P', sectionAnchor: 'one' },
+    { content: 'b', url: 'https://x.com/p', label: 'P', sectionAnchor: 'two' },
+  ], 6000);
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].url, 'https://x.com/p#one');
+});
+
+test('missing sectionAnchor leaves the URL bare — never a trailing #', () => {
+  const { sources } = packContext([
+    { content: 'a', url: 'https://x.com/p', label: 'P', sectionAnchor: null },
+  ], 6000);
+  assert.equal(sources[0].url, 'https://x.com/p');
+});

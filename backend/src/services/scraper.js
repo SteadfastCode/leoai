@@ -60,6 +60,23 @@ function stripBlockMarker(p) {
   return p.startsWith('[SB]') ? p.replace(/^(?:\[SB\])+/, '') : p;
 }
 
+// Heading markers carry the heading's DOM id when it has one: [H2#the-id] Title (LEO-032).
+// ONE regex for every consumer — keepPara, the chunkText H1/H2 split, buildGroupChunks and
+// the Puppeteer hasH1 trigger all match through this. They were four separate literals; a
+// widening that missed one would silently degrade chunk labels for every entity on the next
+// LeoRefresh. Group 1 = level, group 2 = anchor (undefined when the heading had no id).
+const H_MARKER_RE = /^\[H([123])(?:#([^\]\s]*))?\] /;
+// Anchor-tolerant, unanchored form — for "does this text contain an H1 anywhere" tests.
+const H1_ANYWHERE_RE = /\[H1(?:#[^\]\s]*)?\]/;
+
+// H3 markers (and any heading not consumed as a section boundary) travel into chunk BODY
+// text. The anchor must be dropped there or every such chunk grows by the anchor's length
+// and stops matching pre-LEO-032 content byte-for-byte — which is exactly how a rescrape
+// would silently re-embed unchanged pages. The marker itself stays; only '#id' goes.
+function stripMarkerAnchor(p) {
+  return p.replace(H_MARKER_RE, (_m, lvl) => `[H${lvl}] `);
+}
+
 // cs = crawlSettings (entity-level). Always-on regexes are hardcoded;
 // optional ones are gated on cs flags.
 // Paragraphs prefixed with [SB] (emitted by semantic leaf elements in extractStructuredText)
@@ -70,7 +87,7 @@ function keepPara(p, cs = {}) {
   const bare = isSB ? p.replace(/^(?:\[SB\])+/, '') : p;
   const minLen = isSB ? 4 : 20;
   return bare.length >= minLen
-    || /^\[H[123]\] /.test(bare)
+    || H_MARKER_RE.test(bare)
     || /\S+@\S+\.\S+/.test(bare)
     || PHONE_RE.test(bare)
     || MONEY_RE.test(bare)
@@ -173,8 +190,10 @@ function extractStructuredText($, el) {
       if (tag === 'br') {
         out += '\n';
       } else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
-        // Prefix headings so paragraph dedup can exempt them — page titles must never be filtered
-        out += '\n\n[' + tag.toUpperCase() + '] ' + inner.trim() + '\n\n';
+        // Prefix headings so paragraph dedup can exempt them — page titles must never be filtered.
+        // The DOM id rides along as [H2#the-id] so chunks can deep-link to the section (LEO-032).
+        const id = ($(node).attr('id') || '').trim();
+        out += '\n\n[' + tag.toUpperCase() + (id ? '#' + id : '') + '] ' + inner.trim() + '\n\n';
       } else if (tag === 'ul' || tag === 'ol') {
         // Join list items into a single comma-separated line so short items (e.g. product names,
         // partner names, staff titles) are never individually killed by the keepPara length floor.
@@ -283,7 +302,8 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
       // innerText flattens structure, so we inject the markers into the DOM text directly.
       document.querySelectorAll('h1, h2, h3').forEach((el) => {
         const tag = el.tagName.toLowerCase();
-        el.prepend(`[${tag.toUpperCase()}] `);
+        const id = (el.id || '').trim();
+        el.prepend(`[${tag.toUpperCase()}${id ? '#' + id : ''}] `);
       });
       const text = (document.body?.innerText || '')
         .replace(/[ \t]+/g, ' ')
@@ -450,7 +470,7 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1F
 
   // Pass 2 — use Puppeteer if JS framework detected, or if cheerio found no H1
   // (a missing H1 suggests a JS-rendered shell that didn't produce real structure).
-  const hasH1 = /\[H1\]/.test(text);
+  const hasH1 = H1_ANYWHERE_RE.test(text);
   const needsPuppeteer = jsFramework || !hasH1;
   if (needsPuppeteer && browser) {
     const reason = jsFramework ? 'JS framework detected' : 'no H1 found (possible JS shell)';
@@ -506,20 +526,21 @@ function chunkText(text, url, cs = {}) {
     .filter(p => keepPara(p, cs))
     .map(stripBlockMarker);
 
-  // Extract page-level H1 (first [H1] paragraph)
-  const h1Para  = allParas.find(p => /^\[H1\] /.test(p));
-  const pageH1  = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
+  // Extract page-level H1 (first [H1] paragraph). The marker may carry an anchor.
+  const h1Para  = allParas.find(p => (p.match(H_MARKER_RE) || [])[1] === '1');
+  const pageH1  = h1Para ? h1Para.replace(H_MARKER_RE, '').trim() : null;
 
-  // Split into H2-bounded sections: [{ h2: string|null, paras: string[] }]
+  // Split into H2-bounded sections: [{ h2: string|null, anchor: string|null, paras: string[] }]
   const sections = [];
-  let cur = { h2: null, paras: [] };
+  let cur = { h2: null, anchor: null, paras: [] };
   for (const para of allParas) {
-    if (/^\[H1\] /.test(para)) continue; // page-level, prepended to every chunk separately
-    if (/^\[H2\] /.test(para)) {
+    const m = para.match(H_MARKER_RE);
+    if (m && m[1] === '1') continue; // page-level, prepended to every chunk separately
+    if (m && m[1] === '2') {
       if (cur.paras.length > 0 || cur.h2 !== null) sections.push(cur);
-      cur = { h2: para.replace(/^\[H2\] /, '').trim(), paras: [] };
+      cur = { h2: para.replace(H_MARKER_RE, '').trim(), anchor: m[2] || null, paras: [] };
     } else {
-      cur.paras.push(para);
+      cur.paras.push(stripMarkerAnchor(para));
     }
   }
   if (cur.paras.length > 0 || cur.h2 !== null) sections.push(cur);
@@ -534,11 +555,11 @@ function chunkText(text, url, cs = {}) {
     if (len >= TINY_BUF_THRESHOLD) continue;
     if (i + 1 < sections.length) {
       // Absorb forward: prepend paras into the next section (keep next section's H2 label)
-      sections[i + 1] = { h2: sections[i + 1].h2, paras: [...sections[i].paras, ...sections[i + 1].paras] };
+      sections[i + 1] = { h2: sections[i + 1].h2, anchor: sections[i + 1].anchor, paras: [...sections[i].paras, ...sections[i + 1].paras] };
       sections.splice(i, 1);
     } else if (i > 0) {
       // Last section is tiny — absorb backward into the previous section
-      sections[i - 1] = { h2: sections[i - 1].h2, paras: [...sections[i - 1].paras, ...sections[i].paras] };
+      sections[i - 1] = { h2: sections[i - 1].h2, anchor: sections[i - 1].anchor, paras: [...sections[i - 1].paras, ...sections[i].paras] };
       sections.splice(i, 1);
     }
   }
@@ -553,7 +574,7 @@ function chunkText(text, url, cs = {}) {
     return (lines.join('\n') + '\n' + bodyParas.join('\n\n')).trim();
   }
 
-  function pushChunk(h2s, bodyParas, primaryH2) {
+  function pushChunk(h2s, bodyParas, primaryH2, primaryAnchor) {
     const content = buildContent(h2s, bodyParas);
     if (!content.trim()) return;
     chunks.push({
@@ -562,6 +583,7 @@ function chunkText(text, url, cs = {}) {
       chunkIndex: chunks.length,
       pageH1:    pageH1 || null,
       sectionH2: primaryH2 || null,
+      sectionAnchor: primaryAnchor || null,
       label:     h2s.length > 0 ? h2s.join(' / ') : (pageH1 || 'Intro'),
       sourceUrls: [url],
     });
@@ -571,12 +593,13 @@ function chunkText(text, url, cs = {}) {
   function splitOversizedSection(section) {
     const h2s       = section.h2 ? [section.h2] : [];
     const primaryH2 = section.h2 || null;
+    const primaryAnchor = section.anchor || null;
     let buf = '';
 
     function flushBuf() {
       const trimmed = buf.trim();
       if (!trimmed) return;
-      pushChunk(h2s, [trimmed], primaryH2);
+      pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
       buf = trailingOverlap(trimmed);
     }
 
@@ -598,7 +621,7 @@ function chunkText(text, url, cs = {}) {
       }
     }
     const trimmed = buf.trim();
-    if (trimmed) pushChunk(h2s, [trimmed], primaryH2);
+    if (trimmed) pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
   }
 
   // Main pass: merge short sections, split oversized ones
@@ -609,7 +632,9 @@ function chunkText(text, url, cs = {}) {
     if (mergeBuf.length === 0) return;
     const h2s   = mergeBuf.map(s => s.h2).filter(Boolean);
     const paras = mergeBuf.flatMap(s => s.paras);
-    pushChunk(h2s, paras, h2s[0] || null);
+    // Anchor of the first section that contributed an H2 — mirrors how primaryH2 is chosen.
+    const anchorSrc = mergeBuf.find(s => s.h2);
+    pushChunk(h2s, paras, h2s[0] || null, anchorSrc ? anchorSrc.anchor : null);
     mergeBuf    = [];
     mergeBufLen = 0;
   }
@@ -650,12 +675,13 @@ function buildGroupChunks(groupUrl, pages, cs = {}) {
   // Build a card per page with lightweight filtering (no seenParaHashes)
   const cards = pages.map(({ url, text }) => {
     const paras = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
-    const h1Para = paras.find(p => /^\[H1\] /.test(p));
-    const h1 = h1Para ? h1Para.replace(/^\[H1\] /, '').trim() : null;
+    const h1Para = paras.find(p => (p.match(H_MARKER_RE) || [])[1] === '1');
+    const h1 = h1Para ? h1Para.replace(H_MARKER_RE, '').trim() : null;
     const bodyParas = paras
-      .filter(p => !/^\[H1\] /.test(p))
+      .filter(p => (p.match(H_MARKER_RE) || [])[1] !== '1')
       .filter(p => keepPara(p, cs))
-      .map(stripBlockMarker);
+      .map(stripBlockMarker)
+      .map(stripMarkerAnchor);
 
     let cardText = `[Source: ${url}]`;
     if (h1) cardText += `\n[H1] ${h1}`;
@@ -1083,4 +1109,4 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   };
 }
 
-module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText };
+module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText, extractStructuredText };
