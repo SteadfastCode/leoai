@@ -59,8 +59,8 @@
       "lastFail": "restricted-file-budget: scraper.js 51+/25- exceeds the 30-changed-line cap; verified work pushed on leo-nightly/item/LEO-032"
     },
     "LEO-005": {
-      "order": 6,
-      "status": "blocked",
+      "order": null,
+      "status": "done",
       "attempts": 0,
       "cluster": null,
       "branch": null,
@@ -71,7 +71,7 @@
       ],
       "claimedAtUtc": null,
       "runId": null,
-      "lastFail": "denylist:.github/** — proposed diff in FEATURES.md Blocked Items"
+      "lastFail": null
     },
     "LEO-031": {
       "order": null,

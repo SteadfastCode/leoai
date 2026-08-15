@@ -123,61 +123,10 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
-- [ ] **(LEO-005) GitHub Actions CI + branch protection prerequisites** *(needs LEO-001, LEO-002, LEO-003)*
-  **Blocked 2026-08-11 (no implementation attempted, attempts not consumed):** the item requires
-  creating `.github/workflows/ci.yml`, but `.github/**` is on the routine's denylist ("you may
-  not edit your own safety net") with no exception carved out — unlike `widget/**`, which the
-  denylist explicitly lifts once LEO-003 lands. A CI gate the unattended routine authors, merges,
-  and could later weaken is exactly what that rule exists to prevent, so this one needs Daniel's
-  hand. All three prerequisites (LEO-001/002/003) are done; the workflow below is ready to paste.
-  Daniel: create the file, push, confirm both green and red runs, then enable required-status-check
-  branch protection (the item's own note says that last step is manual regardless).
-
-  Proposed `.github/workflows/ci.yml`:
-
-  ```yaml
-  name: CI
-  on:
-    pull_request:
-    push:
-      branches: [main]
-  jobs:
-    backend:
-      runs-on: ubuntu-latest
-      defaults: { run: { working-directory: backend } }
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with: { node-version: 20, cache: yarn, cache-dependency-path: backend/yarn.lock }
-        - run: yarn install --frozen-lockfile
-        - run: yarn verify
-        - run: yarn test
-    dashboard:
-      runs-on: ubuntu-latest
-      defaults: { run: { working-directory: dashboard } }
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with: { node-version: 20, cache: yarn, cache-dependency-path: dashboard/yarn.lock }
-        - run: yarn install --frozen-lockfile
-        - run: yarn build
-        - run: yarn test
-    widget:
-      runs-on: ubuntu-latest
-      defaults: { run: { working-directory: widget } }
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with: { node-version: 20, cache: yarn, cache-dependency-path: widget/yarn.lock }
-        - run: yarn install --frozen-lockfile
-        - run: node smoke.mjs
-  ```
-
-  Note for the red-run demonstration: open a scratch PR that comments out the quota check in
-  `chat.js` (the same mutation LEO-001 proved catches red), confirm the backend job fails, close
-  the PR unmerged.
-
 ## Completed Items
+
+- [x] **(LEO-005) GitHub Actions CI + branch protection** — done by hand 2026-08-15 (Daniel + Claude; the routine could not, .github/** is on its denylist).
+  .github/workflows/ci.yml runs backend (verify + test), dashboard (build + test), and widget (smoke) on every PR and push to main, node 20 to match Railway. main is branch-protected requiring all three checks (no force-push/deletion). First CI run caught a real issue — a manual Puppeteer script matched the test glob and failed on the Chromium-less runner; moved to scripts/. enforce_admins is off so the routine's direct-push claim/heartbeat commits still work, so the SKILL.md merge step now waits on gh pr checks --watch and refuses to merge on red — that is what makes CI a real gate.
 
 - [x] **(LEO-031) Teach Leo to link the source page in his answer** — 11d0e41 (PR #28, 2026-08-14).
   The plumbing exists and is unused: `rag.js` returns `sources[]`, `claude.js` injects them as a
