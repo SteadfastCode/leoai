@@ -46,17 +46,17 @@
       "lastFail": null
     },
     "LEO-032": {
-      "order": 5,
-      "status": "blocked",
+      "order": null,
+      "status": "done",
       "attempts": 1,
       "cluster": null,
-      "branch": "leo-nightly/item/LEO-032",
+      "branch": null,
       "dependsOn": [
         "LEO-031"
       ],
       "claimedAtUtc": "2026-08-14T04:20:10.820Z",
       "runId": "2026-08-14T02:37:08.861Z",
-      "lastFail": "restricted-file-budget: scraper.js 51+/25- exceeds the 30-changed-line cap; verified work pushed on leo-nightly/item/LEO-032"
+      "lastFail": null
     },
     "LEO-005": {
       "order": null,
