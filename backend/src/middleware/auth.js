@@ -45,6 +45,26 @@ async function resolveApiKey(req) {
 }
 
 /**
+ * Impersonation (LEO-045): a superadmin can view the app AS another user. The real user is
+ * authenticated normally and MUST be a superadmin for the X-Impersonate-User header to take
+ * effect; then req.user becomes the target and the permission gate applies to the TARGET, so
+ * the superadmin sees exactly what that user would see (denials included). req.impersonator
+ * keeps the real superadmin for audit attribution.
+ *
+ * Fail-safe by construction: a missing header, a non-superadmin caller, or any error loading
+ * the target all resolve to null → the request proceeds as the real user. Impersonation can
+ * never deny a request, and the header is inert for anyone who is not a superadmin.
+ */
+async function resolveImpersonation(req, realUser) {
+  const targetId = req.headers['x-impersonate-user'];
+  if (!targetId || !isSuperAdmin(realUser)) return null;
+  const target = await User.findById(targetId)
+    .select('-hashedPassword -refreshTokens -currentChallenge')
+    .catch(() => null);
+  return target || null;
+}
+
+/**
  * Verifies the Bearer token and attaches req.user.
  *
  * @param {string|null} permission — optional PERMISSIONS constant (e.g. 'settings.edit').
@@ -85,11 +105,21 @@ function requireAuth(permission = null) {
 
     req.user = user;
 
-    // Permission gate — superadmin bypasses all checks
-    if (permission && !isSuperAdmin(user)) {
+    // Impersonation swap (superadmin only) — see resolveImpersonation. After this, req.user is
+    // the target and the permission gate below applies to THEM. No-op when not impersonating,
+    // so every existing request is byte-identical.
+    const impersonated = await resolveImpersonation(req, user);
+    if (impersonated) {
+      req.impersonator = user;
+      req.user = impersonated;
+    }
+
+    // Permission gate — applies to req.user (the impersonated target when impersonating, else
+    // the real user). Superadmin bypasses all checks.
+    if (permission && !isSuperAdmin(req.user)) {
       const domain = req.params.domain;
       if (!domain) return res.status(403).json({ error: 'Forbidden' });
-      if (!user.hasPermission(domain, permission, ROLE_PRESETS)) {
+      if (!req.user.hasPermission(domain, permission, ROLE_PRESETS)) {
         return res.status(403).json({ error: 'Forbidden' });
       }
     }

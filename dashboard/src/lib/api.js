@@ -1,14 +1,19 @@
 import axios from 'axios'
 import { sessionExpired, lastKnownEmail } from './session'
 import { notify, apiErrorMessage } from './notify'
+import { impersonation } from './impersonation'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const api = axios.create({ baseURL: API_URL })
 
-// Attach access token to every request
+// Attach access token to every request, plus the impersonation header when a superadmin is
+// viewing as another user. The backend only honours it for a real superadmin, so it is inert
+// for everyone else; the impersonate call itself runs before any target is set, so it is never
+// self-impersonated.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('leo_access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  if (impersonation.value?.userId) config.headers['X-Impersonate-User'] = impersonation.value.userId
   return config
 })
 
@@ -102,6 +107,7 @@ export const deleteKbEntry   = (domain, label)    => api.delete(`/api/dashboard/
 export const getLogs = (params) => api.get('/api/admin/logs', { params })
 export const getFleet = () => api.get('/api/admin/fleet')
 export const getAuditLog = (params) => api.get('/api/admin/audit-log', { params })
+export const impersonate = (payload) => api.post('/api/admin/impersonate', payload)
 
 export const getUnanswered     = (domain)     => api.get(`/api/dashboard/entities/${domain}/unanswered`)
 export const addUnansweredToKb = (domain, id) => api.post(`/api/dashboard/entities/${domain}/unanswered/${id}/add-to-kb`)

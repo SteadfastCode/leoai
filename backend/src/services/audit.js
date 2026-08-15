@@ -11,12 +11,16 @@ function recordAudit(req, action, fields = {}) {
   try {
     const apiKey = req && req.apiKey;
     const user = req && req.user;
+    const impersonator = req && req.impersonator;
     const doc = {
       action,
       actorType: apiKey ? 'api_key' : 'user',
       apiKeyLabel: apiKey ? apiKey.label || '' : null,
       actorId: !apiKey && user && user._id ? user._id : null,
       actorEmail: !apiKey && user ? user.email || null : null,
+      // If the action was taken while impersonating, record the real superadmin too.
+      impersonatorId: impersonator && impersonator._id ? impersonator._id : null,
+      impersonatorEmail: impersonator ? impersonator.email || null : null,
       ...fields,
     };
     return Promise.resolve()

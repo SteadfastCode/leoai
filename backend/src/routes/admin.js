@@ -12,6 +12,7 @@ const Log = require('../models/Log');
 const { embedQuery } = require('../services/embeddings');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const ApiKey = require('../models/ApiKey');
+const User = require('../models/User');
 
 // ---------------------------------------------------------------------------
 // Auth — accepts either a valid superadmin JWT or a valid X-API-Key header
@@ -224,6 +225,48 @@ router.delete('/api-keys/:id', jwtSuperadminOnly, async (req, res) => {
     if (!key) return res.status(404).json({ error: 'API key not found' });
     recordAudit(req, 'api_key.revoke', { details: { label: key.label } });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/impersonate — begin "view as" another user (LEO-045)
+// ---------------------------------------------------------------------------
+// JWT superadmin only (never an API key, and unreachable while already impersonating since
+// requireAdminAuth would then see the non-superadmin target). Returns the target's identity;
+// the client sends X-Impersonate-User on subsequent requests (see middleware/auth.js). The
+// swap and the permission gate live in the middleware — this endpoint only validates the
+// target and writes the audit record. "Stop" is client-side (drop the header), so no endpoint.
+router.post('/impersonate', jwtSuperadminOnly, async (req, res) => {
+  try {
+    const { userId, domain } = req.body || {};
+    let target = null;
+    if (userId) {
+      target = await User.findById(userId).select('name email memberships').catch(() => null);
+    } else if (domain) {
+      // "View as owner": the owner of the given entity.
+      target = await User.findOne({
+        memberships: { $elemMatch: { entityDomain: domain, roles: 'owner' } },
+      }).select('name email memberships');
+    } else {
+      return res.status(400).json({ error: 'userId or domain is required' });
+    }
+
+    if (!target) return res.status(404).json({ error: 'No user found to impersonate' });
+    if (isSuperAdmin(target)) return res.status(400).json({ error: 'Refusing to impersonate another superadmin' });
+
+    recordAudit(req, 'impersonation.start', {
+      domain: domain || null,
+      details: { targetUserId: target._id.toString(), targetEmail: target.email },
+    });
+
+    res.json({
+      userId: target._id.toString(),
+      name: target.name,
+      email: target.email,
+      memberships: target.memberships,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

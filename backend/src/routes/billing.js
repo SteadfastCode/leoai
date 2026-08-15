@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
 const Entity = require('../models/Entity');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -16,12 +16,14 @@ const ADDON_PRICES = {
   leorefresh: process.env.STRIPE_PRICE_LEOREFRESH,
 };
 
-// Middleware: verify caller has access to this domain
+// Middleware: verify caller has access to this domain.
+// Superadmin is the ROLE (isSuperAdmin), not membership in a hardcoded domain — the old
+// `entityDomain === 'steadfastcode.tech'` check granted every member of that domain, in any
+// capacity (readonly included), billing access to every entity (LEO-044).
 async function requireEntityAccess(req, res, next) {
   const { domain } = req.params;
   const hasMembership = req.user.memberships?.some((m) => m.entityDomain === domain);
-  const isSuperadmin  = req.user.memberships?.some((m) => m.entityDomain === 'steadfastcode.tech');
-  if (!hasMembership && !isSuperadmin) {
+  if (!hasMembership && !isSuperAdmin(req.user)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   next();
