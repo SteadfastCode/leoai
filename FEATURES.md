@@ -107,17 +107,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [x] **(LEO-035) Per-entity daily cost/volume guardrail**
-  A runaway (bug, abuse, or a viral page) could rack up spend before you notice. Track per-entity
-  message volume for the current UTC day; when it crosses a high, per-entity-configurable
-  threshold (`dailyVolumeAlert`, default e.g. 1000, 0 = off), fire ONE alert to the owner and
-  superadmin via the existing notification channels, once per day. It does NOT block traffic — it
-  warns. Reuse the atomic `findOneAndUpdate` idempotency pattern so concurrent messages fire
-  exactly one alert.
-  *Verify:* extract the "should alert now" decision as a pure function (today's count, threshold,
-  lastAlertedDay, now) and cover under/at/over threshold, disabled, and already-alerted-today
-  under `node --test`. **Never trigger a real send** in the test.
-
 - [ ] **(LEO-036) Widget graceful degradation on /chat failure**
   When `/chat` errors or times out, the widget currently leaves a dead pane. Add bounded retry
   (2 attempts, exponential backoff) in `chatbot.js`; on final failure show a warm inline error
@@ -212,6 +201,15 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-035) Per-entity daily volume guardrail** — 4800edd (PR #32, 2026-08-19).
+  Per-entity UTC-day message counter; `dailyVolumeAlert` threshold (default 1000, 0 = off,
+  owner-configurable via settings allowlist). One alert per day to owner (quotaAlertChannels)
+  and superadmin (ADMIN_PHONE/ADMIN_EMAIL); once-per-day send is the same atomic
+  findOneAndUpdate test-and-set as the handoff alert. Warns, never blocks. Pure
+  shouldAlertNow() covered under node --test (under/at/over, disabled, already-alerted-today,
+  UTC midnight boundary); no send path touched in tests. chat.js +6 lines; quota block,
+  handoff test-and-set, conversation.save() untouched.
 
 - [x] **(LEO-034) Rate-limit the public /chat endpoint** — ad88ba1 (PR #31, 2026-08-19).
   `services/rateLimit.js`: in-memory sliding-window limiter, pure decision core with injectable
