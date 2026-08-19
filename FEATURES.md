@@ -107,7 +107,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [ ] **(LEO-034) Rate-limit the public /chat endpoint**
+- [x] **(LEO-034) Rate-limit the public /chat endpoint**
   `/chat` is public and unauthenticated — one script can hammer it and burn Claude + Voyage spend
   with no ceiling. Add `services/rateLimit.js`: an in-memory sliding-window limiter keyed by
   sessionToken, IP, and domain with per-minute and per-hour caps (generous defaults, e.g. 20/min
