@@ -1,0 +1,14 @@
+[
+  { "category": "hours", "question": "What are your hours?" },
+  { "category": "hours", "question": "When are you open?" },
+  { "category": "location", "question": "Where are you located?" },
+  { "category": "location", "question": "Is there parking available?" },
+  { "category": "pricing", "question": "How much does it cost?" },
+  { "category": "pricing", "question": "What are your prices?" },
+  { "category": "contact", "question": "How can I contact you?" },
+  { "category": "contact", "question": "What is your phone number?" },
+  { "category": "hiring", "question": "Are you hiring?" },
+  { "category": "offerings", "question": "What do you sell?" },
+  { "category": "offerings", "question": "What services do you offer?" },
+  { "category": "offerings", "question": "Do you take custom orders?" }
+]
