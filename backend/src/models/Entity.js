@@ -44,6 +44,11 @@ const entitySchema = new mongoose.Schema(
     quotaAlertChannels: { type: [String], default: ['email'] }, // 'email', 'sms', or both
     notifiedThresholds: { type: [Number], default: [] },
     quotaExceededNotified: { type: Boolean, default: false },
+    // Daily volume guardrail (LEO-035) — warns owner + superadmin, never blocks
+    dailyVolumeAlert: { type: Number, default: 1000, min: 0 }, // messages per UTC day; 0 = off
+    dailyVolumeDay: { type: String }, // UTC day 'YYYY-MM-DD' the counter belongs to
+    dailyVolumeCount: { type: Number, default: 0 },
+    dailyVolumeLastAlertedDay: { type: String },
     ministryPlanRequested: { type: Boolean, default: false },
     ministryPlanRequestedAt: { type: Date },
     ministryPlanRequestedBy: { type: String },
