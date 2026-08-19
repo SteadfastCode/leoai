@@ -707,6 +707,33 @@
     }
   }
 
+  // Bounded retry for POST /chat (LEO-036): network rejections and 5xx retry
+  // with exponential backoff; 2xx/4xx return immediately (402/429 render their
+  // own messages). A 5xx on the final attempt throws so the caller's catch
+  // shows the warm failure bubble. Base delay is overridable so tests don't
+  // sleep through real backoff windows.
+  const CHAT_RETRIES = 2;
+  const CHAT_RETRY_BASE_MS = window.LEO_CHAT_RETRY_BASE_MS ?? 600;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function fetchChatWithRetry(url, opts) {
+    let lastErr = null;
+    for (let attempt = 0; attempt <= CHAT_RETRIES; attempt++) {
+      if (attempt > 0) await wait(CHAT_RETRY_BASE_MS * Math.pow(2, attempt - 1));
+      try {
+        const res = await fetch(url, opts);
+        if (res.status >= 500) {
+          lastErr = new Error(`chat returned ${res.status}`);
+          continue;
+        }
+        return res;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
   // --- Send a message ---
   // text: optional pre-formed text (from option buttons); interactivePayload: metadata
   // alreadyRendered: true when draining the offline queue (user bubble already in chat)
@@ -734,7 +761,7 @@
         body.interactiveData = interactivePayload;
       }
 
-      const res = await fetch(`${BACKEND_URL}/chat`, {
+      const res = await fetchChatWithRetry(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -754,9 +781,12 @@
         appendMessage('assistant', "Sorry, something went wrong. Please try again!");
       }
     } catch {
+      // Retries exhausted (LEO-036): warm failure bubble, and the typed message
+      // goes back into the input so it's recoverable — not silently queued.
+      // checkHealth flips the offline banner if the backend is actually down.
       setLoading(false);
-      messageQueue.push({ message, interactivePayload });
-      setConnectionStatus(false);
+      appendMessage('assistant', "I'm having trouble reaching my brain — mind trying again in a moment? 😊");
+      if (!input.value) input.value = message;
       checkHealth();
     }
   }
