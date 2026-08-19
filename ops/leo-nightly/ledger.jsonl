@@ -99,3 +99,5 @@
 {"event":"usage-snap","when":"run-start","runId":"2026-08-19T08:37:13.000Z","nightId":"2026-08-18","ok":true,"fileFiveHourPct":21,"fileWeeklyPct":33,"fileAgeMin":36,"screenOk":true,"fiveHourPct":22,"weeklyAllPct":33,"weeklyFablePct":13,"atUtc":"2026-08-19T08:40:55.095Z"}
 {"event":"claim","runId":"2026-08-19T08:37:13.000Z","item":"LEO-035","nightId":"2026-08-18","model":"claude-fable-5","atUtc":"2026-08-19T08:40:55.095Z"}
 {"event":"complete","runId":"2026-08-19T08:37:13.000Z","item":"LEO-035","mergeSha":"4800eddc8060795f32de44afe9aa025ccd31f313","nightId":"2026-08-18","durationMin":9,"atUtc":"2026-08-19T08:50:12.101Z"}
+{"event":"usage-snap","when":"post-item","item":"LEO-035","runId":"2026-08-19T08:37:13.000Z","nightId":"2026-08-18","ok":true,"fileFiveHourPct":30,"fileWeeklyPct":34,"fileAgeMin":2,"screenOk":true,"fiveHourPct":31,"weeklyAllPct":34,"weeklyFablePct":14,"atUtc":"2026-08-19T08:51:30.000Z"}
+{"event":"claim","runId":"2026-08-19T08:37:13.000Z","item":"LEO-036","nightId":"2026-08-18","model":"claude-fable-5","atUtc":"2026-08-19T08:51:51.460Z"}

@@ -107,7 +107,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [ ] **(LEO-036) Widget graceful degradation on /chat failure**
+- [x] **(LEO-036) Widget graceful degradation on /chat failure**
   When `/chat` errors or times out, the widget currently leaves a dead pane. Add bounded retry
   (2 attempts, exponential backoff) in `chatbot.js`; on final failure show a warm inline error
   bubble ("I'm having trouble reaching my brain — mind trying again in a moment?") and leave the
