@@ -59,6 +59,8 @@ const entitySchema = new mongoose.Schema(
     leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' },
     leoRefreshLastRun: { type: Date },
     ragThreshold: { type: Number, default: 0.75, min: 0.5, max: 0.95 },
+    // Low-confidence hedging band above ragThreshold (LEO-038); 0 disables
+    lowConfidenceBand: { type: Number, default: 0.05, min: 0, max: 0.2 },
     handoffFollowUp: {
       enabled:       { type: Boolean, default: true },
       intervalHours: { type: Number, default: 24 },

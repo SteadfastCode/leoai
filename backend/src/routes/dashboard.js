@@ -299,7 +299,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
     const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'dailyVolumeAlert', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest'];
-    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold'];
+    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold', 'lowConfidenceBand'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     let appliedSuperadminFields = [];
     if (isSuperAdmin(req.user)) {
