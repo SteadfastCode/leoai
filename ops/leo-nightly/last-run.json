@@ -1,26 +1,46 @@
 {
- "decision": "completed-1-item",
- "runId": "2026-08-19T07:37:03.804Z",
+ "decision": "completed-4-items",
+ "runId": "2026-08-19T08:37:13.000Z",
  "nightId": "2026-08-18",
  "model": "claude-fable-5",
- "localFireTime": "2026-08-19 03:37 EDT",
+ "localFireTime": "2026-08-19 04:37 EDT",
  "items": [
   {
-   "id": "LEO-034",
+   "id": "LEO-035",
    "result": "complete",
-   "durationMin": 11,
-   "mergeSha": "ad88ba10d369ee3429ec629e4ca56484467a8590",
-   "pr": 31
+   "durationMin": 9,
+   "mergeSha": "4800eddc8060795f32de44afe9aa025ccd31f313",
+   "pr": 32
+  },
+  {
+   "id": "LEO-036",
+   "result": "complete",
+   "durationMin": 7,
+   "mergeSha": "49306912ef48cdd78244cfbc06211675d0731215",
+   "pr": 33
+  },
+  {
+   "id": "LEO-037",
+   "result": "complete",
+   "durationMin": 6,
+   "mergeSha": "4fc0c65edb7bf64573cedb70fbe7add5984eb249",
+   "pr": 34
+  },
+  {
+   "id": "LEO-038",
+   "result": "complete",
+   "durationMin": 6,
+   "mergeSha": "9a80515be550591cc36d236b34d4110b7c6b71e1",
+   "pr": 35
   }
  ],
- "activeMin": 11,
- "claimsUsedThisNight": 1,
- "unreviewedCount": 12,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> af4164f (peels to 61aba75); for each ledger event=complete: git merge-base --is-ancestor <mergeSha> 61aba75; count non-ancestors (LEO-021..031 = 11, + LEO-034 tonight = 12)",
+ "activeMin": 28,
+ "claimsUsedThisNight": 5,
+ "unreviewedCount": 16,
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> af4164f; for each ledger event=complete: git merge-base --is-ancestor <mergeSha> <ack>; non-ancestors = LEO-021..031 (11) + LEO-034..038 tonight (5) = 16",
  "oldestUnreviewed": "LEO-021 at 2026-08-13T06:00:54Z",
- "backpressureNote": "WARNING: oldest unreviewed hits the 7-day age halt ~2026-08-20T06:00Z (tomorrow morning UTC) unless the ack tag moves",
- "incident": "mid-run bash cwd silently reset from the worktree to C:/repos/LeoAI (primary checkout) after a background task completed; completion checkout+state/ledger writes briefly landed there. Remediated: writes restored, primary returned to main @ 8bd0142 clean, stray branch deleted, bookkeeping redone in worktree. No Daniel work was present or touched. Run ended conservatively after this item.",
+ "backpressureNote": "WARNING: oldest unreviewed crosses the 7-day age halt ~2026-08-20T06:00Z (tomorrow ~02:00 EDT) unless the ack tag moves — next night will halt",
  "governorDisabled": true,
- "governorNote": "no flip attempted (disabled); fable 12% vs week-elapsed ~46% is under pace anyway",
- "atUtc": "2026-08-19T07:56:00.209Z"
+ "governorNote": "no flip attempted (disabled per prior run); fable 16% vs week-elapsed ~47% is well under pace anyway",
+ "atUtc": "2026-08-19T09:12:20.597Z"
 }
