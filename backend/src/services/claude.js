@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const path = require('path');
+const { confidenceBand } = require('./confidence');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -174,6 +175,17 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
     contextAck = (ragContext || ownerReplyContext)
       ? 'Understood. I will only state facts explicitly present in that content and will not fill any gaps with inference or assumption.'
       : 'Understood — I have no relevant website content for this query. I will not guess or infer. I will ask a clarifying question or offer a handoff.';
+  }
+
+  // Low-confidence hedging (LEO-038): context was retrieved but only barely
+  // cleared the threshold — tell Leo to answer tentatively and proactively
+  // offer a handoff instead of asserting. Honest-by-design.
+  const band = confidenceBand({ topScore, threshold: entity.ragThreshold, band: entity.lowConfidenceBand });
+  if (band === 'low' && ragContext) {
+    contextContent +=
+      `\n\nIMPORTANT: the content above is only weakly related to the visitor's question (retrieval confidence is low). ` +
+      `Answer tentatively — be upfront that you may not have the full picture, do not assert details beyond what clearly matches the question, ` +
+      `and proactively offer to connect the visitor with the ${entity.name} team for a definitive answer.`;
   }
 
   messages.push({ role: 'user', content: contextContent });
