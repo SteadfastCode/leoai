@@ -318,3 +318,48 @@ test('test-mode: keyed /chat returns isTest, skips the counter, and fires no own
   assert.equal(stubState.handoffCalls.length, 1, 'real traffic DOES notify the owner');
   await waitForEntity(domain, (e) => e.messageCountThisPeriod === 6);
 });
+
+// ---------------------------------------------------------------------------
+// 6. Rate limit (LEO-034): a rapid over-limit session gets 429 with a widget-
+//    renderable body; a keyed (test-mode) session is never throttled. The
+//    limiter itself is unit-tested in rate-limit.test.js — this asserts the
+//    live wiring in chat.js, including the bypass the nightly smoke relies on.
+// ---------------------------------------------------------------------------
+test('rate limit: rapid over-limit /chat returns 429, keyed requests bypass', async () => {
+  resetStubs();
+  const domain = 'ratelimit.example.com';
+  await Entity.create({ domain, name: 'Rate Limit', plan: 'infinity' });
+
+  // Distinct forwarded IP so this hammering session consumes its own IP
+  // budget, not the shared 127.0.0.1 budget every other test runs on.
+  const xff = { 'X-Forwarded-For': '198.51.100.34' };
+
+  // Session cap is 20/min — the 21st rapid message must be throttled.
+  let last;
+  for (let i = 0; i < 21; i++) {
+    last = await postChat({ domain, sessionToken: 'hammer-session', message: `msg ${i}` }, xff);
+  }
+  assert.equal(last.status, 429, '21st rapid message in one session must be 429');
+  assert.equal(last.body.error, 'rate_limited');
+  assert.ok(last.body.message, 'the 429 body carries a widget-renderable message');
+  assert.ok(last.body.retryAfterSeconds >= 1, 'the 429 body says when to retry');
+
+  // A fresh session from the same IP still gets through (session cap, not IP).
+  const other = await postChat({ domain, sessionToken: 'other-session', message: 'hello' }, xff);
+  assert.equal(other.status, 200, 'a different session on the same IP is not throttled');
+
+  // Keyed (test-mode) requests bypass all limits — the smoke must never throttle.
+  const rawKey = 'leoai_ratelimit_' + crypto.randomBytes(8).toString('hex');
+  await ApiKey.create({
+    keyHash: crypto.createHash('sha256').update(rawKey).digest('hex'),
+    label: 'rate-limit-test',
+    scope: 'mcp',
+  });
+  for (let i = 0; i < 25; i++) {
+    const keyed = await postChat(
+      { domain, sessionToken: 'hammer-session', message: `keyed ${i}` },
+      { ...xff, 'X-API-Key': rawKey }
+    );
+    assert.equal(keyed.status, 200, 'keyed requests are never rate limited');
+  }
+});
