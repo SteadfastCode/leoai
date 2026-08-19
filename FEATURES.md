@@ -109,18 +109,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [x] **(LEO-037) Retrieval eval harness — make answer quality measurable**
-  Leo's retrieval quality is invisible until a visitor hits a miss (as "what are your hours?"
-  did). Add `backend/src/scripts/rag-eval.js` + a committed question set
-  (`backend/test/fixtures/rag-eval/questions.json`) of universal small-business questions (hours,
-  location, parking, pricing, contact, hiring, "what do you sell/offer") and run each through
-  `retrieveContext` for a target domain, reporting per-question topScore, hadContext, and the
-  winning page, plus an overall hit-rate. Measurement infrastructure — every future RAG change
-  gets a before/after scorecard.
-  *Verify:* run it against `smoke.leo-ai.chat` and 2–3 real test entities (dosiedough.com,
-  campcalvary.com), commit the question set, and paste the resulting table in the PR body.
-  Read-only retrieval, no production mutation.
-
 - [ ] **(LEO-038) Low-confidence hedging + proactive handoff** *(restricted: chat.js)*
   When context is retrieved but weak (topScore just above the retrieval threshold), Leo can answer
   with false confidence. When `topScore` falls in a low band (retrieval threshold to threshold
@@ -191,6 +179,15 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-037) Retrieval eval harness** — 4fc0c65 (PR #34, 2026-08-19).
+  `node backend/src/scripts/rag-eval.js <domain>...` runs the committed 12-question set
+  (test/fixtures/rag-eval/questions.json: hours/location/parking/pricing/contact/hiring/
+  offerings) through retrieveContext at the entity's ragThreshold; markdown scorecard with
+  per-question topScore, hit, winning page, overall hit-rate. Read-only. **Baseline finding
+  (2026-08-19): 0/12 natural-phrasing hit-rate at 0.75 on smoke/dosiedough/campcalvary —
+  scores cluster 0.63–0.74 — while the exact seeded smoke phrasing hits at 0.79. The known
+  hours-miss is systemic across categories and entities; scorecard tables in PR #34.**
 
 - [x] **(LEO-036) Widget graceful degradation on /chat failure** — 4930691 (PR #33, 2026-08-19).
   fetchChatWithRetry in chatbot.js: initial attempt + 2 retries, exponential backoff (600ms
