@@ -1,46 +1,13 @@
 {
- "decision": "completed-4-items",
- "runId": "2026-08-19T08:37:13.000Z",
+ "decision": "debounced",
+ "reason": "last claim (LEO-038) at 2026-08-19T09:05:56Z, ~33 min before this fire — under the 55-min debounce",
+ "runId": "2026-08-19T09:37:28.508Z",
+ "localFireTime": "2026-08-19 05:37 EDT",
  "nightId": "2026-08-18",
- "model": "claude-fable-5",
- "localFireTime": "2026-08-19 04:37 EDT",
- "items": [
-  {
-   "id": "LEO-035",
-   "result": "complete",
-   "durationMin": 9,
-   "mergeSha": "4800eddc8060795f32de44afe9aa025ccd31f313",
-   "pr": 32
-  },
-  {
-   "id": "LEO-036",
-   "result": "complete",
-   "durationMin": 7,
-   "mergeSha": "49306912ef48cdd78244cfbc06211675d0731215",
-   "pr": 33
-  },
-  {
-   "id": "LEO-037",
-   "result": "complete",
-   "durationMin": 6,
-   "mergeSha": "4fc0c65edb7bf64573cedb70fbe7add5984eb249",
-   "pr": 34
-  },
-  {
-   "id": "LEO-038",
-   "result": "complete",
-   "durationMin": 6,
-   "mergeSha": "9a80515be550591cc36d236b34d4110b7c6b71e1",
-   "pr": 35
-  }
- ],
- "activeMin": 28,
- "claimsUsedThisNight": 5,
  "unreviewedCount": 16,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> af4164f; for each ledger event=complete: git merge-base --is-ancestor <mergeSha> <ack>; non-ancestors = LEO-021..031 (11) + LEO-034..038 tonight (5) = 16",
- "oldestUnreviewed": "LEO-021 at 2026-08-13T06:00:54Z",
- "backpressureNote": "WARNING: oldest unreviewed crosses the 7-day age halt ~2026-08-20T06:00Z (tomorrow ~02:00 EDT) unless the ack tag moves — next night will halt",
+ "unreviewedCommand": "carried forward from run 2026-08-19T08:37:13Z (this fire exited at STEP 3 before backpressure): git ls-remote --tags origin refs/tags/leo-nightly-ack -> af4164f; ledger complete events not ancestors of ack = 16",
+ "backpressureNote": "carried forward: oldest unreviewed (LEO-021, 2026-08-13T06:00:54Z) crosses the 7-day age halt ~2026-08-20T06:00Z unless the ack tag moves",
  "governorDisabled": true,
- "governorNote": "no flip attempted (disabled per prior run); fable 16% vs week-elapsed ~47% is well under pace anyway",
- "atUtc": "2026-08-19T09:12:20.597Z"
+ "note": "session-start hook showed transient DNS failure to github.com; connectivity verified fine during the run",
+ "atUtc": "2026-08-19T09:39:04.460Z"
 }
