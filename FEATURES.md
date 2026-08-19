@@ -109,7 +109,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [ ] **(LEO-038) Low-confidence hedging + proactive handoff** *(restricted: chat.js)*
+- [x] **(LEO-038) Low-confidence hedging + proactive handoff** *(restricted: chat.js)*
   When context is retrieved but weak (topScore just above the retrieval threshold), Leo can answer
   with false confidence. When `topScore` falls in a low band (retrieval threshold to threshold
   +~0.05, tunable per-entity), inject a system hint that Leo should answer tentatively and offer to
