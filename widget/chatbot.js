@@ -745,6 +745,8 @@
 
       if (res.status === 402) {
         appendMessage('assistant', "I've reached my monthly message limit and need a little break! 😅 I've let the team know — they can upgrade the plan to keep our conversation going. Sorry for the interruption!");
+      } else if (res.status === 429) {
+        appendMessage('assistant', data.message || "Whew — you're sending a lot of messages! Give me just a moment to catch my breath, then let's keep going. 😊");
       } else if (data.reply) {
         appendMessage('assistant', data.reply);
         if (data.options?.length) renderOptions(data.options);

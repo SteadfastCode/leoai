@@ -9,6 +9,7 @@ const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification
 const { questionSimilarity, SIMILARITY_THRESHOLD: DUPLICATE_THRESHOLD } = require('../services/questions');
 const { shouldLogUnanswered } = require('../services/unanswered');
 const { isTestModeRequest } = require('../services/testMode');
+const { checkRateLimit, clientIp } = require('../services/rateLimit');
 const logger = require('../services/logger');
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
@@ -41,6 +42,18 @@ router.post('/', async (req, res) => {
 
     // Test-mode (LEO-025): valid X-API-Key only — a body flag is never sufficient
     const isTest = await isTestModeRequest(req);
+
+    // Rate limit (LEO-034) — in-memory sliding window; test-mode requests bypass
+    if (!isTest) {
+      const verdict = checkRateLimit({ sessionToken, ip: clientIp(req), domain });
+      if (!verdict.allowed) {
+        return res.status(429).json({
+          error: 'rate_limited',
+          message: "Whew — you're sending a lot of messages! Give me just a moment to catch my breath, then let's keep going. 😊",
+          retryAfterSeconds: verdict.retryAfterSeconds,
+        });
+      }
+    }
 
     // --- Quota check & usage tracking ---
     const now = new Date();
