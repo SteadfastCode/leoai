@@ -107,20 +107,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [x] **(LEO-034) Rate-limit the public /chat endpoint**
-  `/chat` is public and unauthenticated — one script can hammer it and burn Claude + Voyage spend
-  with no ceiling. Add `services/rateLimit.js`: an in-memory sliding-window limiter keyed by
-  sessionToken, IP, and domain with per-minute and per-hour caps (generous defaults, e.g. 20/min
-  and 200/hr per session; a per-entity daily ceiling). Return 429 with a JSON body the widget
-  renders as a warm "you're sending a lot — give me a moment" bubble. **Test-mode requests (valid
-  X-API-Key) bypass all limits** — the routine's own smoke must never be throttled. In-memory is
-  fine for the single Railway instance; note the multi-instance caveat in a comment.
-  *Verify:* `node --test` on the limiter as a pure function (allow/deny given a call history + a
-  clock) covering under-limit, at-limit, window-rollover, and the keyed bypass; plus an
-  integration assertion that a rapid over-limit `/chat` returns 429 and a keyed one does not. The
-  `chat.js` change is ≤30 lines and must not touch the quota block, handoff test-and-set, or
-  `conversation.save()`.
-
 - [ ] **(LEO-035) Per-entity daily cost/volume guardrail**
   A runaway (bug, abuse, or a viral page) could rack up spend before you notice. Track per-entity
   message volume for the current UTC day; when it crosses a high, per-entity-configurable
@@ -226,6 +212,16 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-034) Rate-limit the public /chat endpoint** — ad88ba1 (PR #31, 2026-08-19).
+  `services/rateLimit.js`: in-memory sliding-window limiter, pure decision core with injectable
+  clock; keyed independently by sessionToken (20/min, 200/hr), client IP (60/min, 600/hr —
+  last x-forwarded-for hop, since trust proxy is unset and the first hop is spoofable), and
+  entity domain (10k/day). Denied calls are not recorded, so hammering while blocked doesn't
+  extend the block. 429 body carries a warm Leo-voiced message + retryAfterSeconds; widget
+  renders it (mirrors the 402 branch). Test-mode (valid X-API-Key) bypasses all limits.
+  chat.js +13 lines; quota block, handoff test-and-set, conversation.save() untouched.
+  Single-instance caveat documented in the module header.
 
 - [x] **(LEO-044) Fix billing.js superadmin check** — 7f71bbe (PR #30, 2026-08-15, by hand). requireEntityAccess
   gated on membership in the hardcoded steadfastcode.tech domain (any member, readonly included, got

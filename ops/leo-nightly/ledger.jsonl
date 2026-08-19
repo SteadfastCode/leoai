@@ -93,3 +93,4 @@
 {"event":"run-end","runId":"2026-08-14T02:37:08.861Z","nightId":"2026-08-13","items":[{"id":"LEO-031","result":"complete","durationMin":98,"activeMin":17},{"id":"LEO-032","result":"blocked","durationMin":9}],"activeMin":26,"note":"LEO-031 durationMin includes 81 min waiting out the 02:50-04:10 UTC merge blackout","atUtc":"2026-08-14T04:29:46.623Z"}
 {"event":"usage-snap","when":"run-start","runId":"2026-08-19T07:37:03.804Z","nightId":"2026-08-18","ok":true,"fileFiveHourPct":72,"fileWeeklyPct":31,"fileAgeMin":156,"screenOk":true,"fiveHourPct":8,"weeklyAllPct":32,"weeklyFablePct":10,"atUtc":"2026-08-19T07:41:09.789Z"}
 {"event":"claim","runId":"2026-08-19T07:37:03.804Z","item":"LEO-034","nightId":"2026-08-18","model":"claude-fable-5","atUtc":"2026-08-19T07:41:09.789Z"}
+{"event":"complete","runId":"2026-08-19T07:37:03.804Z","item":"LEO-034","mergeSha":"ad88ba10d369ee3429ec629e4ca56484467a8590","nightId":"2026-08-18","durationMin":11,"atUtc":"2026-08-19T07:51:49.775Z"}
