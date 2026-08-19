@@ -184,6 +184,55 @@ async function sendQuotaExceededNotification({ entity, messageCountThisPeriod, l
 }
 
 
+// Daily volume guardrail alert (LEO-035) — fires at most once per UTC day per
+// entity (enforced upstream in dailyVolume.js). Warns, never blocks. Owner
+// channels mirror sendQuotaWarning; the superadmin copy goes to ADMIN_PHONE /
+// ADMIN_EMAIL like sendMinistryPlanRequest.
+async function sendDailyVolumeAlert({ entity, count, threshold }) {
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
+  const overviewLink = `${dashboardUrl}/#/overview`;
+  const channels = entity.quotaAlertChannels || ['email'];
+
+  const smsBody = [
+    `🦁 LeoAI volume alert — ${entity.name}`,
+    `Leo has handled ${count} messages today, above your daily alert threshold of ${threshold}.`,
+    `Traffic is not blocked — check the dashboard if this is unexpected: ${overviewLink}`,
+  ].join('\n');
+  const subject = `${entity.name} — unusually high Leo traffic today`;
+  const text = [
+    `Hey! A heads-up from LeoAI.`,
+    ``,
+    `${entity.name}'s Leo has handled ${count} messages so far today (UTC) — above the daily alert threshold of ${threshold}.`,
+    `Traffic is NOT blocked. This is an early warning in case something unexpected (a bug, abuse, or a traffic spike) is driving volume.`,
+    ``,
+    `You can adjust the threshold in Settings, or check today's conversations here:`,
+    `${overviewLink}`,
+    ``,
+    `— LeoAI by Steadfast Code`,
+  ].join('\n');
+
+  const tasks = [];
+  if (channels.includes('sms') && entity.ownerPhone) {
+    tasks.push({ label: 'owner SMS', promise: sendSms(entity.ownerPhone, smsBody) });
+  }
+  if (channels.includes('email') && entity.ownerEmail) {
+    tasks.push({ label: 'owner email', promise: sendEmailRaw(entity.ownerEmail, subject, text) });
+  }
+  if (process.env.ADMIN_PHONE) {
+    tasks.push({ label: 'admin SMS', promise: sendSms(process.env.ADMIN_PHONE, `${smsBody}\nEntity: ${entity.domain}`) });
+  }
+  if (process.env.ADMIN_EMAIL) {
+    tasks.push({ label: 'admin email', promise: sendEmailRaw(process.env.ADMIN_EMAIL, `[admin] ${subject}`, `${text}\n\nEntity: ${entity.domain}`) });
+  }
+
+  const results = await Promise.allSettled(tasks.map((t) => t.promise));
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`Daily volume alert ${tasks[i].label} failed for ${entity.domain}:`, r.reason?.message || r.reason);
+    }
+  });
+}
+
 async function sendHandoffFollowUpNotification({ entity, conversationId, sessionToken, pendingQuestions }) {
   const shortSession = sessionToken.slice(0, 10);
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
@@ -254,6 +303,7 @@ module.exports = {
   sendHandoffFollowUpNotification,
   sendQuotaWarning,
   sendQuotaExceededNotification,
+  sendDailyVolumeAlert,
   sendEmailRaw,
   sendMinistryPlanRequest,
   // Pure builders, exported for unit tests — no send path touches them directly.

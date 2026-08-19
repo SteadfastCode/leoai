@@ -9,6 +9,7 @@ const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification
 const { questionSimilarity, SIMILARITY_THRESHOLD: DUPLICATE_THRESHOLD } = require('../services/questions');
 const { shouldLogUnanswered } = require('../services/unanswered');
 const { isTestModeRequest } = require('../services/testMode');
+const { trackDailyVolume } = require('../services/dailyVolume');
 const { checkRateLimit, clientIp } = require('../services/rateLimit');
 const logger = require('../services/logger');
 
@@ -203,6 +204,11 @@ router.post('/', async (req, res) => {
     }
 
     await Promise.all([conversation.save(), entity.save()]);
+
+    // Daily volume guardrail (LEO-035) — fire-and-forget, warns but never blocks
+    if (!isTest) {
+      trackDailyVolume({ entityId: entity._id, now }).catch((err) => console.error('Daily volume guardrail error:', err));
+    }
 
     // Fire-and-forget — log questions Leo couldn't answer (skip interactive button clicks)
     if (!isTest && shouldLogUnanswered({ message, reply, hadContext, handoffOffered: !!handoffMatch, interactive: type === 'interactive' })) {
