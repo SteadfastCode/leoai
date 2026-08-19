@@ -109,16 +109,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [x] **(LEO-038) Low-confidence hedging + proactive handoff** *(restricted: chat.js)*
-  When context is retrieved but weak (topScore just above the retrieval threshold), Leo can answer
-  with false confidence. When `topScore` falls in a low band (retrieval threshold to threshold
-  +~0.05, tunable per-entity), inject a system hint that Leo should answer tentatively and offer to
-  connect the visitor with the team rather than assert. Honest-by-design — matches Leo's values.
-  *Verify:* `verify-prompt.js` still passes; `node --test` on the band decision as a pure function
-  (below-threshold, low-band, high-confidence). `chat.js` diff ≤30 lines, no touch to the quota
-  block, handoff test-and-set, or `conversation.save()`. The tone change rides on the model — say
-  so; do not claim it was live-verified.
-
 - [ ] **(LEO-039) Follow-up-aware retrieval** *(restricted: rag.js/chat.js)*
   Each query embeds in isolation, so "what about that one?" or "and the price?" retrieve poorly.
   When the message is short/anaphoric and prior history exists, prepend the last user turn (capped
@@ -179,6 +169,14 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-038) Low-confidence hedging + proactive handoff** — 9a80515 (PR #35, 2026-08-19).
+  Pure confidenceBand() in services/confidence.js: 'none' below ragThreshold, 'low' in
+  [threshold, threshold + band), 'high' above; per-entity lowConfidenceBand (default 0.05,
+  0 = off, superadmin-gated like ragThreshold). Low-band replies get a hedging instruction
+  appended to the context turn in claude.js — answer tentatively, no asserting beyond the
+  clear match, proactive handoff offer. chat.js untouched (0-line diff on the restricted
+  file). 9 band tests under node --test. Tone change rides on the model — not live-verified.
 
 - [x] **(LEO-037) Retrieval eval harness** — 4fc0c65 (PR #34, 2026-08-19).
   `node backend/src/scripts/rag-eval.js <domain>...` runs the committed 12-question set
