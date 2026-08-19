@@ -107,7 +107,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [ ] **(LEO-035) Per-entity daily cost/volume guardrail**
+- [x] **(LEO-035) Per-entity daily cost/volume guardrail**
   A runaway (bug, abuse, or a viral page) could rack up spend before you notice. Track per-entity
   message volume for the current UTC day; when it crosses a high, per-entity-configurable
   threshold (`dailyVolumeAlert`, default e.g. 1000, 0 = off), fire ONE alert to the owner and
