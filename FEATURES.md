@@ -107,16 +107,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [x] **(LEO-036) Widget graceful degradation on /chat failure**
-  When `/chat` errors or times out, the widget currently leaves a dead pane. Add bounded retry
-  (2 attempts, exponential backoff) in `chatbot.js`; on final failure show a warm inline error
-  bubble ("I'm having trouble reaching my brain — mind trying again in a moment?") and leave the
-  visitor's typed message recoverable, not lost. A 429 from LEO-034 renders its own message, not
-  the generic one.
-  *Verify:* `node widget/smoke.mjs` extended — stub `fetch` to reject twice then resolve (assert
-  retry succeeds) and to always reject (assert the error bubble renders and the input is
-  preserved). `widget/**` is off the denylist since LEO-003.
-
 ## Block I — RAG quality (measurable, honest)
 
 - [ ] **(LEO-037) Retrieval eval harness — make answer quality measurable**
@@ -201,6 +191,15 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-036) Widget graceful degradation on /chat failure** — 4930691 (PR #33, 2026-08-19).
+  fetchChatWithRetry in chatbot.js: initial attempt + 2 retries, exponential backoff (600ms
+  base, doubling; overridable via window.LEO_CHAT_RETRY_BASE_MS for tests). Network rejections
+  and 5xx retry; 2xx/4xx return immediately so 402/429 keep their own messages. Exhausted
+  retries: warm failure bubble, typed message restored into the (empty) input — recoverable,
+  not silently queued — and checkHealth drives the offline banner. The browser-knows-offline
+  path still queues for auto-resend. smoke.mjs covers reject-twice-then-resolve (3 attempts,
+  reply renders) and always-reject (bubble renders, input preserved).
 
 - [x] **(LEO-035) Per-entity daily volume guardrail** — 4800edd (PR #32, 2026-08-19).
   Per-entity UTC-day message counter; `dailyVolumeAlert` threshold (default 1000, 0 = off,
