@@ -7,6 +7,9 @@
  *   1. the chat bubble is rendered into document.body
  *   2. window.LEO_BACKEND_URL is honoured (stylesheet href + every fetch URL)
  *   3. a stubbed 200 from POST /chat renders an assistant message bubble
+ *   4. LEO-036: a /chat that rejects twice then resolves succeeds via retry
+ *   5. LEO-036: a /chat that always rejects renders the warm failure bubble
+ *      and puts the visitor's typed message back into the input
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -46,15 +49,17 @@ try {
   const doc = win.document;
 
   // --- fetch stub: every backend call resolves 200 with canned JSON ---
+  // chatHandler, when set, overrides the POST /chat response (LEO-036 scenarios).
   const fetchCalls = [];
+  let chatHandler = null;
+  const json = (obj) => ({ ok: true, status: 200, json: async () => obj });
   const stubFetch = async (url, opts = {}) => {
     const u = String(url);
     fetchCalls.push({ url: u, method: opts.method || 'GET', body: opts.body || null });
-    const json = (obj) => ({ ok: true, status: 200, json: async () => obj });
     if (u.includes('/chat/entity-name')) return json({ name: 'Smoke Test Shop' });
     if (u.includes('/chat/history')) return json({ messages: [], hasMore: false, entityConfig: { linksOpenInNewTab: true } });
     if (u.includes('/health')) return json({ status: 'ok' });
-    if (u.endsWith('/chat')) return json({ reply: STUB_REPLY });
+    if (u.endsWith('/chat')) return chatHandler ? chatHandler() : json({ reply: STUB_REPLY });
     return json({});
   };
 
@@ -70,6 +75,7 @@ try {
   win.WebSocket = StubWebSocket;
 
   win.LEO_BACKEND_URL = BACKEND;
+  win.LEO_CHAT_RETRY_BASE_MS = 1; // keep LEO-036 backoff waits out of the test's wall clock
 
   // currentScript carries data-domain in a real embed; null under import()
   const scriptEl = doc.createElement('script');
@@ -120,6 +126,41 @@ try {
     !!chatCall && JSON.parse(chatCall.body).domain === DOMAIN,
     'POST /chat body carries the data-domain from currentScript'
   );
+
+  // 4. LEO-036: reject twice, then resolve — the bounded retry recovers
+  const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+  const RECOVERED_REPLY = 'Recovered after two failures!';
+  let failuresLeft = 2;
+  let retryChatCalls = 0;
+  chatHandler = () => {
+    retryChatCalls++;
+    if (failuresLeft > 0) { failuresLeft--; return Promise.reject(new Error('stub network failure')); }
+    return Promise.resolve(json({ reply: RECOVERED_REPLY }));
+  };
+  doc.getElementById('leo-input').value = 'Are you there?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  check(retryChatCalls === 3, `retry scenario: /chat attempted 3 times (got ${retryChatCalls})`);
+  check(
+    [...doc.querySelectorAll('.leo-msg--assistant')].some((el) => el.textContent.includes(RECOVERED_REPLY)),
+    'reject-twice-then-resolve /chat still renders the reply via retry'
+  );
+
+  // 5. LEO-036: always reject — warm failure bubble, typed message recoverable
+  chatHandler = () => Promise.reject(new Error('stub network failure'));
+  const LOST_MESSAGE = 'Please do not lose me';
+  doc.getElementById('leo-input').value = LOST_MESSAGE;
+  doc.getElementById('leo-send').click();
+  await settle();
+  check(
+    [...doc.querySelectorAll('.leo-msg--assistant')].some((el) => el.textContent.includes('trouble reaching my brain')),
+    'exhausted retries render the warm failure bubble'
+  );
+  check(
+    doc.getElementById('leo-input').value === LOST_MESSAGE,
+    'exhausted retries put the typed message back into the input'
+  );
+  chatHandler = null;
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));
