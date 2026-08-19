@@ -109,7 +109,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [ ] **(LEO-037) Retrieval eval harness — make answer quality measurable**
+- [x] **(LEO-037) Retrieval eval harness — make answer quality measurable**
   Leo's retrieval quality is invisible until a visitor hits a miss (as "what are your hours?"
   did). Add `backend/src/scripts/rag-eval.js` + a committed question set
   (`backend/test/fixtures/rag-eval/questions.json`) of universal small-business questions (hours,
