@@ -1,11 +1,11 @@
 {
- "runId": "2026-08-20T07:36:44.674Z",
+ "runId": "2026-08-20T12:36:40.464Z",
  "nightId": "2026-08-19",
- "decision": "baseline-failed",
- "detail": "STEP 9 baseline smoke failed on check 3 (POST /chat -> 500): Anthropic API rejects with credit balance too low (production log 07:40:44Z). Same external outage as incident-20260820T0107Z.md / incident-20260820T0242Z.md, still unresolved ~6.5h after first detection. Checks 1,2,4,5 all pass; origin/main 255b69b deployed and healthy otherwise. Zero work done per STEP 9. Notification suppressed - already sent at 01:07Z and 02:43Z for this same outage.",
- "incident": "ops/leo-nightly/incident-20260820T0242Z.md",
+ "decision": "past-claim-cutoff",
+ "detail": "Fire at 08:36 local — inside the 20:00–09:00 window but past the 07:45 last-claim cutoff (STEP 7), so no item can be claimed; zero work. Debounce clean (last claim 00:51Z). Outage probe: GET /health 200, but POST /chat against smoke.leo-ai.chat still returns the generic error — Anthropic credit outage (incident-20260820T0107Z.md) still unresolved as of 12:38Z, ~11.5h since first detection. Notification suppressed (already sent 01:07Z and 02:43Z for this outage). Next fire 20:35 local starts a new night.",
+ "incident": "ops/leo-nightly/incident-20260820T0107Z.md",
  "baselineFailNotifiedAtUtc": "2026-08-20T02:43:00Z",
  "unreviewedCount": 2,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (a20b105 -> commit 71e7510); per-complete git merge-base --is-ancestor <mergeSha> 71e7510 over ledger complete events",
- "atUtc": "2026-08-20T07:42:49.079Z"
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (a20b105); per-complete git merge-base --is-ancestor <mergeSha> <ack> over ledger complete events -> LEO-039, LEO-041",
+ "atUtc": "2026-08-20T12:39:30.000Z"
 }
