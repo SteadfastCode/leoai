@@ -1,12 +1,13 @@
 {
- "decision": "outside-window",
- "reason": "fire replayed after machine wake at 10:12 EDT, outside the 20:00-09:00 work window; no work attempted",
- "runId": "2026-08-19T14:12:22Z",
- "localFireTime": "2026-08-19 10:12 EDT",
- "nightId": "2026-08-19",
- "unreviewedCount": 16,
- "unreviewedCommand": "carried forward from run 2026-08-19T08:37:13Z (this fire exited at STEP 3 before backpressure): git ls-remote --tags origin refs/tags/leo-nightly-ack -> af4164f; ledger complete events not ancestors of ack = 16",
- "backpressureNote": "carried forward: oldest unreviewed (LEO-021, 2026-08-13T06:00:54Z) crosses the 7-day age halt ~2026-08-20T06:00Z unless the ack tag moves",
- "governorDisabled": true,
- "atUtc": "2026-08-19T14:12:22Z"
+  "runId": "2026-08-20T00:36:43.322Z",
+  "nightId": "2026-08-19",
+  "decision": "completed-2-items-then-halted-external-outage",
+  "items": [
+    "LEO-039",
+    "LEO-041"
+  ],
+  "unreviewedCount": 2,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ackDerefSha> over ledger complete events",
+  "incident": "ops/leo-nightly/incident-20260820T0107Z.md",
+  "atUtc": "2026-08-20T01:03:24.044Z"
 }
