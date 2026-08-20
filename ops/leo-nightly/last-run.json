@@ -1,11 +1,9 @@
 {
-  "runId": "2026-08-20T02:36:40.623Z",
+  "runId": "2026-08-20T04:36:42.000Z",
   "nightId": "2026-08-19",
-  "decision": "baseline-failed",
-  "detail": "STEP 9 baseline smoke failed on check 3 (POST /chat -> 500): Anthropic API rejects with 'credit balance is too low' (production log 02:41:41Z). Same external outage as incident-20260820T0107Z.md, still unresolved. Checks 1,2,4,5 all pass; origin/main afc508c deployed and healthy otherwise. Zero work done per STEP 9.",
-  "incident": "ops/leo-nightly/incident-20260820T0242Z.md",
-  "baselineFailNotifiedAtUtc": "2026-08-20T02:43:00Z",
+  "decision": "deferred-afk-activity",
+  "detail": "STEP 8 AFK guard: interactive session Turtillery Main (local_d0b4f600, no scheduledTaskId, cwd C:/repos/turtillery) active at 2026-08-20T04:21:51Z, within the 70-min window. Daniel not AFK; no claim made. All prior gates passed (preflight, queue: LEO-042/LEO-043 eligible, backpressure: 2 unreviewed oldest 0.16d, budget: 2/10 night claims). Baseline not run — no work attempted, so unknown whether the Anthropic credit outage (incident-20260820T0107Z.md) has resolved.",
   "unreviewedCount": 2,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ackCommit> over ledger complete events",
-  "atUtc": "2026-08-20T02:43:00Z"
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> a20b10535ed59193b66214f2b91ece70ef8a3cd8 over ledger complete events",
+  "atUtc": "2026-08-20T04:39:46.224Z"
 }
