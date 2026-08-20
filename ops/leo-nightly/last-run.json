@@ -1,13 +1,10 @@
 {
-  "runId": "2026-08-20T00:36:43.322Z",
+  "runId": "2026-08-20T01:36:39.125Z",
   "nightId": "2026-08-19",
-  "decision": "completed-2-items-then-halted-external-outage",
-  "items": [
-    "LEO-039",
-    "LEO-041"
-  ],
+  "decision": "debounced",
+  "detail": "last claim event (LEO-041, 2026-08-20T00:51:43.729Z) was ~45 min old at fire time; 55-min debounce not elapsed",
   "unreviewedCount": 2,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ackDerefSha> over ledger complete events",
-  "incident": "ops/leo-nightly/incident-20260820T0107Z.md",
-  "atUtc": "2026-08-20T01:03:24.044Z"
+  "incident": "ops/leo-nightly/incident-20260820T0107Z.md (prior run, external Anthropic credit outage — production chat down)",
+  "atUtc": "2026-08-20T01:37:13.935Z"
 }
