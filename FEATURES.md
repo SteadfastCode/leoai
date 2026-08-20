@@ -109,7 +109,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [ ] **(LEO-039) Follow-up-aware retrieval** *(restricted: rag.js/chat.js)*
+- [x] **(LEO-039) Follow-up-aware retrieval** *(restricted: rag.js/chat.js)*
   Each query embeds in isolation, so "what about that one?" or "and the price?" retrieve poorly.
   When the message is short/anaphoric and prior history exists, prepend the last user turn (capped
   length) to the text sent for query embedding — retrieval only; the message shown to Leo is
