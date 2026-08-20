@@ -4,6 +4,7 @@ const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { retrieveContext } = require('../services/rag');
+const { buildRetrievalQuery } = require('../services/retrievalQuery');
 const { chat, classifyQuery, summarizeTopic } = require('../services/claude');
 const { sendHandoffNotification, sendQuotaWarning, sendQuotaExceededNotification } = require('../services/notifications');
 const { questionSimilarity, SIMILARITY_THRESHOLD: DUPLICATE_THRESHOLD } = require('../services/questions');
@@ -94,8 +95,10 @@ router.post('/', async (req, res) => {
 
     let conversation = await Conversation.findOne({ sessionToken, domain });
 
+    // Retrieval only — the message Leo sees is unchanged (LEO-039)
+    const retrievalQuery = buildRetrievalQuery(message, conversation?.messages);
     const [{ context: ragContext, ownerReplyContext, sources, topScore }, classifierResult] = await Promise.all([
-      retrieveContext(domain, message, entity.ragThreshold),
+      retrieveContext(domain, retrievalQuery, entity.ragThreshold),
       classifyQuery(message, conversation),
     ]);
 
