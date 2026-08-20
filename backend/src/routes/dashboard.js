@@ -20,6 +20,7 @@ const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notificat
 const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD, groupQuestions } = require('../services/questions');
 const { recordAudit } = require('../services/audit');
+const { shapeDailyBuckets, shapeTopQuestions } = require('../services/analytics');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -347,6 +348,54 @@ router.get('/entities/:domain/model-stats', async (req, res) => {
     ]);
 
     res.json(result || { total: 0, haiku: 0, sonnet: 0, contextHits: 0, avgTopScore: null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/entities/:domain/analytics — daily trend buckets + top
+// visitor questions for the Overview charts (LEO-041). Four aggregates run in
+// one Promise.all — never a per-day query in a loop. Test-mode conversations
+// (MCP/smoke traffic) are excluded so owner charts reflect real visitors.
+router.get('/entities/:domain/analytics', async (req, res) => {
+  try {
+    const { domain } = req.params;
+    const DAYS = 30;
+    const since = new Date(Date.now() - (DAYS - 1) * 86400000);
+    since.setUTCHours(0, 0, 0, 0);
+    const dayOf = (field) => ({ $dateToString: { format: '%Y-%m-%d', date: field } });
+
+    const [convRows, msgRows, unansweredRows, questionRows] = await Promise.all([
+      Conversation.aggregate([
+        { $match: { domain, isTest: { $ne: true }, createdAt: { $gte: since } } },
+        { $group: { _id: dayOf('$createdAt'), count: { $sum: 1 } } },
+      ]),
+      Conversation.aggregate([
+        { $match: { domain, isTest: { $ne: true }, lastActiveAt: { $gte: since } } },
+        { $unwind: '$messages' },
+        { $match: { 'messages.timestamp': { $gte: since } } },
+        { $group: { _id: dayOf('$messages.timestamp'), count: { $sum: 1 } } },
+      ]),
+      UnansweredQuestion.aggregate([
+        { $match: { entityDomain: domain, createdAt: { $gte: since } } },
+        { $group: { _id: dayOf('$createdAt'), count: { $sum: 1 } } },
+      ]),
+      // Most recent user turns, capped — groupQuestions is O(n²) Jaccard.
+      Conversation.aggregate([
+        { $match: { domain, isTest: { $ne: true }, lastActiveAt: { $gte: since } } },
+        { $unwind: '$messages' },
+        { $match: { 'messages.role': 'user', 'messages.timestamp': { $gte: since } } },
+        { $sort: { 'messages.timestamp': -1 } },
+        { $limit: 500 },
+        { $project: { _id: 0, text: '$messages.content', askedAt: '$messages.timestamp' } },
+      ]),
+    ]);
+
+    res.json({
+      days: DAYS,
+      daily: shapeDailyBuckets({ convRows, msgRows, unansweredRows, days: DAYS }),
+      topQuestions: shapeTopQuestions(questionRows),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
