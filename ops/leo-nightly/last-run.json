@@ -1,10 +1,11 @@
 {
-  "runId": "2026-08-20T01:36:39.125Z",
+  "runId": "2026-08-20T02:36:40.623Z",
   "nightId": "2026-08-19",
-  "decision": "debounced",
-  "detail": "last claim event (LEO-041, 2026-08-20T00:51:43.729Z) was ~45 min old at fire time; 55-min debounce not elapsed",
+  "decision": "baseline-failed",
+  "detail": "STEP 9 baseline smoke failed on check 3 (POST /chat -> 500): Anthropic API rejects with 'credit balance is too low' (production log 02:41:41Z). Same external outage as incident-20260820T0107Z.md, still unresolved. Checks 1,2,4,5 all pass; origin/main afc508c deployed and healthy otherwise. Zero work done per STEP 9.",
+  "incident": "ops/leo-nightly/incident-20260820T0242Z.md",
+  "baselineFailNotifiedAtUtc": "2026-08-20T02:43:00Z",
   "unreviewedCount": 2,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ackDerefSha> over ledger complete events",
-  "incident": "ops/leo-nightly/incident-20260820T0107Z.md (prior run, external Anthropic credit outage — production chat down)",
-  "atUtc": "2026-08-20T01:37:13.935Z"
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ackCommit> over ledger complete events",
+  "atUtc": "2026-08-20T02:43:00Z"
 }
