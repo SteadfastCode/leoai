@@ -60,13 +60,13 @@
     },
     "LEO-041": {
       "order": 6,
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
       "branch": null,
       "dependsOn": [],
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-08-20T00:51:43.729Z",
+      "runId": "2026-08-20T00:36:43.322Z",
       "lastFail": null
     },
     "LEO-042": {

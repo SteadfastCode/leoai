@@ -121,7 +121,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
   for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
   `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 
-- [ ] **(LEO-041) Owner analytics — trends, top questions, unanswered over time**
+- [x] **(LEO-041) Owner analytics — trends, top questions, unanswered over time**
   The Overview shows counts, not movement. Add `GET /api/dashboard/entities/:domain/analytics`
   returning daily conversation + message buckets (last 30 days), top visitor questions (grouped
   via the shared Jaccard helper), and an unanswered-count trend — from `Conversation` aggregates,
