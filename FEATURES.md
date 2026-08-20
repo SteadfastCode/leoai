@@ -121,16 +121,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
   for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
   `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 
-- [x] **(LEO-041) Owner analytics — trends, top questions, unanswered over time**
-  The Overview shows counts, not movement. Add `GET /api/dashboard/entities/:domain/analytics`
-  returning daily conversation + message buckets (last 30 days), top visitor questions (grouped
-  via the shared Jaccard helper), and an unanswered-count trend — from `Conversation` aggregates,
-  domain-scoped, no `await` in a loop. Render as simple charts on Overview (reuse whatever chart
-  approach the dashboard already has; if none, a lightweight inline SVG — do not add a heavy
-  dependency).
-  *Verify:* unit-test the bucket/row-shaping function with fixtures (empty range, sparse days, ties
-  in top-questions). `yarn build`. Grep-assert the handler has no per-day query inside a loop.
-
 - [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
@@ -159,6 +149,14 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-041) Owner analytics — trends, top questions, unanswered over time** — a126233 (PR #37, 2026-08-19).
+  GET /api/dashboard/entities/:domain/analytics: dense 30-day daily buckets (conversations/
+  messages/unanswered) + Jaccard-grouped top visitor questions; four aggregates in one
+  Promise.all, isTest traffic excluded, question input capped at 500 turns. Pure shaping in
+  services/analytics.js (8 tests). Overview: inline-SVG TrendChart cards + top-questions list,
+  no chart dependency. NOTE: post-deploy chat smoke failed on Anthropic credit exhaustion
+  (external, incident-20260820T0107Z.md) — all other checks green, not reverted.
 
 - [x] **(LEO-039) Follow-up-aware retrieval** — d19a77a (PR #36, 2026-08-19).
   buildRetrievalQuery() pure function in services/retrievalQuery.js: messages under 80 chars
