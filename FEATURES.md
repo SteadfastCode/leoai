@@ -109,16 +109,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block I — RAG quality (measurable, honest)
 
-- [x] **(LEO-039) Follow-up-aware retrieval** *(restricted: rag.js/chat.js)*
-  Each query embeds in isolation, so "what about that one?" or "and the price?" retrieve poorly.
-  When the message is short/anaphoric and prior history exists, prepend the last user turn (capped
-  length) to the text sent for query embedding — retrieval only; the message shown to Leo is
-  unchanged. Skip when there is no history or the message is already self-contained (length
-  heuristic).
-  *Verify:* extract the query construction as a pure function and `node --test` it: no history →
-  unchanged; short follow-up → prior turn prepended; long self-contained message → unchanged. Diff
-  ≤30 lines across rag.js/chat.js; must not touch the `$vectorSearch` stage.
-
 ## Block J — Owner value (prove it's working)
 
 - [ ] **(LEO-040) In-dashboard "Test your bot" playground** *(needs test-mode extension)*
@@ -169,6 +159,12 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
+
+- [x] **(LEO-039) Follow-up-aware retrieval** — d19a77a (PR #36, 2026-08-19).
+  buildRetrievalQuery() pure function in services/retrievalQuery.js: messages under 80 chars
+  with prior history get the last user turn (capped 300 chars) prepended for QUERY EMBEDDING
+  ONLY — Leo-visible message, classifier input, and saved conversation unchanged. chat.js
+  diff 4+/1- (restricted cap 30); rag.js and $vectorSearch untouched. 8 tests.
 
 - [x] **(LEO-038) Low-confidence hedging + proactive handoff** — 9a80515 (PR #35, 2026-08-19).
   Pure confidenceBand() in services/confidence.js: 'none' below ragThreshold, 'low' in
