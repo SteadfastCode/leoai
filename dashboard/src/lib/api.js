@@ -64,6 +64,7 @@ export default api
 
 export const getEntities      = ()             => api.get('/api/dashboard/entities')
 export const getStats         = (domain)       => api.get(`/api/dashboard/entities/${domain}/stats`)
+export const getAnalytics     = (domain)       => api.get(`/api/dashboard/entities/${domain}/analytics`)
 export const getConversations = (domain, page, filter) => api.get(`/api/dashboard/entities/${domain}/conversations`, { params: filter && filter !== 'all' ? { page, filter } : { page } })
 export const getConversation  = (domain, id)   => api.get(`/api/dashboard/entities/${domain}/conversations/${id}`)
 export const getPages         = (domain)       => api.get(`/api/dashboard/entities/${domain}/pages`)
