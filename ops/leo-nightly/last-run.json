@@ -1,11 +1,11 @@
 {
- "runId": "2026-08-20T12:36:40.464Z",
- "nightId": "2026-08-19",
- "decision": "past-claim-cutoff",
- "detail": "Fire at 08:36 local — inside the 20:00–09:00 window but past the 07:45 last-claim cutoff (STEP 7), so no item can be claimed; zero work. Debounce clean (last claim 00:51Z). Outage probe: GET /health 200, but POST /chat against smoke.leo-ai.chat still returns the generic error — Anthropic credit outage (incident-20260820T0107Z.md) still unresolved as of 12:38Z, ~11.5h since first detection. Notification suppressed (already sent 01:07Z and 02:43Z for this outage). Next fire 20:35 local starts a new night.",
- "incident": "ops/leo-nightly/incident-20260820T0107Z.md",
- "baselineFailNotifiedAtUtc": "2026-08-20T02:43:00Z",
+ "runId": "2026-08-21T00:36:47.000Z",
+ "nightId": "2026-08-20",
+ "decision": "baseline-failed",
+ "detail": "First fire of nightId 2026-08-20 (20:36 local). All gates up to STEP 9 passed (debounce clean — last claim 2026-08-20T00:51Z; backpressure 2 unreviewed, oldest <1 day; no Daniel activity in 70-min window). Baseline smoke FAILED on check 3: POST /chat → 500. Backend log at 00:39Z shows the same Anthropic 400 credit-balance error as incident-20260820T0107Z.md (request_id req_011CeExkDYrcXYipo5prPqqa) — external outage now ~23.5h old. All other checks pass (health 200/mongo 1, dashboard+asset 200, admin search 0.7916, widget OK). Zero work per STEP 9. Notification sent for the new night (last prior notification 2026-08-20T02:43Z, >22h ago); suppress further notifications this night unless the outage clears and a NEW failure appears.",
+ "incident": "ops/leo-nightly/incident-20260821T0040Z.md",
+ "baselineFailNotifiedAtUtc": "2026-08-21T00:45:00Z",
  "unreviewedCount": 2,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (a20b105); per-complete git merge-base --is-ancestor <mergeSha> <ack> over ledger complete events -> LEO-039, LEO-041",
- "atUtc": "2026-08-20T12:39:30.000Z"
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (a20b105 -> commit 71e7510); per-complete git merge-base --is-ancestor <mergeSha> <ackCommit> over ledger complete events -> LEO-039, LEO-041",
+ "atUtc": "2026-08-21T00:45:00Z"
 }
