@@ -1,11 +1,11 @@
 {
- "runId": "2026-08-21T07:36:53.376Z",
+ "runId": "2026-08-21T12:36:56.783Z",
  "nightId": "2026-08-20",
- "decision": "baseline-failed",
- "detail": "Seventh fire of nightId 2026-08-20 (03:36 local). Lock acquired cleanly (absolute-path assertion passed). All gates through STEP 8 passed: window OK; debounce clean (last claim 2026-08-20T00:51Z); preflight clean (worktree on leo-nightly/idle at e2dd56c, tree clean, gh auth OK, yarn 1.22.22, exactly one enabled leo- task); backpressure 2 unreviewed (LEO-039, LEO-041), oldest ~1.3d; AFK clear (only prior leo-nightly fire in 70-min window, scheduledTaskId=leo-nightly, automated; Turtillery Main last active 06:07Z, outside window). STEP 9 baseline FAILED on check 3: POST /chat -> 500. Backend log 07:40:22Z shows identical Anthropic 400 'Your credit balance is too low' (request_id req_011CeFWpjs61v3XFTGk5tRrP) — same external outage as incident-20260821T0040Z.md / incident-20260820T0107Z.md, now ~30.5h since first detection 2026-08-20T01:04Z. All other checks passed: health 200 (commit e2dd56c, mongo 1), dashboard + hashed asset 200, admin search top 0.7912, widget 200 ratio 0.97 syntax OK. Zero work per STEP 9 default deny. No new incident file (same ongoing incident, already documented); notification suppressed (baselineFailNotifiedAtUtc 2026-08-21T00:45Z). Resolution requires Daniel topping up Anthropic API credits (Console -> Plans & Billing). No usage-snap (taken only after a passing baseline).",
+ "decision": "past-claim-cutoff",
+ "detail": "Twelfth fire of nightId 2026-08-20 (08:37 local). Lock acquired cleanly (absolute-path assertion passed, no stray Usersdanie* dirs). Local time 08:37 is inside the 20:00-09:00 window but past the 07:45 last-claim cutoff, so no item can be claimed this fire regardless of other gates - exited via the cheap path before preflight/queue/backpressure. One-shot outage probe (POST /chat against smoke.leo-ai.chat with admin key + Origin header): still 500 - Anthropic credit-balance outage ongoing, ~35.5h since first detection 2026-08-20T01:04Z. The entire night 2026-08-20 shipped zero items due to this external outage (0 claims). Notification suppressed (baselineFailNotifiedAtUtc 2026-08-21T00:45:00Z). Repo heartbeat committed: decision changed from baseline-failed to past-claim-cutoff. No usage-snap (only taken after a passing baseline). Resolution requires Daniel topping up Anthropic API credits (Console -> Plans & Billing). Next possible claim: tonight 20:35 local, nightId 2026-08-21.",
  "incident": "ops/leo-nightly/incident-20260821T0040Z.md",
  "baselineFailNotifiedAtUtc": "2026-08-21T00:45:00Z",
  "unreviewedCount": 2,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack; per-complete git merge-base --is-ancestor <mergeSha> <ack-deref> over ledger complete events -> LEO-039, LEO-041 unreviewed",
- "atUtc": "2026-08-21T07:42:30.000Z"
+ "unreviewedCommand": "carried from prior run at 11:48Z (backpressure not re-computed this fire; exit was pre-preflight): git ls-remote --tags origin refs/tags/leo-nightly-ack yields a20b105; per-complete merge-base --is-ancestor over ledger complete events yields LEO-039, LEO-041 unreviewed",
+ "atUtc": "2026-08-21T12:41:00Z"
 }
