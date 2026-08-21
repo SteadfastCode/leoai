@@ -51,9 +51,7 @@
       "attempts": 0,
       "cluster": null,
       "branch": null,
-      "dependsOn": [
-        "test-mode extension"
-      ],
+      "dependsOn": [],
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": null
