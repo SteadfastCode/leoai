@@ -1,11 +1,11 @@
 {
- "runId": "2026-08-21T12:36:56.783Z",
- "nightId": "2026-08-20",
- "decision": "past-claim-cutoff",
- "detail": "Twelfth fire of nightId 2026-08-20 (08:37 local). Lock acquired cleanly (absolute-path assertion passed, no stray Usersdanie* dirs). Local time 08:37 is inside the 20:00-09:00 window but past the 07:45 last-claim cutoff, so no item can be claimed this fire regardless of other gates - exited via the cheap path before preflight/queue/backpressure. One-shot outage probe (POST /chat against smoke.leo-ai.chat with admin key + Origin header): still 500 - Anthropic credit-balance outage ongoing, ~35.5h since first detection 2026-08-20T01:04Z. The entire night 2026-08-20 shipped zero items due to this external outage (0 claims). Notification suppressed (baselineFailNotifiedAtUtc 2026-08-21T00:45:00Z). Repo heartbeat committed: decision changed from baseline-failed to past-claim-cutoff. No usage-snap (only taken after a passing baseline). Resolution requires Daniel topping up Anthropic API credits (Console -> Plans & Billing). Next possible claim: tonight 20:35 local, nightId 2026-08-21.",
- "incident": "ops/leo-nightly/incident-20260821T0040Z.md",
- "baselineFailNotifiedAtUtc": "2026-08-21T00:45:00Z",
+ "runId": "2026-08-22T00:37:00.273Z",
+ "nightId": "2026-08-21",
+ "decision": "baseline-failed",
+ "detail": "First fire of nightId 2026-08-21 (20:37 local). Lock acquired cleanly (absolute-path assertion passed, no stray Usersdanie* dirs). All gates up to baseline passed: window OK, debounce OK (last claim 2 nights ago), preflight clean (idle branch, clean tree, gh+yarn OK, exactly one enabled leo- task), queue has 3 eligible items (LEO-040 lowest order 5), backpressure 2 unreviewed (oldest LEO-039 2026-08-20, well under 7d/40), 0/10 claims tonight, AFK gate clear (only automated tethered-e2ee-autopilot in 70-min window, not running). STEP 9 baseline smoke: 4/5 pass, check 3 (POST /chat) FAILED with 500 empty body — same Anthropic credit-balance outage, now ~47.5h since first detection 2026-08-20T01:04Z. Second consecutive night starting fully blocked. Zero work per default-deny. Incident ops/leo-nightly/incident-20260822T0040Z.md. Notified once at new-night boundary (per-night notification pattern); suppress for remaining fires of nightId 2026-08-21. No usage-snap (only taken after a passing baseline). Resolution requires Daniel topping up Anthropic API credits (Console -> Plans & Billing).",
+ "incident": "ops/leo-nightly/incident-20260822T0040Z.md",
+ "baselineFailNotifiedAtUtc": "2026-08-22T00:42:00Z",
  "unreviewedCount": 2,
- "unreviewedCommand": "carried from prior run at 11:48Z (backpressure not re-computed this fire; exit was pre-preflight): git ls-remote --tags origin refs/tags/leo-nightly-ack yields a20b105; per-complete merge-base --is-ancestor over ledger complete events yields LEO-039, LEO-041 unreviewed",
- "atUtc": "2026-08-21T12:41:00Z"
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack yields a20b105 (ancestor of origin/main); per-complete git merge-base --is-ancestor <mergeSha> a20b105 over ledger complete events yields LEO-039, LEO-041 unreviewed",
+ "atUtc": "2026-08-22T00:42:00Z"
 }
