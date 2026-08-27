@@ -1,11 +1,10 @@
 {
- "runId": "2026-08-22T01:37:04.680Z",
- "nightId": "2026-08-21",
- "decision": "deferred-daniel-active",
- "detail": "Fire 2 of nightId 2026-08-21 (21:37 local). Lock acquired cleanly. Window OK, debounce OK, preflight clean (idle branch, clean tree, gh+yarn OK, exactly one enabled leo- task). AFK gate: interactive session Turtillery Main (no scheduledTaskId, C:/repos/turtillery, model fable, isRunning true) had activity at 01:37:57Z - seconds before the check. Daniel is active; deferred with no claim. Baseline/outage status NOT tested this fire (no point deploying while Daniel is active); Anthropic credit outage was still unresolved as of previous fire 00:40Z (~48.5h). Backpressure recomputed: 2 unreviewed, oldest 2026-08-20, under both limits. No notification (deferral is quiet).",
- "incident": "ops/leo-nightly/incident-20260822T0040Z.md",
- "baselineFailNotifiedAtUtc": "2026-08-22T00:42:00Z",
- "unreviewedCount": 2,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> a20b105 (ancestor of origin/main); git merge-base --is-ancestor <mergeSha> a20b105 for each ledger complete event -> LEO-039 (d19a77a), LEO-041 (a126233) unreviewed",
- "atUtc": "2026-08-22T01:38:48.924Z"
+  "runId": "2026-08-27T02:45:44.949Z",
+  "nightId": "2026-08-26",
+  "decision": "crash-recovered",
+  "detail": "Fire at 22:45 local 2026-08-26 found a dead lock: runId 2026-08-24T04:47:19.228Z, pid 7656 not running, heartbeat ~2d stale, phase baseline, note \"interactive continuation, Daniel-authorized chat-smoke waiver\". Took over per STEP 2 (recovery only, no item work). Worktree was CLEAN — no stash created. Restored leo-nightly/idle to origin/main e8653cf. Appended crash-recovered ledger event, committed 8b4b0ab, pushed to main. Backpressure/queue/baseline not evaluated — takeover runs never claim. Next hourly fire proceeds normally.",
+  "stash": null,
+  "unreviewedCount": null,
+  "unreviewedCommand": "not computed — recovery-only takeover run (STEP 2) does not evaluate backpressure",
+  "atUtc": "2026-08-27T02:46:33.634Z"
 }
