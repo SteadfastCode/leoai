@@ -1,10 +1,10 @@
 {
-  "runId": "2026-08-27T03:36:28.558Z",
+  "runId": "2026-08-27T10:36:31.000Z",
   "nightId": "2026-08-26",
   "decision": "halted-backpressure",
-  "detail": "Backpressure halt: oldest unreviewed complete (LEO-039, mergeSha d19a77aa, completed 2026-08-20T00:49:35Z) is 7.12 days old — over the 7-day limit. 2 unreviewed items total (LEO-039, LEO-041). Ack tag at 71e75107. No work done this run. Notified once; suppress further backpressure notifications until decision changes.",
+  "detail": "Backpressure halt (repeat): oldest unreviewed complete (LEO-039, mergeSha d19a77aa, completed 2026-08-20T00:49:35Z) is 7.41 days old - over the 7-day limit. 2 unreviewed items total (LEO-039, LEO-041). Ack tag a20b1053 peels to 71e75107, unchanged. Notification suppressed - already sent. No work done. Heartbeat refreshed (committed copy >6h old).",
   "unreviewedCount": 2,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack → 71e75107; ledger complete events whose mergeSha is not an ancestor of ack (git merge-base --is-ancestor <mergeSha> 71e75107)",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> tag a20b1053 (peels to 71e75107); ledger complete events whose mergeSha fails git merge-base --is-ancestor <mergeSha> 71e75107",
   "backpressureNotified": true,
-  "atUtc": "2026-08-27T03:38:23.444Z"
+  "atUtc": "2026-08-27T10:38:01.612Z"
 }
