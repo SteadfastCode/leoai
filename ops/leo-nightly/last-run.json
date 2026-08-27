@@ -1,10 +1,10 @@
 {
-  "runId": "2026-08-27T02:45:44.949Z",
+  "runId": "2026-08-27T03:36:28.558Z",
   "nightId": "2026-08-26",
-  "decision": "crash-recovered",
-  "detail": "Fire at 22:45 local 2026-08-26 found a dead lock: runId 2026-08-24T04:47:19.228Z, pid 7656 not running, heartbeat ~2d stale, phase baseline, note \"interactive continuation, Daniel-authorized chat-smoke waiver\". Took over per STEP 2 (recovery only, no item work). Worktree was CLEAN — no stash created. Restored leo-nightly/idle to origin/main e8653cf. Appended crash-recovered ledger event, committed 8b4b0ab, pushed to main. Backpressure/queue/baseline not evaluated — takeover runs never claim. Next hourly fire proceeds normally.",
-  "stash": null,
-  "unreviewedCount": null,
-  "unreviewedCommand": "not computed — recovery-only takeover run (STEP 2) does not evaluate backpressure",
-  "atUtc": "2026-08-27T02:46:33.634Z"
+  "decision": "halted-backpressure",
+  "detail": "Backpressure halt: oldest unreviewed complete (LEO-039, mergeSha d19a77aa, completed 2026-08-20T00:49:35Z) is 7.12 days old — over the 7-day limit. 2 unreviewed items total (LEO-039, LEO-041). Ack tag at 71e75107. No work done this run. Notified once; suppress further backpressure notifications until decision changes.",
+  "unreviewedCount": 2,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack → 71e75107; ledger complete events whose mergeSha is not an ancestor of ack (git merge-base --is-ancestor <mergeSha> 71e75107)",
+  "backpressureNotified": true,
+  "atUtc": "2026-08-27T03:38:23.444Z"
 }
