@@ -1,10 +1,9 @@
 {
-  "runId": "2026-08-28T06:36:44.988Z",
-  "nightId": "2026-08-27",
-  "decision": "halted-backpressure",
-  "detail": "Backpressure halt (repeat): oldest unreviewed complete (LEO-039, mergeSha d19a77aa, completed 2026-08-20T00:49:35Z) is 8.2 days old - over the 7-day limit. 2 unreviewed items total (LEO-039, LEO-041). Ack tag a20b1053 peels to 71e75107, verified unchanged and an ancestor of origin/main; both mergeShas verified NOT ancestors of ack. Notification suppressed - already sent. No work done. Committed heartbeat 6.0h old (>6h floor) - refreshed.",
+  "runId": "2026-08-28T14:31:56.046Z",
+  "decision": "outside-window",
+  "detail": "Replayed missed fire after machine wake at 10:32 local (window is 20:00-09:00). No work done. Backpressure halt from previous fires still in effect (oldest unreviewed LEO-039 >7 days); notification already sent and remains suppressed.",
   "unreviewedCount": 2,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> tag a20b1053 (peels to 71e75107); ledger complete events whose mergeSha fails git merge-base --is-ancestor <mergeSha> 71e75107",
   "backpressureNotified": true,
-  "atUtc": "2026-08-28T06:38:06.210Z"
+  "atUtc": "2026-08-28T14:33:24.139Z"
 }
