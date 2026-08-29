@@ -1,10 +1,11 @@
 {
-  "runId": "2026-08-29T00:37:08.000Z",
-  "decision": "halted-backpressure",
-  "detail": "In-window fire at 20:37 local. Preflight/debounce/queue all passed (3 eligible items), but backpressure halt: oldest unreviewed item LEO-039 is 9.0 days old (>7d limit). 2 unreviewed (LEO-039, LEO-041); ack tag unchanged at a20b1053 (peels to 71e75107). No work done. Notification previously sent, still suppressed.",
-  "unreviewedCount": 2,
-  "oldestUnreviewedDays": 9,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> tag a20b1053 (peels to 71e75107b370); ledger complete events whose mergeSha fails git merge-base --is-ancestor <mergeSha> 71e75107b370",
-  "backpressureNotified": true,
-  "atUtc": "2026-08-29T00:38:38.100Z"
+  "baselineFailNotifiedAtUtc": "2026-08-29T02:43:19.457Z",
+  "decision": "baseline-failed",
+  "reason": "Anthropic API credit balance exhausted - POST /chat returns 500 (error 400 credit balance too low, req_011CeWGRcvQwKk3PYw92KBV2). External outage, same as 2026-08-20..22 incidents. See ops/leo-nightly/incident-20260829T0244Z.md",
+  "nightId": "2026-08-28",
+  "atUtc": "2026-08-29T02:43:19.457Z",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (peels 9e011d8 = origin/main tip); all ledger complete mergeShas are ancestors => 0 unreviewed. Backpressure RELEASED.",
+  "runId": "2026-08-29T02:37:14.000Z",
+  "unreviewedCount": 0,
+  "detail": "In-window fire 22:37 local. Ack tag moved to 9e011d8 - backpressure released, 3 eligible items (LEO-040, LEO-042, LEO-043). Baseline smoke failed check 3 (chat 500, Anthropic credits exhausted) and check 1 commit-match (Railway deploy of 9e011d8 stuck DEPLOYING since 00:38Z; served fcfbf65 is heartbeat-only behind). Zero work per STEP 9. Notified."
 }
