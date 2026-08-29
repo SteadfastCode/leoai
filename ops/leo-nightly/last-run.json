@@ -1,11 +1,11 @@
 {
-  "decision": "baseline-failed",
-  "reason": "Anthropic API credit balance still exhausted - baseline smoke check 3 (POST /chat) returns 500; prod admin log shows invalid_request_error credit balance too low at 04:43:14Z (latest buffered chat attempt). Same ongoing external outage as incident-20260829T0244Z.md; notification suppressed (sent 02:43Z this night). No new incident file - same continuing incident.",
+  "decision": "cutoff-no-claim",
+  "reason": "In-window fire 08:37 local but past the 07:45 last-claim cutoff (STEP 7) - no item may be claimed this fire regardless of other gates. Separately, the Anthropic credit outage is STILL ongoing: probe POST /chat returned 500 at 12:37Z. Same continuing incident as incident-20260829T0244Z.md; notification suppressed (sent 02:43Z this night).",
   "nightId": "2026-08-28",
-  "runId": "2026-08-29T09:37:08.000Z",
-  "atUtc": "2026-08-29T09:39:43.576Z",
+  "runId": "2026-08-29T12:37:00.000Z",
+  "atUtc": "2026-08-29T12:40:00.000Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (ancestor of origin/main); all 37 ledger complete mergeShas verified ancestors of ack via git merge-base --is-ancestor => 0 unreviewed",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (verified ancestor of origin/main 5747cac via git merge-base --is-ancestor); all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
   "baselineFailNotifiedAtUtc": "2026-08-29T02:43:19.457Z",
-  "detail": "In-window fire 05:37 local. Baseline checks 1/2/4/5 PASS: health serves 319e53c (= origin/main tip, booted 03:05:40Z - the previously stuck Railway deploy resolved) mongo 1; leo-ai.app 200 + hashed asset index-DVceCfV_.js 200; admin search 4 hits top 0.7912; widget 200 30865 bytes (ratio 0.975 vs 31663 committed) node --check OK. Only check 3 (chat) fails on Anthropic credits. 3 eligible items (LEO-040, LEO-042, LEO-043), 0/10 claims tonight, backpressure released. Repo heartbeat recommitted (committed copy ~7h old, past 6h floor). Work resumes automatically once credits topped up and chat smokes green."
+  "detail": "Last fire of the night (window closes 09:00, next fire 20:35 local). Full baseline not run - past cutoff means no claim, so only a single chat probe was made to report outage status: still 500 (credit balance exhaustion, consistent with prior fires this night). Night 2026-08-28 summary: 0/10 claims used, 0 items shipped - entire work window lost to the Anthropic credit outage that began ~02:44Z. 3 eligible items remain (LEO-040, LEO-042, LEO-043). Backpressure clear (0 unreviewed). Work resumes tonight 20:35 if credits are topped up. No usage-snap: run never reached the pre-claim snap point (STEP 9 snap happens after a passing baseline before claiming; no claim path this fire)."
 }
