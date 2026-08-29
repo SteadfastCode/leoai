@@ -1,9 +1,10 @@
 {
-  "runId": "2026-08-28T14:31:56.046Z",
-  "decision": "outside-window",
-  "detail": "Replayed missed fire after machine wake at 10:32 local (window is 20:00-09:00). No work done. Backpressure halt from previous fires still in effect (oldest unreviewed LEO-039 >7 days); notification already sent and remains suppressed.",
+  "runId": "2026-08-29T00:37:08.000Z",
+  "decision": "halted-backpressure",
+  "detail": "In-window fire at 20:37 local. Preflight/debounce/queue all passed (3 eligible items), but backpressure halt: oldest unreviewed item LEO-039 is 9.0 days old (>7d limit). 2 unreviewed (LEO-039, LEO-041); ack tag unchanged at a20b1053 (peels to 71e75107). No work done. Notification previously sent, still suppressed.",
   "unreviewedCount": 2,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> tag a20b1053 (peels to 71e75107); ledger complete events whose mergeSha fails git merge-base --is-ancestor <mergeSha> 71e75107",
+  "oldestUnreviewedDays": 9,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> tag a20b1053 (peels to 71e75107b370); ledger complete events whose mergeSha fails git merge-base --is-ancestor <mergeSha> 71e75107b370",
   "backpressureNotified": true,
-  "atUtc": "2026-08-28T14:33:24.139Z"
+  "atUtc": "2026-08-29T00:38:38.100Z"
 }
