@@ -1,11 +1,11 @@
 {
-  "baselineFailNotifiedAtUtc": "2026-08-29T02:43:19.457Z",
   "decision": "baseline-failed",
-  "reason": "Anthropic API credit balance exhausted - POST /chat returns 500 (error 400 credit balance too low, req_011CeWGRcvQwKk3PYw92KBV2). External outage, same as 2026-08-20..22 incidents. See ops/leo-nightly/incident-20260829T0244Z.md",
+  "reason": "Anthropic API credit balance still exhausted - baseline smoke check 3 (POST /chat) returns 500; prod admin log shows invalid_request_error credit balance too low at 04:43:14Z (latest buffered chat attempt). Same ongoing external outage as incident-20260829T0244Z.md; notification suppressed (sent 02:43Z this night). No new incident file - same continuing incident.",
   "nightId": "2026-08-28",
-  "atUtc": "2026-08-29T02:43:19.457Z",
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (peels 9e011d8 = origin/main tip); all ledger complete mergeShas are ancestors => 0 unreviewed. Backpressure RELEASED.",
-  "runId": "2026-08-29T02:37:14.000Z",
+  "runId": "2026-08-29T09:37:08.000Z",
+  "atUtc": "2026-08-29T09:39:43.576Z",
   "unreviewedCount": 0,
-  "detail": "In-window fire 22:37 local. Ack tag moved to 9e011d8 - backpressure released, 3 eligible items (LEO-040, LEO-042, LEO-043). Baseline smoke failed check 3 (chat 500, Anthropic credits exhausted) and check 1 commit-match (Railway deploy of 9e011d8 stuck DEPLOYING since 00:38Z; served fcfbf65 is heartbeat-only behind). Zero work per STEP 9. Notified."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (ancestor of origin/main); all 37 ledger complete mergeShas verified ancestors of ack via git merge-base --is-ancestor => 0 unreviewed",
+  "baselineFailNotifiedAtUtc": "2026-08-29T02:43:19.457Z",
+  "detail": "In-window fire 05:37 local. Baseline checks 1/2/4/5 PASS: health serves 319e53c (= origin/main tip, booted 03:05:40Z - the previously stuck Railway deploy resolved) mongo 1; leo-ai.app 200 + hashed asset index-DVceCfV_.js 200; admin search 4 hits top 0.7912; widget 200 30865 bytes (ratio 0.975 vs 31663 committed) node --check OK. Only check 3 (chat) fails on Anthropic credits. 3 eligible items (LEO-040, LEO-042, LEO-043), 0/10 claims tonight, backpressure released. Repo heartbeat recommitted (committed copy ~7h old, past 6h floor). Work resumes automatically once credits topped up and chat smokes green."
 }
