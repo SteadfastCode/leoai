@@ -1,11 +1,11 @@
 {
-  "decision": "cutoff-no-claim",
-  "reason": "In-window fire 08:37 local but past the 07:45 last-claim cutoff (STEP 7) - no item may be claimed this fire regardless of other gates. Separately, the Anthropic credit outage is STILL ongoing: probe POST /chat returned 500 at 12:37Z. Same continuing incident as incident-20260829T0244Z.md; notification suppressed (sent 02:43Z this night).",
-  "nightId": "2026-08-28",
-  "runId": "2026-08-29T12:37:00.000Z",
-  "atUtc": "2026-08-29T12:40:00.000Z",
+  "decision": "baseline-failed",
+  "reason": "First fire of night 2026-08-29 (20:37 local). Baseline smoke 4/5: health OK (commit 80518b1, mongo 1), dashboard+asset OK, admin search OK (top 0.7912), widget OK (30865B, -2.5% of committed). POST /chat still 500 - Anthropic credit balance exhaustion confirmed verbatim in backend logs at 00:39:09Z (request_id req_011CeXzz2fTNejdjfPa1SbfG). Same continuing incident as incident-20260829T0244Z.md, now spanning a 3rd night. No work possible until credits topped up.",
+  "nightId": "2026-08-29",
+  "runId": "2026-08-30T00:37:16.144Z",
+  "atUtc": "2026-08-30T00:40:44.021Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (verified ancestor of origin/main 5747cac via git merge-base --is-ancestor); all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
-  "baselineFailNotifiedAtUtc": "2026-08-29T02:43:19.457Z",
-  "detail": "Last fire of the night (window closes 09:00, next fire 20:35 local). Full baseline not run - past cutoff means no claim, so only a single chat probe was made to report outage status: still 500 (credit balance exhaustion, consistent with prior fires this night). Night 2026-08-28 summary: 0/10 claims used, 0 items shipped - entire work window lost to the Anthropic credit outage that began ~02:44Z. 3 eligible items remain (LEO-040, LEO-042, LEO-043). Backpressure clear (0 unreviewed). Work resumes tonight 20:35 if credits are topped up. No usage-snap: run never reached the pre-claim snap point (STEP 9 snap happens after a passing baseline before claiming; no claim path this fire)."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (verified ancestor of origin/main 80518b1 via git merge-base --is-ancestor); all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
+  "baselineFailNotifiedAtUtc": "2026-08-30T00:40:44.022Z",
+  "detail": "Preflight, queue (3 eligible: LEO-040 order 5, LEO-042, LEO-043), backpressure (0 unreviewed), AFK/engagement (only an automated tethered-e2ee-autopilot tick in the 70-min window, no Daniel-authored messages) all passed. Baseline is the sole blocker and the cause is external. Notification sent for night 2026-08-29 (one per night while the incident continues); subsequent fires tonight should suppress via baselineFailNotifiedAtUtc. No usage-snap: snap point is after a passing baseline. Note: log buffer also shows a routine credential-scanner sweep against the API at 16:21-16:22Z (probes for /.env, /.aws/credentials, /.anthropic/config.json etc.) - all 404, no action needed."
 }
