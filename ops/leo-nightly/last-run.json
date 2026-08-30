@@ -1,11 +1,11 @@
 {
   "decision": "baseline-failed",
-  "reason": "First fire of night 2026-08-29 (20:37 local). Baseline smoke 4/5: health OK (commit 80518b1, mongo 1), dashboard+asset OK, admin search OK (top 0.7912), widget OK (30865B, -2.5% of committed). POST /chat still 500 - Anthropic credit balance exhaustion confirmed verbatim in backend logs at 00:39:09Z (request_id req_011CeXzz2fTNejdjfPa1SbfG). Same continuing incident as incident-20260829T0244Z.md, now spanning a 3rd night. No work possible until credits topped up.",
+  "reason": "Seventh fire of night 2026-08-29 (02:37 local Aug 30). Baseline smoke: health OK (commit c19117f matches origin/main, mongo 1), dashboard+asset OK (index-DVceCfV_.js 200), admin search OK (top 0.7912, 4 hits), widget OK (30865 bytes downloaded, -2.5% of committed 31663, node --check passed) — but POST /chat 500. Anthropic credit exhaustion still ongoing: this fire's chat call logged [chat] 400 'credit balance is too low' in production logs, and LeoRefresh's analyzePageStructure hit the same error at 03:00. Same continuing incident as incident-20260829T0244Z.md (4th night). No work possible until credits topped up.",
   "nightId": "2026-08-29",
-  "runId": "2026-08-30T00:37:16.144Z",
-  "atUtc": "2026-08-30T00:40:44.021Z",
+  "runId": "2026-08-30T06:37:20.391Z",
+  "atUtc": "2026-08-30T06:40:11.666Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf (verified ancestor of origin/main 80518b1 via git merge-base --is-ancestor); all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf, verified ancestor of origin/main via git merge-base --is-ancestor; all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
   "baselineFailNotifiedAtUtc": "2026-08-30T00:40:44.022Z",
-  "detail": "Preflight, queue (3 eligible: LEO-040 order 5, LEO-042, LEO-043), backpressure (0 unreviewed), AFK/engagement (only an automated tethered-e2ee-autopilot tick in the 70-min window, no Daniel-authored messages) all passed. Baseline is the sole blocker and the cause is external. Notification sent for night 2026-08-29 (one per night while the incident continues); subsequent fires tonight should suppress via baselineFailNotifiedAtUtc. No usage-snap: snap point is after a passing baseline. Note: log buffer also shows a routine credential-scanner sweep against the API at 16:21-16:22Z (probes for /.env, /.aws/credentials, /.anthropic/config.json etc.) - all 404, no action needed."
+  "detail": "Notification suppressed — one per night while the incident continues, already sent at 00:40Z. All 5 smoke checks ran; check 3 (chat) is the sole failure, cause external and re-verified in production logs. Preflight, queue (3 eligible: LEO-040, LEO-042, LEO-043), backpressure (0 unreviewed), AFK/engagement (only automated tethered-e2ee-autopilot at 06:27Z in window) all passed. No usage-snap: snap point is after a passing baseline. Committed heartbeat c19117f was >6h old, so this fire synced the repo heartbeat."
 }
