@@ -1,11 +1,11 @@
 {
-  "decision": "baseline-failed",
-  "reason": "Seventh fire of night 2026-08-29 (02:37 local Aug 30). Baseline smoke: health OK (commit c19117f matches origin/main, mongo 1), dashboard+asset OK (index-DVceCfV_.js 200), admin search OK (top 0.7912, 4 hits), widget OK (30865 bytes downloaded, -2.5% of committed 31663, node --check passed) — but POST /chat 500. Anthropic credit exhaustion still ongoing: this fire's chat call logged [chat] 400 'credit balance is too low' in production logs, and LeoRefresh's analyzePageStructure hit the same error at 03:00. Same continuing incident as incident-20260829T0244Z.md (4th night). No work possible until credits topped up.",
+  "decision": "cutoff-no-claim",
+  "reason": "Last fire of night 2026-08-29 (08:36 local Aug 30, past 07:45 last-claim cutoff — heartbeat-only). Quick production check: health 200 (commit 59004ff matches origin/main, mongo 1) but POST /chat still 500 at 12:38Z — Anthropic credit outage continuing (4th night, incident-20260829T0244Z.md). 0 items shipped this night; outage blocked all 9 working-window fires.",
   "nightId": "2026-08-29",
-  "runId": "2026-08-30T06:37:20.391Z",
-  "atUtc": "2026-08-30T06:40:11.666Z",
+  "runId": "2026-08-30T12:36:29.000Z",
+  "atUtc": "2026-08-30T12:37:49.620Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack -> 6328c0bf, verified ancestor of origin/main via git merge-base --is-ancestor; all 37 ledger complete mergeShas verified ancestors of ack => 0 unreviewed",
+  "unreviewedCommand": "carried from prior fire 11:40Z: git ls-remote --tags origin refs/tags/leo-nightly-ack -> ancestor of origin/main; all 37 ledger complete mergeShas ancestors of ack => 0 unreviewed. Not recomputed — no claim possible past cutoff, backpressure gate not reached.",
   "baselineFailNotifiedAtUtc": "2026-08-30T00:40:44.022Z",
-  "detail": "Notification suppressed — one per night while the incident continues, already sent at 00:40Z. All 5 smoke checks ran; check 3 (chat) is the sole failure, cause external and re-verified in production logs. Preflight, queue (3 eligible: LEO-040, LEO-042, LEO-043), backpressure (0 unreviewed), AFK/engagement (only automated tethered-e2ee-autopilot at 06:27Z in window) all passed. No usage-snap: snap point is after a passing baseline. Committed heartbeat c19117f was >6h old, so this fire synced the repo heartbeat."
+  "detail": "Past-cutoff fire: window OK (08:36 < 09:00), debounce OK (last claim 2026-08-20), no claim permitted (07:45 cutoff). Full baseline not run — no work possible; only health + chat spot-check for outage reporting. No usage-snap (snap point is after a passing baseline). Notification suppressed per one-per-night rule."
 }
