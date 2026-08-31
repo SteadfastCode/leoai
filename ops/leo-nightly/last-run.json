@@ -1,11 +1,11 @@
 {
-  "decision": "baseline-failed",
-  "reason": "First fire of night 2026-08-30 (20:36 local). All gates passed (window, debounce, preflight, queue: 3 eligible, backpressure: 0/37 unreviewed, budget, AFK) but STEP 9 baseline check 3 failed: POST /chat 500 at 00:38Z — Anthropic credit balance exhausted (5th consecutive night, ~11 days since first detected 2026-08-20). Zero work per default-deny. incident-20260831T0038Z.md written.",
+  "decision": "afk-active",
+  "reason": "3rd fire of night 2026-08-30 (22:36 local). Gates through backpressure/budget passed (window ok, debounce ok: no claim <55min, preflight clean, queue: 3 eligible lowest LEO-040, backpressure: ack 6328c0b ancestor of origin/main with 0 unreviewed, budget: 0/10 claims). STEP 8 AFK guard positive: Daniel interactively active RIGHT NOW — turtillery session 'Game mode selection UI' isRunning at 02:38Z, turtillery QR-scanner session at 02:33Z, plumb session at 02:31Z; none carry scheduledTaskId so all count as real interactive activity. No claim; baseline (STEP 9) skipped as moot with no claim to follow. Anthropic credit outage presumed still ongoing (last confirmed chat 500 at 01:38Z prior fire) — not re-tested this fire.",
   "nightId": "2026-08-30",
-  "runId": "2026-08-31T00:36:30.615Z",
-  "atUtc": "2026-08-31T00:39:54.000Z",
+  "runId": "2026-08-31T02:36:42.000Z",
+  "atUtc": "2026-08-31T02:40:00.000Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); all 37 ledger complete mergeShas tested with git merge-base --is-ancestor against ack => 0 unreviewed",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); all ledger complete mergeShas tested with git merge-base --is-ancestor against ack => 0 unreviewed",
   "baselineFailNotifiedAtUtc": "2026-08-31T00:39:54.000Z",
-  "detail": "Baseline checks 1,2,4,5 PASS: health 200 commit 7ddeb17==origin/main mongo 1 (prior night's Railway deploy lag resolved); dashboard 200 + asset 200; admin search top 0.7912; widget 200 -2.5% syntax ok. Check 3 FAIL: chat 500, backend log shows Anthropic 400 credit-balance-too-low req_011CeZtkrvGTs4YRRjs7mrnU. No usage-snap (snap point is after a passing baseline). Notified once for the new night."
+  "detail": "AFK evidence: mcp list_sessions limit 40, 70-min lookback from 01:26Z; sessions counted: local_4d758d76 (turtillery worktree, isRunning true, 02:38Z), local_0ce87431 (turtillery worktree, 02:33Z), local_488a1388 (plumb, pinned, 02:31Z) — all interactive per get_session (no scheduledTaskId). tethered-e2ee-autopilot 02:26Z is a scheduled routine, not counted. No notification (AFK deferral is not a notify event)."
 }
