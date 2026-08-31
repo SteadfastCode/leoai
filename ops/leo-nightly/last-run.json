@@ -1,11 +1,10 @@
 {
   "decision": "afk-active",
-  "reason": "3rd fire of night 2026-08-30 (22:36 local). Gates through backpressure/budget passed (window ok, debounce ok: no claim <55min, preflight clean, queue: 3 eligible lowest LEO-040, backpressure: ack 6328c0b ancestor of origin/main with 0 unreviewed, budget: 0/10 claims). STEP 8 AFK guard positive: Daniel interactively active RIGHT NOW — turtillery session 'Game mode selection UI' isRunning at 02:38Z, turtillery QR-scanner session at 02:33Z, plumb session at 02:31Z; none carry scheduledTaskId so all count as real interactive activity. No claim; baseline (STEP 9) skipped as moot with no claim to follow. Anthropic credit outage presumed still ongoing (last confirmed chat 500 at 01:38Z prior fire) — not re-tested this fire.",
+  "reason": "Fire at 05:36 local, night 2026-08-30 (09:36Z). Gates through backpressure/budget passed (window ok, debounce ok: no claim <55min, preflight clean: worktree on leo-nightly/idle, clean tree, gh+yarn ok, one enabled leo- task; queue: 3 eligible, lowest LEO-040 order 5; backpressure: ack 6328c0b ancestor of origin/main, 0 unreviewed; budget: 0/10 claims tonight, before 07:45 cutoff). STEP 8 AFK guard positive: turtillery session Game-mode-selection-UI (local_4d758d76, no scheduledTaskId) active at 09:36:28Z — seconds before this check — counts as real interactive activity. No claim. Baseline skipped as moot; cheap probes run instead: GET /health OK (commit 29290e6 = main tip, mongo 1), POST /chat still 500 — Anthropic credit outage ONGOING, confirmed 09:39Z, 6th night.",
   "nightId": "2026-08-30",
-  "runId": "2026-08-31T02:36:42.000Z",
-  "atUtc": "2026-08-31T02:40:00.000Z",
+  "runId": "2026-08-31T09:36:45.067Z",
+  "atUtc": "2026-08-31T09:40:59.429Z",
   "unreviewedCount": 0,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); all ledger complete mergeShas tested with git merge-base --is-ancestor against ack => 0 unreviewed",
-  "baselineFailNotifiedAtUtc": "2026-08-31T00:39:54.000Z",
-  "detail": "AFK evidence: mcp list_sessions limit 40, 70-min lookback from 01:26Z; sessions counted: local_4d758d76 (turtillery worktree, isRunning true, 02:38Z), local_0ce87431 (turtillery worktree, 02:33Z), local_488a1388 (plumb, pinned, 02:31Z) — all interactive per get_session (no scheduledTaskId). tethered-e2ee-autopilot 02:26Z is a scheduled routine, not counted. No notification (AFK deferral is not a notify event)."
+  "detail": "AFK evidence: mcp list_sessions limit 40, 70-min lookback from 09:36Z; counted: local_4d758d76 (turtillery worktree, lastActivity 09:36:28Z, interactive per get_session — no scheduledTaskId). tethered-e2ee-autopilot 09:28Z is a scheduled routine, not counted. No LeoAI engagement session. Chat probe detail: POST /chat smoke.leo-ai.chat with Origin dosiedough.com returned 500 at 09:39Z."
 }
