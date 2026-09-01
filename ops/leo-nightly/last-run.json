@@ -1,10 +1,10 @@
 {
-  "decision": "baseline-failed",
+  "decision": "afk-active",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); both post-ack completes LEO-039 d19a77a and LEO-041 a126233 are ancestors of ack => 0 unreviewed",
-  "detail": "Chat probe: POST /chat domain smoke.leo-ai.chat, Origin https://dosiedough.com, 500 at 03:22Z. No notification sent - outage already reported (incident-20260820T0107Z.md), repeat notifications suppressed per prior-fire precedent. AFK check: only automated routines active in 70-min window (tethered e2ee autopilot running, tethered tracking check done), no Daniel-authored interactive session.",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> commit 9e011d8, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
+  "detail": "AFK guard tripped: interactive turtillery session (Build in-app QR scanner, no scheduledTaskId) running at 04:38Z, second interactive turtillery session active 04:28Z — both within 70-min window. No claim. Read-only chat re-check: POST /chat smoke entity returned 500 at 04:39Z — Anthropic credit outage still ongoing (7th night, night 2026-08-31, first reported 2026-08-20 incident-20260820T0107Z.md; notification suppressed per precedent). Preflight, queue (LEO-040/042/043 eligible), backpressure (0/37) all clear before AFK trip.",
   "nightId": "2026-08-31",
-  "runId": "2026-09-01T03:19:07.808Z",
-  "reason": "First fire of night 2026-08-31 (23:19 local; 03:19Z replay of the :35 fire after machine wake). All preflight gates passed; queue has 3 eligible items (LEO-040, LEO-042, LEO-043); backpressure clear. Cheap probes: GET /health OK (commit dcb8c22 = main tip, mongo 1, booted 13:01Z), but POST /chat smoke entity returned 500 at 03:22Z - Anthropic credit outage STILL ONGOING, 7th night. Baseline is default-deny, so no claim. Additionally tethered-e2ee-autopilot routine was actively running (contention defer would apply even without the outage).",
-  "atUtc": "2026-09-01T03:21:50.734Z"
+  "runId": "2026-09-01T04:37:17.000Z",
+  "reason": "Third fire of night 2026-08-31 (00:37 local). AFK-active on interactive turtillery sessions; even absent that, baseline would default-deny on the ongoing chat 500.",
+  "atUtc": "2026-09-01T04:39:13.558Z"
 }
