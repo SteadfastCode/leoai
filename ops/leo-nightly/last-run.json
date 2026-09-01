@@ -1,10 +1,10 @@
 {
   "decision": "afk-active",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> commit 9e011d8, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
-  "detail": "AFK guard tripped: interactive turtillery session (Build in-app QR scanner, no scheduledTaskId) running at 04:38Z, second interactive turtillery session active 04:28Z — both within 70-min window. No claim. Read-only chat re-check: POST /chat smoke entity returned 500 at 04:39Z — Anthropic credit outage still ongoing (7th night, night 2026-08-31, first reported 2026-08-20 incident-20260820T0107Z.md; notification suppressed per precedent). Preflight, queue (LEO-040/042/043 eligible), backpressure (0/37) all clear before AFK trip.",
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
+  "detail": "AFK guard tripped: interactive turtillery session (Game mode selection UI, worktree fire-ui-redesign-183798, no scheduledTaskId) active 09:52Z — within 70-min window. No claim. Read-only chat re-check: POST /chat smoke entity returned 500 at 10:40Z — Anthropic credit outage still ongoing (night 2026-08-31, first reported 2026-08-20 incident-20260820T0107Z.md; notification suppressed per precedent). /health 200 (commit 25f9380, mongo 1). Preflight, queue (LEO-040/042/043 eligible), backpressure (0/37), budget (0 claims tonight, before 07:45 cutoff) all clear before AFK trip.",
   "nightId": "2026-08-31",
-  "runId": "2026-09-01T04:37:17.000Z",
-  "reason": "Third fire of night 2026-08-31 (00:37 local). AFK-active on interactive turtillery sessions; even absent that, baseline would default-deny on the ongoing chat 500.",
-  "atUtc": "2026-09-01T04:39:13.558Z"
+  "runId": "2026-09-01T10:37:14.971Z",
+  "reason": "06:37 local fire of night 2026-08-31. AFK-active on interactive turtillery session; even absent that, baseline would default-deny on the ongoing chat 500.",
+  "atUtc": "2026-09-01T10:39:58.297Z"
 }
