@@ -1,10 +1,10 @@
 {
-  "decision": "afk-active",
-  "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
-  "detail": "AFK guard tripped: interactive turtillery session (Game mode selection UI, worktree fire-ui-redesign-183798, no scheduledTaskId) active 09:52Z — within 70-min window. No claim. Read-only chat re-check: POST /chat smoke entity returned 500 at 10:40Z — Anthropic credit outage still ongoing (night 2026-08-31, first reported 2026-08-20 incident-20260820T0107Z.md; notification suppressed per precedent). /health 200 (commit 25f9380, mongo 1). Preflight, queue (LEO-040/042/043 eligible), backpressure (0/37), budget (0 claims tonight, before 07:45 cutoff) all clear before AFK trip.",
-  "nightId": "2026-08-31",
-  "runId": "2026-09-01T10:37:14.971Z",
-  "reason": "06:37 local fire of night 2026-08-31. AFK-active on interactive turtillery session; even absent that, baseline would default-deny on the ongoing chat 500.",
-  "atUtc": "2026-09-01T10:39:58.297Z"
+ "decision": "cutoff-no-claim",
+ "unreviewedCount": 0,
+ "unreviewedCommand": "carried from 11:37Z fire: git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack. Not recomputed this fire — no claim possible past cutoff.",
+ "detail": "08:37 local fire, last of night 2026-08-31 (window closes 09:00; 07:45 last-claim cutoff already passed at fire time). No claim. Read-only production check: GET /health 200 (commit a547890 == origin/main, mongo 1, booted 10:41Z), POST /chat smoke entity 500 at ~12:38Z — Anthropic credit outage still ongoing (7th night, first reported 2026-08-20, incident-20260820T0107Z.md; notification suppressed per precedent). 0 items shipped night 2026-08-31. Repo heartbeat committed: decision differs from committed copy (afk-active).",
+ "nightId": "2026-08-31",
+ "runId": "2026-09-01T12:37:20.000Z",
+ "reason": "Fire past 07:45 last-claim cutoff — no work possible; outage re-confirmed via read-only check only.",
+ "atUtc": "2026-09-01T12:39:00.000Z"
 }
