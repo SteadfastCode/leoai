@@ -1,10 +1,10 @@
 {
-  "decision": "cutoff-no-claim",
-  "reason": "Fire at 08:58 local (12:58Z), night 2026-08-30 — delayed replay of the :35 fire, inside the 20:00-09:00 window but past the 07:45 last-claim cutoff, so no item can be claimed. Lock acquired cleanly at absolute path. Debounce ok (last ledger claim 2026-08-20). Cheap probes: GET /health OK (commit 75ec912 = main tip, mongo 1, booted 09:43Z), POST /chat smoke entity returned 500 at 12:59Z — Anthropic credit outage STILL ONGOING, 6th night. Backpressure anchor verified: ack 6328c0b resolves from remote and is ancestor of origin/main, 0 unreviewed. This is the true last fire of night 2026-08-30 (window ends 09:00). 0 items shipped this night due to the outage.",
-  "nightId": "2026-08-30",
-  "runId": "2026-08-31T12:58:31.877Z",
-  "atUtc": "2026-08-31T12:59:42.307Z",
+  "decision": "baseline-failed",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ack unchanged since prior fire and no complete events since 2026-08-20 => 0 unreviewed",
-  "detail": "No AFK/engagement check needed — the cutoff alone forbids claiming. Chat probe: POST /chat domain smoke.leo-ai.chat, Origin https://dosiedough.com, 500 at 12:59Z."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); both post-ack completes LEO-039 d19a77a and LEO-041 a126233 are ancestors of ack => 0 unreviewed",
+  "detail": "Chat probe: POST /chat domain smoke.leo-ai.chat, Origin https://dosiedough.com, 500 at 03:22Z. No notification sent - outage already reported (incident-20260820T0107Z.md), repeat notifications suppressed per prior-fire precedent. AFK check: only automated routines active in 70-min window (tethered e2ee autopilot running, tethered tracking check done), no Daniel-authored interactive session.",
+  "nightId": "2026-08-31",
+  "runId": "2026-09-01T03:19:07.808Z",
+  "reason": "First fire of night 2026-08-31 (23:19 local; 03:19Z replay of the :35 fire after machine wake). All preflight gates passed; queue has 3 eligible items (LEO-040, LEO-042, LEO-043); backpressure clear. Cheap probes: GET /health OK (commit dcb8c22 = main tip, mongo 1, booted 13:01Z), but POST /chat smoke entity returned 500 at 03:22Z - Anthropic credit outage STILL ONGOING, 7th night. Baseline is default-deny, so no claim. Additionally tethered-e2ee-autopilot routine was actively running (contention defer would apply even without the outage).",
+  "atUtc": "2026-09-01T03:21:50.734Z"
 }
