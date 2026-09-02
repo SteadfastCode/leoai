@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-02T04:36:52.764Z",
-  "reason": "Interactive session active on turtillery; also chat baseline would still fail on known external credit exhaustion.",
+  "runId": "2026-09-02T10:36:56Z",
+  "decision": "afk-active",
+  "reason": "Interactive session active on turtillery; chat baseline would also still fail on known external credit exhaustion.",
   "unreviewedCount": 0,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> peeled 9e011d8, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
   "nightId": "2026-09-01",
-  "detail": "00:36 local fire. AFK guard tripped: interactive turtillery session (Game mode selection UI, local_4d758d76, no scheduledTaskId) running with activity at 04:38Z — seconds before the check. No claim per STEP 8. Outage check: POST /chat still 500 at 04:39:26Z — Anthropic credit outage ongoing since 2026-08-20 (9th night); incident-20260902T0039Z.md covers tonight. Queue: 3 eligible (LEO-040 order 5 next, then LEO-042, LEO-043). Claims tonight: 0/10. Heartbeat committed: decision differs from committed baseline-failed (cefca46).",
-  "atUtc": "2026-09-02T04:39:48.479Z",
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
-  "decision": "afk-active"
+  "detail": "06:36 local fire. AFK guard tripped: interactive turtillery session (Game mode selection UI, local_4d758d76, no scheduledTaskId) isRunning with activity at 10:38:40Z — seconds before the check. No claim per STEP 8. Outage check: GET /health OK (mongo=1, commit aa38aba) but POST /chat still 500 at 10:42Z — Anthropic credit outage ongoing since 2026-08-20 (9th night). Queue: 3 eligible (LEO-040 order 5 next, then LEO-042, LEO-043). Claims tonight: 0/10. Heartbeat committed: same decision as committed copy but committed heartbeat (aa38aba, 04:40Z) >6h old.",
+  "atUtc": "2026-09-02T10:43:30Z"
 }
