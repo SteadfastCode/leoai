@@ -1,10 +1,10 @@
 {
- "decision": "cutoff-no-claim",
+ "decision": "baseline-failed",
  "unreviewedCount": 0,
- "unreviewedCommand": "carried from 11:37Z fire: git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack. Not recomputed this fire — no claim possible past cutoff.",
- "detail": "08:37 local fire, last of night 2026-08-31 (window closes 09:00; 07:45 last-claim cutoff already passed at fire time). No claim. Read-only production check: GET /health 200 (commit a547890 == origin/main, mongo 1, booted 10:41Z), POST /chat smoke entity 500 at ~12:38Z — Anthropic credit outage still ongoing (7th night, first reported 2026-08-20, incident-20260820T0107Z.md; notification suppressed per precedent). 0 items shipped night 2026-08-31. Repo heartbeat committed: decision differs from committed copy (afk-active).",
- "nightId": "2026-08-31",
- "runId": "2026-09-01T12:37:20.000Z",
- "reason": "Fire past 07:45 last-claim cutoff — no work possible; outage re-confirmed via read-only check only.",
- "atUtc": "2026-09-01T12:39:00.000Z"
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
+ "detail": "20:37 local fire, first of night 2026-09-01. Baseline smoke: health PASS (commit 288eb8b == origin/main, mongo 1), dashboard PASS, admin search PASS, widget PASS; POST /chat 500 — Anthropic credit outage still ongoing (8th night, first reported 2026-08-20, req_011CedgREbJvxFEJKbTLBuXi at 00:39:15Z, incident-20260902T0039Z.md). Zero work per STEP 9 default-deny. Notification suppressed per precedent. Queue has 3 eligible items (LEO-040 next) waiting on credits.",
+ "nightId": "2026-09-01",
+ "runId": "2026-09-02T00:37:27.000Z",
+ "reason": "Baseline check 3 (POST /chat) failed on known external Anthropic credit exhaustion; all other checks green.",
+ "atUtc": "2026-09-02T00:41:00.000Z"
 }
