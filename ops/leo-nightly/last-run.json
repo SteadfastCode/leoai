@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-02T10:36:56Z",
+  "runId": "2026-09-03T00:37:03.208Z",
   "decision": "afk-active",
-  "reason": "Interactive session active on turtillery; chat baseline would also still fail on known external credit exhaustion.",
+  "reason": "Interactive turtillery session active in window; chat baseline would also still fail on known external credit exhaustion.",
   "unreviewedCount": 0,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> peeled 9e011d8, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
-  "nightId": "2026-09-01",
-  "detail": "06:36 local fire. AFK guard tripped: interactive turtillery session (Game mode selection UI, local_4d758d76, no scheduledTaskId) isRunning with activity at 10:38:40Z — seconds before the check. No claim per STEP 8. Outage check: GET /health OK (mongo=1, commit aa38aba) but POST /chat still 500 at 10:42Z — Anthropic credit outage ongoing since 2026-08-20 (9th night). Queue: 3 eligible (LEO-040 order 5 next, then LEO-042, LEO-043). Claims tonight: 0/10. Heartbeat committed: same decision as committed copy but committed heartbeat (aa38aba, 04:40Z) >6h old.",
-  "atUtc": "2026-09-02T10:43:30Z"
+  "nightId": "2026-09-02",
+  "detail": "20:37 local fire, first of night 2026-09-02. AFK guard tripped: interactive turtillery session (Game mode selection UI, local_4d758d76, no scheduledTaskId) active at 00:00:58Z, 37 min before check. No claim per STEP 8. Outage check: GET /health OK (mongo=1, commit cfc24f8) but POST /chat still 500 at 00:40Z — Anthropic credit outage ongoing since 2026-08-20 (10th night). Queue: 3 eligible (LEO-040 order 5 next, then LEO-042, LEO-043). Claims tonight: 0/10.",
+  "atUtc": "2026-09-03T00:39:28.881Z"
 }
