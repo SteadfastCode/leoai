@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-03T03:36:28.000Z",
-  "decision": "afk-active",
-  "reason": "STEP 8 AFK guard: interactive turtillery session (Game mode selection UI, no scheduledTaskId) active at 03:13Z, 23 min before this fire — within the 70-min lookback. No claim. Credit outage re-confirmed ongoing: POST /chat vs smoke entity returned 500 at 03:38Z, consistent with the credit-balance 400 confirmed at 02:39Z (incident-20260903T0239Z.md, 11th consecutive night).",
+  "runId": "2026-09-03T06:36:33.009Z",
+  "decision": "baseline-failed",
+  "nightId": "2026-09-02",
+  "atUtc": "2026-09-03T06:40:33.305Z",
   "unreviewedCount": 0,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, merge-base --is-ancestor origin/main OK); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
-  "nightId": "2026-09-02",
-  "detail": "23:36 local fire, 4th of night 2026-09-02. Lock acquired atomically at the absolute path. Preflight all green (worktree clean on leo-nightly/idle, gh authenticated, yarn 1.22.22, exactly one enabled leo- task). Debounce clear (last ledger claim 2026-08-20). Backpressure clear (0 unreviewed). AFK guard tripped before baseline: interactive turtillery session active 03:13Z — it was quiet at the 22:36 fire (which reached the baseline and hit the credit outage) and has since resumed. Single chat probe (public /chat, no admin key) re-confirmed the outage at 03:38Z. Zero work. Claims tonight: 0/10. Notification suppressed — same known incident since 2026-08-20.",
-  "atUtc": "2026-09-03T03:39:30.000Z"
+  "reason": "STEP 9 baseline smoke check 3 failed: POST /chat 500. Prod log confirms same Anthropic credit-balance outage (400 credit balance too low, req_011Ceg3hSqAMbkGFYWUBhmjo at 06:39:30Z) — 12th consecutive night, first detected 2026-08-20T01:04Z. Zero work per default-deny. Notification suppressed: known ongoing incident, documented tonight in incident-20260903T0239Z.md.",
+  "detail": "02:36 local fire of night 2026-09-02 (second to reach baseline). Lock atomic at absolute path, assertion passed. Preflight green: worktree clean on leo-nightly/idle, gh authed, yarn 1.22.22, exactly one enabled leo- task. Debounce clear. AFK guard clear (only automated routines in 70-min lookback; Bedtime lockout interactive session last active 04:32Z, 124 min ago). Queue: 3 eligible (LEO-040 order 5 next). Backpressure clear. Budget clear (0/10 claims). Baseline: health PASS (commit e9b1330 == origin/main, mongo 1), dashboard PASS (index-DVceCfV_.js 200), chat FAIL (500, credit outage), search PASS (4 hits, top 0.7912), widget PASS (30753B vs 31551B = 97.5 pct, node --check clean)."
 }
