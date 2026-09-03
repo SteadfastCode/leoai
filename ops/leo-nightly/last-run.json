@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-03T00:37:03.208Z",
-  "decision": "afk-active",
-  "reason": "Interactive turtillery session active in window; chat baseline would also still fail on known external credit exhaustion.",
+  "runId": "2026-09-03T02:36:41.969Z",
+  "decision": "baseline-failed",
+  "reason": "STEP 9 baseline check 3 (POST /chat) 500 — known external Anthropic credit exhaustion, 11th consecutive night. All other baseline checks pass.",
   "unreviewedCount": 0,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> peeled 9e011d8, ancestor of origin/main); 0 of 37 ledger complete events have mergeSha not ancestor of ack",
   "nightId": "2026-09-02",
-  "detail": "20:37 local fire, first of night 2026-09-02. AFK guard tripped: interactive turtillery session (Game mode selection UI, local_4d758d76, no scheduledTaskId) active at 00:00:58Z, 37 min before check. No claim per STEP 8. Outage check: GET /health OK (mongo=1, commit cfc24f8) but POST /chat still 500 at 00:40Z — Anthropic credit outage ongoing since 2026-08-20 (10th night). Queue: 3 eligible (LEO-040 order 5 next, then LEO-042, LEO-043). Claims tonight: 0/10.",
-  "atUtc": "2026-09-03T00:39:28.881Z"
+  "detail": "22:36 local fire, 3rd of night 2026-09-02, first to reach the baseline (earlier fires exited afk-active on the interactive turtillery session, quiet since 01:02Z). Preflight, queue (3 eligible: LEO-040, LEO-042, LEO-043), backpressure (0 unreviewed), budget, and AFK gates all passed. Baseline: health 200/mongo1/commit=2733a5b, dashboard+asset 200, admin search 4 hits top 0.7911, widget 200 -2.5% syntax-clean; chat 500 on Anthropic credit-balance 400 (req_011CefjNqGQa1i6UgKZPVfW8 at 02:39:15Z, confirmed via /api/admin/logs). Incident: ops/leo-nightly/incident-20260903T0239Z.md. Zero work per STEP 9 default-deny. Notification suppressed — same known incident since 2026-08-20. Claims tonight: 0/10.",
+  "atUtc": "2026-09-03T02:41:30.000Z"
 }
