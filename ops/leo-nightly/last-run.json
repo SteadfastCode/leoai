@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-03T12:36:31.000Z",
-  "decision": "past-last-claim-cutoff",
-  "nightId": "2026-09-02",
-  "atUtc": "2026-09-03T12:38:00.000Z",
+  "runId": "2026-09-04T00:36:36.018Z",
+  "decision": "afk-active",
+  "nightId": "2026-09-03",
+  "atUtc": "2026-09-04T00:39:15.834Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "carried from 07:36 fire: git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events unreviewed",
-  "reason": "08:36 local fire — past the 07:45 last-claim cutoff (STEP 7), so no item can be claimed regardless of other gates. Baseline not run: default-deny baseline exists to protect a deploy, and no deploy can happen this fire. Credit outage last confirmed still ongoing by the 07:36 fire (POST /chat 500, Anthropic 400 credit balance too low at 11:38:42Z, 13th night). Last window fire of night 2026-09-02; next fire 20:35 local.",
-  "detail": "Lock atomic at absolute path, assertion passed. Worktree clean on leo-nightly/idle. Debounce clear (last claim 2026-08-20). Queue/backpressure/AFK gates not evaluated — cutoff blocks claiming before any of them matter. No usage snap (snap point is post-baseline pre-claim; never reached). Repo heartbeat committed: decision differs from committed baseline-failed heartbeat."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events unreviewed",
+  "reason": "20:36 local fire, first of night 2026-09-03. AFK gate: interactive turtillery session (no scheduledTaskId, worktree fire-ui-redesign-183798) active at 00:34:34Z, 2 min before fire — no claim. Credit outage re-confirmed ongoing: POST /chat -> 500 at ~00:41Z against smoke entity (14th night; first detected 2026-08-20T01:04Z). Health OK: commit b92aab0 equals origin/main, mongo 1.",
+  "detail": "Lock atomic at absolute path, assertion passed. Worktree clean on leo-nightly/idle. Debounce clear (last claim 2026-08-20). Preflight passed (gh auth, yarn 1.22.22, one enabled leo- task). Queue: 3 eligible (LEO-040 next). Backpressure: 0 unreviewed. Full baseline not run — AFK gate blocks claiming, so only a lightweight chat/health probe was made to re-confirm the known outage. No usage snap (snap point is post-baseline pre-claim; never reached). Repo heartbeat committed: decision differs from committed past-last-claim-cutoff and is ~12h old."
 }
