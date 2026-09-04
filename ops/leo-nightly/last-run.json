@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-04T00:36:36.018Z",
-  "decision": "afk-active",
+  "runId": "2026-09-04T03:37:19Z",
+  "decision": "baseline-failed",
   "nightId": "2026-09-03",
-  "atUtc": "2026-09-04T00:39:15.834Z",
+  "atUtc": "2026-09-04T03:43:00Z",
   "unreviewedCount": 0,
   "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); 0 of 37 ledger complete events unreviewed",
-  "reason": "20:36 local fire, first of night 2026-09-03. AFK gate: interactive turtillery session (no scheduledTaskId, worktree fire-ui-redesign-183798) active at 00:34:34Z, 2 min before fire — no claim. Credit outage re-confirmed ongoing: POST /chat -> 500 at ~00:41Z against smoke entity (14th night; first detected 2026-08-20T01:04Z). Health OK: commit b92aab0 equals origin/main, mongo 1.",
-  "detail": "Lock atomic at absolute path, assertion passed. Worktree clean on leo-nightly/idle. Debounce clear (last claim 2026-08-20). Preflight passed (gh auth, yarn 1.22.22, one enabled leo- task). Queue: 3 eligible (LEO-040 next). Backpressure: 0 unreviewed. Full baseline not run — AFK gate blocks claiming, so only a lightweight chat/health probe was made to re-confirm the known outage. No usage snap (snap point is post-baseline pre-claim; never reached). Repo heartbeat committed: decision differs from committed past-last-claim-cutoff and is ~12h old."
+  "reason": "23:36 local fire, night 2026-09-03 — first fire of the night to reach the full baseline (earlier fires exited at the AFK gate). Baseline check 3 FAILED: POST /chat -> 500 at 03:40:39Z; production log buffer shows the Anthropic credit-balance 400 (request id req_011CehhsLAXajaCot7VpzrZW). Same outage since 2026-08-20T01:04Z (14th night). incident-20260904T0340Z.md written. Notification suppressed: same known incident, first reported 2026-08-20.",
+  "detail": "Lock atomic at absolute path, assertion passed. Worktree clean on leo-nightly/idle. Debounce clear (last claim 2026-08-20). Preflight passed (gh auth eckerdj7, yarn 1.22.22, exactly one enabled leo- task). Queue: 3 eligible (LEO-040 order 5, then LEO-042, LEO-043). Backpressure clear: 0 unreviewed. Budget clear (0/10 claims, before 07:45 cutoff). AFK/engagement gates passed (only automated sessions in the 70-min window: tethered-tracking-quality-check 02:42Z, previous leo-nightly fire 02:40Z; no Daniel-authored messages). Baseline: health PASS (commit 001d3b6 == origin/main, mongo 1), dashboard PASS, chat FAIL (500, credit outage), admin-search PASS (4 hits, top 0.7912), widget PASS (ratio 0.975, syntax clean). Zero work per STEP 9 default-deny. No usage snap (snap point is post-baseline-pass; never reached)."
 }
