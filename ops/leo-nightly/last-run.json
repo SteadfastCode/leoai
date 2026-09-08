@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-07T14:44:06Z",
-  "decision": "crash-recovered",
-  "nightId": null,
-  "atUtc": "2026-09-07T14:45:22.297Z",
-  "unreviewedCount": null,
-  "unreviewedCommand": "not computed — takeover/recovery run only (STEP 2), no backpressure evaluation",
-  "reason": "10:44 local fire (replayed missed fire after machine wake, outside 20:00-09:00 window). Found stale lock from run 2026-09-04T06:36:27Z (pid 30612, phase preflight): heartbeat ~3d old, pid dead — took over. Worktree was clean on leo-nightly/idle, no stash needed. Reset to origin/main 08eb2ba, crash-recovered ledger event committed and pushed (7448468). No work performed per STEP 2 (takeover runs recover only); window check moot for recovery.",
-  "detail": "Dead run had reached only phase preflight, so nothing was in flight. Machine appears to have been asleep/off since 2026-09-04 ~06:36Z (no fires between then and now). Credit outage status not re-checked this run (no baseline in a recovery run) — last confirmed ongoing 2026-09-04T03:40Z."
+  "runId": "2026-09-08T00:37:19.788Z",
+  "decision": "afk-active",
+  "nightId": "2026-09-07",
+  "atUtc": "2026-09-08T00:40:03.005Z",
+  "unreviewedCount": 0,
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0 of 37",
+  "reason": "20:37 local fire, first of night 2026-09-07. All gates to STEP 8 passed (0 claims tonight, queue has 3 eligible: LEO-040/042/043, backpressure 0 unreviewed — Daniel acked everything). AFK guard tripped: two interactive sessions in the 70-min window — steadfast-ai worktree (00:27Z) and turtillery (23:52Z), neither has a scheduledTaskId. No claim.",
+  "detail": "Credit outage re-confirmed ongoing: POST /chat 500, backend log shows Anthropic 400 credit-balance-too-low at 00:39Z (req_011Ceq3HdZCXVz3eNGSdS6aY). /health OK, commit matches origin/main 23a7b62, mongo 1. First logged 2026-08-20 — even if AFK clears later tonight, STEP 9 baseline will fail on smoke check 3 until credits are topped up."
 }
