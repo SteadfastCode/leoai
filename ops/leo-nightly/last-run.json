@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-08T00:37:19.788Z",
+  "runId": "2026-09-08T07:36:27.472Z",
   "decision": "afk-active",
   "nightId": "2026-09-07",
-  "atUtc": "2026-09-08T00:40:03.005Z",
+  "atUtc": "2026-09-08T07:37:30.000Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0 of 37",
-  "reason": "20:37 local fire, first of night 2026-09-07. All gates to STEP 8 passed (0 claims tonight, queue has 3 eligible: LEO-040/042/043, backpressure 0 unreviewed — Daniel acked everything). AFK guard tripped: two interactive sessions in the 70-min window — steadfast-ai worktree (00:27Z) and turtillery (23:52Z), neither has a scheduledTaskId. No claim.",
-  "detail": "Credit outage re-confirmed ongoing: POST /chat 500, backend log shows Anthropic 400 credit-balance-too-low at 00:39Z (req_011Ceq3HdZCXVz3eNGSdS6aY). /health OK, commit matches origin/main 23a7b62, mongo 1. First logged 2026-08-20 — even if AFK clears later tonight, STEP 9 baseline will fail on smoke check 3 until credits are topped up."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0",
+  "reason": "03:36 local fire, night 2026-09-07. Gates through STEP 8 passed: window OK, debounce OK (last claim 2026-08-20), preflight OK (clean worktree on leo-nightly/idle, gh authed, yarn 1.22.22, exactly one enabled leo- task), queue has 3 eligible (LEO-040/042/043), backpressure 0 unreviewed of ack 6328c0b. AFK guard tripped: interactive turtillery session local_4d758d76 active 07:24Z (12 min before fire), no scheduledTaskId. No claim.",
+  "detail": "Same turtillery session has held the AFK guard all night 2026-09-07 (also blocked 20:37/02:36 fires per prior heartbeats). Migration note unchanged: RUNBOOK.md describes retirement into steadfast-ai/orchestrator but no orchestrator task is registered; leo-nightly remains the only enabled leo- task and proceeds as operative. Credit outage not re-probed this fire (STEP 9 not reached; last confirmed ongoing 00:39Z 2026-09-08)."
 }
