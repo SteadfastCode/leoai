@@ -1,10 +1,10 @@
 {
-  "runId": "2026-09-08T07:36:27.472Z",
-  "decision": "afk-active",
+  "runId": "2026-09-08T08:36:27.191Z",
+  "decision": "baseline-failed",
   "nightId": "2026-09-07",
-  "atUtc": "2026-09-08T07:37:30.000Z",
+  "atUtc": "2026-09-08T08:42:00.000Z",
   "unreviewedCount": 0,
-  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0",
-  "reason": "03:36 local fire, night 2026-09-07. Gates through STEP 8 passed: window OK, debounce OK (last claim 2026-08-20), preflight OK (clean worktree on leo-nightly/idle, gh authed, yarn 1.22.22, exactly one enabled leo- task), queue has 3 eligible (LEO-040/042/043), backpressure 0 unreviewed of ack 6328c0b. AFK guard tripped: interactive turtillery session local_4d758d76 active 07:24Z (12 min before fire), no scheduledTaskId. No claim.",
-  "detail": "Same turtillery session has held the AFK guard all night 2026-09-07 (also blocked 20:37/02:36 fires per prior heartbeats). Migration note unchanged: RUNBOOK.md describes retirement into steadfast-ai/orchestrator but no orchestrator task is registered; leo-nightly remains the only enabled leo- task and proceeds as operative. Credit outage not re-probed this fire (STEP 9 not reached; last confirmed ongoing 00:39Z 2026-09-08)."
+  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events (37 total) whose mergeSha is not an ancestor of ack sha => 0",
+  "reason": "04:36 local fire, night 2026-09-07. First fire tonight to clear the AFK guard (turtillery session last active 07:24Z, 72 min before fire — outside the 70-min window). All gates through STEP 8 passed: window OK, debounce OK (last claim 2026-08-20), preflight OK (clean worktree on leo-nightly/idle at origin/main 7eecf0c, gh authed, yarn 1.22.22, exactly one enabled leo- task), queue 3 eligible (LEO-040/042/043), backpressure 0 unreviewed, budget 0/10 claims. STEP 9 baseline FAILED on check 3: POST /chat -> 500, production log buffer shows Anthropic 400 credit-balance-too-low (req_011CeqfqNTgPtgw5hLEEemX7 at 08:38:44Z). Checks 1/2/4/5 all passed. Zero work per default-deny. incident-20260908T0838Z.md written.",
+  "detail": "Credit outage first detected 2026-08-20T01:04Z (~19 days). Notification suppressed — same known incident per precedent (first reported 2026-08-20). No usage snap (taken only after a passing baseline). Migration note unchanged: RUNBOOK.md describes retirement into steadfast-ai/orchestrator but no orchestrator task is registered; leo-nightly remains the operative routine."
 }
