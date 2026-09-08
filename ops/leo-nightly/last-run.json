@@ -1,10 +1,10 @@
 {
- "runId": "2026-09-08T10:36:28.027Z",
- "decision": "afk-active",
+ "runId": "2026-09-08T11:36:27.625Z",
+ "decision": "baseline-failed",
  "nightId": "2026-09-07",
- "atUtc": "2026-09-08T10:41:00.000Z",
+ "atUtc": "2026-09-08T11:44:00.000Z",
  "unreviewedCount": 0,
  "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0 of 37",
- "reason": "06:36 local fire, night 2026-09-07. Window OK, debounce OK (no claim event <55 min), lock asserted at absolute path, preflight OK (clean tree on leo-nightly/idle, correct worktree, gh authed as eckerdj7, yarn 1.22.22, exactly one enabled leo- task). Queue 3 eligible (LEO-040/042/043 by order 5/6/7), backpressure fully acked (0 of 37 unreviewed). AFK guard TRIPPED: interactive session local_4d758d76 (turtillery worktree, 'Game mode selection UI', no scheduledTaskId) active at 10:04:15Z — 32 min before fire. Real interactive session always counts as activity => no claim, exit clean.",
- "detail": "Baseline not probed this fire — activity gate (STEP 8) precedes baseline (STEP 9) and no claim was possible. Credit outage last confirmed by the 05:36 fire (chat 500, Anthropic credit-balance 400 at 09:38:29Z, ongoing since 2026-08-20, incident-20260908T0838Z.md). One fire remains tonight at 07:35 local before the 07:45 last-claim cutoff."
+ "reason": "07:36 local fire, night 2026-09-07 — last fire before the 07:45 claim cutoff. All gates up to baseline passed: window OK, debounce OK, lock at absolute path, preflight OK (clean tree on leo-nightly/idle, gh authed as eckerdj7, yarn 1.22.22, exactly one enabled leo- task), queue 3 eligible (LEO-040/042/043), backpressure 0 of 37 unreviewed, AFK guard clear (only scheduled sessions in the 70-min window; turtillery interactive session aged out at 10:04Z). Baseline FAILED on check 3: POST /chat -> 500, production logs at 11:38:21Z show the same Anthropic credit-balance 400 ongoing since 2026-08-20 (~19 days). Zero work per STEP 9 default-deny.",
+ "detail": "Re-confirmation appended to ops/leo-nightly/incident-20260908T0838Z.md rather than a new incident file (same outage, same night). Notification suppressed per precedent — same known incident first reported 2026-08-20. Health/dashboard/asset checks all PASS on commit e03723d == origin/main. Night 2026-09-07 closes with 0/10 claims; requires manual credit top-up at console.anthropic.com before any night can ship work."
 }
