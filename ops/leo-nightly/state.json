@@ -64,17 +64,17 @@
     "LEO-042": {
       "order": 5,
       "title": "Weekly \"what Leo did\" owner digest — DEFAULT OFF",
-      "status": "claimed",
+      "status": "pending",
       "attempts": 1,
       "cluster": null,
-      "branch": "routine/item/LEO-042",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "claimedAtUtc": "2026-09-09T14:25:40.301Z",
-      "runId": "2026-09-09T14:09:15.607Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-043": {
       "order": 6,
