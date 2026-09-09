@@ -53,6 +53,11 @@ watch(() => props.entity, (e) => {
       enabled:       e.handoffFollowUp?.enabled ?? true,
       intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
     },
+    weeklyDigest: {
+      enabled:   e.weeklyDigest?.enabled   ?? false,
+      dayOfWeek: e.weeklyDigest?.dayOfWeek ?? 1,
+      hourUtc:   e.weeklyDigest?.hourUtc   ?? 14,
+    },
     ragThreshold: e.ragThreshold ?? 0.75,
   }
 }, { immediate: true })
@@ -132,6 +137,21 @@ const FOLLOW_UP_INTERVAL_OPTIONS = [
   { value: 24, title: '24 hours' },
   { value: 48, title: '48 hours' },
 ]
+
+const DIGEST_DAY_OPTIONS = [
+  { title: 'Sunday', value: 0 },
+  { title: 'Monday', value: 1 },
+  { title: 'Tuesday', value: 2 },
+  { title: 'Wednesday', value: 3 },
+  { title: 'Thursday', value: 4 },
+  { title: 'Friday', value: 5 },
+  { title: 'Saturday', value: 6 },
+]
+
+const DIGEST_HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => ({
+  title: `${String(h).padStart(2, '0')}:00`,
+  value: h,
+}))
 
 const QUOTA_THRESHOLD_OPTIONS = [
   { value: 50, label: '50% (50 messages)' },
@@ -364,6 +384,55 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-2">
             Uses the same phone and email as Handoff Notifications above. Reminders repeat at this interval until you reply.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Weekly Digest ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Weekly Summary Email</v-card-title>
+        <v-card-text class="pt-4">
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            A short weekly note from Leo: how many messages he answered, what visitors asked most,
+            anything he couldn't answer, and any conversations he passed to you.
+          </div>
+          <v-switch
+            v-model="form.weeklyDigest.enabled"
+            label="Send me a weekly summary"
+            color="primary"
+            hide-details
+            density="compact"
+            class="mb-3"
+          />
+          <div class="d-flex flex-wrap ga-3">
+            <v-select
+              v-model="form.weeklyDigest.dayOfWeek"
+              :items="DIGEST_DAY_OPTIONS"
+              item-title="title"
+              item-value="value"
+              label="Day"
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="!form.weeklyDigest.enabled"
+              style="max-width: 180px"
+            />
+            <v-select
+              v-model="form.weeklyDigest.hourUtc"
+              :items="DIGEST_HOUR_OPTIONS"
+              item-title="title"
+              item-value="value"
+              label="Time (UTC)"
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="!form.weeklyDigest.enabled"
+              style="max-width: 180px"
+            />
+          </div>
+          <div class="text-caption text-medium-emphasis mt-3">
+            Sent to the email in Handoff Notifications above. Leo stays quiet on weeks with no activity —
+            you'll never get an empty summary.
           </div>
         </v-card-text>
       </v-card>
