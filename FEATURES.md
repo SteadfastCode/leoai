@@ -111,15 +111,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block J — Owner value (prove it's working)
 
-- [x] **(LEO-040) In-dashboard "Test your bot" playground**
-  Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
-  their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
-  — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
-  to ALSO accept an authenticated dashboard session (valid JWT) **for the caller's own domain
-  only** — never cross-domain, never a body flag. Reuse the widget's chat rendering.
-  *Verify:* `node --test` the extended gate: owner JWT for own domain → test-mode true; owner JWT
-  for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
-  `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 
 - [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
@@ -146,6 +137,15 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Blocked Items
 
+- [ ] **(LEO-040) In-dashboard "Test your bot" playground** — blocked: baseline-failed: production POST /chat -> 500 at 2026-09-09T14:20Z against smoke.leo-ai.chat. All other baseline checks 
+  Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
+  their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
+  — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
+  to ALSO accept an authenticated dashboard session (valid JWT) **for the caller's own domain
+  only** — never cross-domain, never a body flag. Reuse the widget's chat rendering.
+  *Verify:* `node --test` the extended gate: owner JWT for own domain → test-mode true; owner JWT
+  for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
+  `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items

@@ -64,17 +64,17 @@
     "LEO-040": {
       "order": 5,
       "title": "In-dashboard \"Test your bot\" playground",
-      "status": "claimed",
+      "status": "blocked",
       "attempts": 2,
       "cluster": null,
-      "branch": "routine/item/LEO-040",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "claimedAtUtc": "2026-09-09T14:18:23.478Z",
-      "runId": "2026-09-09T14:09:15.607Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-042": {
       "order": 6,
