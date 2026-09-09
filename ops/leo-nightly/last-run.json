@@ -1,10 +1,10 @@
 {
- "runId": "2026-09-08T12:36:30.922Z",
- "decision": "past-claim-cutoff",
- "nightId": "2026-09-07",
- "atUtc": "2026-09-08T12:37:58.776Z",
+ "runId": "2026-09-09T02:50:01.716Z",
+ "decision": "afk-active",
+ "nightId": "2026-09-08",
+ "atUtc": "2026-09-09T02:55:00.000Z",
  "unreviewedCount": 0,
- "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b -> commit 9e011d8, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0 of 37",
- "reason": "08:36 local fire, night 2026-09-07 — the 08:35 fire is the last of the window and lands past the 07:45 last-claim cutoff, so no claim regardless of other gates. Gates run before stopping: window OK, debounce OK (last claim 2026-08-20), lock at absolute path, preflight OK (clean tree on leo-nightly/idle, gh authed as eckerdj7, yarn 1.22.22, exactly one enabled leo- task), queue 3 eligible (LEO-040/042/043), backpressure 0 of 37 unreviewed. AFK/baseline/usage-snap not run — moot past the cutoff, zero work either way.",
- "detail": "Night 2026-09-07 ends with 0/10 claims used; credit outage (Anthropic credit-balance 400, since 2026-08-20) last confirmed by the 07:36 fire and still the blocker for any working night. No notification — quiet fire."
+ "unreviewedCommand": "git ls-remote --tags origin refs/tags/leo-nightly-ack (6328c0b, ancestor of origin/main); ledger complete events whose mergeSha is not an ancestor of ack sha => 0 of 37",
+ "reason": "22:50 local fire (delayed past :35 — likely replay after machine wake; window check passed), first fire of night 2026-09-08. AFK guard: interactive turtillery session 'Game mode selection UI' (local_4d758d76, no scheduledTaskId) active at 02:36:35Z — 14 min before the fire, inside the 70-min lookback — so Daniel counts as present and no claim is made. Gates run before stopping: window OK, debounce OK (last claim 2026-08-20), lock at absolute path, preflight OK (clean tree on leo-nightly/idle, gh authed as eckerdj7, yarn 1.22.22, exactly one leo- scheduled task), queue 3 eligible (LEO-040/042/043), backpressure 0 of 37 unreviewed. Baseline/usage-snap not run — AFK gate stops the run before STEP 9. A tethered-tracking-quality-check routine (scheduled, other repo) was also running; irrelevant given the interactive-session block.",
+ "detail": "Night 2026-09-08 opens 0/10 claims. Credit outage (Anthropic credit-balance 400, since 2026-08-20) last confirmed 2026-09-08 11:38Z by the previous night's 07:36 fire; not re-probed this fire. No notification — quiet fire."
 }
