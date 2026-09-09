@@ -112,7 +112,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 ## Block J — Owner value (prove it's working)
 
 
-- [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
+- [x] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
   `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
