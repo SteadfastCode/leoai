@@ -112,14 +112,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 ## Block J — Owner value (prove it's working)
 
 
-- [x] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
-  A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
-  `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
-  `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
-  zero activity**; stamp `lastWeeklyDigestAt` idempotently via the same atomic pattern the
-  unanswered digest uses. Default-off is what makes it shippable unattended.
-  *Verify:* `node --test` on the due-date calc (DST-adjacent) and the body renderer (zero-activity
-  suppression, ordering). **Never trigger a real send.** `yarn build` for the Settings toggle.
 
 ## Block K — Privacy & trust (dignity-first)
 
@@ -137,6 +129,14 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Blocked Items
 
+- [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF** — blocked: baseline-failed (day 21) — but the item is BUILT and parked, not skipped. Production POST /chat -> 500 against smoke.leo
+  A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
+  `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
+  `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
+  zero activity**; stamp `lastWeeklyDigestAt` idempotently via the same atomic pattern the
+  unanswered digest uses. Default-off is what makes it shippable unattended.
+  *Verify:* `node --test` on the due-date calc (DST-adjacent) and the body renderer (zero-activity
+  suppression, ordering). **Never trigger a real send.** `yarn build` for the Settings toggle.
 - [ ] **(LEO-040) In-dashboard "Test your bot" playground** — blocked: baseline-failed: production POST /chat -> 500 at 2026-09-09T14:20Z against smoke.leo-ai.chat. All other baseline checks 
   Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
   their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
