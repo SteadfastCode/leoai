@@ -83,6 +83,15 @@ const entitySchema = new mongoose.Schema(
     // Deliberately outside unansweredDigest: the PATCH handler replaces that
     // whole subdocument, which would wipe a nested send stamp.
     unansweredDigestLastSentAt: { type: Date },
+    // Weekly "what Leo did" owner digest (LEO-042). DEFAULT OFF.
+    weeklyDigest: {
+      enabled:   { type: Boolean, default: false },
+      hourUtc:   { type: Number, default: 14, min: 0, max: 23 },
+      dayOfWeek: { type: Number, default: 1, min: 0, max: 6 }, // 0=Sunday
+    },
+    // Outside weeklyDigest for the same reason as unansweredDigestLastSentAt:
+    // the PATCH handler replaces that whole subdocument.
+    lastWeeklyDigestAt: { type: Date },
   },
   { timestamps: true }
 );
