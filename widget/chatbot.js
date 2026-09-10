@@ -79,6 +79,7 @@
       </div>
       <div id="leo-menu" hidden>
         <button class="leo-menu-item" id="leo-menu-clear">🗑 Clear conversation</button>
+        <button class="leo-menu-item" id="leo-menu-forget">🧹 Clear my history from the server</button>
         <button class="leo-menu-item" id="leo-menu-hotkey">⌨ Hotkeys: Send on press</button>
         <button class="leo-menu-item" id="leo-menu-powered">⚡ Powered by LeoAI</button>
       </div>
@@ -510,10 +511,13 @@
     menu.hidden = !menu.hidden;
   });
 
-  document.addEventListener('click', () => { menu.hidden = true; });
+  document.addEventListener('click', () => { menu.hidden = true; resetForgetBtn(); });
   menu.addEventListener('click', (e) => e.stopPropagation());
 
-  document.getElementById('leo-menu-clear').addEventListener('click', () => {
+  // Local-only reset. Extracted (LEO-043) so the server-side "forget" action
+  // below finishes with exactly this same teardown rather than a second copy
+  // of it that can drift.
+  function clearLocalConversation() {
     messagesEl.innerHTML = '';
     clearActiveOptions();
 
@@ -535,8 +539,51 @@
     // place it always does, rather than a second copy that can drift.
     historyLoaded = true;
     loadHistory();
+  }
 
+  document.getElementById('leo-menu-clear').addEventListener('click', () => {
+    clearLocalConversation();
     menu.hidden = true;
+  });
+
+  // "Clear my history from the server" (LEO-043) — deliberately separate from
+  // the local clear above, which only mints a new token and leaves the old
+  // transcript on the server. This one asks the backend to delete it, so it is
+  // irreversible: it takes two taps, and the label says so on the first.
+  const forgetBtn = document.getElementById('leo-menu-forget');
+  const FORGET_LABEL = '🧹 Clear my history from the server';
+  let forgetArmed = false;
+
+  function resetForgetBtn() {
+    forgetArmed = false;
+    forgetBtn.textContent = FORGET_LABEL;
+  }
+
+  forgetBtn.addEventListener('click', async () => {
+    if (!forgetArmed) {
+      forgetArmed = true;
+      forgetBtn.textContent = '⚠ Tap again — this cannot be undone';
+      return;
+    }
+    const token = sessionToken;
+    forgetBtn.textContent = '⏳ Clearing…';
+    try {
+      const res = await fetch(`${BACKEND_URL}/chat/forget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, sessionToken: token }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      forgetBtn.textContent = '⚠ Could not clear — try again';
+      setTimeout(resetForgetBtn, 4000);
+      return;
+    }
+    resetForgetBtn();
+    menu.hidden = true;
+    // The server copy is gone; clear the local one the same way the local-only
+    // action does, so the pane, the token and the socket room all agree.
+    clearLocalConversation();
   });
 
   const hotkeyBtn = document.getElementById('leo-menu-hotkey');

@@ -12,6 +12,7 @@ const { shouldLogUnanswered } = require('../services/unanswered');
 const { isTestModeRequest } = require('../services/testMode');
 const { trackDailyVolume } = require('../services/dailyVolume');
 const { checkRateLimit, clientIp } = require('../services/rateLimit');
+const { forgetConversation } = require('../services/retention');
 const logger = require('../services/logger');
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
@@ -319,6 +320,24 @@ router.get('/history', async (req, res) => {
   } catch (err) {
     console.error('History error:', err);
     res.status(500).json({ error: 'Could not load history.' });
+  }
+});
+
+// POST /chat/forget — a visitor erases their own server-side transcript
+// (LEO-043). Public, like the rest of this router: the sessionToken IS the
+// visitor's credential, the same one /chat/history already reads on. Scope is
+// built in services/retention so it cannot widen to a whole domain here.
+router.post('/forget', async (req, res) => {
+  const { domain, sessionToken } = req.body || {};
+  try {
+    const deleted = await forgetConversation({ domain, sessionToken });
+    if (deleted === null) {
+      return res.status(400).json({ error: 'domain and sessionToken are required' });
+    }
+    res.json({ deleted });
+  } catch (err) {
+    logger.error('chat.forget', err.message, { stack: err.stack }, domain || 'unknown');
+    res.status(500).json({ error: 'Could not clear your history. Please try again.' });
   }
 });
 

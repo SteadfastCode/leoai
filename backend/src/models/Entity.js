@@ -83,6 +83,10 @@ const entitySchema = new mongoose.Schema(
     // Deliberately outside unansweredDigest: the PATCH handler replaces that
     // whole subdocument, which would wipe a nested send stamp.
     unansweredDigestLastSentAt: { type: Date },
+    // Days a visitor conversation is kept before the daily sweep deletes it
+    // (LEO-043). 0 = keep forever, and 0 is the default, so no existing entity
+    // starts losing transcripts because this field appeared.
+    conversationRetentionDays: { type: Number, default: 0, min: 0, max: 3650 },
   },
   { timestamps: true }
 );

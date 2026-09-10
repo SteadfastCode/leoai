@@ -10,6 +10,9 @@
  *   4. LEO-036: a /chat that rejects twice then resolves succeeds via retry
  *   5. LEO-036: a /chat that always rejects renders the warm failure bubble
  *      and puts the visitor's typed message back into the input
+ *   6. LEO-043: the server-side "forget" menu action needs two taps, posts the
+ *      widget's own domain + sessionToken to /chat/forget, and mints a fresh
+ *      token afterwards
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -161,6 +164,36 @@ try {
     'exhausted retries put the typed message back into the input'
   );
   chatHandler = null;
+
+  // 5. LEO-043: the server-side "forget" menu action is two-tap and posts the
+  //    caller's OWN domain + sessionToken to /chat/forget.
+  const forgetBtn = doc.getElementById('leo-menu-forget');
+  check(!!forgetBtn, 'menu has a server-side "clear my history" action, distinct from the local clear');
+  check(!!doc.getElementById('leo-menu-clear'), 'the local-only "Clear conversation" action still exists');
+
+  const tokenBeforeForget = win.localStorage.getItem(`leo_session_${DOMAIN}`);
+  forgetBtn.click(); // first tap arms only
+  await flush();
+  check(
+    !fetchCalls.some((c) => c.url.includes('/chat/forget')),
+    'first tap on forget does not delete anything'
+  );
+
+  forgetBtn.click(); // second tap commits
+  await flush();
+  await flush();
+  const forgetCall = fetchCalls.find((c) => c.url.includes('/chat/forget'));
+  check(!!forgetCall && forgetCall.method === 'POST', 'second tap POSTs /chat/forget');
+  const forgetBody = forgetCall ? JSON.parse(forgetCall.body) : {};
+  check(forgetBody.domain === DOMAIN, 'forget body carries the widget\'s own domain');
+  check(
+    !!forgetBody.sessionToken && forgetBody.sessionToken === tokenBeforeForget,
+    'forget body carries the caller\'s own sessionToken'
+  );
+  check(
+    win.localStorage.getItem(`leo_session_${DOMAIN}`) !== tokenBeforeForget,
+    'after forgetting, the widget mints a fresh session token'
+  );
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));
