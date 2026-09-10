@@ -54,6 +54,7 @@ watch(() => props.entity, (e) => {
       intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
     },
     ragThreshold: e.ragThreshold ?? 0.75,
+    conversationRetentionDays: e.conversationRetentionDays ?? 0,
   }
 }, { immediate: true })
 
@@ -426,6 +427,30 @@ async function save() {
             A rescrape normally skips any page whose content hash is unchanged. Set a number of
             days to also re-embed pages that simply haven't been scraped in a while — useful after
             a chunking or embedding change. <strong>0 disables it</strong> (the default).
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <v-card rounded="lg" elevation="0" border class="mb-6">
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Conversation Retention</v-card-title>
+        <v-card-text class="pt-2">
+          <v-text-field
+            v-model.number="form.conversationRetentionDays"
+            label="Delete conversations older than (days)"
+            type="number"
+            min="0"
+            max="3650"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 240px"
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis">
+            A daily sweep permanently deletes visitor conversations that haven't been active for
+            this many days. <strong>0 keeps them forever</strong> (the default). Conversations still
+            waiting on your reply are never swept. Visitors can also clear their own history at any
+            time from the widget menu — this deletion cannot be undone.
           </div>
         </v-card-text>
       </v-card>
