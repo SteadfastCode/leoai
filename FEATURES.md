@@ -115,7 +115,10 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block K — Privacy & trust (dignity-first)
 
-- [x] **(LEO-043) Visitor "forget me" + conversation retention**
+
+## Blocked Items
+
+- [ ] **(LEO-043) Visitor "forget me" + conversation retention** — blocked: baseline-failed (day 22) — attempt 2; item is BUILT and parked, zero new code work this run. Production POST /chat -> 50
   No way today for a visitor to erase their history, and anonymous conversations live forever. Add
   `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
   `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
@@ -126,9 +129,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
   mismatched token deletes nothing; another domain's conversation is untouched); the retention
   predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
   is the one that matters.
-
-## Blocked Items
-
 - [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF** — blocked: baseline-failed (day 21) — but the item is BUILT and parked, not skipped. Production POST /chat -> 500 against smoke.leo
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
