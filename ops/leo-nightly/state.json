@@ -61,8 +61,23 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-042": {
+    "LEO-043": {
       "order": 5,
+      "title": "Visitor \"forget me\" + conversation retention",
+      "status": "claimed",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-043",
+      "dependsOn": [],
+      "needsHuman": false,
+      "distribute": null,
+      "coldReview": false,
+      "claimedAtUtc": "2026-09-10T03:10:24.498Z",
+      "runId": "2026-09-10T03:10:15.551Z",
+      "lastFail": null
+    },
+    "LEO-042": {
+      "order": 6,
       "title": "Weekly \"what Leo did\" owner digest — DEFAULT OFF",
       "status": "blocked",
       "attempts": 2,
@@ -75,21 +90,6 @@
       "claimedAtUtc": "2026-09-09T14:32:41.603Z",
       "runId": null,
       "lastFail": "failed"
-    },
-    "LEO-043": {
-      "order": 6,
-      "title": "Visitor \"forget me\" + conversation retention",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "distribute": null,
-      "coldReview": false,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
     },
     "LEO-040": {
       "order": 7,
