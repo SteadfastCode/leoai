@@ -115,7 +115,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block K — Privacy & trust (dignity-first)
 
-- [ ] **(LEO-043) Visitor "forget me" + conversation retention**
+- [x] **(LEO-043) Visitor "forget me" + conversation retention**
   No way today for a visitor to erase their history, and anonymous conversations live forever. Add
   `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
   `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep

@@ -64,17 +64,17 @@
     "LEO-043": {
       "order": 5,
       "title": "Visitor \"forget me\" + conversation retention",
-      "status": "pending",
-      "attempts": 1,
+      "status": "claimed",
+      "attempts": 2,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-043",
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
-      "claimedAtUtc": "2026-09-10T03:10:24.498Z",
-      "runId": null,
-      "lastFail": "failed"
+      "claimedAtUtc": "2026-09-10T10:08:24.591Z",
+      "runId": "2026-09-10T10:08:15.573Z",
+      "lastFail": null
     },
     "LEO-042": {
       "order": 6,
