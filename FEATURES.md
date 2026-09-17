@@ -84,7 +84,7 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
+- [ ] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
   In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
   (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
   the `trailingOverlap` tail, so a section over `CHUNK_MAX` whose last unit is short ends in a chunk
