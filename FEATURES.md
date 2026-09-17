@@ -78,7 +78,7 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
+- [ ] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
   `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
   is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
   only `domain` and `search` round-trip through the router query; `rendererFilter` and
