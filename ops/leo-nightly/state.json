@@ -68,18 +68,18 @@
     "LEO-047": {
       "order": 5,
       "title": "Handoff filtering, first slice: per-entity do-not-relay list",
-      "status": "claimed",
+      "status": "pending",
       "attempts": 1,
       "cluster": null,
-      "branch": "routine/item/LEO-047",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-09-17T05:16:28.335Z",
-      "runId": "2026-09-17T05:07:35.975Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-048": {
       "order": 6,
