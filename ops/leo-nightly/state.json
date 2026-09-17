@@ -68,18 +68,18 @@
     "LEO-049": {
       "order": 5,
       "title": "Dependency refresh within existing semver ranges",
-      "status": "claimed",
+      "status": "pending",
       "attempts": 1,
       "cluster": null,
-      "branch": "routine/item/LEO-049",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-09-17T11:13:22.340Z",
-      "runId": "2026-09-17T11:08:35.959Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-050": {
       "order": 6,

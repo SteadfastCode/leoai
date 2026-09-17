@@ -111,7 +111,7 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [x] **(LEO-049) Dependency refresh within existing semver ranges**
+- [ ] **(LEO-049) Dependency refresh within existing semver ranges**
   `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
   (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
   `yarn.lock` moves — no `package.json` edit, hence no major bump, and the `resolutions` block and
