@@ -116,7 +116,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block J — Owner value (prove it's working)
 
-- [x] **(LEO-050) Alpha usage report — per entity per day: messages, model split, estimated cost**
+- [ ] **(LEO-050) Alpha usage report — per entity per day: messages, model split, estimated cost**
   `docs/pricing-strategy.md` says Infinity pricing waits on "alpha usage data" and nothing captures
   it: `GET /entities/:domain/model-stats` in `backend/src/routes/dashboard.js` is one entity, one
   summary row, no days, no cost. Add `GET /api/admin/usage-report?from=YYYY-MM-DD&to=YYYY-MM-DD` to
