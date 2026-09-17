@@ -68,18 +68,18 @@
     "LEO-048": {
       "order": 5,
       "title": "`chunkText`: merge a tiny trailing chunk into the previous one",
-      "status": "pending",
-      "attempts": 1,
+      "status": "claimed",
+      "attempts": 2,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-048",
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": "2026-09-17T11:08:49.486Z",
-      "runId": null,
-      "lastFail": "failed"
+      "claimedAtUtc": "2026-09-17T11:11:23.254Z",
+      "runId": "2026-09-17T11:08:35.959Z",
+      "lastFail": null
     },
     "LEO-049": {
       "order": 6,
