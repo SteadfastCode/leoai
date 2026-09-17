@@ -65,40 +65,24 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-047": {
-      "order": 5,
-      "title": "Handoff filtering, first slice: per-entity do-not-relay list",
-      "status": "blocked",
-      "attempts": 2,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": "2026-09-17T05:18:10.309Z",
-      "runId": null,
-      "lastFail": "failed"
-    },
     "LEO-048": {
-      "order": 6,
+      "order": 5,
       "title": "`chunkText`: merge a tiny trailing chunk into the previous one",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-048",
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-09-17T11:08:49.486Z",
+      "runId": "2026-09-17T11:08:35.959Z",
       "lastFail": null
     },
     "LEO-049": {
-      "order": 7,
+      "order": 6,
       "title": "Dependency refresh within existing semver ranges",
       "status": "pending",
       "attempts": 0,
@@ -114,7 +98,7 @@
       "lastFail": null
     },
     "LEO-050": {
-      "order": 8,
+      "order": 7,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
       "status": "pending",
       "attempts": 0,
@@ -130,7 +114,7 @@
       "lastFail": null
     },
     "LEO-051": {
-      "order": 9,
+      "order": 8,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -144,6 +128,22 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": null
+    },
+    "LEO-047": {
+      "order": 9,
+      "title": "Handoff filtering, first slice: per-entity do-not-relay list",
+      "status": "blocked",
+      "attempts": 2,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-09-17T05:18:10.309Z",
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-046": {
       "order": 10,
