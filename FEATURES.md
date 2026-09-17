@@ -126,7 +126,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Block L — Backlog upkeep
 
-- [ ] **(LEO-051) Backlog audit: file new candidates under Proposed**
+- [x] **(LEO-051) Backlog audit: file new candidates under Proposed**
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate

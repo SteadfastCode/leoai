@@ -69,8 +69,25 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-050": {
+    "LEO-051": {
       "order": 5,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "claimed",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-051",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-09-17T18:16:31.253Z",
+      "runId": "2026-09-17T18:11:35.963Z",
+      "lastFail": null
+    },
+    "LEO-050": {
+      "order": 6,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
       "status": "blocked",
       "attempts": 2,
@@ -85,23 +102,6 @@
       "claimedAtUtc": "2026-09-17T18:14:23.769Z",
       "runId": null,
       "lastFail": "failed"
-    },
-    "LEO-051": {
-      "order": 6,
-      "title": "Backlog audit: file new candidates under Proposed",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
     },
     "LEO-049": {
       "order": 7,
