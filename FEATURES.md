@@ -124,9 +124,137 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
+*Filed by the backlog audit (LEO-051). Every item here is skipped by selection until Daniel
+promotes it by deleting the `[needs-human]` tag and moving the block into a work block.*
+
+- [ ] **(LEO-052) Brute-force protection on the auth endpoints** [needs-human]
+  Block H is empty and `POST /auth/login` has no ceiling of any kind: `backend/src/routes/auth.js`
+  goes straight to `bcrypt.compare` on every attempt, so an unauthenticated caller can grind
+  passwords, reset tokens and invite tokens at full speed. The limiter already exists — LEO-034
+  left `createRateLimiter(limits)`, `decide()` and `clientIp(req)` exported and unit-tested in
+  `backend/src/services/rateLimit.js`. Add an `AUTH_LIMITS` preset there and apply a guard to
+  `POST /login`, `/forgot-password`, `/reset-password`, `/invite/:token/accept` and
+  `/passkey/login-verify`. Key each attempt twice — by client IP and by normalised (trimmed,
+  lowercased) email — so one IP cannot lock a victim out and one email cannot be ground from many
+  IPs. Over the limit returns 429 with `retryAfterSeconds`, and the body must be byte-identical
+  for a known and an unknown email so the endpoint still leaks nothing about who has an account.
+  Under the limit, existing 200/401 behaviour is unchanged.
+  Files: `backend/src/routes/auth.js`, `backend/src/services/rateLimit.js`,
+  `backend/test/auth-rate-limit.test.js`. No denylisted or restricted file is touched.
+  *Verify:* `node --test` driving the real auth router over `mongodb-memory-server` the way
+  `onboard-entity.test.js` does — N failed logins then the N+1th is 429 with `retryAfterSeconds`;
+  a second IP is unaffected; a successful login under the limit still returns tokens; the 429 body
+  for a known and an unknown email compare equal. Then `cd backend && yarn verify && yarn test`.
+  Out of scope: a persistent lockout flag on `User`, captcha, a shared (Redis) store, any change
+  to the `/chat` limiter's own limits, and anything under `.github/**`.
+
+- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** [needs-human]
+  `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
+  region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
+  `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
+  the drawer at all — the one document-level `keydown` listener is the quick-reply hotkey handler,
+  which returns early unless options are showing; the bubble has no `aria-expanded`. Add
+  `aria-live="polite"` on the message list, `aria-modal="true"` on the drawer, `aria-expanded` on
+  the bubble kept in sync with `drawer.hidden`, Escape closing the drawer and restoring focus to
+  the bubble, and `type="button"` plus an accessible name including the hotkey on quick-reply pills.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the
+  denylist with LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended to assert each attribute after boot, that a
+  `keydown` Escape dispatched on `document` hides the drawer and leaves `document.activeElement`
+  as the bubble, and that Escape while an options set is showing still does not fire the hotkey
+  path. Existing render assertions must stay green. Post-deploy: `GET /demo/chatbot.js` is 200,
+  byte length within ±25% of the committed file, `node --check` clean on the downloaded body.
+  Out of scope: a full focus trap, colour-contrast or dark-mode palette changes, testing against
+  a real screen reader, the consent screen's markup, and the drag-to-resize handler.
+
+- [ ] **(LEO-054) Classify and surface upstream provider failures** [needs-human]
+  The Anthropic outage first recorded in `ops/leo-nightly/incident-20260820T0107Z.md` has failed
+  the baseline smoke for roughly four weeks, and nothing in the product noticed: `services/claude.js`
+  lets the SDK error propagate, `chat.js` catches it and returns a generic 500, and `/health`
+  reports only `mongo`. The sole evidence is a raw line in the console buffer. Add
+  `backend/src/services/upstreamHealth.js` with a pure `classifyUpstreamError(err)` →
+  `{ kind: 'credit' | 'auth' | 'rate_limit' | 'overloaded' | 'timeout' | 'bad_request' | 'unknown',
+  retryable }` reading `err.status` and the message, plus a bounded in-memory window (last 200
+  outcomes) behind `recordUpstream(kind)` / `upstreamSummary(now)` returning per-kind counts,
+  consecutive-failure count and `lastSuccessAt`. Wrap the four `client.messages.create` call sites
+  in `claude.js` so success and classified failure are both recorded and the error is rethrown
+  unchanged. Expose `GET /api/admin/upstream-health` in `backend/src/routes/admin.js` behind the
+  existing `requireAdminAuth` and render it as a card on `dashboard/src/views/Logs.vue`. Tiered
+  logging: at light tier log one line per *transition* only (first failure of a kind, and
+  recovery), naming the call site that changed it — never one line per request.
+  Files: new `backend/src/services/upstreamHealth.js`, `backend/src/services/claude.js`,
+  `backend/src/routes/admin.js`, `dashboard/src/lib/api.js`, `dashboard/src/views/Logs.vue`,
+  `backend/test/upstream-health.test.js`. The `chat.js` diff must be zero lines.
+  *Verify:* `node --test` on `classifyUpstreamError` (a 400 credit-balance body → `credit`, 401 →
+  `auth`, 429 → `rate_limit`, 529 → `overloaded`, `ETIMEDOUT` → `timeout`, an unknown shape →
+  `unknown`, and never throwing on `null`/a bare string) and on the window (bounded at 200,
+  consecutive count resets on success, empty-state summary); `node backend/src/scripts/verify-prompt.js`
+  because `claude.js` is touched; `cd dashboard && yarn build && yarn test`.
+  Out of scope: sending any alert — recording and display only; `backend/index.js` and `/health`
+  (denylisted); retry or back-off policy changes; `services/embeddings.js` (denylisted), so Voyage
+  failures stay out of this slice; persisting the window to Mongo.
+
+- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set** [needs-human]
+  LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
+  0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
+  `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
+  so there is no evidence for what a defensible default would be. Extract the scoring into a pure
+  `sweepThresholds(rows, thresholds)` in a new `backend/src/services/ragEval.js`: given the
+  per-question `topScore` the script already collects, return hit-rate plus the hit/miss id lists
+  at each candidate threshold (default 0.60–0.80, step 0.01) and the score distribution
+  (min/median/max). Print it as a sweep table under the existing per-domain scorecard. Retrieval
+  still runs once per question, at the lowest candidate threshold, so the sweep adds no embedding
+  calls and no write of any kind.
+  Files: new `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test` on `sweepThresholds` with fixture rows — all-miss, all-hit, a score
+  exactly on a candidate boundary counting as a hit, an empty set, unsorted input — with no DB and
+  no network in the test; `cd backend && yarn verify && yarn test`. The script itself needs live
+  Mongo and Voyage, so **running it against real entities is Daniel's step, not the routine's**;
+  the PR must not report a live run it did not do.
+  Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
+  `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
+
+- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner** [needs-human]
+  A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
+  silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
+  written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
+  pages" with no way to learn which URLs Leo never learned — the same class of silent loss that
+  multi-URL chunking and LEO-028 were built to end. Collect `failedUrls: [{ url, reason, status }]`
+  (reason one of `fetch_error`, `http_error`, `empty_after_render`) in `scrapeSite`/`rescrapeSite`,
+  return it in both summaries beside `skippedUrls`, persist it on the run's `ScrapeSnapshot`, and
+  render both lists as a "Not learned" section in the `KnowledgeBase.vue` scrape feed.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines**, so it only
+  collects and returns; do the shaping in `backend/src/services/scrapePersist.js`),
+  `backend/src/models/ScrapeSnapshot.js` (a new optional field only — no `required`, no `unique`),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/failed-urls.test.js`.
+  *Verify:* extend the offline harness from `backend/test/scrape-embed-containment.test.js` — run
+  the real `scrapeSite` against a local HTTP server serving two good pages, one 404 and one empty
+  body, with embeddings and Puppeteer stubbed: all four URLs accounted for, the two failures in
+  `failedUrls` with the right reason, the two good pages still chunked, and the crawl still
+  resolves. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: retrying failed URLs, any change to `CONCURRENCY`/`MAX_PAGES` or the Puppeteer
+  trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
+  populate the new field.
+
 ## Block L — Backlog upkeep
 
 - [x] **(LEO-051) Backlog audit: file new candidates under Proposed**
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 (the `<orchestrator>` path is the
+  one this runbook names for `diff-policy`), and `node ops/leo-nightly/build-state.js` still parses the file.
+
+- [ ] **(LEO-057) Backlog audit: file new candidates under Proposed** [not-before: 2026-09-24]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
