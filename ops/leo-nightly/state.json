@@ -65,40 +65,24 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-046": {
-      "order": 5,
-      "title": "Page Explorer: router-synced renderer/priority filters + testable filter logic",
-      "status": "blocked",
-      "attempts": 2,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": "2026-09-17T05:11:12.201Z",
-      "runId": null,
-      "lastFail": "failed"
-    },
     "LEO-047": {
-      "order": 6,
+      "order": 5,
       "title": "Handoff filtering, first slice: per-entity do-not-relay list",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-047",
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-09-17T05:16:28.335Z",
+      "runId": "2026-09-17T05:07:35.975Z",
       "lastFail": null
     },
     "LEO-048": {
-      "order": 7,
+      "order": 6,
       "title": "`chunkText`: merge a tiny trailing chunk into the previous one",
       "status": "pending",
       "attempts": 0,
@@ -114,7 +98,7 @@
       "lastFail": null
     },
     "LEO-049": {
-      "order": 8,
+      "order": 7,
       "title": "Dependency refresh within existing semver ranges",
       "status": "pending",
       "attempts": 0,
@@ -130,7 +114,7 @@
       "lastFail": null
     },
     "LEO-050": {
-      "order": 9,
+      "order": 8,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
       "status": "pending",
       "attempts": 0,
@@ -146,7 +130,7 @@
       "lastFail": null
     },
     "LEO-051": {
-      "order": 10,
+      "order": 9,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -160,6 +144,22 @@
       "claimedAtUtc": null,
       "runId": null,
       "lastFail": null
+    },
+    "LEO-046": {
+      "order": 10,
+      "title": "Page Explorer: router-synced renderer/priority filters + testable filter logic",
+      "status": "blocked",
+      "attempts": 2,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-09-17T05:11:12.201Z",
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-043": {
       "order": 11,
