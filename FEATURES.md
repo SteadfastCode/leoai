@@ -111,24 +111,6 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
-- [x] **(LEO-049) Dependency refresh within existing semver ranges**
-  `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
-  (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
-  `yarn.lock` moves — no `package.json` edit, hence no major bump, and the `resolutions` block and
-  the `puppeteer` specifier (both denylisted) cannot change; `nixpacks.toml` untouched. If Yarn 1's
-  incremental-linking bug bites (LEO-002 hit it), delete that lockfile and regenerate in one
-  `yarn install` — still range-bounded. Record `yarn audit --level high` totals before and after
-  for each package in the PR body; the count must drop (Yarn 1 exits non-zero whenever any advisory
-  remains, so read the summary, do not gate on exit 0). Lockfile diff gate: a modified
-  `package.json` requires a modified `yarn.lock` in the same commit — here neither `package.json`
-  changes, and `yarn install --frozen-lockfile` must pass afterwards in both packages (it is what
-  CI and Railway run).
-  Out of scope: major upgrades, `widget/` (separate, tiny lockfile), the exact `pdf-parse 1.1.1`
-  and `socket.io-parser 4.2.6` pins.
-  *Verify:* `cd backend && yarn install --frozen-lockfile && yarn verify && yarn test`;
-  `cd dashboard && yarn install --frozen-lockfile && yarn build && yarn test`; `node widget/smoke.mjs`;
-  `node backend/src/scripts/verify-prompt.js`. Post-deploy smoke as in the runbook — a transitive
-  bump that only breaks under Railway's node 20 shows up there, not locally.
 
 ## Block I — RAG quality (measurable, honest)
 
@@ -183,6 +165,24 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Blocked Items
 
+- [ ] **(LEO-049) Dependency refresh within existing semver ranges** — blocked: baseline-failed (attempt 2): production POST /chat -> 500 against smoke.leo-ai.chat, probes 11:16:23Z (0.50s) and 11:16:
+  `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
+  (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
+  `yarn.lock` moves — no `package.json` edit, hence no major bump, and the `resolutions` block and
+  the `puppeteer` specifier (both denylisted) cannot change; `nixpacks.toml` untouched. If Yarn 1's
+  incremental-linking bug bites (LEO-002 hit it), delete that lockfile and regenerate in one
+  `yarn install` — still range-bounded. Record `yarn audit --level high` totals before and after
+  for each package in the PR body; the count must drop (Yarn 1 exits non-zero whenever any advisory
+  remains, so read the summary, do not gate on exit 0). Lockfile diff gate: a modified
+  `package.json` requires a modified `yarn.lock` in the same commit — here neither `package.json`
+  changes, and `yarn install --frozen-lockfile` must pass afterwards in both packages (it is what
+  CI and Railway run).
+  Out of scope: major upgrades, `widget/` (separate, tiny lockfile), the exact `pdf-parse 1.1.1`
+  and `socket.io-parser 4.2.6` pins.
+  *Verify:* `cd backend && yarn install --frozen-lockfile && yarn verify && yarn test`;
+  `cd dashboard && yarn install --frozen-lockfile && yarn build && yarn test`; `node widget/smoke.mjs`;
+  `node backend/src/scripts/verify-prompt.js`. Post-deploy smoke as in the runbook — a transitive
+  bump that only breaks under Railway's node 20 shows up there, not locally.
 - [ ] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one** — blocked: baseline-failed (attempt 2): production POST /chat -> 500 against smoke.leo-ai.chat, probes 11:12:00Z (0.59s) and 11:12:
   In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
   (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
