@@ -23,7 +23,8 @@ silently rewrite what past events refer to. To reprioritize, move the whole item
 forgotten regen self-heals).
 
 **When the queue is drained, stop silently.** A quiet night is normal. Do not notify, do not
-look for other work, do not invent items.
+look for other work, do not invent items. The one sanctioned exception is the Block L backlog-audit item, which files candidates only
+under `## Proposed` (tagged `[needs-human]`) and never into a work block.
 
 ---
 
@@ -77,9 +78,71 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
+- [ ] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
+  `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
+  is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
+  only `domain` and `search` round-trip through the router query; `rendererFilter` and
+  `priorityFilter` reset to `all` on reload and the filtering is inline in a `computed`. Extract
+  `filterPages(pages, { search, renderer, priority })` plus a `parseFilterQuery`/`toFilterQuery`
+  pair (emit only non-default keys) into `dashboard/src/lib/pageFilters.js`, following
+  `lib/entityFilters.js`; initialise both toggles from `route.query` and `router.replace` on change
+  the way `urlFilter` already does. No backend change; `GET /scrape/pages` is untouched.
+  Out of scope: date-range and chunk-count-range filters, the snapshot tab, server-side filtering,
+  moving the view under Admin → Crawls.
+  *Verify:* `dashboard/test/pageFilters.spec.js` (vitest, no Vuetify mount) covers search, renderer
+  and priority alone and combined, defaults emitting no query keys, and an unknown query value
+  falling back to `all`; `cd dashboard && yarn build && yarn test`.
+
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
+- [ ] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list**
+  Owners cannot stop Leo forwarding question types they will never answer (competitor comparisons,
+  salary questions). Add `doNotRelay: { type: [String], default: [] }` to
+  `backend/src/models/Entity.js` (optional — no `required`/`unique`) and a new
+  `backend/src/services/doNotRelay.js` exporting `sanitizeList(list)` (strings only, trimmed,
+  case-insensitive dedupe, cap 50 entries × 120 chars) and `matchesDoNotRelay(text, list)` (case-
+  and whitespace-insensitive phrase match). Wire it in three places: (1) `doNotRelay` joins the
+  `allowed` array of the PATCH `/entities/:domain` handler in `backend/src/routes/dashboard.js`,
+  passed through `sanitizeList`; (2) in `backend/src/services/claude.js` `buildSystemPrompt`, when
+  the list is non-empty append one clause to the existing `handoffModeInstruction` string naming
+  the topics and telling Leo to decline warmly ("that's not something the team can help with here,
+  but here's what I can do") and NOT append `[HANDOFF_REQUESTED]` for them — it already reaches the
+  prompt via `[HANDOFF_MODE_INSTRUCTION]`, so `prompts/leo-system-prompt.md` is not edited; (3) as
+  a safety net, `buildQuestionBlock`/`sendHandoffNotification` in
+  `backend/src/services/notifications.js` omit matched pending questions from the SMS/email body
+  (the alert still sends). Dashboard: a "Don't relay" card in `Settings.vue` (chip-style
+  `v-combobox` bound to `form.doNotRelay`, saved by the existing `save()`), and in
+  `ConversationDetail.vue` a small "Don't relay this type" button beside each pending question that
+  reads the current list via `getStats(domain)` (it returns the entity), appends the question text
+  and PATCHes with `updateEntity`. `routes/chat.js` diff must be zero lines.
+  Out of scope: the tolerance slider, aggressive-user handling, suggested auto-denial phrasing, any
+  prompt-file edit, retroactively cancelling handoffs already pending.
+  *Verify:* `backend/test/do-not-relay.test.js` under `node --test`: matcher (case, whitespace,
+  no-match, empty list), `sanitizeList` (cap, dedupe, non-strings dropped), and the PATCH allowlist
+  driven through the real dashboard router over `mongodb-memory-server` (the `kb-search.test.js`
+  router-over-http harness shape): an owner can set it, an unlisted field is still ignored.
+  `node backend/src/scripts/verify-prompt.js` still passes; `cd dashboard && yarn build && yarn test`.
+
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
+
+- [ ] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
+  In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
+  (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
+  the `trailingOverlap` tail, so a section over `CHUNK_MAX` whose last unit is short ends in a chunk
+  whose only new body is that unit. Known symptom: staff bio pages produce a micro-chunk holding an
+  email address (overlap + `jane@example.org`). At the two trailing flushes (end of
+  `splitOversizedSection`, and the final `flushMergeBuf()`), when the body about to be pushed —
+  after the `[Source]`/`[H1]`/`[H2]` header and any overlap prefix — is under 200 chars and a chunk
+  for the same section already exists, append the new text to `chunks[chunks.length - 1].content`
+  instead of pushing, even if that overruns `CHUNK_TARGET`. `scraper.js` is restricted: ≤30 changed
+  lines; no change to `CHUNK_TARGET`/`CHUNK_MAX`/`CHUNK_OVERLAP`, `keepPara`, `buildHoursChunk` or
+  the group-chunk path.
+  *Verify:* `backend/test/chunk-trailing-merge.test.js` under `node --test` with an inline fixture:
+  one `[H2]` section of bio paragraphs over 1,800 chars ending in an email line. Red before (last
+  chunk's body under 200 chars, holding only the email), green after (email is inside the previous
+  chunk's content, no chunk body under 200 chars, `chunkIndex` still contiguous); show both states
+  in the PR body. `node backend/src/scripts/test-chunking.js` must stay byte-identical — its
+  fixtures have no oversized section, so any baseline movement means the change leaked.
 
 ## Block E — Chat path (gated on LEO-001)
 
@@ -107,14 +170,75 @@ gate re-run after each merge; any conflict the routine did not author aborts and
 Nothing here changes Leo's answers; it makes the public surface safe to point strangers at. Do
 this block first — it is what stands between pre-alpha and real visitor traffic.
 
+- [ ] **(LEO-049) Dependency refresh within existing semver ranges**
+  `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
+  (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
+  `yarn.lock` moves — no `package.json` edit, hence no major bump, and the `resolutions` block and
+  the `puppeteer` specifier (both denylisted) cannot change; `nixpacks.toml` untouched. If Yarn 1's
+  incremental-linking bug bites (LEO-002 hit it), delete that lockfile and regenerate in one
+  `yarn install` — still range-bounded. Record `yarn audit --level high` totals before and after
+  for each package in the PR body; the count must drop (Yarn 1 exits non-zero whenever any advisory
+  remains, so read the summary, do not gate on exit 0). Lockfile diff gate: a modified
+  `package.json` requires a modified `yarn.lock` in the same commit — here neither `package.json`
+  changes, and `yarn install --frozen-lockfile` must pass afterwards in both packages (it is what
+  CI and Railway run).
+  Out of scope: major upgrades, `widget/` (separate, tiny lockfile), the exact `pdf-parse 1.1.1`
+  and `socket.io-parser 4.2.6` pins.
+  *Verify:* `cd backend && yarn install --frozen-lockfile && yarn verify && yarn test`;
+  `cd dashboard && yarn install --frozen-lockfile && yarn build && yarn test`; `node widget/smoke.mjs`;
+  `node backend/src/scripts/verify-prompt.js`. Post-deploy smoke as in the runbook — a transitive
+  bump that only breaks under Railway's node 20 shows up there, not locally.
+
 ## Block I — RAG quality (measurable, honest)
 
 ## Block J — Owner value (prove it's working)
+
+- [ ] **(LEO-050) Alpha usage report — per entity per day: messages, model split, estimated cost**
+  `docs/pricing-strategy.md` says Infinity pricing waits on "alpha usage data" and nothing captures
+  it: `GET /entities/:domain/model-stats` in `backend/src/routes/dashboard.js` is one entity, one
+  summary row, no days, no cost. Add `GET /api/admin/usage-report?from=YYYY-MM-DD&to=YYYY-MM-DD` to
+  `backend/src/routes/admin.js` (behind the existing `requireAdminAuth`; ≤92 days, default last
+  30): one `Conversation.aggregate` over `messages` with `isTest: { $ne: true }`, grouped by
+  `domain` + `$dateToString` day, counting assistant messages by the stored `model` (the
+  haiku/sonnet regex model-stats uses) and by `classifierRoute`, plus user messages. Pure shaping in
+  a new `backend/src/services/usageReport.js`: `shapeUsageRows(rows, { from, to })` returns dense
+  rows per entity per day and per-entity totals, with `estimatedCostUsd` from an exported `RATES`
+  table — Sonnet $0.011/message (the doc's "The math" figure); Haiku from the same ~3,000-in/200-out
+  token profile at the Haiku list price — labelled estimates, not a pricing decision. Dashboard: new
+  superadmin view `dashboard/src/views/UsageReport.vue` at `/usage-report` (route in `main.js` with
+  `meta.superadmin`, entry in `App.vue`'s `adminPaths` and admin nav, `getUsageReport` in
+  `lib/api.js`): two date inputs, a `v-data-table` of entity × day with a totals row.
+  Out of scope: token-level accounting, Voyage/embedding cost, changing any price, CSV export, any
+  owner-facing surface, emailing the report.
+  *Verify:* `backend/test/usage-report.test.js` under `node --test`: `shapeUsageRows` on fixtures
+  (empty range → zero rows, sparse days zero-filled, cost = count × rate per model, isTest rows
+  absent) the way `analytics.test.js` does, plus the route over `mongodb-memory-server` with seeded
+  conversations across two entities and three days (the `kb-search.test.js` harness shape);
+  `cd dashboard && yarn build && yarn test`.
 
 
 
 ## Block K — Privacy & trust (dignity-first)
 
+
+## Proposed
+
+## Block L — Backlog upkeep
+
+- [ ] **(LEO-051) Backlog audit: file new candidates under Proposed**
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 (the `<orchestrator>` path is the
+  one this runbook names for `diff-policy`), and `node ops/leo-nightly/build-state.js` still parses the file.
 
 ## Blocked Items
 
