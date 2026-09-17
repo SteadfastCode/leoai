@@ -84,24 +84,6 @@ Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
 ## Block D — Ingest and retrieval (no visitor-facing behavior change)
 
-- [x] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
-  In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
-  (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
-  the `trailingOverlap` tail, so a section over `CHUNK_MAX` whose last unit is short ends in a chunk
-  whose only new body is that unit. Known symptom: staff bio pages produce a micro-chunk holding an
-  email address (overlap + `jane@example.org`). At the two trailing flushes (end of
-  `splitOversizedSection`, and the final `flushMergeBuf()`), when the body about to be pushed —
-  after the `[Source]`/`[H1]`/`[H2]` header and any overlap prefix — is under 200 chars and a chunk
-  for the same section already exists, append the new text to `chunks[chunks.length - 1].content`
-  instead of pushing, even if that overruns `CHUNK_TARGET`. `scraper.js` is restricted: ≤30 changed
-  lines; no change to `CHUNK_TARGET`/`CHUNK_MAX`/`CHUNK_OVERLAP`, `keepPara`, `buildHoursChunk` or
-  the group-chunk path.
-  *Verify:* `backend/test/chunk-trailing-merge.test.js` under `node --test` with an inline fixture:
-  one `[H2]` section of bio paragraphs over 1,800 chars ending in an email line. Red before (last
-  chunk's body under 200 chars, holding only the email), green after (email is inside the previous
-  chunk's content, no chunk body under 200 chars, `chunkIndex` still contiguous); show both states
-  in the PR body. `node backend/src/scripts/test-chunking.js` must stay byte-identical — its
-  fixtures have no oversized section, so any baseline movement means the change leaked.
 
 ## Block E — Chat path (gated on LEO-001)
 
@@ -201,6 +183,24 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Blocked Items
 
+- [ ] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one** — blocked: baseline-failed (attempt 2): production POST /chat -> 500 against smoke.leo-ai.chat, probes 11:12:00Z (0.59s) and 11:12:
+  In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
+  (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
+  the `trailingOverlap` tail, so a section over `CHUNK_MAX` whose last unit is short ends in a chunk
+  whose only new body is that unit. Known symptom: staff bio pages produce a micro-chunk holding an
+  email address (overlap + `jane@example.org`). At the two trailing flushes (end of
+  `splitOversizedSection`, and the final `flushMergeBuf()`), when the body about to be pushed —
+  after the `[Source]`/`[H1]`/`[H2]` header and any overlap prefix — is under 200 chars and a chunk
+  for the same section already exists, append the new text to `chunks[chunks.length - 1].content`
+  instead of pushing, even if that overruns `CHUNK_TARGET`. `scraper.js` is restricted: ≤30 changed
+  lines; no change to `CHUNK_TARGET`/`CHUNK_MAX`/`CHUNK_OVERLAP`, `keepPara`, `buildHoursChunk` or
+  the group-chunk path.
+  *Verify:* `backend/test/chunk-trailing-merge.test.js` under `node --test` with an inline fixture:
+  one `[H2]` section of bio paragraphs over 1,800 chars ending in an email line. Red before (last
+  chunk's body under 200 chars, holding only the email), green after (email is inside the previous
+  chunk's content, no chunk body under 200 chars, `chunkIndex` still contiguous); show both states
+  in the PR body. `node backend/src/scripts/test-chunking.js` must stay byte-identical — its
+  fixtures have no oversized section, so any baseline movement means the change leaked.
 - [ ] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list** — blocked: baseline-failed (attempt 2): production POST /chat -> 500 against smoke.leo-ai.chat, two probes 05:18:42Z (0.48s) and 05
   Owners cannot stop Leo forwarding question types they will never answer (competitor comparisons,
   salary questions). Add `doNotRelay: { type: [String], default: [] }` to
