@@ -68,18 +68,18 @@
     "LEO-046": {
       "order": 5,
       "title": "Page Explorer: router-synced renderer/priority filters + testable filter logic",
-      "status": "claimed",
+      "status": "blocked",
       "attempts": 2,
       "cluster": null,
-      "branch": "routine/item/LEO-046",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-09-17T05:11:12.201Z",
-      "runId": "2026-09-17T05:07:35.975Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-047": {
       "order": 6,

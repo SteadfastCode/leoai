@@ -78,20 +78,6 @@ also safe by construction: a bug here cannot reach production.
 
 Nothing here is on the visitor path. A bug reaches Daniel, not a site visitor.
 
-- [x] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
-  `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
-  is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
-  only `domain` and `search` round-trip through the router query; `rendererFilter` and
-  `priorityFilter` reset to `all` on reload and the filtering is inline in a `computed`. Extract
-  `filterPages(pages, { search, renderer, priority })` plus a `parseFilterQuery`/`toFilterQuery`
-  pair (emit only non-default keys) into `dashboard/src/lib/pageFilters.js`, following
-  `lib/entityFilters.js`; initialise both toggles from `route.query` and `router.replace` on change
-  the way `urlFilter` already does. No backend change; `GET /scrape/pages` is untouched.
-  Out of scope: date-range and chunk-count-range filters, the snapshot tab, server-side filtering,
-  moving the view under Admin → Crawls.
-  *Verify:* `dashboard/test/pageFilters.spec.js` (vitest, no Vuetify mount) covers search, renderer
-  and priority alone and combined, defaults emitting no query keys, and an unknown query value
-  falling back to `all`; `cd dashboard && yarn build && yarn test`.
 
 ## Block C — Owner-facing backend correctness (off the visitor path)
 
@@ -242,6 +228,20 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Blocked Items
 
+- [ ] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic** — blocked: baseline-failed (attempt 2): item BUILT, verified, and parked, not merged. Production POST /chat -> 500 against smoke.le
+  `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
+  is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
+  only `domain` and `search` round-trip through the router query; `rendererFilter` and
+  `priorityFilter` reset to `all` on reload and the filtering is inline in a `computed`. Extract
+  `filterPages(pages, { search, renderer, priority })` plus a `parseFilterQuery`/`toFilterQuery`
+  pair (emit only non-default keys) into `dashboard/src/lib/pageFilters.js`, following
+  `lib/entityFilters.js`; initialise both toggles from `route.query` and `router.replace` on change
+  the way `urlFilter` already does. No backend change; `GET /scrape/pages` is untouched.
+  Out of scope: date-range and chunk-count-range filters, the snapshot tab, server-side filtering,
+  moving the view under Admin → Crawls.
+  *Verify:* `dashboard/test/pageFilters.spec.js` (vitest, no Vuetify mount) covers search, renderer
+  and priority alone and combined, defaults emitting no query keys, and an unknown query value
+  falling back to `all`; `cd dashboard && yarn build && yarn test`.
 - [ ] **(LEO-043) Visitor "forget me" + conversation retention** — blocked: baseline-failed (day 22) — attempt 2; item is BUILT and parked, zero new code work this run. Production POST /chat -> 50
   No way today for a visitor to erase their history, and anonymous conversations live forever. Add
   `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
