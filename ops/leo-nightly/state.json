@@ -72,10 +72,10 @@
     "LEO-050": {
       "order": 5,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
-      "status": "claimed",
+      "status": "blocked",
       "attempts": 2,
       "cluster": null,
-      "branch": "routine/item/LEO-050",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -83,8 +83,8 @@
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-09-17T18:14:23.769Z",
-      "runId": "2026-09-17T18:11:35.963Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-051": {
       "order": 6,
