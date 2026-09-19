@@ -1,0 +1,51 @@
+{
+  "item": "LEO-051",
+  "repo": "leoai",
+  "mergeSha": "d7cd5fc1e83a375adc1729e15912f0b3f0299b4a",
+  "completedAtUtc": "2026-09-17T18:27:22.637Z",
+  "completeRunId": "2026-09-17T18:11:35.963Z",
+  "reviewRunId": "2026-09-19T07:00:39.935Z",
+  "reviewedAtUtc": "2026-09-19T07:33:31.723Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v4",
+  "diffBytes": 12233,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": null,
+      "bytes": 12233,
+      "contextBytes": 0,
+      "promptTokens": 4070,
+      "completionTokens": 312,
+      "latencyMs": 26542,
+      "findings": 3,
+      "critiqued": 3,
+      "dropped": 2,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 30,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Rate limiting is not applied to auth endpoints.",
+      "scenario": "An unauthenticated caller can grind passwords, reset tokens, and invite tokens at full speed without any rate limiting.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The finding cites that the auth endpoints lack rate limiting, which aligns with the description in the diff where it states 'the limiter already exists — LEO-034 left `createRateLimiter(limits)`, `decide()` and `clientIp(req)` exported and unit-tested in `backend/src/services/rateLimit.js`. Add an `AUTH_LIMITS` preset there and apply a guard to `POST /login`, `/forgot-password`, `/reset-password`, `/invite/:token/accept` and `/passkey/login-verify`.'"
+      }
+    }
+  ],
+  "summary": "Three high and medium severity issues found in the diff. Rate limiting is not applied to auth endpoints, upstream provider failures are not classified or surfaced, and pages that failed to fetch are not recorded or shown to the owner.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 16117,
+    "completionTokens": 551
+  },
+  "latencyMs": 51251
+}
