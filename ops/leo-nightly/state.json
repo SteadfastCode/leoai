@@ -69,8 +69,25 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-052": {
+    "LEO-058": {
       "order": 5,
+      "title": "The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-052": {
+      "order": 6,
       "title": "Brute-force protection on the auth endpoints",
       "status": "pending",
       "attempts": 0,
@@ -87,7 +104,7 @@
       "lastFail": null
     },
     "LEO-053": {
-      "order": 6,
+      "order": 7,
       "title": "Widget accessibility: live region, Escape-to-close, focus return",
       "status": "pending",
       "attempts": 0,
@@ -104,7 +121,7 @@
       "lastFail": null
     },
     "LEO-054": {
-      "order": 7,
+      "order": 8,
       "title": "Classify and surface upstream provider failures",
       "status": "pending",
       "attempts": 0,
@@ -121,7 +138,7 @@
       "lastFail": null
     },
     "LEO-055": {
-      "order": 8,
+      "order": 9,
       "title": "rag-eval: threshold sweep over the committed question set",
       "status": "pending",
       "attempts": 0,
@@ -138,7 +155,7 @@
       "lastFail": null
     },
     "LEO-056": {
-      "order": 9,
+      "order": 10,
       "title": "Record pages that failed to fetch, and show the owner",
       "status": "pending",
       "attempts": 0,
@@ -152,23 +169,6 @@
       "notBefore": null,
       "claimedAtUtc": null,
       "runId": null,
-      "lastFail": null
-    },
-    "LEO-051": {
-      "order": 10,
-      "title": "Backlog audit: file new candidates under Proposed",
-      "status": "done",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "routine/item/LEO-051",
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": "2026-09-17T18:16:31.253Z",
-      "runId": "2026-09-17T18:11:35.963Z",
       "lastFail": null
     },
     "LEO-057": {
@@ -323,6 +323,23 @@
       "claimedAtUtc": "2026-09-09T14:18:23.478Z",
       "runId": null,
       "lastFail": "failed"
+    },
+    "LEO-051": {
+      "order": null,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-051",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-09-17T18:16:31.253Z",
+      "runId": "2026-09-17T18:11:35.963Z",
+      "lastFail": null
     },
     "LEO-041": {
       "order": null,

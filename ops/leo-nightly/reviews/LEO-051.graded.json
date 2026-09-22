@@ -1,0 +1,51 @@
+{
+  "item": "LEO-051",
+  "repo": "leoai",
+  "mergeSha": "d7cd5fc1e83a375adc1729e15912f0b3f0299b4a",
+  "localPromptVersion": "v4",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-09-22T04:07:45.580Z",
+  "gradedAtUtc": "2026-09-22T04:32:29.399Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 257,
+      "severity": "medium",
+      "summary": "The renewed upkeep item (LEO-057) keeps naming `node ops/leo-nightly/build-state.js` as its verify step, but that script's parser has drifted from the schema the orchestrator actually writes: it emits no `title`/`needsHuman`/`proposed`/`notBefore` fields and carries forward only status/attempts/branch/claim fields from the prior state (ops/leo-nightly/build-state.js:38-100). It also parses every `- [ ] **(LEO-nnn)` line outside `## Completed Items`, so the five new Proposed items are parsed as ordinary pending items at order 5-9. Running the documented command therefore rewrites ops/leo-nightly/state.json with `needsHuman: true` and `notBefore: \"2026-09-24\"` dropped, and the routine would be free to unattendedly claim LEO-052 (auth brute-force hardening) — the exact item the diff's own header note promises is \"skipped by selection until Daniel promotes it\"."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 139,
+      "severity": "low",
+      "summary": "LEO-053 specifies adding `aria-modal=\"true\"` to `#leo-drawer` while explicitly putting \"a full focus trap\" out of scope. `aria-modal=\"true\"` makes assistive tech treat everything outside the dialog as inert, but the widget drawer is a non-modal panel embedded on arbitrary customer sites and the page stays fully interactive; without a focus trap a keyboard/screen-reader user can tab out of the drawer into host-page content their screen reader now ignores, which is a worse state than the current markup the item is meant to improve."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The diff touches only FEATURES.md and does not modify backend/src/routes/auth.js; the missing auth rate limiting is real in the codebase but is precisely the gap this change files as proposed item LEO-052, so the model reported the item's own problem statement as a defect in the change."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review did not review the change at all — it restated the body of one newly filed backlog item as a live defect, and missed the state-file gating hazard and the aria-modal/focus-trap contradiction in the specs actually being added.",
+  "counts": {
+    "findings": 1,
+    "confirmed": 0,
+    "falsePositive": 1,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2
+  },
+  "costUsd": 1.5170200000000003,
+  "numTurns": 31,
+  "durationMs": 190823,
+  "sessionId": "3fb64a38-217b-4f8f-b06a-89844d7daa1d"
+}
