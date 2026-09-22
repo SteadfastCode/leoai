@@ -233,7 +233,10 @@ actual model on `claim` events, and the governor disables itself with a notifica
 provably don't take effect. Snaps and governor are best-effort telemetry — never a gate.
 
 - **Queue:** `FEATURES.md` (human-readable) + `ops/leo-nightly/state.json` (machine state).
-  Regenerate state with `node ops/leo-nightly/build-state.js` after editing the queue.
+  Regenerate state with `orchestrator build-state leoai` after editing the queue. The in-repo
+  `ops/leo-nightly/build-state.js` is superseded and must not be run — its parser predates the
+  `title`/`needsHuman`/`proposed`/`notBefore` fields and silently drops them, unparking items
+  Daniel has held back.
 - **Backpressure:** halts after 14 completed-but-unacknowledged items. Release with
   `git tag -f -a leo-nightly-ack -m ack origin/main && git push -f origin leo-nightly-ack`.
   The routine may never touch that tag — see [`ops/leo-nightly/README.md`](ops/leo-nightly/README.md).
