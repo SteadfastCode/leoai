@@ -124,7 +124,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
-- [ ] **(LEO-058) The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…**
+- [x] **(LEO-058) The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…**
   Found by the grader of LEO-051 (medium, FEATURES.md:257). The renewed upkeep item (LEO-057)
   keeps naming `node ops/leo-nightly/build-state.js` as its verify step, but that script's parser
   has drifted from the schema the orchestrator actually writes: it emits no

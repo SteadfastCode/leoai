@@ -72,18 +72,18 @@
     "LEO-058": {
       "order": 5,
       "title": "The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-058",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-09-22T05:11:52.712Z",
+      "runId": "2026-09-22T04:07:35.980Z",
       "lastFail": null
     },
     "LEO-052": {
