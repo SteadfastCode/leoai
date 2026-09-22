@@ -1,0 +1,52 @@
+{
+  "item": "LEO-058",
+  "repo": "leoai",
+  "mergeSha": "4fe2299cb3f3cba8114ec172fbe5b65050f359b8",
+  "completedAtUtc": "2026-09-22T05:18:21.100Z",
+  "completeRunId": "2026-09-22T04:07:35.980Z",
+  "reviewRunId": "2026-09-22T07:02:39.843Z",
+  "reviewedAtUtc": "2026-09-22T07:09:32.043Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v4",
+  "diffBytes": 4516,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "CLAUDE.md",
+        "FEATURES.md"
+      ],
+      "part": null,
+      "bytes": 4516,
+      "contextBytes": 0,
+      "promptTokens": 1941,
+      "completionTokens": 207,
+      "latencyMs": 15044,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "CLAUDE.md",
+      "line": 240,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "`node ops/leo-nightly/build-state.js` is marked as superseded and must not be run, but it is still mentioned in the verify step.",
+      "scenario": "A developer runs `node ops/leo-nightly/build-state.js` as part of the verify step, which rewrites `ops/leo-nightly/state.json` without the required fields (`title`, `needsHuman`, `proposed`, `notBefore`), unparking items that should be held back.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "`node ops/leo-nightly/build-state.js` is marked as superseded and must not be run, but it is still mentioned in the verify step."
+      }
+    }
+  ],
+  "summary": "The diff updates documentation to mark `node ops/leo-nightly/build-state.js` as superseded and must not be run, but it is still mentioned in the verify step. This could lead to incorrect state management and unattended claiming of items.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 3885,
+    "completionTokens": 254
+  },
+  "latencyMs": 22605
+}
