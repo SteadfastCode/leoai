@@ -133,18 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
-- [x] **(LEO-058) The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…**
-  Found by the grader of LEO-051 (medium, FEATURES.md:257). The renewed upkeep item (LEO-057)
-  keeps naming `node ops/leo-nightly/build-state.js` as its verify step, but that script's parser
-  has drifted from the schema the orchestrator actually writes: it emits no
-  `title`/`needsHuman`/`proposed`/`notBefore` fields and carries forward only
-  status/attempts/branch/claim fields from the prior state
-  (ops/leo-nightly/build-state.js:38-100). It also parses every `- [ ] **(LEO-nnn)` line outside
-  `## Completed Items`, so the five new Proposed items are parsed as ordinary pending items at
-  order 5-9. Running the documented command therefore rewrites ops/leo-nightly/state.json with
-  `needsHuman: true` and `notBefore: "2026-09-24"` dropped, and the routine would be free to
-  unattendedly claim LEO-052 (auth brute-force hardening) — the exact item the diff's own header
-  note promises is "skipped by selection until Daniel promotes it".
 *Filed by the backlog audit (LEO-051). Every item here is skipped by selection until Daniel
 promotes it by deleting the `[needs-human]` tag and moving the block into a work block.*
 
@@ -410,6 +398,18 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-058) The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…** (routine 2026-09-22, 4fe2299)
+  Found by the grader of LEO-051 (medium, FEATURES.md:257). The renewed upkeep item (LEO-057)
+  keeps naming `node ops/leo-nightly/build-state.js` as its verify step, but that script's parser
+  has drifted from the schema the orchestrator actually writes: it emits no
+  `title`/`needsHuman`/`proposed`/`notBefore` fields and carries forward only
+  status/attempts/branch/claim fields from the prior state
+  (ops/leo-nightly/build-state.js:38-100). It also parses every `- [ ] **(LEO-nnn)` line outside
+  `## Completed Items`, so the five new Proposed items are parsed as ordinary pending items at
+  order 5-9. Running the documented command therefore rewrites ops/leo-nightly/state.json with
+  `needsHuman: true` and `notBefore: "2026-09-24"` dropped, and the routine would be free to
+  unattendedly claim LEO-052 (auth brute-force hardening) — the exact item the diff's own header
+  note promises is "skipped by selection until Daniel promotes it".
 - [x] **(LEO-051) Backlog audit: file new candidates under Proposed** (routine 2026-09-17, d7cd5fc)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
