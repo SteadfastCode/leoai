@@ -133,6 +133,18 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
+- [ ] **(LEO-059) The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…** [needs-human]
+  Found by the grader of LEO-058 (medium, ops/leo-nightly/README.md:64). The fix missed
+  `ops/leo-nightly/README.md`, which still documents the superseded script as the way to
+  regenerate state: the file table (line 10) says `build-state.js` | Daniel | "Regenerates
+  state.json from FEATURES.md, preserving run history. Run after editing the queue", and the
+  "Editing the queue" section (lines 59-65) gives `node ops/leo-nightly/build-state.js` as the
+  literal command to run after editing FEATURES.md. CLAUDE.md's leo-nightly section links readers
+  to exactly this README, so the item's stated goal ('stop pointing the queue at the superseded
+  build-state.js') is only half met — anyone following the README still rewrites state.json with
+  `needsHuman`/`notBefore`/`proposed`/`title` dropped, unparking LEO-052 and the other five
+  `[needs-human]` Proposed items. Its fix is in a path routine runs may not change, so it waits
+  for an interactive session.
 *Filed by the backlog audit (LEO-051). Every item here is skipped by selection until Daniel
 promotes it by deleting the `[needs-human]` tag and moving the block into a work block.*
 

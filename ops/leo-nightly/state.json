@@ -69,21 +69,21 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-058": {
+    "LEO-059": {
       "order": 5,
-      "title": "The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…",
-      "status": "done",
-      "attempts": 1,
+      "title": "The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…",
+      "status": "pending",
+      "attempts": 0,
       "cluster": null,
-      "branch": "routine/item/LEO-058",
+      "branch": null,
       "dependsOn": [],
-      "needsHuman": false,
+      "needsHuman": true,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": "2026-09-22T05:11:52.712Z",
-      "runId": "2026-09-22T04:07:35.980Z",
+      "claimedAtUtc": null,
+      "runId": null,
       "lastFail": null
     },
     "LEO-052": {
@@ -323,6 +323,23 @@
       "claimedAtUtc": "2026-09-09T14:18:23.478Z",
       "runId": null,
       "lastFail": "failed"
+    },
+    "LEO-058": {
+      "order": null,
+      "title": "The renewed upkeep item (LEO-057) keeps naming node ops/leo-nightly/build-state.js as its verify…",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-058",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-09-22T05:11:52.712Z",
+      "runId": "2026-09-22T04:07:35.980Z",
+      "lastFail": null
     },
     "LEO-051": {
       "order": null,
