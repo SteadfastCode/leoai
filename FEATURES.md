@@ -258,10 +258,182 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
   populate the new field.
 
+- [ ] **(LEO-060) LeoScan the scrape path — report only, never block** [needs-human]
+  LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
+  header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
+  during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
+  rationale rules out *blocking*, not *reporting* — and the wishlist's own framing is that finding it
+  is the feature. Today a password or API key on a scraped page is embedded and answerable, with
+  nothing anywhere saying so. Run the existing rule set over scraped chunks as they are persisted,
+  record **rule names only, never the matched text**, and never skip, alter, reorder or delete a
+  chunk. Shaping in a new `backend/src/services/scanSweep.js`: `sweepChunks(chunks)` →
+  `[{ url, rules: [String] }]`, deduped per URL, crediting every entry in a group chunk's
+  `sourceUrls`. Call it from the two persistence sites — `onChunks` in `backend/src/routes/scrape.js`
+  (full/force) and `persistRescrapeResult` in `backend/src/services/scrapePersist.js` (rescrape and
+  LeoRefresh) — and store an optional `scanRules: [String]` (no `required`, no `unique`, default
+  `[]`) on `ScrapedPage`, so a page that stops tripping clears itself on the next crawl. Surface as a
+  warning chip plus filter in `dashboard/src/views/PageExplorer.vue`, beside the existing "V" variant
+  chip. Tiered logging: at light tier one line per scrape naming how many URLs tripped and which
+  rules fired — never the matched text, never a line per chunk.
+  Files: new `backend/src/services/scanSweep.js`, `backend/src/routes/scrape.js`,
+  `backend/src/services/scrapePersist.js`, `backend/src/models/ScrapedPage.js`,
+  `dashboard/src/views/PageExplorer.vue`, `backend/test/scan-sweep.test.js`.
+  `backend/src/services/scraper.js` must have a **zero-line diff** — the sweep runs at persistence,
+  not during the crawl.
+  *Verify:* `node --test` on `sweepChunks` with inline fixtures — clean chunks yield nothing, a chunk
+  containing a labelled password yields its URL and the rule name, a group chunk credits all three of
+  its `sourceUrls`, and the serialized result contains none of the matched secret text; plus the
+  committed `backend/test/fixtures/leoscan-negative-corpus.json` sweeping to zero findings (it is the
+  28-chunk real-world negative corpus LEO-021 validated against). Extend
+  `backend/test/scrape-persist.test.js` to assert chunk count and chunk content are identical with and
+  without a flagged chunk in the batch — the sweep must be provably inert. `cd backend && yarn verify
+  && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: blocking, dropping or redacting any chunk; the wishlist's Haiku semantic pass;
+  notifying the owner by email or SMS; a dismiss/acknowledge workflow; new detection rules (the
+  LEO-021 set is used as-is); and scraping any real entity.
+
+- [ ] **(LEO-061) Record where a visitor's message actually came from** [needs-human]
+  `POST /chat` trusts `domain` from the request body and reads nothing else: `routes/chat.js:33`
+  destructures it and looks the entity up from it. No `Origin` or `Referer` is read anywhere under
+  `backend/src` — the only `expectedOrigin` hits are WebAuthn's. So anyone can post any domain from
+  anywhere: it counts against that entity's quota, lands in its dashboard as a real conversation, and
+  can trip its handoff SMS. The wildcard CORS is deliberate (the widget is embedded on arbitrary
+  customer domains) so the answer is not a CORS change; it is knowing where requests come from before
+  anything is enforced. Block H is empty and this is its cheapest first slice — observe first,
+  because nobody yet knows what real embed origins look like (apex vs `www.`, staging hosts, Square
+  and Wix shop subdomains). Build a pure `classifyOrigin(originHeader, domain)` in a new
+  `backend/src/services/originCheck.js` → `{ host, match: 'exact' | 'subdomain' | 'foreign' |
+  'absent' }`: host compared case-insensitively with port and path stripped, a leading `www.` treated
+  as exact, a subdomain of the entity domain as `subdomain`, and a missing or unparseable header as
+  `absent` (never an error). Store `origin: { host, match }` on the Conversation as **optional fields
+  only**, written once when the conversation is created so an established session is never rewritten.
+  Surface a chip on non-`exact`/`subdomain` rows in `dashboard/src/views/Conversations.vue`. Nothing
+  is rejected and no limit changes. Tiered logging: at light tier log only the first `foreign` origin
+  seen per domain per process, naming the host and the entity domain it claimed.
+  Files: new `backend/src/services/originCheck.js`, `backend/src/routes/chat.js` (**restricted — ≤30
+  changed lines; do not touch the quota block, the handoff atomic test-and-set or
+  `conversation.save()`**; expect about four lines), `backend/src/models/Conversation.js`,
+  `dashboard/src/views/Conversations.vue`, `backend/test/origin-check.test.js`.
+  *Verify:* `node --test` on `classifyOrigin` — exact match, `www.` prefix, a true subdomain, a
+  foreign host, an explicit port, an uppercase host, a missing header, a malformed string, and `null`
+  (must return `absent`, never throw); then the existing `backend/test/chat-flow.test.js` harness
+  extended to assert a request with no Origin still returns 200 and stores `origin.match === 'absent'`,
+  and that a second turn on the same session does not rewrite the stored value. `cd backend && yarn
+  verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: rejecting, throttling or flagging traffic on origin; any CORS change;
+  `backend/index.js` (denylisted); an allowlist field on Entity; backfilling existing conversations;
+  and a `Referer` fallback.
+
+- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** [needs-human]
+  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
+  against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
+  { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
+  `runValidators: true` is passed, and it is not — so every `min`/`max` on the Entity model is
+  decorative on the one path owners actually write through. `leoRefreshHour: 99` (model says
+  `min: 0, max: 23`) is stored, and `isDueNow` in `services/leoRefresh.js:21` compares it against a
+  real UTC hour, so that entity silently never refreshes again. `ragThreshold: 5` (superadmin field,
+  `min: 0.5, max: 0.95`) is stored and empties every retrieval. `dailyVolumeAlert: -1` alerts on the
+  first message of every day. `quotaWarningThresholds` has no schema bound at all. A non-numeric value
+  takes the other route — a CastError caught by the handler and returned as a 500 carrying the raw
+  driver message. Add a pure `validateEntityUpdates(body, { isSuperAdmin })` in a new
+  `backend/src/services/entitySettings.js` returning `{ updates, rejected: [{ field, reason }] }`,
+  with the bounds declared in one table mirroring the model: hours 0-23, `dayOfWeek` 0-6,
+  `ragThreshold` 0.5-0.95, `lowConfidenceBand` 0-0.2, `dailyVolumeAlert` and `staleDays` ≥ 0,
+  `quotaWarningThresholds` 1-99 and ascending, `quotaAlertChannels` ⊆ {email, sms},
+  `leoRefreshFrequency` ∈ the model enum, booleans strictly boolean, strings trimmed and
+  length-capped. The route keeps its existing allowlist and superadmin split, calls the validator, and
+  returns 400 `{ error, rejected }` writing nothing when `rejected` is non-empty; `runValidators: true`
+  goes on the update call as a second line of defence. A body with no recognised field keeps today's
+  no-op behaviour.
+  Files: new `backend/src/services/entitySettings.js`, `backend/src/routes/dashboard.js`,
+  `dashboard/src/views/Settings.vue` (surface `rejected` through the existing `lib/notify.js` queue),
+  `backend/test/entity-settings.test.js`.
+  *Verify:* `node --test` on `validateEntityUpdates` — each bound accepted at its edge and rejected
+  just outside it, a string where a number belongs rejected rather than cast, an unknown field ignored
+  exactly as today, a superadmin-only field dropped for a non-superadmin, an empty body yielding empty
+  updates; plus the real dashboard router over `mongodb-memory-server` (the
+  `backend/test/kb-search.test.js` harness shape): the payload `Settings.vue` sends today still returns
+  the updated entity unchanged, while `leoRefreshHour: 99` returns 400 and leaves the stored value
+  untouched. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: the wholesale replacement of nested subdocuments on PATCH (`crawlSettings`,
+  `handoffFollowUp` and `unansweredDigest` are replaced, not merged — a separate change with its own
+  UI implications); which fields are on the `superadminOnly` list; `routes/billing.js` and
+  `routes/webhooks.js` (denylisted); adding any new settable field; and any edit to the Entity schema.
+
+- [ ] **(LEO-063) `CLAUDE.md` "Known Issues" is three-quarters stale** [needs-human]
+  Three of the four entries under `## Known Issues (Fix Before Ship)` describe problems that are
+  fixed, in the one file loaded into every session's context. (1) "No test suite … `backend/
+  package.json` has no `test` script … `.github/` does not exist": `backend/package.json` has
+  `test: node --test` over 27 files in `backend/test/`, the dashboard runs vitest, and
+  `.github/workflows/ci.yml` gates every PR on backend, dashboard and widget (LEO-001..003, LEO-005).
+  (2) "RAG misses 'what are your hours?'": diagnosed and fixed by LEO-018 (be2f083) —
+  `services/hoursChunk.js` emits a standalone Hours chunk, measured 0.7911 on the target query. The
+  part still true is that production knowledge bases stay stale until Daniel force-rescrapes, and that
+  sentence must survive the edit. (3) "`billing.js` uses a different superadmin check": fixed by hand
+  in LEO-044 (7f71bbe); `backend/src/routes/billing.js:26` now calls `isSuperAdmin(req.user)`. Only
+  the Dependabot entry is still accurate and it already has an owner (LEO-049). Rewrite the section so
+  each entry is either current or a one-line `closed by <item>, <commit>` note, and add the two
+  genuinely open issues surfaced since: the Anthropic credit-balance outage that has failed the
+  production chat smoke since 2026-08-20 (13 incident files under `ops/leo-nightly/`), and LEO-037's
+  retrieval finding (0/12 natural-phrasing hits at 0.75 across three entities).
+  This item is the **sanctioned exception** to the runbook's "do not edit `CLAUDE.md`'s Current State"
+  rule, and it covers the `## Known Issues` block only — Current State, Architecture and the
+  leo-nightly section are not touched.
+  Files: `CLAUDE.md`.
+  *Verify:* every claim removed is justified in the PR body by a commit sha and a `file:line` that
+  proves it. `cd backend && yarn verify && yarn test` and `cd dashboard && yarn build && yarn test`
+  must pass — they are the evidence for claim 1 — and `node <orchestrator> lint leoai --worktree`
+  exits 0.
+  Out of scope: the Dependabot entry (LEO-049 owns it), `docs/wishlist.md` (LEO-064), any Current
+  State tick, and fixing any of the issues themselves.
+
+- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** [needs-human]
+  FEATURES.md's own header says the wishlist "still contains full specs for features that already
+  shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
+  for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
+  named failure the standing backlog audit exists to prevent. At least ten wishlist sections are live:
+  Admin Console Log Viewer (`dashboard/src/views/Logs.vue`, LEO-011), Overview Usage Panel
+  Enhancements (`dashboard/src/components/UsagePanel.vue`), Tiered Model Routing (`classifyQuery` /
+  `selectModel` in `backend/src/services/claude.js`), Superadmin Impersonation (LEO-045,
+  `POST /api/admin/impersonate`), Staleness-Based Force Re-Embed (LEO-029, `crawlSettings.staleDays`),
+  Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
+  digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
+  (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
+  more are partial: LeoScan (LEO-021, manual ingest paths only) and Handoff Filtering (do-not-relay is
+  LEO-047). Add a one-line banner at the top of each — `> **Shipped <YYYY-MM-DD> — <item>,
+  <commit>.**` or `> **Partially shipped …**` naming what is still open and which item owns it — and
+  one sentence in the file header saying the banners are the truth about what is live while the prose
+  under them is design history. **Do not delete or rewrite the spec prose**: several open items still
+  refer to it.
+  Files: `docs/wishlist.md`.
+  *Verify:* every banner cites an id that appears under `## Completed Items` in FEATURES.md and names
+  a file that exists; quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and
+  one `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
+  exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
+  Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
+  re-prioritising anything, and marking as shipped anything that is only partly built (those get the
+  partial banner instead).
+
 ## Block L — Backlog upkeep
 
 
 - [x] **(LEO-057) Backlog audit: file new candidates under Proposed** [not-before: 2026-09-24]
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-065) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-01]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
