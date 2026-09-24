@@ -261,7 +261,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 ## Block L — Backlog upkeep
 
 
-- [ ] **(LEO-057) Backlog audit: file new candidates under Proposed** [not-before: 2026-09-24]
+- [x] **(LEO-057) Backlog audit: file new candidates under Proposed** [not-before: 2026-09-24]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
