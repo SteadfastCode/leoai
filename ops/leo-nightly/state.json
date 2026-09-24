@@ -171,10 +171,95 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-057": {
+    "LEO-060": {
       "order": 11,
+      "title": "LeoScan the scrape path — report only, never block",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": true,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-061": {
+      "order": 12,
+      "title": "Record where a visitor's message actually came from",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": true,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-062": {
+      "order": 13,
+      "title": "Validate entity settings on PATCH instead of storing whatever arrives",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": true,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-063": {
+      "order": 14,
+      "title": "`CLAUDE.md` \"Known Issues\" is three-quarters stale",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": true,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-064": {
+      "order": 15,
+      "title": "Mark what already shipped in `docs/wishlist.md`",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": true,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-057": {
+      "order": 16,
       "title": "Backlog audit: file new candidates under Proposed",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-057",
@@ -188,8 +273,25 @@
       "runId": "2026-09-24T10:07:18.916Z",
       "lastFail": null
     },
+    "LEO-065": {
+      "order": 17,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": "2026-10-01",
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
     "LEO-050": {
-      "order": 12,
+      "order": 18,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
       "status": "blocked",
       "attempts": 2,
@@ -206,7 +308,7 @@
       "lastFail": "failed"
     },
     "LEO-049": {
-      "order": 13,
+      "order": 19,
       "title": "Dependency refresh within existing semver ranges",
       "status": "blocked",
       "attempts": 2,
@@ -223,7 +325,7 @@
       "lastFail": "failed"
     },
     "LEO-048": {
-      "order": 14,
+      "order": 20,
       "title": "`chunkText`: merge a tiny trailing chunk into the previous one",
       "status": "blocked",
       "attempts": 2,
@@ -240,7 +342,7 @@
       "lastFail": "failed"
     },
     "LEO-047": {
-      "order": 15,
+      "order": 21,
       "title": "Handoff filtering, first slice: per-entity do-not-relay list",
       "status": "blocked",
       "attempts": 2,
@@ -257,7 +359,7 @@
       "lastFail": "failed"
     },
     "LEO-046": {
-      "order": 16,
+      "order": 22,
       "title": "Page Explorer: router-synced renderer/priority filters + testable filter logic",
       "status": "blocked",
       "attempts": 2,
@@ -274,7 +376,7 @@
       "lastFail": "failed"
     },
     "LEO-043": {
-      "order": 17,
+      "order": 23,
       "title": "Visitor \"forget me\" + conversation retention",
       "status": "blocked",
       "attempts": 2,
@@ -291,7 +393,7 @@
       "lastFail": "failed"
     },
     "LEO-042": {
-      "order": 18,
+      "order": 24,
       "title": "Weekly \"what Leo did\" owner digest — DEFAULT OFF",
       "status": "blocked",
       "attempts": 2,
@@ -308,7 +410,7 @@
       "lastFail": "failed"
     },
     "LEO-040": {
-      "order": 19,
+      "order": 25,
       "title": "In-dashboard \"Test your bot\" playground",
       "status": "blocked",
       "attempts": 2,
