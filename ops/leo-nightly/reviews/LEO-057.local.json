@@ -1,0 +1,78 @@
+{
+  "item": "LEO-057",
+  "repo": "leoai",
+  "mergeSha": "5b575f6dc7e37ec448748d342575ffa7379e225c",
+  "completedAtUtc": "2026-09-24T10:21:25.311Z",
+  "completeRunId": "2026-09-24T10:07:18.916Z",
+  "reviewRunId": "2026-09-25T07:01:48.510Z",
+  "reviewedAtUtc": "2026-09-25T07:09:10.569Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v4",
+  "diffBytes": 16435,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13957,
+      "contextBytes": 0,
+      "promptTokens": 4533,
+      "completionTokens": 1024,
+      "latencyMs": 64899,
+      "findings": 0,
+      "critiqued": 0,
+      "dropped": 0,
+      "error": "output truncated at 1024 tokens"
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 2683,
+      "contextBytes": 11248,
+      "promptTokens": 4590,
+      "completionTokens": 148,
+      "latencyMs": 19404,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "FEATURES.md",
+      "line": 435,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The new backlog audit item is incorrectly marked as completed.",
+      "scenario": "The new backlog audit item (LEO-065) is appended to the 'Block L' section with a '[not-before: 2026-10-01]' tag, but it should be marked as incomplete. This could lead to confusion and prevent the item from being executed as intended.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The new backlog audit item (LEO-065) is appended with a '[not-before: 2026-10-01]' tag, indicating it should not be executed before that date, which marks it as incomplete."
+      }
+    }
+  ],
+  "triage": null,
+  "summary": "One high-severity finding identified in FEATURES.md.",
+  "errors": [
+    "output truncated at 1024 tokens"
+  ],
+  "usage": {
+    "promptTokens": 13697,
+    "completionTokens": 1239
+  },
+  "latencyMs": 101147
+}
