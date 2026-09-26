@@ -72,7 +72,7 @@
     "LEO-066": {
       "order": 5,
       "title": "LEO-064's verify gate (\"every banner cites an id that appears under ## Completed Items\") contradi…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-066",

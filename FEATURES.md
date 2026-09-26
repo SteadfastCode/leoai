@@ -133,13 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
-- [x] **(LEO-066) LEO-064's verify gate ("every banner cites an id that appears under ## Completed Items") contradi…**
-  Found by the grader of LEO-057 (medium, FEATURES.md:409). LEO-064's verify gate ("every banner
-  cites an id that appears under `## Completed Items`") contradicts its own body: four of the
-  sections it names to banner — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL
-  Chunks, Owner Reply Flow — shipped pre-routine and have no LEO id at all, and the partial banner
-  it mandates for Handoff Filtering points at LEO-047, which sits under `## Blocked Items`, not
-  Completed, so a future run must either fabricate ids or fail the gate.
 - [ ] **(LEO-059) The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…** [needs-human]
   Found by the grader of LEO-058 (medium, ops/leo-nightly/README.md:64). The fix missed
   `ops/leo-nightly/README.md`, which still documents the superseded script as the way to
@@ -584,6 +577,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-066) LEO-064's verify gate ("every banner cites an id that appears under ## Completed Items") contradi…** (routine 2026-09-26, 5788ea6)
+  Found by the grader of LEO-057 (medium, FEATURES.md:409). LEO-064's verify gate ("every banner
+  cites an id that appears under `## Completed Items`") contradicts its own body: four of the
+  sections it names to banner — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL
+  Chunks, Owner Reply Flow — shipped pre-routine and have no LEO id at all, and the partial banner
+  it mandates for Handoff Filtering points at LEO-047, which sits under `## Blocked Items`, not
+  Completed, so a future run must either fabricate ids or fail the gate.
 - [x] **(LEO-057) Backlog audit: file new candidates under Proposed** [not-before: 2026-09-24] (routine 2026-09-24, 5b575f6)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
