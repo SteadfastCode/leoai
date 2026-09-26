@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Proposed
 
-- [ ] **(LEO-066) LEO-064's verify gate ("every banner cites an id that appears under ## Completed Items") contradi…**
+- [x] **(LEO-066) LEO-064's verify gate ("every banner cites an id that appears under ## Completed Items") contradi…**
   Found by the grader of LEO-057 (medium, FEATURES.md:409). LEO-064's verify gate ("every banner
   cites an id that appears under `## Completed Items`") contradicts its own body: four of the
   sections it names to banner — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL
