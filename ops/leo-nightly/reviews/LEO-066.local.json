@@ -1,0 +1,65 @@
+{
+  "item": "LEO-066",
+  "repo": "leoai",
+  "mergeSha": "5788ea666eaed3d85286302b8e85e05ee17bfb27",
+  "completedAtUtc": "2026-09-26T05:55:30.360Z",
+  "completeRunId": "2026-09-26T04:09:45.041Z",
+  "reviewRunId": "2026-09-26T07:01:39.483Z",
+  "reviewedAtUtc": "2026-09-26T07:04:51.637Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v4",
+  "diffBytes": 3705,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": null,
+      "bytes": 3705,
+      "contextBytes": 11037,
+      "promptTokens": 4567,
+      "completionTokens": 357,
+      "latencyMs": 30299,
+      "findings": 2,
+      "critiqued": 2,
+      "dropped": 0,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "FEATURES.md",
+      "line": 420,
+      "severity": "medium",
+      "confidence": 0.9,
+      "summary": "The verify gate contradicts its own body by requiring banners to cite LEO ids that appear under `## Completed Items`, but some sections shipped pre-routine and have no LEO id.",
+      "scenario": "A future run of the verify gate will fail because it cannot find LEO ids for sections like Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply Flow, and Multi-User Dashboard Roles & Auth, which shipped before the routine existed.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The verify gate requires banners to cite LEO ids that appear under `## Completed Items`, but some sections like Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply Flow, and Multi-User Dashboard Roles & Auth shipped before the routine existed and have no LEO id."
+      }
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 421,
+      "severity": "medium",
+      "confidence": 0.9,
+      "summary": "The verify gate contradicts its own body by requiring banners to cite LEO ids that appear under `## Completed Items`, but the partial banner for Handoff Filtering points at LEO-047, which sits under `## Blocked Items`.",
+      "scenario": "A future run of the verify gate will fail because it cannot find LEO-047 under `## Completed Items`, even though the partial banner mandates it.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The verify gate requires banners to cite LEO ids that appear under `## Completed Items`, but Handoff Filtering points at LEO-047, which is under `## Blocked Items`."
+      }
+    }
+  ],
+  "triage": null,
+  "summary": "The verify gate in FEATURES.md contradicts its own body by requiring banners to cite LEO ids that appear under `## Completed Items`, but some sections shipped pre-routine and have no LEO id, and the partial banner for Handoff Filtering points at LEO-047, which sits under `## Blocked Items`.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 13697,
+    "completionTokens": 492
+  },
+  "latencyMs": 51040
+}
