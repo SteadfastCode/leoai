@@ -1,0 +1,54 @@
+{
+  "item": "LEO-057",
+  "repo": "leoai",
+  "mergeSha": "5b575f6dc7e37ec448748d342575ffa7379e225c",
+  "localPromptVersion": "v4",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-09-26T04:09:54.505Z",
+  "gradedAtUtc": "2026-09-26T04:20:39.886Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 409,
+      "severity": "medium",
+      "summary": "LEO-064's verify gate (\"every banner cites an id that appears under `## Completed Items`\") contradicts its own body: four of the sections it names to banner — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply Flow — shipped pre-routine and have no LEO id at all, and the partial banner it mandates for Handoff Filtering points at LEO-047, which sits under `## Blocked Items`, not Completed, so a future run must either fabricate ids or fail the gate."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 377,
+      "severity": "low",
+      "summary": "LEO-063 cites \"13 incident files under `ops/leo-nightly/`\" as the evidence for the credit-balance outage, but the tree holds 12 (`incident-*.md`), only 10 of them dated on or after the claimed 2026-08-20 start — a wrong count that would be copied verbatim into CLAUDE.md."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The renewed block is written `- [ ] **(LEO-065) …** [not-before: 2026-10-01]` — an unchecked box with exactly the tag the runbook item mandates; nothing marks it completed (the `[x]` LEO-057 entry under Completed Items is the retired instance)."
+    }
+  ],
+  "triageGrades": [],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model produced a single finding that misreads an unchecked checkbox as completed, missing the two real internal inconsistencies in the filed items while the substantive work (all five candidates verified not-built, ids free, correct tags and +7-day renewal date) held up under checking.",
+  "counts": {
+    "findings": 1,
+    "confirmed": 0,
+    "falsePositive": 1,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 0,
+    "triageCorrect": 0
+  },
+  "costUsd": 1.9280784999999998,
+  "numTurns": 34,
+  "durationMs": 246247,
+  "sessionId": "67b46f2f-9dc9-41ea-bfa9-3be7a8ad7479"
+}

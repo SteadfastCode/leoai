@@ -69,8 +69,25 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-059": {
+    "LEO-066": {
       "order": 5,
+      "title": "LEO-064's verify gate (\"every banner cites an id that appears under ## Completed Items\") contradi…",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-059": {
+      "order": 6,
       "title": "The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…",
       "status": "pending",
       "attempts": 0,
@@ -87,7 +104,7 @@
       "lastFail": null
     },
     "LEO-052": {
-      "order": 6,
+      "order": 7,
       "title": "Brute-force protection on the auth endpoints",
       "status": "pending",
       "attempts": 0,
@@ -104,7 +121,7 @@
       "lastFail": null
     },
     "LEO-053": {
-      "order": 7,
+      "order": 8,
       "title": "Widget accessibility: live region, Escape-to-close, focus return",
       "status": "pending",
       "attempts": 0,
@@ -121,7 +138,7 @@
       "lastFail": null
     },
     "LEO-054": {
-      "order": 8,
+      "order": 9,
       "title": "Classify and surface upstream provider failures",
       "status": "pending",
       "attempts": 0,
@@ -138,7 +155,7 @@
       "lastFail": null
     },
     "LEO-055": {
-      "order": 9,
+      "order": 10,
       "title": "rag-eval: threshold sweep over the committed question set",
       "status": "pending",
       "attempts": 0,
@@ -155,7 +172,7 @@
       "lastFail": null
     },
     "LEO-056": {
-      "order": 10,
+      "order": 11,
       "title": "Record pages that failed to fetch, and show the owner",
       "status": "pending",
       "attempts": 0,
@@ -172,7 +189,7 @@
       "lastFail": null
     },
     "LEO-060": {
-      "order": 11,
+      "order": 12,
       "title": "LeoScan the scrape path — report only, never block",
       "status": "pending",
       "attempts": 0,
@@ -189,7 +206,7 @@
       "lastFail": null
     },
     "LEO-061": {
-      "order": 12,
+      "order": 13,
       "title": "Record where a visitor's message actually came from",
       "status": "pending",
       "attempts": 0,
@@ -206,7 +223,7 @@
       "lastFail": null
     },
     "LEO-062": {
-      "order": 13,
+      "order": 14,
       "title": "Validate entity settings on PATCH instead of storing whatever arrives",
       "status": "pending",
       "attempts": 0,
@@ -223,7 +240,7 @@
       "lastFail": null
     },
     "LEO-063": {
-      "order": 14,
+      "order": 15,
       "title": "`CLAUDE.md` \"Known Issues\" is three-quarters stale",
       "status": "pending",
       "attempts": 0,
@@ -240,7 +257,7 @@
       "lastFail": null
     },
     "LEO-064": {
-      "order": 15,
+      "order": 16,
       "title": "Mark what already shipped in `docs/wishlist.md`",
       "status": "pending",
       "attempts": 0,
@@ -254,23 +271,6 @@
       "notBefore": null,
       "claimedAtUtc": null,
       "runId": null,
-      "lastFail": null
-    },
-    "LEO-057": {
-      "order": 16,
-      "title": "Backlog audit: file new candidates under Proposed",
-      "status": "done",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "routine/item/LEO-057",
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": "2026-09-24",
-      "claimedAtUtc": "2026-09-24T10:07:30.758Z",
-      "runId": "2026-09-24T10:07:18.916Z",
       "lastFail": null
     },
     "LEO-065": {
@@ -425,6 +425,23 @@
       "claimedAtUtc": "2026-09-09T14:18:23.478Z",
       "runId": null,
       "lastFail": "failed"
+    },
+    "LEO-057": {
+      "order": null,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-057",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": "2026-09-24",
+      "claimedAtUtc": "2026-09-24T10:07:30.758Z",
+      "runId": "2026-09-24T10:07:18.916Z",
+      "lastFail": null
     },
     "LEO-058": {
       "order": null,
