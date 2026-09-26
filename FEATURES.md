@@ -406,20 +406,30 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
   digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
   (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
-  more are partial: LeoScan (LEO-021, manual ingest paths only) and Handoff Filtering (do-not-relay is
-  LEO-047). Add a one-line banner at the top of each — `> **Shipped <YYYY-MM-DD> — <item>,
-  <commit>.**` or `> **Partially shipped …**` naming what is still open and which item owns it — and
-  one sentence in the file header saying the banners are the truth about what is live while the prose
-  under them is design history. **Do not delete or rewrite the spec prose**: several open items still
-  refer to it.
+  more are partial: LeoScan (LEO-021 shipped the manual ingest paths; the scrape path is LEO-060) and
+  Handoff Filtering (the owner-reply path is live; the do-not-relay slice is LEO-047, which sits under
+  `## Blocked Items`, not Completed). **The ids are not uniform, and inventing one is worse than
+  omitting it:** five of the sections listed above shipped before the routine existed and have no LEO
+  id at all — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply
+  Flow and Multi-User Dashboard Roles & Auth.
+  Add a one-line banner at the top of each, in whichever of these three forms fits:
+  `> **Shipped <YYYY-MM-DD> — <item>, <commit>.**` where an id exists;
+  `> **Shipped <YYYY-MM-DD> — pre-routine, <commit>.**` for the five that have none;
+  `> **Partially shipped <YYYY-MM-DD> — <what is live>, <commit>. Still open: <what>, <the item that
+  owns it, or "no filed item">.**` for the two partials. Plus one sentence in the file header saying
+  the banners are the truth about what is live while the prose under them is design history. **Do not
+  delete or rewrite the spec prose**: several open items still refer to it.
   Files: `docs/wishlist.md`.
-  *Verify:* every banner cites an id that appears under `## Completed Items` in FEATURES.md and names
-  a file that exists; quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and
-  one `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
+  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
+  FEATURES.md the right way round — an id offered as evidence something shipped appears under
+  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
+  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
+  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
+  `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
   exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
   Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
-  re-prioritising anything, and marking as shipped anything that is only partly built (those get the
-  partial banner instead).
+  re-prioritising anything, marking as shipped anything that is only partly built (those get the
+  partial banner instead), and inventing or reusing a LEO id for a section that has none.
 
 ## Block L — Backlog upkeep
 
