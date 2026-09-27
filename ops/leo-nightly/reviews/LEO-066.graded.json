@@ -1,0 +1,52 @@
+{
+  "item": "LEO-066",
+  "repo": "leoai",
+  "mergeSha": "5788ea666eaed3d85286302b8e85e05ee17bfb27",
+  "localPromptVersion": "v4",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-09-27T04:08:54.577Z",
+  "gradedAtUtc": "2026-09-27T04:14:29.729Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 416,
+      "severity": "low",
+      "summary": "Residual self-contradiction in the same verify gate the item rewrote: the gate still demands \"every banner names a file that exists\", but none of the three banner forms it now mandates has a file slot — the pre-routine form (`> **Shipped <date> — pre-routine, <commit>.**`) has only a commit, and the body names no file path at all for Owner Reply Flow or Multi-URL Chunks (`sourceUrls` on Chunk), so a run following the forms literally produces banners with no file and fails its own gate."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The reviewed diff deletes exactly that requirement — the new gate only demands Completed-Items placement for ids offered as shipped evidence and explicitly says \"A section with no id cites none\", and the body now names the five id-less sections, so the described failure cannot occur in the post-image."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "Same stale reading as finding 1: the new gate states that an id naming still-open work (LEO-047, LEO-060) must appear under a work block, `## Proposed` or `## Blocked Items`, which is precisely where LEO-047 sits (FEATURES.md:507)."
+    }
+  ],
+  "triageGrades": [],
+  "missed": [
+    1
+  ],
+  "summary": "Both findings restate the pre-existing problem the diff was written to fix — the local model graded the item description rather than the post-image text — and it missed the one residual gate/form mismatch (the file-naming clause) that survived the rewrite.",
+  "counts": {
+    "findings": 2,
+    "confirmed": 0,
+    "falsePositive": 2,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 0,
+    "triageCorrect": 0
+  },
+  "costUsd": 0.8293215,
+  "numTurns": 12,
+  "durationMs": 106058,
+  "sessionId": "09539ca7-2585-4ac1-bd8a-93c536e70e93"
+}
