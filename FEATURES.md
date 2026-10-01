@@ -424,11 +424,188 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   re-prioritising anything, marking as shipped anything that is only partly built (those get the
   partial banner instead), and inventing or reusing a LEO id for a section that has none.
 
+- [ ] **(LEO-067) Unguarded async route handlers: one unauthenticated GET can take the backend down** [needs-human]
+  Ten `async (req, res)` handlers under `backend/src/routes` have no `try`/`catch`. Express 4.19 does not
+  catch a rejected promise, `backend/index.js` registers no error middleware and no
+  `process.on('unhandledRejection')`, and Node 24's default is `--unhandled-rejections=throw` — so one
+  rejection exits the process. The public one is the serious one: `GET /chat/entity-name`
+  (`backend/src/routes/chat.js:24`) passes `req.query.domain` straight into `Entity.findOne({ domain })`,
+  and express's extended query parser turns `?domain[x]=1` into an object, which Mongoose rejects
+  (measured on mongoose 8.23: `CastError: Cast to string failed for value "{ x: 1 }" … at path "domain"`;
+  an *array* value casts fine, an object does not). One unauthenticated GET therefore restarts the
+  container, dropping every in-flight chat and the in-memory `activeScrapes` map a running crawl's live
+  feed depends on. The other nine are authenticated but just as fatal: `routes/codes.js:12,21,43,53` (a
+  non-ObjectId `:id` casts the same way), `routes/knowledge.js:69`, `routes/scrape.js:35,57,66,77`.
+  Build a `routeError(res, scope, err)` helper in a new `backend/src/middleware/routeError.js` that logs
+  through `services/logger` and answers 400 for a `CastError`, 500 otherwise, and call it from a
+  `try`/`catch` **inside each handler body**. Do not rewrite the `router.<verb>(…)` lines: wrapping them
+  in an `asyncHandler()` deletes a line matching `^-\s*router\.(get|post|put|patch|delete|use)\(`, which
+  is exactly what the no-route-removed gate greps for.
+  Files: new `backend/src/middleware/routeError.js`, `backend/src/routes/chat.js` (**restricted — ≤30
+  changed lines; about 4, nowhere near the quota block, the handoff test-and-set or
+  `conversation.save()`**), `backend/src/routes/codes.js`, `backend/src/routes/knowledge.js`,
+  `backend/src/routes/scrape.js`, `backend/test/route-error.test.js`.
+  *Verify:* `node --test` driving the real chat router over http the way `backend/test/kb-search.test.js`
+  does — no database is needed, because the cast throws before any query is sent: `?domain[x]=1` answers
+  400 JSON, `?domain=smoke.leo-ai.chat` still answers `{ name }`, and a second request after the first
+  proves the process survived. Register a `process.on('unhandledRejection')` **in the test only** that
+  fails the suite, and confirm it goes red against unmodified `main` — a suite that cannot fail proves
+  nothing. Then `cd backend && yarn verify && yarn test`.
+  Out of scope: `backend/index.js` (denylisted, so no error middleware and no process-level rejection
+  handler), the handlers in `auth.js`/`dashboard.js`/`admin.js`/`billing.js`/`webhooks.js` (a scan found
+  them already guarded — re-check, do not touch), the NoSQL-operator question (`?domain[$ne]=` returns
+  the first entity's name — real, but a separate item), rate-limiting `/chat/entity-name`, and any change
+  to a response shape.
+
+- [ ] **(LEO-068) Socket.io rooms are unauthenticated — any browser can stream another entity's conversations** [needs-human]
+  `backend/index.js:74-88` is the entire authorization story for the realtime layer:
+  `socket.on('join_domain', (domain) => socket.join('domain:' + domain))` and
+  `socket.on('join_superadmin', () => socket.join('superadmin'))`, on a server built with
+  `cors: { origin: '*' }`. No token is read and nothing is checked. Anyone who can reach
+  `wss://api.leo-ai.chat` can emit `join_domain` with any customer domain and receive that entity's
+  `new_message` events, which `routes/chat.js:229-237` fills with the first 120 characters of each visitor
+  message **and the `sessionToken`** — and `GET /chat/history` is public and takes exactly that token, so
+  the leak escalates from a preview to the full transcript. `join_superadmin` is worse:
+  `services/consoleBuf.js` emits every `log_entry` to that room, so the same one-line request streams the
+  production console to a stranger. Its HTTP twin, `GET /api/admin/logs`, sits behind
+  `requireAdminAuth` — which is the proof this room was meant to be privileged.
+  Build a pure `authorizeJoin({ room, domain, user })` in a new `backend/src/services/socketAuth.js` —
+  `domain:<d>` allowed when the verified user holds a membership for `<d>` or is a superadmin,
+  `superadmin` only for a superadmin, and the visitor's own `join` by session token always allowed (the
+  token is itself the credential, and that handler is unchanged) — plus `verifySocketToken(token)` reusing
+  the access-token verifier in `backend/src/middleware/auth.js`. `dashboard/src/lib/socket.js` sends the
+  access token in the handshake (`io(url, { auth: { token } })`) and re-sends it on reconnect and after a
+  silent refresh. Tiered logging: at light tier one line per **refused** join naming the room and the
+  reason, never a line per accepted join.
+  **The six lines that call the verifier live in `backend/index.js`, which is denylisted, so an unattended
+  run cannot finish this item** — like LEO-059 it waits for an interactive session. A routine run can land
+  the service, the dashboard handshake and the tests; the socket wiring is Daniel's.
+  Files: new `backend/src/services/socketAuth.js`, `dashboard/src/lib/socket.js`,
+  `backend/test/socket-auth.test.js`; `backend/index.js` by hand.
+  *Verify:* `node --test` on `authorizeJoin` — a member of the domain accepted, a member of a different
+  domain refused, a superadmin accepted for both rooms, a missing/expired/garbage token refused, an
+  unknown room name refused, and `null` input refused rather than thrown; `cd backend && yarn verify &&
+  yarn test`; `cd dashboard && yarn build && yarn test`. After the hand-wiring, by hand: the dashboard
+  still receives `new_message` live for its own domain, `/logs` still streams, and a `socket.io-client`
+  with no token joined to `domain:smoke.leo-ai.chat` receives nothing.
+  Out of scope: rejecting the connection itself (join-time authorization only), socket rate limits, the
+  wildcard CORS (deliberate — the widget is embedded on arbitrary customer domains), moving the socket
+  wiring out of `index.js`, changing what any event carries, and the visitor `join` handler.
+
+- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** [needs-human]
+  `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
+  substitution — but it never escapes `"`, and the link pass is
+  `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
+  matches a double quote happily. A reply containing `[click](https://x" onmouseover="…)` closes the
+  `href` early and lands an arbitrary attribute on an anchor that is then assigned with `el.innerHTML`
+  (line 604) — inside whatever customer page the widget is embedded in. Two smaller sinks share the
+  pattern: `renderOptions` interpolates each option label into `btn.innerHTML` (line 646), and the panel
+  chip interpolates the entity name (line 283). Leo's text is model output shaped by scraped page content
+  and by what a visitor types, so nothing has to be compromised for this to be reachable.
+  Add `"` and `'` to the escape pass in `renderMarkdown`, and build those two templates from elements and
+  text nodes instead of interpolation — a `<span class="leo-hotkey">` plus a text node for the label, the
+  same for the chip name. Rendered output for ordinary replies must be unchanged.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the denylist with
+  LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended — a stubbed reply of
+  `[click](https://x" onmouseover="window.__leoXss=1)` renders exactly one `<a>` whose
+  `getAttribute('onmouseover')` is `null`; an option label of `<img src=x onerror="window.__leoXss=1">`
+  produces no `img` element and the literal text; an entity name of `<b>x</b>` renders as text; and the
+  existing bold/italic/code/link/list assertions stay green. Confirm the new assertions fail against
+  unmodified `main`. Post-deploy: `GET /demo/chatbot.js` is 200, byte length within ±25% of the committed
+  file, `node --check` clean on the downloaded body.
+  Out of scope: replacing the renderer with a markdown library, a Content-Security-Policy, sanitizing on
+  the backend (`routes/chat.js` keeps a zero-line diff), LEO-053's accessibility attributes, the consent
+  screen's markup, and the drag-to-resize handler.
+
+- [ ] **(LEO-070) Cap and type-check what `/chat` accepts** [needs-human]
+  `routes/chat.js:33-37` destructures `domain`, `sessionToken`, `message`, `type` and `interactiveData`
+  and checks only that the first three are truthy. Nothing checks a type or a length after that:
+  `message` is sent to Claude whole (`services/claude.js:123` reads `userMessage.length > 500` only to
+  pick a model, so a long message is always routed to Sonnet), is pushed into the conversation document,
+  and `message.slice(0, 120)` is broadcast to the dashboard — so a non-string `message` is a 500 instead
+  of a 400, and the practical ceiling on one visitor message is express's default 100 KB body limit,
+  roughly 25k tokens per request, on an entity whose free tier is 100 messages. `sessionToken` and
+  `domain` are unbounded strings used as query keys, and `interactiveData.options` is stored exactly as
+  supplied.
+  Build a pure `validateChatInput(body)` in a new `backend/src/services/chatInput.js` →
+  `{ ok, error, reason }`, rejecting: a non-string `domain`/`sessionToken`/`message`; `domain` over 253
+  characters; `sessionToken` over 128; `message` over 4000 after trimming (generous — the longest real
+  visitor message is a paste); a `type` other than `undefined` or `'interactive'`; more than 8
+  `interactiveData.options`, or any option over 200 characters. Over a limit the route answers 400 with a
+  Leo-voiced `message` the widget can show as-is, in the shape the 402 quota and 429 rate-limit paths
+  already use. Apply the same string checks to `GET /chat/history`'s query params.
+  Files: new `backend/src/services/chatInput.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed
+  lines; about 8, and it must not touch the quota block, the handoff atomic test-and-set or
+  `conversation.save()`**), `backend/test/chat-input.test.js`.
+  *Verify:* `node --test` on `validateChatInput` — every limit accepted at its edge and rejected one over,
+  an object or array where a string belongs rejected rather than cast, a missing field still rejected the
+  way today's check does, an absent `interactiveData` accepted, and a `null`/`undefined` body never
+  throwing; then `backend/test/chat-flow.test.js` extended to assert an ordinary message still returns 200
+  with `usage` unchanged, and that a 5000-character message returns 400 **without** incrementing
+  `messageCountThisPeriod`, writing a conversation, or calling Claude. `cd backend && yarn verify &&
+  yarn test`.
+  Out of scope: the express body limit itself (`backend/index.js`, denylisted), a `maxlength` on the
+  widget textarea, per-entity configurable limits, truncating instead of rejecting, any change to the
+  LEO-034 rate-limiter windows, and the origin question (LEO-061 owns it).
+
+- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** [needs-human]
+  The scraper fetches other people's sites without identifying itself and without ever asking. There is
+  no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
+  user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
+  `Chrome/120.0.0.0` UA. Crawls run 5 pages concurrently up to `MAX_PAGES = 500`, including a customer's
+  Square or Wix shop subdomain. Owners authorise the crawl of their own site, which is why **enforcement
+  is deliberately not the first slice**: silently dropping pages a paying owner wants learned is the worse
+  failure. Identity and evidence come first.
+  Build: (1) a `LEO_USER_AGENT` constant — `LeoAI/1.0 (+https://leo-ai.chat/crawler)` — sent as a header
+  on every axios fetch in the scraper and set via `page.setUserAgent`; (2) a new
+  `backend/src/services/robots.js` exposing a pure `parseRobots(text, ua)` → ordered allow/deny rules and
+  `isDisallowed(rules, pathname)` with the longest-match rule, plus a per-host cached fetch that treats
+  any error, redirect or non-200 as "no rules"; (3) the crawl **records** every URL it fetched that
+  robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
+  `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
+  goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
+  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
+  naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
+  Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
+  changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
+  persistence belong in `backend/src/services/scrapePersist.js`**), `backend/src/models/Entity.js` (one
+  new Boolean in `crawlSettings`), `backend/src/models/ScrapeSnapshot.js` (one new optional array),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/robots.test.js`.
+  *Verify:* `node --test` on the parser with inline fixtures — an empty body and a 404 body both yielding
+  no rules, `User-agent: *` with `Disallow: /cart`, a `LeoAI`-specific group taking precedence over `*`,
+  an `Allow` beating a shorter `Disallow`, `Disallow:` with an empty value meaning allow-all,
+  `Crawl-delay` parsed and ignored, a malformed line skipped rather than thrown, and a path with a query
+  string matched on pathname only; plus the offline crawl harness in
+  `backend/test/scrape-embed-containment.test.js` extended so a local HTTP server serving a robots.txt
+  that disallows one of two pages still chunks both with `honorRobots` false and records the one URL, and
+  chunks only one with the flag true. No real site is fetched in any test. `cd backend && yarn verify &&
+  yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: honouring `Crawl-delay` or changing `CONCURRENCY`/`MAX_PAGES`, `sitemap.xml` discovery,
+  `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
+  `$vectorSearch` stage (denylisted), and scraping any real entity.
+
 ## Block L — Backlog upkeep
 
 
 
 - [x] **(LEO-065) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-01]
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-072) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-08]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
