@@ -1,0 +1,66 @@
+{
+  "item": "LEO-065",
+  "repo": "leoai",
+  "mergeSha": "95c9994622717224f7a1987d452bfd046c3147b3",
+  "localPromptVersion": "v4",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-01T07:07:22.582Z",
+  "gradedAtUtc": "2026-10-01T07:15:48.559Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 435,
+      "severity": "low",
+      "summary": "LEO-067's stated measurement is wrong: in the installed mongoose 8.23, `lib/cast/string.js` throws CastError for arrays too (`value.toString && ... && !Array.isArray(value)`), so `?domain=a&domain=b` is a second public crash vector the item describes as casting fine — an implementer encoding \"array casts fine\" as a test expectation would get a red test."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 567,
+      "severity": "low",
+      "summary": "LEO-071 scopes `crawlSettings.honorRobots` as a flag \"Daniel turns on for one entity\" but lists no UI/API path to set it: `dashboard/src/views/Settings.vue:42-47` builds crawlSettings from an explicit 4-key whitelist and `dashboard.js:310` `findOneAndUpdate` $sets the subdocument wholesale, so a flag set out-of-band is silently reset the next time any owner saves settings."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 430,
+      "severity": "low",
+      "summary": "The item attributes the crash to \"Node 24's default\" while the deployed runtime is pinned to nodejs_20 in the root `nixpacks.toml` — the conclusion still holds (throw-on-unhandled-rejection has been the default since Node 15), but the environment claim is wrong and a reader checking the pin could wrongly dismiss the item."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "A `try`/`catch` inside each handler body means the promise never rejects unhandled, so it is the root-cause fix; `backend/index.js` is denylisted and the item explicitly puts process-level handlers out of scope, with the test registering `unhandledRejection` as the proof gate."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "The diff itself states in bold that `backend/index.js` is denylisted and the six wiring lines are Daniel's by hand, and the item is tagged `[needs-human]` under `## Proposed` where selection skips it — restating the diff's own disclosure is not a defect."
+    }
+  ],
+  "triageGrades": [],
+  "missed": [
+    1,
+    2,
+    3
+  ],
+  "summary": "Both local findings restate limitations the diff already discloses and one misunderstands that in-handler try/catch is itself the fix, while the three verifiable factual gaps in the filed specs (mongoose array cast, unreachable honorRobots flag, wrong Node pin) went unnoticed.",
+  "counts": {
+    "findings": 2,
+    "confirmed": 0,
+    "falsePositive": 2,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 3,
+    "independent": 3,
+    "triageChecked": 0,
+    "triageCorrect": 0
+  },
+  "costUsd": 2.099245,
+  "numTurns": 39,
+  "durationMs": 278095,
+  "sessionId": "93ee2493-cc85-4bdc-a8b1-ef6937d4cc70"
+}
