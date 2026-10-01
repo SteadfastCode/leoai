@@ -1,0 +1,88 @@
+{
+  "item": "LEO-065",
+  "repo": "leoai",
+  "mergeSha": "95c9994622717224f7a1987d452bfd046c3147b3",
+  "completedAtUtc": "2026-10-01T04:30:57.753Z",
+  "completeRunId": "2026-10-01T04:10:45.066Z",
+  "reviewRunId": "2026-10-01T07:00:48.307Z",
+  "reviewedAtUtc": "2026-10-01T07:05:51.945Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v4",
+  "diffBytes": 17496,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13950,
+      "contextBytes": 0,
+      "promptTokens": 4572,
+      "completionTokens": 618,
+      "latencyMs": 45158,
+      "findings": 5,
+      "critiqued": 5,
+      "dropped": 3,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3752,
+      "contextBytes": 10154,
+      "promptTokens": 4509,
+      "completionTokens": 118,
+      "latencyMs": 19165,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "FEATURES.md",
+      "line": 435,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The proposed fix for unguarded async route handlers does not address the root cause of unhandled rejections.",
+      "scenario": "If an unhandled rejection occurs in any of the specified routes, it will still crash the Node.js process because no error middleware or `process.on('unhandledRejection')` is registered. The proposed solution only adds a helper function to log and respond with HTTP status codes but does not prevent the process from crashing.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The diff does not register any error middleware or `process.on('unhandledRejection')`, so unhandled rejections will still crash the Node.js process."
+      }
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 460,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The proposed fix for Socket.io rooms is incomplete and cannot be fully automated.",
+      "scenario": "The task requires manual intervention to update the `backend/index.js` file, which is denylisted. This means that the proposed solution cannot be fully automated and will require a human to complete the implementation.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The finding correctly identifies that the proposed fix for Socket.io rooms requires manual intervention in `backend/index.js`, which is denylisted."
+      }
+    }
+  ],
+  "triage": null,
+  "summary": "The proposed fixes for various security issues in the codebase have several limitations and do not address all potential security risks. Manual intervention is required to complete some of the tasks, and other potential sinks and issues are not addressed. · One finding identified.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 36276,
+    "completionTokens": 1064
+  },
+  "latencyMs": 110513
+}
