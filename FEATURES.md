@@ -604,7 +604,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   routine's own safety net, so needs-human by rule: an automated run may not weaken the gate that
   judges it.
 
-- [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [proposed]
+- [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [needs-human]
   The chat check is the only part of leoai's smoke that costs money, and also the one with the most
   coverage: it exercises routing, auth, Origin/CORS, the conversation write and response shaping as
   well as the model call. Keep the coverage, drop the spend. Add a test path through POST /chat that

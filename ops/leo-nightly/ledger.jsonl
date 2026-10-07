@@ -180,3 +180,4 @@
 {"event":"note","text":"bridge queue.add filed LEO-073 under Proposed (needs-human)","source":"bridge","command":"queue.add","item":"LEO-073","atUtc":"2026-10-07T03:58:56.923Z"}
 {"event":"note","text":"bridge queue.add filed LEO-074 under Proposed","source":"bridge","command":"queue.add","item":"LEO-074","atUtc":"2026-10-07T03:59:09.880Z"}
 {"event":"note","text":"bridge queue.add filed LEO-075 under Proposed (needs-human)","source":"bridge","command":"queue.add","item":"LEO-075","atUtc":"2026-10-07T03:59:27.343Z"}
+{"event":"note","text":"LEO-074 retagged needs-human: it adds a bypass to the endpoint the smoke probes, so the routine must not do it unsupervised","source":"manual","item":"LEO-074","atUtc":"2026-10-07T03:59:44.632Z"}
