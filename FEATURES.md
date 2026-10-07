@@ -604,6 +604,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   routine's own safety net, so needs-human by rule: an automated run may not weaken the gate that
   judges it.
 
+- [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [proposed]
+  The chat check is the only part of leoai's smoke that costs money, and also the one with the most
+  coverage: it exercises routing, auth, Origin/CORS, the conversation write and response shaping as
+  well as the model call. Keep the coverage, drop the spend. Add a test path through POST /chat that
+  runs the whole request path and short-circuits only the upstream model call, returning a canned
+  completion. Gate it so no visitor can reach it: require the admin key the smoke already holds, and
+  mark the conversation it writes with the isTest flag the aggregates already exclude
+  (backend/src/routes/dashboard.js filters isTest: { $ne: true }), so a smoke run can never
+  contaminate usage or billing figures. The response must be shaped exactly like a real one,
+  including the stored model field, or the check stops proving anything about shaping. Know the
+  constraint before starting: leoai.json restricts backend/src/routes/chat.js to 30 changed lines.
+  If the change will not fit, say so and stop — do not spread it across files to evade the cap.
+  Raising that cap is a deliberate decision for Daniel, not a workaround for a run to take on its
+  own. Verify: a unit test that the test path never calls the model client; an http test that it
+  requires the admin key, that a normal call is unaffected, and that the written conversation
+  carries isTest. Out of scope: any change to the real chat path's behaviour. Touches a restricted
+  path and is the input to the smoke the routine is judged by, hence needs-human.
+
 ## Block L — Backlog upkeep
 
 
