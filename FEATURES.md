@@ -622,6 +622,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   carries isTest. Out of scope: any change to the real chat path's behaviour. Touches a restricted
   path and is the input to the smoke the routine is judged by, hence needs-human.
 
+- [ ] **(LEO-075) Smoke split: a free baseline chat check, and the paid real-model call only after deploy** [needs-human]
+  The baseline runs the full production smoke before any code is touched
+  (ops/leo-nightly/RUNBOOK.md, 'Production baseline — default deny'), and one of its five checks —
+  chat with Origin — makes a real paid model call. So every fire spends tokens before doing any
+  work, and one external dependency gates items that never touch chat: LEO-046 Page Explorer,
+  LEO-042 owner digest and LEO-050 usage report were all blocked by a chat fault. Split the chat
+  check in two. The baseline keeps a chat check, but the free one: the zero-token test path from the
+  sibling item, exercising routing, auth, Origin/CORS, the conversation write and response shaping
+  with no model call. The real paid call moves to the post-deploy smoke, and runs only when the
+  merged diff touches backend/src/routes/chat.js, backend/src/services/rag.js, or the prompt. The
+  other four baseline checks — health commit match, dashboard asset, admin search score, demo script
+  — are already free and stay exactly as they are. Update RUNBOOK.md's baseline and verification
+  sections together with leoai.json's deploy.smoke description, so the runbook and the config cannot
+  drift apart; a reader of either must see the same five checks and know which one costs money.
+  Depends on the zero-token test path landing first — until it exists the free baseline chat check
+  cannot be written, and this item should not start. Edits the routine's own safety net, so
+  needs-human by rule: an automated run may not widen the gate it is judged by.
+
 ## Block L — Backlog upkeep
 
 
