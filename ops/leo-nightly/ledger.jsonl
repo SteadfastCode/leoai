@@ -177,3 +177,4 @@
 {"event":"ack","items":["LEO-057"],"by":"daniel","source":"manual","atUtc":"2026-10-05T22:37:06.344Z"}
 {"event":"ack","items":["LEO-066"],"by":"daniel","source":"manual","atUtc":"2026-10-05T22:37:06.344Z"}
 {"event":"ack","items":["LEO-065"],"by":"daniel","source":"manual","atUtc":"2026-10-05T22:37:06.345Z"}
+{"event":"note","text":"bridge queue.add filed LEO-073 under Proposed (needs-human)","source":"bridge","command":"queue.add","item":"LEO-073","atUtc":"2026-10-07T03:58:56.923Z"}
