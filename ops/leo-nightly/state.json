@@ -395,18 +395,18 @@
     "LEO-072": {
       "order": 24,
       "title": "Backlog audit: file new candidates under Proposed",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-072",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": "2026-10-08",
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-08T05:17:00.785Z",
+      "runId": "2026-10-08T05:10:28.964Z",
       "lastFail": null
     },
     "LEO-050": {
