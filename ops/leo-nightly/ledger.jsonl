@@ -183,3 +183,4 @@
 {"event":"note","text":"LEO-074 retagged needs-human: it adds a bypass to the endpoint the smoke probes, so the routine must not do it unsupervised","source":"manual","item":"LEO-074","atUtc":"2026-10-07T03:59:44.632Z"}
 {"event":"claim","runId":"2026-10-08T05:10:28.964Z","item":"LEO-072","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-08T05:17:00.785Z"}
 {"event":"complete","runId":"2026-10-08T05:10:28.964Z","item":"LEO-072","mergeSha":"f46c96f3c5940630bc28114ac3cf2406080b297d","durationMin":14,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-08T05:30:33.749Z"}
+{"event":"ack","items":["LEO-072"],"by":"daniel","source":"manual","atUtc":"2026-10-10T11:33:46.047Z"}
