@@ -72,7 +72,7 @@
     "LEO-046": {
       "order": 5,
       "title": "Page Explorer: router-synced renderer/priority filters + testable filter logic",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-046",
