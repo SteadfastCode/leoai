@@ -21,6 +21,7 @@ import PageExplorer from './views/PageExplorer.vue'
 import AdminEntities from './views/AdminEntities.vue'
 import Fleet from './views/Fleet.vue'
 import AuditLog from './views/AuditLog.vue'
+import UsageReport from './views/UsageReport.vue'
 import Chat from './views/Chat.vue'
 import MinistryRequests from './views/MinistryRequests.vue'
 import Signup from './views/Signup.vue'
@@ -78,6 +79,7 @@ const router = createRouter({
     { path: '/entities', component: AdminEntities, meta: { superadmin: true } },
     { path: '/fleet', component: Fleet, meta: { superadmin: true } },
     { path: '/audit-log', component: AuditLog, meta: { superadmin: true } },
+    { path: '/usage-report', component: UsageReport, meta: { superadmin: true } },
     { path: '/chat-preview', component: Chat, meta: { superadmin: true } },
     { path: '/ministry-requests', component: MinistryRequests, meta: { superadmin: true } },
     { path: '/codes', component: Codes, meta: { superadmin: true } },
