@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [ ] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list**
+- [x] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list**
   Owners cannot stop Leo forwarding question types they will never answer (competitor comparisons,
   salary questions). Add `doNotRelay: { type: [String], default: [] }` to
   `backend/src/models/Entity.js` (optional — no `required`/`unique`) and a new
