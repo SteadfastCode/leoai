@@ -12,6 +12,7 @@ const { shouldLogUnanswered } = require('../services/unanswered');
 const { isTestModeRequest } = require('../services/testMode');
 const { trackDailyVolume } = require('../services/dailyVolume');
 const { checkRateLimit, clientIp } = require('../services/rateLimit');
+const { forgetConversation } = require('../services/retention');
 const logger = require('../services/logger');
 
 const HANDOFF_RE        = /\[HANDOFF_REQUESTED:\s*([^\]]+)\]\s*$/;
@@ -267,6 +268,23 @@ router.post('/', async (req, res) => {
     const domain = req.body?.domain || 'unknown';
     logger.error('chat', err.message, { stack: err.stack }, domain);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// POST /chat/forget — a visitor erases their own server-side history (LEO-043).
+// Public, like the rest of /chat: the session token IS the credential, so the
+// delete is scoped to the caller's own domain+sessionToken and nothing else.
+router.post('/forget', async (req, res) => {
+  const { domain, sessionToken } = req.body || {};
+  if (!domain || !sessionToken) {
+    return res.status(400).json({ error: 'domain and sessionToken are required' });
+  }
+  try {
+    const deleted = await forgetConversation({ domain, sessionToken });
+    res.json({ deleted, forgotten: deleted > 0 });
+  } catch (err) {
+    logger.error('chat', `forget failed: ${err.message}`, { stack: err.stack }, domain);
+    res.status(500).json({ error: 'Could not clear your history. Please try again.' });
   }
 });
 
