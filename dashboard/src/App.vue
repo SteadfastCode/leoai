@@ -54,6 +54,7 @@ const entityNavItems = [
   { title: 'Conversations',       icon: 'mdi-chat',                 to: '/conversations', permission: 'conversations.view' },
   { title: 'Knowledge Base',      icon: 'mdi-database',             to: '/knowledge',     permission: 'knowledge.view' },
   { title: 'Unanswered',          icon: 'mdi-help-circle-outline',  to: '/unanswered',    permission: 'knowledge.view' },
+  { title: 'Test your bot',       icon: 'mdi-flask-outline',        to: '/playground',    permission: 'conversations.view' },
   { title: 'Team',                icon: 'mdi-account-group',        to: '/team',          permission: 'users.view' },
   { title: 'Settings',            icon: 'mdi-cog',                  to: '/settings',      permission: 'settings.view' },
   { title: 'Billing',             icon: 'mdi-credit-card',          to: '/billing',       permission: 'billing.view' },

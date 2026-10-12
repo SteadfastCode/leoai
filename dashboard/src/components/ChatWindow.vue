@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import api from '../lib/api'
+import { renderMarkdown } from '../lib/renderMarkdown'
 
 const props = defineProps({
   domain: { type: String, required: true },
@@ -181,16 +182,8 @@ function onWidthResizeMousedown(e) {
 }
 
 // ── Markdown render ────────────────────────────────────────────────────────
-function renderContent(text) {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/(?<!href=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>')
-}
+// Shared with the owner playground — see lib/renderMarkdown.js.
+const renderContent = renderMarkdown
 </script>
 
 <template>
