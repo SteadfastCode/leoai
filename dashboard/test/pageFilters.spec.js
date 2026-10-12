@@ -142,6 +142,12 @@ describe('toFilterQuery', () => {
     expect(toFilterQuery({})).toEqual({})
     expect(toFilterQuery()).toEqual({})
     expect(Object.keys(toFilterQuery({ search: null }))).toEqual([])
+    // whitespace filters nothing, so it is not a filter worth putting in the URL
+    expect(toFilterQuery({ search: '   ' })).toEqual({})
+  })
+
+  it('trims the search term it emits', () => {
+    expect(toFilterQuery({ search: '  menu  ' })).toEqual({ search: 'menu' })
   })
 
   it('emits only the non-default keys', () => {

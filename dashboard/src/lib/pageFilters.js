@@ -43,7 +43,10 @@ export function parseFilterQuery(query = {}) {
 // no trace in the URL, so a shared link carries exactly the filters that matter.
 export function toFilterQuery({ search = '', renderer = 'all', priority = 'all' } = {}) {
   const query = {}
-  if (search) query.search = search
+  // Trimmed: filterPages ignores whitespace, so a whitespace-only term filters
+  // nothing and has no business in the URL.
+  const q = (search || '').trim()
+  if (q) query.search = q
   if (renderer !== 'all') query.renderer = renderer
   if (priority !== 'all') query.priority = priority
   return query
