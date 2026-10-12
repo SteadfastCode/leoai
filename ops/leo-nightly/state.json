@@ -72,7 +72,7 @@
     "LEO-049": {
       "order": 5,
       "title": "Dependency refresh within existing semver ranges",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-049",
