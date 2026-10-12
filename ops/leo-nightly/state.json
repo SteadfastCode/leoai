@@ -599,8 +599,8 @@
     "LEO-040": {
       "order": 36,
       "title": "In-dashboard \"Test your bot\" playground",
-      "status": "blocked",
-      "attempts": 2,
+      "status": "pending",
+      "attempts": 0,
       "cluster": null,
       "branch": null,
       "dependsOn": [],
@@ -609,9 +609,9 @@
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": "2026-09-09T14:18:23.478Z",
+      "claimedAtUtc": null,
       "runId": null,
-      "lastFail": "failed"
+      "lastFail": null
     },
     "LEO-073": {
       "order": null,
