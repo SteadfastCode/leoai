@@ -1,33 +1,46 @@
 const twilio = require('twilio');
 const { sendEmailRaw } = require('./email');
+const { matchesDoNotRelay } = require('./doNotRelay');
 
 // Twilio segments at 160 chars — cap the SMS question list and tail with "+N more".
 const SMS_QUESTION_CAP = 3;
 
 // Shared pending-question block for handoff alerts and follow-ups. Pure.
 // cap = null renders every question (email); a number caps with a "+N more" tail.
-function buildQuestionBlock(pendingQuestions, cap = null) {
-  const questions = (pendingQuestions || []).filter(Boolean);
-  if (!questions.length) return '(no questions recorded)';
+//
+// doNotRelay (LEO-047) is the safety net, not the mechanism: Leo is instructed
+// not to raise a handoff for those topics at all. If one slips through anyway
+// the alert still sends — the owner needs to know a visitor is waiting — but the
+// matched question is left out of the body, replaced by a withheld count so the
+// owner can tell "nothing recorded" from "suppressed by my own list".
+function buildQuestionBlock(pendingQuestions, cap = null, doNotRelay = []) {
+  const all = (pendingQuestions || []).filter(Boolean);
+  const questions = all.filter((q) => !matchesDoNotRelay(q, doNotRelay));
+  const withheld = all.length - questions.length;
+  const withheldLine = `(${withheld} question${withheld === 1 ? '' : 's'} withheld — matched your "don't relay" list)`;
+
+  if (!questions.length) return withheld ? withheldLine : '(no questions recorded)';
+
   const shown = cap && questions.length > cap ? questions.slice(0, cap) : questions;
   const lines = shown.map((q) => `• ${q}`);
   if (shown.length < questions.length) lines.push(`+${questions.length - shown.length} more`);
+  if (withheld) lines.push(withheldLine);
   return lines.join('\n');
 }
 
 // Pure message builders — unit-tested without any Twilio/Resend involvement.
-function buildHandoffSms({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions }) {
+function buildHandoffSms({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions, doNotRelay }) {
   return [
     `🦁 Leo handoff — ${entityName}`,
     `Visitor needs help: "${reason}"`,
-    buildQuestionBlock(pendingQuestions, SMS_QUESTION_CAP),
+    buildQuestionBlock(pendingQuestions, SMS_QUESTION_CAP, doNotRelay),
     `Last message: "${lastMessage.slice(0, 100)}${lastMessage.length > 100 ? '…' : ''}"`,
     `View chat: ${conversationLink}`,
     `Session: ${shortSession}`,
   ].join('\n');
 }
 
-function buildHandoffEmail({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions }) {
+function buildHandoffEmail({ entityName, reason, lastMessage, conversationLink, shortSession, pendingQuestions, doNotRelay }) {
   return {
     subject: `${entityName} — Leo needs your help`,
     text: [
@@ -36,7 +49,7 @@ function buildHandoffEmail({ entityName, reason, lastMessage, conversationLink, 
       `Business: ${entityName}`,
       `Reason: ${reason}`,
       `Open question(s):`,
-      buildQuestionBlock(pendingQuestions),
+      buildQuestionBlock(pendingQuestions, null, doNotRelay),
       `Last message: "${lastMessage}"`,
       ``,
       `View the full conversation: ${conversationLink}`,
@@ -67,7 +80,7 @@ async function sendHandoffNotification({ entity, reason, pendingQuestions, sessi
   const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5173';
   const conversationLink = `${dashboardUrl}/#/conversations/${conversationId}`;
 
-  const parts = { entityName: entity.name, reason, lastMessage, conversationLink, shortSession, pendingQuestions };
+  const parts = { entityName: entity.name, reason, lastMessage, conversationLink, shortSession, pendingQuestions, doNotRelay: entity.doNotRelay };
   const smsBody = buildHandoffSms(parts);
   const { subject, text } = buildHandoffEmail(parts);
 

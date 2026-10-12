@@ -21,6 +21,7 @@ const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD, groupQuestions } = require('../services/questions');
 const { recordAudit } = require('../services/audit');
 const { shapeDailyBuckets, shapeTopQuestions } = require('../services/analytics');
+const { sanitizeList: sanitizeDoNotRelay } = require('../services/doNotRelay');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -299,9 +300,13 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 // PATCH /api/dashboard/entities/:domain — update entity settings (owner only)
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
-    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'dailyVolumeAlert', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest'];
+    const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'dailyVolumeAlert', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest', 'doNotRelay'];
     const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold', 'lowConfidenceBand'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
+    // Sanitise on write (LEO-047), not on read — a malformed list reaching the
+    // system prompt is the failure that matters, and it is written far less
+    // often than it is read.
+    if ('doNotRelay' in updates) updates.doNotRelay = sanitizeDoNotRelay(updates.doNotRelay);
     let appliedSuperadminFields = [];
     if (isSuperAdmin(req.user)) {
       appliedSuperadminFields = Object.keys(req.body).filter((k) => superadminOnly.includes(k));

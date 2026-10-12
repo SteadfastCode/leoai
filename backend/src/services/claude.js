@@ -2,6 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const path = require('path');
 const { confidenceBand } = require('./confidence');
+const { sanitizeList: sanitizeDoNotRelay } = require('./doNotRelay');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -39,9 +40,18 @@ function buildSystemPrompt(entity, conversation) {
       })
     : null;
 
-  const handoffModeInstruction = entity.offerHandoffBeforeContact === false
+  let handoffModeInstruction = entity.offerHandoffBeforeContact === false
     ? 'When you cannot answer a question, share whatever contact information you have from your knowledge base (phone, email, contact form) directly. Still append [HANDOFF_REQUESTED] whenever you direct someone to contact the business.'
     : 'When you cannot answer a question, always offer to forward the question to the team first (two-step flow below). Only share contact info if the visitor declines.';
+
+  // Per-entity do-not-relay list (LEO-047) — topics the team will never answer.
+  // Appended to the handoff instruction rather than added to the prompt file:
+  // it already reaches the prompt through [HANDOFF_MODE_INSTRUCTION], so the
+  // prompt template (and verify-prompt.js) stays untouched.
+  const doNotRelay = sanitizeDoNotRelay(entity.doNotRelay);
+  if (doNotRelay.length) {
+    handoffModeInstruction += ` The team has asked you NEVER to forward questions on these topics: ${doNotRelay.map((t) => `"${t}"`).join(', ')}. If a visitor asks about one of them, do not offer to forward it and do NOT append [HANDOFF_REQUESTED] for it. Instead decline warmly and in your own words — that is not something the team can help with here, but here is what you CAN do — and then steer back to something you can genuinely help with. Stay kind about it; the visitor has not done anything wrong by asking.`;
+  }
 
   let prompt = getRawPrompt()
     .replace(/\[BUSINESS_NAME\]/g, entity.name)

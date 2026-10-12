@@ -8,6 +8,9 @@ import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
 const emit = defineEmits(['entity-updated'])
+// Mirrors MAX_ENTRIES in backend/src/services/doNotRelay.js — the server caps on write.
+const DO_NOT_RELAY_MAX_ENTRIES = 50
+
 const form = ref({})
 const saving = ref(false)
 const modelStats = ref(null)
@@ -53,6 +56,7 @@ watch(() => props.entity, (e) => {
       enabled:       e.handoffFollowUp?.enabled ?? true,
       intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
     },
+    doNotRelay: [...(e.doNotRelay || [])],
     ragThreshold: e.ragThreshold ?? 0.75,
   }
 }, { immediate: true })
@@ -364,6 +368,33 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-2">
             Uses the same phone and email as Handoff Notifications above. Reminders repeat at this interval until you reply.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Don't relay ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Don't Relay</v-card-title>
+        <v-card-text class="pt-4">
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            Question types you'll never answer. Leo won't forward these — he'll decline warmly and
+            offer what he can help with instead. Type a topic and press Enter.
+          </div>
+          <v-combobox
+            v-model="form.doNotRelay"
+            label="Topics Leo should not forward"
+            placeholder="e.g. salary questions"
+            variant="outlined"
+            density="compact"
+            chips
+            closable-chips
+            multiple
+            clearable
+            hide-details
+          />
+          <div class="text-caption text-medium-emphasis mt-3">
+            Matched on the words you type, so keep entries short and plain — "competitor" catches more
+            than "how do you compare to other bakeries". Up to {{ DO_NOT_RELAY_MAX_ENTRIES }} topics.
           </div>
         </v-card-text>
       </v-card>

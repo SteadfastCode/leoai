@@ -66,6 +66,11 @@ const entitySchema = new mongoose.Schema(
       intervalHours: { type: Number, default: 24 },
       maxReminders:  { type: Number, default: 3 },
     },
+    // Question types the owner never wants forwarded (LEO-047). Optional and
+    // unvalidated at the schema level on purpose — sanitised on write by
+    // services/doNotRelay.sanitizeList, so an existing entity with no list
+    // behaves exactly as before.
+    doNotRelay: { type: [String], default: [] },
     crawlSettings: {
       keepSocialHandles:  { type: Boolean, default: false },
       keepShortUrls:      { type: Boolean, default: false },
