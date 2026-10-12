@@ -131,6 +131,16 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 ## Block K — Privacy & trust (dignity-first)
 
 
+## Workqueue Items
+
+Work that is not filed under a block: an item returned from "## Blocked Items" once the thing
+that stopped it is gone. Blocks A–K carry their own gates, and the blocked record does not keep
+which block an item came from, so returning one to a block would have to guess at its gate.
+This section has no gate of its own, which is the only honest place to put it back.
+
+It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
+standing audit, which is last so it runs only when nothing else is claimable.
+
 ## Proposed
 
 - [ ] **(LEO-059) The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…** [needs-human]
