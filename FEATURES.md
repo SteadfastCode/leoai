@@ -133,15 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [x] **(LEO-040) In-dashboard "Test your bot" playground**
-  Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
-  their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
-  — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
-  to ALSO accept an authenticated dashboard session (valid JWT) **for the caller's own domain
-  only** — never cross-domain, never a body flag. Reuse the widget's chat rendering.
-  *Verify:* `node --test` the extended gate: owner JWT for own domain → test-mode true; owner JWT
-  for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
-  `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 Work that is not filed under a block: an item returned from "## Blocked Items" once the thing
 that stopped it is gone. Blocks A–K carry their own gates, and the blocked record does not keep
 which block an item came from, so returning one to a block would have to guess at its gate.
@@ -831,6 +822,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-040) In-dashboard "Test your bot" playground** (routine 2026-10-12, b75631f)
+  Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
+  their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
+  — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
+  to ALSO accept an authenticated dashboard session (valid JWT) **for the caller's own domain
+  only** — never cross-domain, never a body flag. Reuse the widget's chat rendering.
+  *Verify:* `node --test` the extended gate: owner JWT for own domain → test-mode true; owner JWT
+  for a different domain → false; no creds → false; X-API-Key still works. Assert a playground
+  `/chat` does not increment `messageCountThisPeriod`. Dashboard build.
 - [x] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF** (routine 2026-10-12, 48a6731)
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
