@@ -589,18 +589,24 @@ function chunkText(text, url, cs = {}) {
     });
   }
 
+  // LEO-048: append a trailing flush's NEW text (past the header and any carried overlap)
+  // to the previous chunk instead of pushing a sub-TINY_BUF_THRESHOLD micro-chunk. Empty
+  // text means the flush was pure overlap — already that chunk's tail — so it is dropped.
+  const appendToLast = (novel) => { if (novel) chunks[chunks.length - 1].content += `\n\n${novel}`; };
+
   // Paragraph-split fallback for a single section that exceeds CHUNK_MAX
   function splitOversizedSection(section) {
     const h2s       = section.h2 ? [section.h2] : [];
     const primaryH2 = section.h2 || null;
     const primaryAnchor = section.anchor || null;
-    let buf = '';
+    const firstChunk = chunks.length;
+    let buf = '', overlap = '';
 
     function flushBuf() {
       const trimmed = buf.trim();
       if (!trimmed) return;
       pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
-      buf = trailingOverlap(trimmed);
+      buf = overlap = trailingOverlap(trimmed);
     }
 
     function addUnit(unit, sep) {
@@ -621,17 +627,27 @@ function chunkText(text, url, cs = {}) {
       }
     }
     const trimmed = buf.trim();
-    if (trimmed) pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
+    if (!trimmed) return;
+    const novel = overlap && trimmed.startsWith(overlap) ? trimmed.slice(overlap.length).trim() : trimmed;
+    if (chunks.length > firstChunk && novel.length < TINY_BUF_THRESHOLD) appendToLast(novel);
+    else pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
   }
 
   // Main pass: merge short sections, split oversized ones
   let mergeBuf = [];
   let mergeBufLen = 0;
 
-  function flushMergeBuf() {
+  function flushMergeBuf(trailing = false) {
     if (mergeBuf.length === 0) return;
     const h2s   = mergeBuf.map(s => s.h2).filter(Boolean);
     const paras = mergeBuf.flatMap(s => s.paras);
+    // Merge path: same guard. The [H2] line travels with the body text so the heading is
+    // not lost from the corpus along with the chunk it would have had to itself.
+    if (trailing && chunks.length > 0 && paras.join('\n\n').length < TINY_BUF_THRESHOLD) {
+      appendToLast([...h2s.map(h => `[H2] ${h}`), ...paras].join('\n\n'));
+      mergeBuf = []; mergeBufLen = 0;
+      return;
+    }
     // Anchor of the first section that contributed an H2 — mirrors how primaryH2 is chosen.
     const anchorSrc = mergeBuf.find(s => s.h2);
     pushChunk(h2s, paras, h2s[0] || null, anchorSrc ? anchorSrc.anchor : null);
@@ -653,7 +669,7 @@ function chunkText(text, url, cs = {}) {
       if (mergeBufLen >= CHUNK_TARGET) flushMergeBuf();
     }
   }
-  flushMergeBuf();
+  flushMergeBuf(true);
 
   // Standalone opening-hours chunk (LEO-018): terse footer hours embedded in a
   // mixed chunk score below the retrieval threshold; an isolated [H2] Hours
