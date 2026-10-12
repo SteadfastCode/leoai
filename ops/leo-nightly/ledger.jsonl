@@ -195,3 +195,4 @@
 {"event":"note","text":"retry: LEO-048 moved back to the workqueue with attempts reset (was blocked: failed)","source":"interactive","item":"LEO-048","atUtc":"2026-10-12T03:59:49.929Z"}
 {"event":"note","text":"retry: LEO-049 moved back to the workqueue with attempts reset (was blocked: failed)","source":"interactive","item":"LEO-049","atUtc":"2026-10-12T03:59:51.669Z"}
 {"event":"note","text":"retry: LEO-050 moved back to the workqueue with attempts reset (was blocked: failed)","source":"interactive","item":"LEO-050","atUtc":"2026-10-12T03:59:53.166Z"}
+{"event":"ack","items":["LEO-073"],"by":"daniel","source":"dashboard","atUtc":"2026-10-12T04:21:35.560Z"}
