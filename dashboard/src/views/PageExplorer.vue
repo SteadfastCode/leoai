@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { getScrapedPages, getChunks } from '../lib/api'
+import { filterPages, parseFilterQuery, toFilterQuery, FILTER_QUERY_KEYS } from '../lib/pageFilters'
 
 const props = defineProps({
   entitiesList: { type: Array, default: () => [] },
@@ -11,10 +12,14 @@ const props = defineProps({
 const route  = useRoute()
 const router = useRouter()
 
+// All three filters round-trip through the router query, so a reload or a shared
+// link restores the exact view. Unknown values fall back to the default.
+const initialFilters = parseFilterQuery(route.query)
+
 const explorerDomain  = ref(route.query.domain || '')
-const urlFilter       = ref(route.query.search || '')
-const rendererFilter  = ref('all')   // all | html | js
-const priorityFilter  = ref('all')   // all | high | normal
+const urlFilter       = ref(initialFilters.search)
+const rendererFilter  = ref(initialFilters.renderer)   // all | html | js
+const priorityFilter  = ref(initialFilters.priority)   // all | high | normal
 
 const allPages        = ref([])
 const explorerLoading = ref(false)
@@ -23,17 +28,22 @@ const explorerMeta    = ref(null)   // { entityName, lastScrapedAt, total }
 const snackbar    = ref(false)
 const snackbarMsg = ref('')
 
+const activeFilters = computed(() => ({
+  search:   urlFilter.value,
+  renderer: rendererFilter.value,
+  priority: priorityFilter.value,
+}))
+
 // Client-side filtered pages — instant, no extra API calls
-const filteredPages = computed(() => {
-  let p = allPages.value
-  if (urlFilter.value)
-    p = p.filter(pg => pg.url.toLowerCase().includes(urlFilter.value.toLowerCase()))
-  if (rendererFilter.value === 'html') p = p.filter(pg => !pg.usedPuppeteer)
-  if (rendererFilter.value === 'js')   p = p.filter(pg => pg.usedPuppeteer)
-  if (priorityFilter.value === 'high')   p = p.filter(pg => pg.priority === 'high')
-  if (priorityFilter.value === 'normal') p = p.filter(pg => pg.priority !== 'high')
-  return p
-})
+const filteredPages = computed(() => filterPages(allPages.value, activeFilters.value))
+
+// Rebuild the query rather than merge into it: a filter back at its default must
+// drop its key, which a spread of route.query would silently keep.
+function syncQuery() {
+  const query = { ...route.query, domain: explorerDomain.value || undefined }
+  for (const key of FILTER_QUERY_KEYS) delete query[key]
+  router.replace({ query: { ...query, ...toFilterQuery(activeFilters.value) } })
+}
 
 async function loadPages() {
   if (!explorerDomain.value) return
@@ -45,7 +55,7 @@ async function loadPages() {
     const { data } = await getScrapedPages({ domain: explorerDomain.value, page: 1, limit: 1000 })
     allPages.value     = data.pages
     explorerMeta.value = { entityName: data.entityName, lastScrapedAt: data.lastScrapedAt, total: data.total }
-    router.replace({ query: { ...route.query, domain: explorerDomain.value, search: urlFilter.value || undefined } })
+    syncQuery()
   } catch (err) {
     snackbarMsg.value = err.response?.data?.error || 'Failed to load pages'
     snackbar.value = true
@@ -54,10 +64,8 @@ async function loadPages() {
   }
 }
 
-// Sync URL filter to router query
-watch(urlFilter, (val) => {
-  router.replace({ query: { ...route.query, search: val || undefined } })
-})
+// Sync every filter to the router query
+watch([urlFilter, rendererFilter, priorityFilter], syncQuery)
 
 onMounted(() => {
   if (explorerDomain.value) loadPages()
