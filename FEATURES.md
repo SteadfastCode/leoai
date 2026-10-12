@@ -585,24 +585,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
   `$vectorSearch` stage (denylisted), and scraping any real entity.
 
-- [ ] **(LEO-073) Post-deploy smoke compares against the recorded baseline, not against all-green** [needs-human]
-  leoai.json sets autoRevert: true, so a failing post-deploy smoke reverts the merge. Combined with
-  the default-deny baseline in ops/leo-nightly/RUNBOOK.md, that is why eight items sit blocked:
-  production has failed one check since 2026-09-09, and any item let past the gate would have its
-  own healthy merge reverted for a fault it did not cause. Scoping the gate by path does not fix
-  this — the post-deploy smoke still runs the broken check and still reverts. Compare against the
-  baseline instead. Record the full baseline result at the start of the run, per check: pass/fail,
-  status code, latency. Keep it with the run's state. After deploy, compare check by check. A check
-  that was already failing before the merge and fails the same way after is not a regression and
-  must not revert. Only a check green before and red after triggers autoRevert. A check red before
-  and green after is reported, never punished. State plainly in the run summary which checks were
-  already red at baseline, so a run that shipped under a known-broken production is never mistaken
-  for a clean one. This generalises past chat: it covers a pre-existing failure of any kind. One
-  case still blocks outright — a baseline that cannot be collected at all, because then there is
-  nothing to compare against. Verify: a unit test per transition (green-to-red reverts, red-to-red
-  does not, red-to-green does not), and one that an uncollectable baseline still blocks. Edits the
-  routine's own safety net, so needs-human by rule: an automated run may not weaken the gate that
-  judges it.
 
 - [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [needs-human]
   The chat check is the only part of leoai's smoke that costs money, and also the one with the most
@@ -957,6 +939,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-073) Post-deploy smoke compares against the recorded baseline, not against all-green** [needs-human] (interactive 2026-10-12, f34ec7c; ops/leo-nightly/smoke.mjs --baseline/--compare, 9 tests on the transitions; auto-revert now fires only on a check that was green at baseline)
+  leoai.json sets autoRevert: true, so a failing post-deploy smoke reverts the merge. Combined with
+  the default-deny baseline in ops/leo-nightly/RUNBOOK.md, that is why eight items sit blocked:
+  production has failed one check since 2026-09-09, and any item let past the gate would have its
+  own healthy merge reverted for a fault it did not cause. Scoping the gate by path does not fix
+  this — the post-deploy smoke still runs the broken check and still reverts. Compare against the
+  baseline instead. Record the full baseline result at the start of the run, per check: pass/fail,
+  status code, latency. Keep it with the run's state. After deploy, compare check by check. A check
+  that was already failing before the merge and fails the same way after is not a regression and
+  must not revert. Only a check green before and red after triggers autoRevert. A check red before
+  and green after is reported, never punished. State plainly in the run summary which checks were
+  already red at baseline, so a run that shipped under a known-broken production is never mistaken
+  for a clean one. This generalises past chat: it covers a pre-existing failure of any kind. One
+  case still blocks outright — a baseline that cannot be collected at all, because then there is
+  nothing to compare against. Verify: a unit test per transition (green-to-red reverts, red-to-red
+  does not, red-to-green does not), and one that an uncollectable baseline still blocks. Edits the
+  routine's own safety net, so needs-human by rule: an automated run may not weaken the gate that
+  judges it.
 - [x] **(LEO-072) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-08] (routine 2026-10-08, f46c96f)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,

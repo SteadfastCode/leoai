@@ -344,7 +344,7 @@
     "LEO-073": {
       "order": 21,
       "title": "Post-deploy smoke compares against the recorded baseline, not against all-green",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
       "cluster": null,
       "branch": null,
