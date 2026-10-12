@@ -56,6 +56,11 @@ watch(() => props.entity, (e) => {
       enabled:       e.handoffFollowUp?.enabled ?? true,
       intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
     },
+    weeklyDigest: {
+      enabled:   e.weeklyDigest?.enabled   ?? false,
+      dayOfWeek: e.weeklyDigest?.dayOfWeek ?? 1,
+      hour:      e.weeklyDigest?.hour      ?? 13,
+    },
     doNotRelay: [...(e.doNotRelay || [])],
     conversationRetentionDays: e.conversationRetentionDays ?? 0,
     ragThreshold: e.ragThreshold ?? 0.75,
@@ -136,6 +141,17 @@ const FOLLOW_UP_INTERVAL_OPTIONS = [
   { value: 12, title: '12 hours' },
   { value: 24, title: '24 hours' },
   { value: 48, title: '48 hours' },
+]
+
+// 0=Sunday, matching Entity.weeklyDigest.dayOfWeek and JS getUTCDay().
+const DAY_OF_WEEK_OPTIONS = [
+  { value: 0, title: 'Sunday' },
+  { value: 1, title: 'Monday' },
+  { value: 2, title: 'Tuesday' },
+  { value: 3, title: 'Wednesday' },
+  { value: 4, title: 'Thursday' },
+  { value: 5, title: 'Friday' },
+  { value: 6, title: 'Saturday' },
 ]
 
 const QUOTA_THRESHOLD_OPTIONS = [
@@ -369,6 +385,58 @@ async function save() {
           />
           <div class="text-caption text-medium-emphasis mt-2">
             Uses the same phone and email as Handoff Notifications above. Reminders repeat at this interval until you reply.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Weekly Digest ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Weekly Digest</v-card-title>
+        <v-card-text class="pt-4">
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            A short email once a week: how many visitors Leo helped, what they asked most, what he
+            couldn't answer, and anything still waiting on you.
+          </div>
+          <v-switch
+            v-model="form.weeklyDigest.enabled"
+            label="Send me a weekly digest"
+            color="primary"
+            hide-details
+            density="compact"
+            class="mb-3"
+          />
+          <div class="d-flex gap-3 align-center flex-wrap">
+            <v-select
+              v-model="form.weeklyDigest.dayOfWeek"
+              :items="DAY_OF_WEEK_OPTIONS"
+              item-title="title"
+              item-value="value"
+              label="Day"
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="!form.weeklyDigest.enabled"
+              style="max-width: 160px"
+            />
+            <v-select
+              v-model="form.weeklyDigest.hour"
+              :items="hourOptions"
+              item-title="label"
+              item-value="value"
+              label="Time (UTC)"
+              variant="outlined"
+              density="compact"
+              hide-details
+              :disabled="!form.weeklyDigest.enabled"
+              style="max-width: 180px"
+            />
+          </div>
+          <div class="text-caption text-medium-emphasis mt-3">
+            Goes to the Owner Email above. Off by default. A week with no visitor activity sends
+            nothing at all — Leo only writes when he has something to report.
+            <template v-if="entity?.lastWeeklyDigestAt">
+              Last sent: {{ new Date(entity.lastWeeklyDigestAt).toLocaleString() }}.
+            </template>
           </div>
         </v-card-text>
       </v-card>
