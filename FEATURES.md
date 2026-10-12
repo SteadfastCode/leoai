@@ -133,6 +133,17 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
+- [ ] **(LEO-043) Visitor "forget me" + conversation retention**
+  No way today for a visitor to erase their history, and anonymous conversations live forever. Add
+  `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
+  `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
+  forever) driving a daily sweep that deletes anonymous conversations older than the threshold. The
+  widget gets a "Clear my history from the server" action in its menu, distinct from the local-only
+  clear (LEO-030).
+  *Verify:* `node --test` — deletion is strictly scoped to the passed domain+sessionToken (a
+  mismatched token deletes nothing; another domain's conversation is untouched); the retention
+  predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
+  is the one that matters.
 - [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
@@ -934,17 +945,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   *Verify:* `dashboard/test/pageFilters.spec.js` (vitest, no Vuetify mount) covers search, renderer
   and priority alone and combined, defaults emitting no query keys, and an unknown query value
   falling back to `all`; `cd dashboard && yarn build && yarn test`.
-- [ ] **(LEO-043) Visitor "forget me" + conversation retention** — blocked: baseline-failed (day 22) — attempt 2; item is BUILT and parked, zero new code work this run. Production POST /chat -> 50
-  No way today for a visitor to erase their history, and anonymous conversations live forever. Add
-  `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
-  `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
-  forever) driving a daily sweep that deletes anonymous conversations older than the threshold. The
-  widget gets a "Clear my history from the server" action in its menu, distinct from the local-only
-  clear (LEO-030).
-  *Verify:* `node --test` — deletion is strictly scoped to the passed domain+sessionToken (a
-  mismatched token deletes nothing; another domain's conversation is untouched); the retention
-  predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
-  is the one that matters.
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
