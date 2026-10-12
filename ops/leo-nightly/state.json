@@ -72,7 +72,7 @@
     "LEO-048": {
       "order": 5,
       "title": "`chunkText`: merge a tiny trailing chunk into the previous one",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-048",
