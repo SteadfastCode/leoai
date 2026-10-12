@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [ ] **(LEO-049) Dependency refresh within existing semver ranges**
+- [x] **(LEO-049) Dependency refresh within existing semver ranges**
   `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
   (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
   `yarn.lock` moves — no `package.json` edit, hence no major bump, and the `resolutions` block and
