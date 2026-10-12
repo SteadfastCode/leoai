@@ -72,7 +72,7 @@
     "LEO-042": {
       "order": 5,
       "title": "Weekly \"what Leo did\" owner digest — DEFAULT OFF",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-042",

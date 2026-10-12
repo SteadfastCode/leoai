@@ -133,14 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [x] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
-  A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
-  `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
-  `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
-  zero activity**; stamp `lastWeeklyDigestAt` idempotently via the same atomic pattern the
-  unanswered digest uses. Default-off is what makes it shippable unattended.
-  *Verify:* `node --test` on the due-date calc (DST-adjacent) and the body renderer (zero-activity
-  suppression, ordering). **Never trigger a real send.** `yarn build` for the Settings toggle.
 - [ ] **(LEO-040) In-dashboard "Test your bot" playground**
   Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
   their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
@@ -839,6 +831,14 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF** (routine 2026-10-12, 48a6731)
+  A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
+  `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
+  `runWeeklyDigestTick()` beside the existing hourly ticks; **skip silently when the entity had
+  zero activity**; stamp `lastWeeklyDigestAt` idempotently via the same atomic pattern the
+  unanswered digest uses. Default-off is what makes it shippable unattended.
+  *Verify:* `node --test` on the due-date calc (DST-adjacent) and the body renderer (zero-activity
+  suppression, ordering). **Never trigger a real send.** `yarn build` for the Settings toggle.
 - [x] **(LEO-043) Visitor "forget me" + conversation retention** (routine 2026-10-12, ce714f8)
   No way today for a visitor to erase their history, and anonymous conversations live forever. Add
   `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
