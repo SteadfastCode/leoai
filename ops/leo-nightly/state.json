@@ -72,7 +72,7 @@
     "LEO-047": {
       "order": 5,
       "title": "Handoff filtering, first slice: per-entity do-not-relay list",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-047",

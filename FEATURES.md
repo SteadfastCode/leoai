@@ -133,33 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [x] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list**
-  Owners cannot stop Leo forwarding question types they will never answer (competitor comparisons,
-  salary questions). Add `doNotRelay: { type: [String], default: [] }` to
-  `backend/src/models/Entity.js` (optional — no `required`/`unique`) and a new
-  `backend/src/services/doNotRelay.js` exporting `sanitizeList(list)` (strings only, trimmed,
-  case-insensitive dedupe, cap 50 entries × 120 chars) and `matchesDoNotRelay(text, list)` (case-
-  and whitespace-insensitive phrase match). Wire it in three places: (1) `doNotRelay` joins the
-  `allowed` array of the PATCH `/entities/:domain` handler in `backend/src/routes/dashboard.js`,
-  passed through `sanitizeList`; (2) in `backend/src/services/claude.js` `buildSystemPrompt`, when
-  the list is non-empty append one clause to the existing `handoffModeInstruction` string naming
-  the topics and telling Leo to decline warmly ("that's not something the team can help with here,
-  but here's what I can do") and NOT append `[HANDOFF_REQUESTED]` for them — it already reaches the
-  prompt via `[HANDOFF_MODE_INSTRUCTION]`, so `prompts/leo-system-prompt.md` is not edited; (3) as
-  a safety net, `buildQuestionBlock`/`sendHandoffNotification` in
-  `backend/src/services/notifications.js` omit matched pending questions from the SMS/email body
-  (the alert still sends). Dashboard: a "Don't relay" card in `Settings.vue` (chip-style
-  `v-combobox` bound to `form.doNotRelay`, saved by the existing `save()`), and in
-  `ConversationDetail.vue` a small "Don't relay this type" button beside each pending question that
-  reads the current list via `getStats(domain)` (it returns the entity), appends the question text
-  and PATCHes with `updateEntity`. `routes/chat.js` diff must be zero lines.
-  Out of scope: the tolerance slider, aggressive-user handling, suggested auto-denial phrasing, any
-  prompt-file edit, retroactively cancelling handoffs already pending.
-  *Verify:* `backend/test/do-not-relay.test.js` under `node --test`: matcher (case, whitespace,
-  no-match, empty list), `sanitizeList` (cap, dedupe, non-strings dropped), and the PATCH allowlist
-  driven through the real dashboard router over `mongodb-memory-server` (the `kb-search.test.js`
-  router-over-http harness shape): an owner can set it, an unlisted field is still ignored.
-  `node backend/src/scripts/verify-prompt.js` still passes; `cd dashboard && yarn build && yarn test`.
 - [ ] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
   `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
   is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
@@ -891,6 +864,33 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-047) Handoff filtering, first slice: per-entity do-not-relay list** (routine 2026-10-12, b01d3f0)
+  Owners cannot stop Leo forwarding question types they will never answer (competitor comparisons,
+  salary questions). Add `doNotRelay: { type: [String], default: [] }` to
+  `backend/src/models/Entity.js` (optional — no `required`/`unique`) and a new
+  `backend/src/services/doNotRelay.js` exporting `sanitizeList(list)` (strings only, trimmed,
+  case-insensitive dedupe, cap 50 entries × 120 chars) and `matchesDoNotRelay(text, list)` (case-
+  and whitespace-insensitive phrase match). Wire it in three places: (1) `doNotRelay` joins the
+  `allowed` array of the PATCH `/entities/:domain` handler in `backend/src/routes/dashboard.js`,
+  passed through `sanitizeList`; (2) in `backend/src/services/claude.js` `buildSystemPrompt`, when
+  the list is non-empty append one clause to the existing `handoffModeInstruction` string naming
+  the topics and telling Leo to decline warmly ("that's not something the team can help with here,
+  but here's what I can do") and NOT append `[HANDOFF_REQUESTED]` for them — it already reaches the
+  prompt via `[HANDOFF_MODE_INSTRUCTION]`, so `prompts/leo-system-prompt.md` is not edited; (3) as
+  a safety net, `buildQuestionBlock`/`sendHandoffNotification` in
+  `backend/src/services/notifications.js` omit matched pending questions from the SMS/email body
+  (the alert still sends). Dashboard: a "Don't relay" card in `Settings.vue` (chip-style
+  `v-combobox` bound to `form.doNotRelay`, saved by the existing `save()`), and in
+  `ConversationDetail.vue` a small "Don't relay this type" button beside each pending question that
+  reads the current list via `getStats(domain)` (it returns the entity), appends the question text
+  and PATCHes with `updateEntity`. `routes/chat.js` diff must be zero lines.
+  Out of scope: the tolerance slider, aggressive-user handling, suggested auto-denial phrasing, any
+  prompt-file edit, retroactively cancelling handoffs already pending.
+  *Verify:* `backend/test/do-not-relay.test.js` under `node --test`: matcher (case, whitespace,
+  no-match, empty list), `sanitizeList` (cap, dedupe, non-strings dropped), and the PATCH allowlist
+  driven through the real dashboard router over `mongodb-memory-server` (the `kb-search.test.js`
+  router-over-http harness shape): an owner can set it, an unlisted field is still ignored.
+  `node backend/src/scripts/verify-prompt.js` still passes; `cd dashboard && yarn build && yarn test`.
 - [x] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one** (routine 2026-10-12, baa6c72)
   In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
   (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
