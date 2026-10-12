@@ -16,12 +16,28 @@ says alpha has begun, stop and block the item instead.
 full specs for features that already shipped. Never trigger a real SMS or email send. Never run a
 scrape against a real entity.
 
-## Production baseline — default deny
+## Production baseline — record it, do not judge it (LEO-073)
 
-Before touching code, run the full smoke (below) against current production. If it fails, block
-the item with `baseline-failed`, write `ops/leo-nightly/incident-<ts>.md`, and exit — an Anthropic
-529 or Atlas maintenance would otherwise make your post-deploy smoke fail and you would revert
-healthy code.
+Before touching code, record the baseline:
+
+```
+node ops/leo-nightly/smoke.mjs --baseline ops/leo-nightly/.baseline.json
+```
+
+It exits 0 whether or not checks pass. **A red baseline is a fact to write down, not a reason to
+stop.** The old rule here was default-deny — any failing check blocked the item — and it cost 26
+days: `POST /chat` answered 500 from 2026-09-09 because the Anthropic credits ran out, and eight
+items that never touched the chat path sat blocked behind it, three of them already built.
+
+What the baseline is *for* is the comparison after deploy. Keeping it means a check that was
+already red cannot be mistaken for something this run broke.
+
+Only one thing still stops the run here: a baseline that could not be collected at all (the host
+is unreachable, the file could not be written). With nothing to compare against there is no way to
+tell a regression from a fault that was already there, so block with `baseline-failed`, write
+`ops/leo-nightly/incident-<ts>.md`, and exit.
+
+Note the baseline file is gitignored — it belongs to one run, not to the repo.
 
 ## Verification (all must pass; state explicitly which gates did not run)
 
@@ -30,6 +46,7 @@ cd backend   && yarn install --frozen-lockfile && yarn verify && yarn test
 cd dashboard && yarn install --frozen-lockfile && yarn build   && yarn test
 node widget/smoke.mjs
 node backend/src/scripts/verify-prompt.js
+node --test "ops/leo-nightly/*.test.mjs"
 ```
 
 Mechanical diff gates, any of which fails the item:
@@ -68,7 +85,21 @@ merge can produce a semantically broken hybrid.
   a deferred-deploy note), not the run.
 - `main` is branch-protected on `backend`, `dashboard`, `widget` checks, but the token can bypass:
   `gh pr checks <n> --watch`, merge only when all three pass, `--merge` never squash.
-- Railway and Netlify deploy on their own. **Post-deploy smoke**, polling every 30 s up to 12 min:
+- Railway and Netlify deploy on their own. **Post-deploy smoke**, compared against the baseline:
+
+  ```
+  node ops/leo-nightly/smoke.mjs --compare ops/leo-nightly/.baseline.json --expect-commit <merge-sha>
+  ```
+
+  Exit 0 means nothing regressed and the merge stands. Exit 1 means either a check that was green
+  at baseline is now red — **that, and only that, is what auto-revert is for** — or the baseline
+  was missing. Poll every 30 s up to 12 min for the deploy to land before treating a red `health`
+  commit mismatch as final.
+
+  Say in the run summary which checks were already red at baseline. A run that shipped under a
+  known-broken production must never read as a clean one.
+
+  The checks it runs, unchanged from what this section always described:
   1. `GET https://api.leo-ai.chat/health` → `commit` equals the merge sha and `mongo` is 1. A failed
      Railway build keeps serving the previous container, which returns 200 just as happily.
   2. `GET https://leo-ai.app` → 200, and the hashed `/assets/index-*.js` it references → 200.
@@ -81,7 +112,7 @@ merge can produce a semantically broken hybrid.
      file, `node --check` on the downloaded body.
   The smoke entity is `smoke.leo-ai.chat` (plan `infinity`, blank ownerPhone/ownerEmail so no
   notification can fire, 4 manual chunks; never scrape it) — see `ops/leo-nightly/README.md`.
-- **Auto-revert** on smoke failure: `git checkout -B routine/revert-<sha> origin/main && git revert
+- **Auto-revert** on a *regression* — never on a pre-existing failure: `git checkout -B routine/revert-<sha> origin/main && git revert
   --no-edit -m 1 <merge-sha> && git push origin HEAD:main`, re-run the smoke. If the post-revert
   smoke also fails, stop: write the incident file, block the item, and exit. Never `reset --hard`
   plus force-push; main is deployed and shared.
