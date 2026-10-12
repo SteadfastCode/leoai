@@ -133,17 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [x] **(LEO-043) Visitor "forget me" + conversation retention**
-  No way today for a visitor to erase their history, and anonymous conversations live forever. Add
-  `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
-  `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
-  forever) driving a daily sweep that deletes anonymous conversations older than the threshold. The
-  widget gets a "Clear my history from the server" action in its menu, distinct from the local-only
-  clear (LEO-030).
-  *Verify:* `node --test` — deletion is strictly scoped to the passed domain+sessionToken (a
-  mismatched token deletes nothing; another domain's conversation is untouched); the retention
-  predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
-  is the one that matters.
 - [ ] **(LEO-042) Weekly "what Leo did" owner digest — DEFAULT OFF**
   A gentle weekly email: messages handled, top questions, unanswered count, handoffs.
   `weeklyDigest: { enabled: false, dayOfWeek, hour }` on Entity + the PATCH allowlist; a
@@ -850,6 +839,17 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-043) Visitor "forget me" + conversation retention** (routine 2026-10-12, ce714f8)
+  No way today for a visitor to erase their history, and anonymous conversations live forever. Add
+  `POST /chat/forget` (public) that deletes the conversation for the **caller's own**
+  `domain`+`sessionToken` only, and a per-entity `conversationRetentionDays` (default 0 = keep
+  forever) driving a daily sweep that deletes anonymous conversations older than the threshold. The
+  widget gets a "Clear my history from the server" action in its menu, distinct from the local-only
+  clear (LEO-030).
+  *Verify:* `node --test` — deletion is strictly scoped to the passed domain+sessionToken (a
+  mismatched token deletes nothing; another domain's conversation is untouched); the retention
+  predicate covers 0/disabled, exactly-N-days, and the boundary. Destructive, so the scoping test
+  is the one that matters.
 - [x] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic** (routine 2026-10-12, 7639e59)
   `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
   is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
