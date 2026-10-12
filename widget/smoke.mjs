@@ -58,6 +58,7 @@ try {
     fetchCalls.push({ url: u, method: opts.method || 'GET', body: opts.body || null });
     if (u.includes('/chat/entity-name')) return json({ name: 'Smoke Test Shop' });
     if (u.includes('/chat/history')) return json({ messages: [], hasMore: false, entityConfig: { linksOpenInNewTab: true } });
+    if (u.includes('/chat/forget')) return json({ deleted: 1, forgotten: true });
     if (u.includes('/health')) return json({ status: 'ok' });
     if (u.endsWith('/chat')) return chatHandler ? chatHandler() : json({ reply: STUB_REPLY });
     return json({});
@@ -161,6 +162,44 @@ try {
     'exhausted retries put the typed message back into the input'
   );
   chatHandler = null;
+
+  // 6. LEO-043: "Clear my history from the server" arms on the first tap and
+  //    only posts /chat/forget on the second, under the CURRENT session token.
+  const forgetBtn = doc.getElementById('leo-menu-forget');
+  check(!!forgetBtn, 'server-forget menu item exists');
+  const tokenBeforeForget = win.localStorage.getItem(`leo_session_${DOMAIN}`);
+
+  forgetBtn.click();
+  await flush();
+  check(
+    fetchCalls.filter((c) => c.url.includes('/chat/forget')).length === 0,
+    'first tap on server-forget posts nothing (it only arms)'
+  );
+  check(forgetBtn.textContent.includes('tap again'), 'first tap relabels the item to ask for confirmation');
+
+  forgetBtn.click();
+  await settle();
+  const forgetCall = fetchCalls.find((c) => c.url.includes('/chat/forget'));
+  check(!!forgetCall && forgetCall.method === 'POST', 'second tap POSTs /chat/forget');
+  const forgetBody = forgetCall ? JSON.parse(forgetCall.body) : {};
+  check(
+    forgetBody.domain === DOMAIN && forgetBody.sessionToken === tokenBeforeForget,
+    "forget body carries this visitor's own domain and session token"
+  );
+  check(
+    win.localStorage.getItem(`leo_session_${DOMAIN}`) !== tokenBeforeForget,
+    'a fresh session token is minted after a successful forget'
+  );
+  check(
+    [...doc.querySelectorAll('.leo-msg--assistant')].some((el) => el.textContent.includes('deleted from the server')),
+    'a successful forget is confirmed in Leo\'s own voice'
+  );
+  check(
+    !doc.body.textContent.includes(LOST_MESSAGE),
+    'the transcript pane is empty after a forget'
+  );
+  check(forgetBtn.textContent.includes('from the server') && !forgetBtn.textContent.includes('tap again'),
+    'the menu item disarms back to its normal label');
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));

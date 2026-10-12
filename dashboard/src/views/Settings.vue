@@ -57,6 +57,7 @@ watch(() => props.entity, (e) => {
       intervalHours: e.handoffFollowUp?.intervalHours ?? 24,
     },
     doNotRelay: [...(e.doNotRelay || [])],
+    conversationRetentionDays: e.conversationRetentionDays ?? 0,
     ragThreshold: e.ragThreshold ?? 0.75,
   }
 }, { immediate: true })
@@ -457,6 +458,34 @@ async function save() {
             A rescrape normally skips any page whose content hash is unchanged. Set a number of
             days to also re-embed pages that simply haven't been scraped in a while — useful after
             a chunking or embedding change. <strong>0 disables it</strong> (the default).
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- ── Privacy & Retention ── -->
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Privacy &amp; Retention</v-card-title>
+        <v-card-text class="pt-2">
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Visitors chat anonymously — a conversation is only ever keyed to a random session token.
+            They can delete their own transcript at any time from the widget's ⋯ menu.
+          </div>
+          <v-text-field
+            v-model.number="form.conversationRetentionDays"
+            label="Delete conversations after (days of inactivity)"
+            type="number"
+            min="0"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 320px"
+            class="mb-1"
+          />
+          <div class="text-caption text-medium-emphasis">
+            A daily sweep deletes visitor conversations that haven't been active for this many days.
+            Counted from the last message, so an ongoing conversation is never cut short.
+            <strong>0 keeps them forever</strong> (the default). Deletion is permanent — the
+            transcript leaves your Conversations list too.
           </div>
         </v-card-text>
       </v-card>

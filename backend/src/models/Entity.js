@@ -49,6 +49,10 @@ const entitySchema = new mongoose.Schema(
     dailyVolumeDay: { type: String }, // UTC day 'YYYY-MM-DD' the counter belongs to
     dailyVolumeCount: { type: Number, default: 0 },
     dailyVolumeLastAlertedDay: { type: String },
+    // Visitor conversation retention (LEO-043). Days of inactivity after which
+    // a conversation is swept. 0 = keep forever (the default) — existing
+    // entities are unaffected and nothing is ever deleted until an owner opts in.
+    conversationRetentionDays: { type: Number, default: 0, min: 0 },
     ministryPlanRequested: { type: Boolean, default: false },
     ministryPlanRequestedAt: { type: Date },
     ministryPlanRequestedBy: { type: String },
