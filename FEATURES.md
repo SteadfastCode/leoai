@@ -794,6 +794,191 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   under `ops/leo-nightly/` (`README.md` is denylisted and LEO-059 already owns its stale half); and
   re-grading either review.
 
+- [ ] **(LEO-082) Every owner notification links to `localhost`: `DASHBOARD_URL` is undeclared** [needs-human]
+  `services/notifications.js` builds the dashboard link in all six of its senders from
+  `process.env.DASHBOARD_URL || 'http://localhost:5173'` (lines 80, 113, 159, 205, 251, 290), and
+  `DASHBOARD_URL` appears nowhere in `backend/.env.example` — which declares `DASHBOARD_ORIGIN` (line 29)
+  and `APP_URL` (line 30) instead. Three different variables name the same dashboard: `DASHBOARD_URL`
+  (notifications), `DASHBOARD_ORIGIN` (`routes/auth.js:23,395`, `routes/dashboard.js:560`) and `APP_URL`
+  (`routes/billing.js:78,120,176`). Nobody setting the backend up from `.env.example` is told about the
+  first, so unless the deploy environment happens to carry it, every handoff SMS and email, every quota
+  warning, every follow-up reminder and every weekly digest ships
+  `http://localhost:5173/#/conversations/<id>` to the business owner — the one link whose whole purpose is
+  to get them back into the dashboard. The env-example gate only fires on *newly* referenced variables, so
+  this one and `RESEND_FROM` (`services/email.js:17`) pre-date it and slip through unflagged.
+  Build a single `dashboardUrl(env)` in a new `backend/src/services/appUrl.js`: read `DASHBOARD_URL`, then
+  `DASHBOARD_ORIGIN`, then `APP_URL`, take the first non-empty value, strip a trailing `/`, and fall back
+  to `http://localhost:5173` only when all three are absent. Call it from the six notification sites and
+  from `routes/auth.js` and `routes/dashboard.js`. Declare `DASHBOARD_URL` and `RESEND_FROM` in
+  `backend/.env.example`, with a comment naming the three aliases and which one wins. Light-tier log line
+  once per process naming **which variable the value came from**, so a wrong link is diagnosable from the
+  log viewer rather than from a confused owner.
+  Files: new `backend/src/services/appUrl.js`, `backend/src/services/notifications.js`,
+  `backend/src/routes/auth.js`, `backend/src/routes/dashboard.js`, `backend/.env.example`,
+  new `backend/test/app-url.test.js`.
+  *Verify:* `node --test` on `dashboardUrl` with an injected env object — each variable alone wins in
+  priority order, an empty string counts as absent, a trailing slash is stripped, all three absent yields
+  the localhost default, and `dashboardUrl({})`/`dashboardUrl(null)` never throw; plus
+  `backend/test/handoff-messages.test.js` extended to assert the rendered link uses the resolved host
+  instead of a hardcoded one. `cd backend && yarn verify && yarn test`. **Which variables the Railway
+  service actually carries is Daniel's to check in the Railway dashboard — the PR must not claim
+  production is or is not affected.**
+  Out of scope: `routes/billing.js` (denylisted, so its three `APP_URL` reads stay exactly as they are —
+  note the duplication and leave it), retiring any of the three variables, sending a real email or SMS to
+  confirm the link, `backend/index.js`, the Stripe return URLs, and `dashboard/`'s own `VITE_API_URL`.
+
+- [ ] **(LEO-083) The free-tier billing period skips February: month-end rollover overflows** [needs-human]
+  `routes/chat.js:69,74` computes the next reset as
+  `new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())`. JavaScript normalises an out-of-range
+  day instead of clamping it, so for an entity whose period lands on a month end the next boundary lands in
+  the month *after* next — measured on node 20: 2026-01-31 → **Tue Mar 03 2026**, 2026-01-30 → Mar 02,
+  2026-03-31 → May 01, 2026-05-31 → Jul 01, 2026-08-31 → Oct 01. A free entity whose first message is on
+  the 31st therefore gets no fresh 100-message allowance in February at all, and because each rollover
+  recomputes from `now` rather than from the previous boundary the drift compounds, so the reset date shown
+  on the Usage panel and the Billing page (`dashboard/src/components/UsagePanel.vue:20`,
+  `dashboard/src/views/Billing.vue:207`) is wrong by days and keeps moving. The same two lines use the
+  local-time `Date(y, m, d)` constructor while every other schedule in this codebase is UTC (`leoRefresh`,
+  both digests, the retention sweep); on a developer machine that is a 4-5 hour skew from
+  `billingPeriodStart = now`, which is an instant. No file under `backend/test` references
+  `billingPeriodResetAt` — the quota tests cover 99/100/101 messages and never a rollover.
+  Build a pure `nextPeriodReset(from, { anchor })` in a new `backend/src/services/billingPeriod.js`
+  returning the same day-of-month one month later **in UTC**, clamped to the last day of the target month
+  (Jan 31 → Feb 28; in a leap year → Feb 29), and advanced from the previous boundary when one is supplied
+  rather than from `now`, so a period is always one calendar month and can never creep. `chat.js` calls it
+  at both sites.
+  Know the constraint before starting: `backend/src/routes/chat.js` is restricted to ≤30 changed lines and
+  the runbook forbids touching "the quota block" — these two lines sit under the
+  `// --- Quota check & usage tracking ---` comment, and whether they count as that block is **Daniel's
+  call, not a run's**. The pure function and its tests are the deliverable either way: if the two
+  substitutions are in scope they are about four lines, and if not they are his to apply by hand.
+  Files: new `backend/src/services/billingPeriod.js`, `backend/src/routes/chat.js` (**restricted** — two
+  call sites, about 4 lines), new `backend/test/billing-period.test.js`.
+  *Verify:* `node --test` on `nextPeriodReset` with an injected date — the 31st of a 31-day month clamping
+  into a 28-day February, a leap February, the 1st and the 15th landing on the same day next month,
+  December rolling the year, an anchored boundary advancing exactly one month however late the next message
+  arrives, and a `null`/invalid input returning a usable date rather than `Invalid Date`. Then
+  `backend/test/chat-flow.test.js` extended: an entity whose `billingPeriodResetAt` is in the past has its
+  counter zeroed and `notifiedThresholds` cleared on the next message with the new boundary one month on,
+  while an entity whose boundary is in the future keeps its count. Confirm the suite goes red against
+  unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: the 100-message limit itself and anything in `docs/pricing-strategy.md`;
+  `routes/billing.js` and `routes/webhooks.js` (denylisted), so Stripe's own
+  `currentPeriodStart`/`currentPeriodEnd` are not reconciled here; backfilling the wrong
+  `billingPeriodResetAt` already stored on existing entities (a one-off Daniel can run once the function
+  exists); the PAYG milestone maths; and any change to the quota check itself, the handoff atomic
+  test-and-set or `conversation.save()`.
+
+- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** [needs-human]
+  One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
+  beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
+  (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
+  `digestDue` (`services/unansweredDigest.js:28-41`) requires the hour, plus the day when weekly; and
+  `runRetentionSweepTick` (`services/retention.js:163-164`) opens with
+  `if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;` and keeps no last-run stamp anywhere, so
+  it cannot tell a missed hour from a completed one. Their `MIN_GAP_MS` guards stop a *double* send;
+  nothing makes a *missed* fire recoverable. Railway redeploys on every merge — several a night — so
+  losing one top-of-the-hour tick is ordinary, and the cost is a whole week of digest for a weekly sender
+  and a whole day of deletion for an owner who has opted into a retention window. For a privacy feature,
+  quietly not deleting is the failure that matters.
+  This is the same defect LEO-077 describes in `isDueNow`, which is scoped to `leoRefresh.js` and names
+  these three nowhere; the file lists are disjoint and the two land in either order.
+  Build, mirroring the gap-guard shape already in `digestDue`: (1) a catch-up arm on `weeklyDigestDue` and
+  `digestDue` — due when the scheduled day+hour match, **or** when the last-sent stamp is older than a
+  catch-up window (daily 26h, weekly 8d), with the existing `MIN_GAP_MS` still making a second send inside
+  the same period impossible; (2) a `retentionLastSweepAt` optional Date on `Entity` (no `required`, no
+  `unique`) plus an exported `sweepDue(entity, now)` with the same two arms, so a missed 4 AM sweep runs at
+  5; (3) tiered debug logging (off/light/normal/verbose) through each service's existing `debug()` helper,
+  the light tier emitting one line per decision naming the **reason** — day+hour match, catch-up after N
+  hours, gap guard, disabled — not just the outcome.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/src/services/unansweredDigest.js`,
+  `backend/src/services/retention.js`, `backend/src/models/Entity.js` (one new optional Date),
+  `backend/test/weekly-digest.test.js`, `backend/test/unanswered-digest.test.js`,
+  `backend/test/retention.test.js`. `backend/src/services/leoRefresh.js` must have a **zero-line diff** —
+  LEO-077 owns that file.
+  *Verify:* `node --test` with an injected `now` against each of the three — exact day+hour due; wrong hour
+  not due; wrong hour with the last stamp 30h (daily) or 8d (weekly) old due as catch-up; the scheduled
+  hour with the stamp 1h old not due (gap guard holds); no stamp at the scheduled hour due; a disabled
+  entity never due. For the sweep, that a catch-up run writes `retentionLastSweepAt` and a second call in
+  the same hour is a no-op. Break one gap guard in a scratch copy and confirm the suite goes red.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: `services/leoRefresh.js` including the cron expression, the re-entrancy flag and the
+  handoff follow-up tick (LEO-077 owns the first three; the follow-up tick is already idempotent through
+  its atomic `findOneAndUpdate`); moving off `node-cron`; per-entity timezones; making the ticks parallel;
+  sending any real email or SMS to check one; and surfacing dropped runs in the dashboard.
+
+- [ ] **(LEO-085) `JWT_SECRET` silently falls back to a literal committed to this repo** [needs-human]
+  `backend/src/middleware/auth.js:7` is
+  `const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'`, and that string is the only
+  default of its kind in the backend. It signs and verifies both the 15-minute access token and the 7-day
+  refresh token (lines 132-145) and the 5-minute passkey challenge token (`routes/auth.js:286`), and is
+  re-exported for anything else that wants it — so with the variable unset the whole auth system runs on a
+  secret readable in this repo's git history, and `requireAuth()` would accept a forged `{ sub: <any user
+  id> }` from anyone who read it. Nothing fails, nothing logs, and `/health` reports only `mongo`: the
+  insecure state and the correct state are indistinguishable from outside. `RP_ID` (`routes/auth.js:22`)
+  has the same shape — defaulting to `localhost` breaks every passkey against a real origin while looking
+  configured. Block H is the place for this and it is still empty.
+  Build a pure `auditEnv(env, { nodeEnv })` in a new `backend/src/services/envAudit.js` returning
+  `[{ name, severity: 'fatal' | 'warn', reason }]`: `fatal` when `nodeEnv === 'production'` and
+  `JWT_SECRET` is absent, equal to the committed default, or shorter than 32 characters; `warn` for
+  `RP_ID`, `DASHBOARD_URL`, `RESEND_API_KEY` and `ANTHROPIC_API_KEY` absent in production. Then make the
+  fatal case fail loudly at module load of `middleware/auth.js` — a `throw` naming the variable, which is a
+  crash on boot instead of a container quietly serving forgeable tokens — and log the warnings once through
+  `services/logger`. Everything else is report-only, the pattern LEO-054 and LEO-061 already use here.
+  Outside production nothing changes: the default keeps working for local dev and for every existing test.
+  **Precondition Daniel must check before promoting this: `JWT_SECRET` has to be set on the Railway
+  service, or the throw bricks the next deploy.** That is the whole reason it is `[needs-human]` and not an
+  ordinary routine item.
+  Files: new `backend/src/services/envAudit.js`, `backend/src/middleware/auth.js` (the guard, ~4 lines),
+  `backend/.env.example` (a comment on `JWT_SECRET` saying it is required in production),
+  new `backend/test/env-audit.test.js`.
+  *Verify:* `node --test` on `auditEnv` with injected env objects — the committed default under
+  `production` is `fatal`, the same value under `development` is not, a 64-character random secret is
+  clean, a 20-character secret is `fatal`, an absent variable is `fatal`, each warn-level variable appears
+  once and only in production, and `auditEnv({}, {})` and `auditEnv(null, null)` never throw. Plus a
+  **child-process** test (the require cache makes an in-process one meaningless) asserting that requiring
+  `middleware/auth.js` with `NODE_ENV=production` and no `JWT_SECRET` exits non-zero naming the variable,
+  and that the existing suite stays green because it does not run under `NODE_ENV=production`.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: `backend/index.js` (denylisted), so no startup banner and no new `/health` field; rotating
+  or changing the secret itself; hashing `passwordResetToken`, which is stored in plaintext at
+  `routes/auth.js:391` while `ApiKey` stores a SHA-256 hash (real, and its own item); an admin endpoint or
+  dashboard card for the audit; refresh-token rotation on `POST /auth/refresh`; and setting any variable in
+  Railway.
+
+- [ ] **(LEO-086) Two grader findings about the docs were recorded and never filed** [needs-human]
+  Two independent findings from the graders of LEO-051 and LEO-058 sit in
+  `ops/leo-nightly/reviews/LEO-051.graded.json` and `LEO-058.graded.json` and were never turned into work;
+  LEO-080 filed the LEO-065/LEO-066 pair and names neither. Both are statements a reader would act on.
+  (1) LEO-053 mandates `aria-modal="true"` on `#leo-drawer` while putting "a full focus trap" explicitly
+  out of scope (`FEATURES.md:188,198`). `aria-modal="true"` tells assistive tech to treat everything
+  outside the dialog as inert, but the widget drawer is a non-modal panel embedded on an arbitrary customer
+  page that stays fully interactive — so without a focus trap a screen-reader user who tabs out of the
+  drawer lands in host content their reader now ignores, which is worse than today's markup. An
+  accessibility item would ship an accessibility regression. Correct it either to drop `aria-modal` and
+  keep the rest (live region, `aria-expanded`, Escape-to-close with focus return, named quick-reply pills)
+  or to require the focus trap — and say which, in one sentence, so the next implementer has no choice to
+  make. (2) `CLAUDE.md:236` tells the reader to "Regenerate state with `orchestrator build-state leoai`",
+  naming a bare binary that is not on the path; `FEATURES.md:13,31` give the runnable form
+  `node <orchestrator> build-state leoai` with the path placeholder the runbook resolves. That line sits two
+  sentences above the warning never to run the superseded in-repo script, so a reader whose shell rejects
+  the command is pointed straight at the thing they must not run. While in that file, `CLAUDE.md:128` and
+  `:186` also still describe the alpha gate as "validated server-side against `ALPHA_CODES` env var
+  (comma-separated)": `ALPHA_CODES` appears nowhere under `backend/src`, and `routes/auth.js:75-78`
+  validates against the `Code` model (`type: 'alpha'`, `active`, `maxUses`/`useCount`, `expiresAt`).
+  Build: correct those three passages in place and nothing else. Do not restate either item, do not
+  renumber anything, do not move a block between sections, do not change any scope beyond the correction,
+  and leave every `[needs-human]` tag exactly as it is. `CLAUDE.md`'s Current State, Architecture and
+  `## Known Issues` blocks are not touched — LEO-063 owns the last of those.
+  Files: `FEATURES.md`, `CLAUDE.md`.
+  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
+  `git diff --stat origin/main` names those two files and nothing else; quote each passage before and after
+  in the PR body with its one-line evidence (the non-modal embedded drawer, the missing binary, the
+  `Code`-model lookup). No code changes, so the four code gates are unaffected — run and report them
+  anyway.
+  Out of scope: implementing LEO-053 itself; promoting, demoting or reordering any item;
+  `ops/leo-nightly/README.md` (denylisted, and LEO-059 owns its stale half); re-grading either review; and
+  anything under `.github/**`.
+
 ## Block L — Backlog upkeep
 
 
@@ -801,6 +986,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 - [x] **(LEO-081) Backlog audit: file new candidates under Proposed**
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-087) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-19]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
