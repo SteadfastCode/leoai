@@ -985,21 +985,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 
-- [x] **(LEO-081) Backlog audit: file new candidates under Proposed**
-  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
-  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
-  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
-  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
-  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
-  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
-  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
-  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
-  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
-  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
-  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
-  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
-  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
-  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
 
 - [ ] **(LEO-087) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-19]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
@@ -1023,6 +1008,21 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-081) Backlog audit: file new candidates under Proposed** (routine 2026-10-12, c8a53ac)
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
 - [x] **(LEO-040) In-dashboard "Test your bot" playground** (routine 2026-10-12, b75631f)
   Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
   their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
