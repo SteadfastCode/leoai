@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [ ] **(LEO-040) In-dashboard "Test your bot" playground**
+- [x] **(LEO-040) In-dashboard "Test your bot" playground**
   Owners can't easily try their own bot. Add a dashboard view where the owner sends messages to
   their own entity and sees Leo's reply plus debug (model, topScore, hadContext, handoffTriggered)
   — no quota burn, no notifications. Requires extending the test-mode gate (`services/testMode.js`)
