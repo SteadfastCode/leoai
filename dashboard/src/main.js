@@ -29,6 +29,7 @@ import Codes from './views/Codes.vue'
 import Logs from './views/Logs.vue'
 import ApiKeys from './views/ApiKeys.vue'
 import UnansweredQuestions from './views/UnansweredQuestions.vue'
+import Playground from './views/Playground.vue'
 import { isSuperAdminUser } from './lib/permissions'
 
 const savedTheme = localStorage.getItem('leo_dashboard_theme') || 'light'
@@ -86,6 +87,7 @@ const router = createRouter({
     { path: '/logs', component: Logs, meta: { superadmin: true } },
     { path: '/api-keys', component: ApiKeys, meta: { superadmin: true } },
     { path: '/unanswered', component: UnansweredQuestions },
+    { path: '/playground', component: Playground },
   ],
 })
 

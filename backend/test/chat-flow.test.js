@@ -87,6 +87,8 @@ const chatRouter = require('../src/routes/chat');
 const Entity = require('../src/models/Entity');
 const Conversation = require('../src/models/Conversation');
 const ApiKey = require('../src/models/ApiKey');
+const User = require('../src/models/User');
+const { signAccessToken } = require('../src/middleware/auth');
 
 let mongod;
 let server;
@@ -362,4 +364,57 @@ test('rate limit: rapid over-limit /chat returns 429, keyed requests bypass', as
     );
     assert.equal(keyed.status, 200, 'keyed requests are never rate limited');
   }
+});
+
+// ---------------------------------------------------------------------------
+// 7. Owner playground (LEO-040): a dashboard access token puts /chat into
+//    test-mode for the caller's OWN domain and nothing else. The gate's
+//    decision table is unit-tested in test-mode-gate.test.js with injected
+//    resolvers; this asserts the live wiring with a REAL signed token, a REAL
+//    User document and the real gate — including the counter, which is the
+//    whole promise of the playground ("try your bot, it costs you nothing").
+// ---------------------------------------------------------------------------
+test('playground: owner JWT for its own domain is test-mode, another domain is not', async () => {
+  resetStubs();
+  const domain = 'playground.example.com';
+  const other  = 'notmine.example.com';
+  // Free tier + owner contact on BOTH, so a real message WOULD count and WOULD notify.
+  await Entity.create({ domain, name: 'Playground', plan: 'free', messageCountThisPeriod: 7, ownerEmail: 'stub-owner@example.invalid' });
+  await Entity.create({ domain: other, name: 'Someone Else', plan: 'free', messageCountThisPeriod: 3, ownerEmail: 'stub-owner@example.invalid' });
+
+  const owner = await User.create({
+    name: 'Playground Owner',
+    email: 'owner-playground@example.invalid',
+    memberships: [{ entityDomain: domain, roles: ['owner'] }],
+  });
+  // Own IP budget — this session is not test-mode on the cross-domain call.
+  const headers = { Authorization: `Bearer ${signAccessToken(owner)}`, 'X-Forwarded-For': '198.51.100.77' };
+
+  // A reply that WOULD fire a handoff notification for a normal visitor.
+  stubState.replyText = "I'll check with the team. [HANDOFF_REQUESTED: Do you cater?]";
+  const r = await postChat({ domain, sessionToken: 'playground-session', message: 'Do you cater?' }, headers);
+
+  assert.equal(r.status, 200);
+  assert.equal(r.body.isTest, true, 'an owner JWT for its own domain must grant test-mode');
+  assert.equal(r.body.handoffTriggered, true, 'the reply still triggers a handoff...');
+  assert.equal(stubState.handoffCalls.length, 0, '...but the playground fires NO owner notification');
+  assert.equal(r.body.usage.messageCountThisPeriod, 7, 'the response counter is unmoved');
+  assert.ok(r.body.debug, 'test-mode replies carry the debug block the playground renders');
+  assert.equal(r.body.debug.model, 'stub-model');
+  assert.equal(r.body.debug.topScore, 0.9);
+  assert.equal(r.body.debug.hadContext, true);
+
+  const entity = await Entity.findOne({ domain });
+  assert.equal(entity.messageCountThisPeriod, 7, 'playground /chat does not increment messageCountThisPeriod');
+  const convo = await Conversation.findOne({ sessionToken: 'playground-session', domain });
+  assert.equal(convo.isTest, true, 'the playground conversation is flagged isTest');
+
+  // Cross-domain control: the SAME token aimed at an entity this user has no membership
+  // for is ordinary visitor traffic — counted, notified, and shown no retrieval debug.
+  const rCross = await postChat({ domain: other, sessionToken: 'cross-session', message: 'Do you cater?' }, headers);
+  assert.equal(rCross.status, 200);
+  assert.equal(rCross.body.isTest, false, 'a JWT for someone else\'s domain must NOT grant test-mode');
+  assert.equal(rCross.body.debug, undefined, 'visitor traffic never sees retrieval debug');
+  assert.equal(stubState.handoffCalls.length, 1, 'cross-domain traffic is real traffic — owner notified');
+  await waitForEntity(other, (e) => e.messageCountThisPeriod === 4);
 });

@@ -258,6 +258,10 @@ router.post('/', async (req, res) => {
       handoffTriggered: !!handoffMatch,
       isTest,
       options,
+      // Playground debug (LEO-040) — only for test-mode callers, who are authenticated by
+      // definition (valid API key, or a dashboard session for this very domain). Absent for
+      // visitor traffic, so retrieval scores are never exposed through the public widget.
+      debug: isTest ? { model, topScore, hadContext, classifierRoute, classifierReason } : undefined,
       usage: {
         messageCountThisPeriod: entity.messageCountThisPeriod,
         plan: entity.plan,
