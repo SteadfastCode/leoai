@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [ ] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
+- [x] **(LEO-048) `chunkText`: merge a tiny trailing chunk into the previous one**
   In `backend/src/services/scraper.js` `chunkText`, the pre-pass absorbs tiny *sections*
   (`TINY_BUF_THRESHOLD` = 200) but `splitOversizedSection` does not: after a flush `buf` holds only
   the `trailingOverlap` tail, so a section over `CHUNK_MAX` whose last unit is short ends in a chunk
