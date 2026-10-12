@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getConversation, postOwnerReply, resolveHandoff } from '../lib/api'
+import { getConversation, postOwnerReply, resolveHandoff, getStats, updateEntity } from '../lib/api'
 import { newMessageTick } from '../lib/socket'
 
 const props = defineProps(['domain', 'entity'])
@@ -17,6 +17,35 @@ const snackbarMsg  = ref('')
 const snackbarColor = ref('success')
 const addToKb      = ref(false)
 const checkedQuestions = ref([])
+const addingDoNotRelay = ref('')
+
+// "Don't relay this type" (LEO-047) — one-click add of a pending question to the
+// entity's do-not-relay list. Reads the list fresh from the server rather than
+// from the `entity` prop so a stale prop can't clobber topics added elsewhere.
+async function addToDoNotRelay(questionText) {
+  addingDoNotRelay.value = questionText
+  try {
+    const { data } = await getStats(props.domain)
+    const current = data.entity?.doNotRelay || []
+    const already = current.some((t) => t.toLowerCase().trim() === questionText.toLowerCase().trim())
+    if (already) {
+      snackbarMsg.value = 'Already on your don\u2019t-relay list'
+      snackbarColor.value = 'info'
+      snackbar.value = true
+      return
+    }
+    await updateEntity(props.domain, { doNotRelay: [...current, questionText] })
+    snackbarMsg.value = 'Added \u2014 Leo won\u2019t forward this type again'
+    snackbarColor.value = 'success'
+    snackbar.value = true
+  } catch (err) {
+    snackbarMsg.value = err.response?.data?.error || 'Could not update your don\u2019t-relay list'
+    snackbarColor.value = 'error'
+    snackbar.value = true
+  } finally {
+    addingDoNotRelay.value = ''
+  }
+}
 
 // Silently refresh this conversation when a new message arrives
 watch(newMessageTick, async () => {
@@ -301,6 +330,16 @@ function formatDate(d) {
                 <template #label>
                   <span>{{ q.text }}</span>
                   <span class="text-caption text-medium-emphasis ml-2">{{ new Date(q.askedAt).toLocaleString() }}</span>
+                  <v-btn
+                    size="x-small"
+                    variant="text"
+                    color="secondary"
+                    class="ml-2"
+                    :loading="addingDoNotRelay === q.text"
+                    @click.stop.prevent="addToDoNotRelay(q.text)"
+                  >
+                    Don't relay this type
+                  </v-btn>
                 </template>
               </v-checkbox>
             </div>
