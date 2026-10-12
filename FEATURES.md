@@ -133,7 +133,7 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [ ] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
+- [x] **(LEO-046) Page Explorer: router-synced renderer/priority filters + testable filter logic**
   `dashboard/src/views/PageExplorer.vue` already has the virtualized grid (`@tanstack/vue-virtual`
   is installed), url/renderer/priority/chunks/last-scraped columns and a tabbed chunk drawer — but
   only `domain` and `search` round-trip through the router query; `rendererFilter` and
