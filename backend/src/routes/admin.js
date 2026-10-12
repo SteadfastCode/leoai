@@ -6,6 +6,7 @@ const Chunk = require('../models/Chunk');
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const { buildFleetRows } = require('../services/fleet');
+const { shapeUsageRows } = require('../services/usageReport');
 const { recordAudit } = require('../services/audit');
 const AuditLog = require('../models/AuditLog');
 const Log = require('../models/Log');
@@ -170,6 +171,92 @@ router.get('/audit-log', async (req, res) => {
     ]);
 
     res.json({ entries, total, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/usage-report?from=YYYY-MM-DD&to=YYYY-MM-DD   (LEO-050)
+//
+// Per entity per day: message counts, the Haiku/Sonnet split, the classifier
+// route split, and an ESTIMATED cost. This is the "alpha usage data" that
+// docs/pricing-strategy.md parks the Infinity-plan decision on — read-only,
+// superadmin-only, and no part of the billing path reads it.
+//
+// Test-mode conversations (MCP/smoke traffic) are excluded, same as the owner
+// analytics route. One aggregate covers the whole fleet — never a query per
+// entity or per day in a loop. Shaping lives in services/usageReport.js.
+// ---------------------------------------------------------------------------
+
+const MAX_REPORT_DAYS = 92;
+const DEFAULT_REPORT_DAYS = 30;
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// A YYYY-MM-DD string that is also a real calendar date ('2026-02-31' is not).
+function parseDay(raw) {
+  if (typeof raw !== 'string' || !DAY_RE.test(raw)) return null;
+  const d = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw) return null;
+  return d;
+}
+
+router.get('/usage-report', async (req, res) => {
+  try {
+    // Default window: the last DEFAULT_REPORT_DAYS UTC days, ending today.
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const toRaw = req.query.to || todayKey;
+    const to = parseDay(toRaw);
+    if (!to) return res.status(400).json({ error: `Invalid "to" date: ${toRaw} (expected YYYY-MM-DD)` });
+
+    const fromRaw = req.query.from
+      || new Date(to.getTime() - (DEFAULT_REPORT_DAYS - 1) * 86400000).toISOString().slice(0, 10);
+    const from = parseDay(fromRaw);
+    if (!from) return res.status(400).json({ error: `Invalid "from" date: ${fromRaw} (expected YYYY-MM-DD)` });
+
+    if (to < from) return res.status(400).json({ error: '"from" must not be after "to"' });
+    const spanDays = Math.round((to - from) / 86400000) + 1;
+    if (spanDays > MAX_REPORT_DAYS) {
+      return res.status(400).json({ error: `Range too large: ${spanDays} days (max ${MAX_REPORT_DAYS})` });
+    }
+
+    // `to` is inclusive, so the message window ends at the start of the next day.
+    const windowEnd = new Date(to.getTime() + 86400000);
+    const dayOf = { $dateToString: { format: '%Y-%m-%d', date: '$messages.timestamp' } };
+    const isAssistant = { $eq: ['$messages.role', 'assistant'] };
+    // $regexMatch throws on a missing input, and pre-analytics assistant
+    // messages have no `model` — coalesce to '' so they fall through to the
+    // derived otherModel bucket instead of failing the whole aggregate.
+    const modelIs = (family) => ({
+      $and: [isAssistant, { $regexMatch: { input: { $ifNull: ['$messages.model', ''] }, regex: family } }],
+    });
+    const routeIs = (route) => ({ $and: [isAssistant, { $eq: ['$messages.classifierRoute', route] }] });
+    const countIf = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
+
+    const rows = await Conversation.aggregate([
+      // Mongoose bumps updatedAt on every save, so a conversation holding a
+      // message timestamped in the window was necessarily saved at or after
+      // `from` — this prunes old documents without ever dropping a row.
+      { $match: { isTest: { $ne: true }, updatedAt: { $gte: from } } },
+      { $unwind: '$messages' },
+      { $match: { 'messages.timestamp': { $gte: from, $lt: windowEnd } } },
+      {
+        $group: {
+          _id: { domain: '$domain', day: dayOf },
+          userMessages:      countIf({ $eq: ['$messages.role', 'user'] }),
+          assistantMessages: countIf(isAssistant),
+          haiku:             countIf(modelIs('haiku')),
+          sonnet:            countIf(modelIs('sonnet')),
+          routeSimple:       countIf(routeIs('simple')),
+          routeComplex:      countIf(routeIs('complex')),
+        },
+      },
+    ]);
+
+    res.json(shapeUsageRows(rows, {
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10),
+    }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
