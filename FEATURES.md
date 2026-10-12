@@ -133,28 +133,6 @@ this block first — it is what stands between pre-alpha and real visitor traffi
 
 ## Workqueue Items
 
-- [x] **(LEO-050) Alpha usage report — per entity per day: messages, model split, estimated cost**
-  `docs/pricing-strategy.md` says Infinity pricing waits on "alpha usage data" and nothing captures
-  it: `GET /entities/:domain/model-stats` in `backend/src/routes/dashboard.js` is one entity, one
-  summary row, no days, no cost. Add `GET /api/admin/usage-report?from=YYYY-MM-DD&to=YYYY-MM-DD` to
-  `backend/src/routes/admin.js` (behind the existing `requireAdminAuth`; ≤92 days, default last
-  30): one `Conversation.aggregate` over `messages` with `isTest: { $ne: true }`, grouped by
-  `domain` + `$dateToString` day, counting assistant messages by the stored `model` (the
-  haiku/sonnet regex model-stats uses) and by `classifierRoute`, plus user messages. Pure shaping in
-  a new `backend/src/services/usageReport.js`: `shapeUsageRows(rows, { from, to })` returns dense
-  rows per entity per day and per-entity totals, with `estimatedCostUsd` from an exported `RATES`
-  table — Sonnet $0.011/message (the doc's "The math" figure); Haiku from the same ~3,000-in/200-out
-  token profile at the Haiku list price — labelled estimates, not a pricing decision. Dashboard: new
-  superadmin view `dashboard/src/views/UsageReport.vue` at `/usage-report` (route in `main.js` with
-  `meta.superadmin`, entry in `App.vue`'s `adminPaths` and admin nav, `getUsageReport` in
-  `lib/api.js`): two date inputs, a `v-data-table` of entity × day with a totals row.
-  Out of scope: token-level accounting, Voyage/embedding cost, changing any price, CSV export, any
-  owner-facing surface, emailing the report.
-  *Verify:* `backend/test/usage-report.test.js` under `node --test`: `shapeUsageRows` on fixtures
-  (empty range → zero rows, sparse days zero-filled, cost = count × rate per model, isTest rows
-  absent) the way `analytics.test.js` does, plus the route over `mongodb-memory-server` with seeded
-  conversations across two entities and three days (the `kb-search.test.js` harness shape);
-  `cd dashboard && yarn build && yarn test`.
 - [ ] **(LEO-049) Dependency refresh within existing semver ranges**
   `CLAUDE.md` "Known Issues" lists 113 Dependabot vulnerabilities (50 high). Run `yarn upgrade`
   (Yarn Classic, no package names, no `--latest`) in `backend/` and `dashboard/` so only
@@ -949,6 +927,28 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-050) Alpha usage report — per entity per day: messages, model split, estimated cost** (routine 2026-10-12, b8afecb)
+  `docs/pricing-strategy.md` says Infinity pricing waits on "alpha usage data" and nothing captures
+  it: `GET /entities/:domain/model-stats` in `backend/src/routes/dashboard.js` is one entity, one
+  summary row, no days, no cost. Add `GET /api/admin/usage-report?from=YYYY-MM-DD&to=YYYY-MM-DD` to
+  `backend/src/routes/admin.js` (behind the existing `requireAdminAuth`; ≤92 days, default last
+  30): one `Conversation.aggregate` over `messages` with `isTest: { $ne: true }`, grouped by
+  `domain` + `$dateToString` day, counting assistant messages by the stored `model` (the
+  haiku/sonnet regex model-stats uses) and by `classifierRoute`, plus user messages. Pure shaping in
+  a new `backend/src/services/usageReport.js`: `shapeUsageRows(rows, { from, to })` returns dense
+  rows per entity per day and per-entity totals, with `estimatedCostUsd` from an exported `RATES`
+  table — Sonnet $0.011/message (the doc's "The math" figure); Haiku from the same ~3,000-in/200-out
+  token profile at the Haiku list price — labelled estimates, not a pricing decision. Dashboard: new
+  superadmin view `dashboard/src/views/UsageReport.vue` at `/usage-report` (route in `main.js` with
+  `meta.superadmin`, entry in `App.vue`'s `adminPaths` and admin nav, `getUsageReport` in
+  `lib/api.js`): two date inputs, a `v-data-table` of entity × day with a totals row.
+  Out of scope: token-level accounting, Voyage/embedding cost, changing any price, CSV export, any
+  owner-facing surface, emailing the report.
+  *Verify:* `backend/test/usage-report.test.js` under `node --test`: `shapeUsageRows` on fixtures
+  (empty range → zero rows, sparse days zero-filled, cost = count × rate per model, isTest rows
+  absent) the way `analytics.test.js` does, plus the route over `mongodb-memory-server` with seeded
+  conversations across two entities and three days (the `kb-search.test.js` harness shape);
+  `cd dashboard && yarn build && yarn test`.
 - [x] **(LEO-073) Post-deploy smoke compares against the recorded baseline, not against all-green** [needs-human] (interactive 2026-10-12, f34ec7c; ops/leo-nightly/smoke.mjs --baseline/--compare, 9 tests on the transitions; auto-revert now fires only on a check that was green at baseline)
   leoai.json sets autoRevert: true, so a failing post-deploy smoke reverts the merge. Combined with
   the default-deny baseline in ops/leo-nightly/RUNBOOK.md, that is why eight items sit blocked:

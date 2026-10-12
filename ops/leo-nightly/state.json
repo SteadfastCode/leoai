@@ -72,7 +72,7 @@
     "LEO-050": {
       "order": 5,
       "title": "Alpha usage report — per entity per day: messages, model split, estimated cost",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-050",

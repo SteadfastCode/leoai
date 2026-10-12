@@ -197,3 +197,4 @@
 {"event":"note","text":"retry: LEO-050 moved back to the workqueue with attempts reset (was blocked: failed)","source":"interactive","item":"LEO-050","atUtc":"2026-10-12T03:59:53.166Z"}
 {"event":"ack","items":["LEO-073"],"by":"daniel","source":"dashboard","atUtc":"2026-10-12T04:21:35.560Z"}
 {"event":"claim","runId":"2026-10-12T06:09:28.967Z","item":"LEO-050","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-12T06:09:46.857Z"}
+{"event":"complete","runId":"2026-10-12T06:09:28.967Z","item":"LEO-050","mergeSha":"b8afecba167643390f7ca5e38689d7fa0e5ca0d4","durationMin":10,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-12T06:20:02.346Z"}
