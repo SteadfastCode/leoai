@@ -153,7 +153,14 @@ router.post('/', async (req, res) => {
       const isDuplicate = conversation.pendingQuestions.some(
         (q) => questionSimilarity(question, q.text) >= DUPLICATE_THRESHOLD
       );
-      if (!isDuplicate) conversation.pendingQuestions.push({ text: question, askedAt: new Date() });
+      if (!isDuplicate) {
+        const askedAt = new Date();
+        conversation.pendingQuestions.push({ text: question, askedAt });
+        // Durable twin of the push above: pendingQuestions is emptied when the owner
+        // replies or resolves, so weekly reporting counts handoffLog instead (LEO-092).
+        if (!conversation.handoffLog) conversation.handoffLog = [];
+        conversation.handoffLog.push({ text: question, askedAt });
+      }
       conversation.handoffPending = true;
 
       if (!isTest && (entity.ownerPhone || entity.ownerEmail)) {
