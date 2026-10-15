@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…**
+- [x] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…**
   Found by the grader of LEO-047 (medium, backend/src/services/notifications.js:35). The safety
   net doesn't actually withhold the question: chat.js passes `reason: question` — the same string
   it pushes into `pendingQuestions` — and `buildHandoffSms`/`buildHandoffEmail` print it verbatim
