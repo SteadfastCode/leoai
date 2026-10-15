@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…**
+- [x] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…**
   Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
   renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote
   (e.g. ``[x](https://a"onmouseover=alert`1`)``) breaks out of the `href="..."` attribute and
