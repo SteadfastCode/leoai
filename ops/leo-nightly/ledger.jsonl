@@ -224,3 +224,4 @@
 {"event":"ack","items":["LEO-043"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
 {"event":"ack","items":["LEO-042"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
 {"event":"ack","items":["LEO-040"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"note","text":"resupply: unparked LEO-087 (was not-before 2026-10-19) so the next fire files new proposals","source":"dashboard","item":"LEO-087","atUtc":"2026-10-15T04:54:29.153Z"}
