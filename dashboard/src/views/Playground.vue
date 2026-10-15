@@ -8,10 +8,15 @@
 // belongs to a member of this very domain — so nothing here burns quota or alerts anyone.
 //
 // `isTest` comes back on every reply and is displayed, not assumed: if the gate ever
-// declines (stale token, domain the user is not a member of), the owner is told the message
-// counted as real traffic rather than quietly being charged for it.
+// declines (domain the user is not a member of), the owner is told the message counted as
+// real traffic rather than quietly being charged for it.
+//
+// A STALE token is handled before the message leaves (LEO-090), not reported after. /chat is
+// public: an expired Bearer token does not fail there, it quietly turns the test message into
+// real visitor traffic — quota, unanswered log, sockets, a real handoff SMS. Warning about it
+// afterwards is too late, so `send` proves the session first and refuses to send if it can't.
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
-import api from '../lib/api'
+import api, { ensureFreshAccessToken } from '../lib/api'
 import { renderMarkdown } from '../lib/renderMarkdown'
 
 const props = defineProps({
@@ -50,6 +55,11 @@ const SUGGESTIONS = [
 // True once any reply has come back without test mode — the owner needs to know those
 // messages counted. Sticky for the session: it is a billing fact, not a transient state.
 const countedAsReal = ref(false)
+
+// True when a send was refused because the dashboard session could not be proved. Cleared by
+// the next send that goes through, because unlike `countedAsReal` nothing was charged — this
+// one is a transient state, and the message is still sitting in the input box.
+const sessionStale = ref(false)
 
 function scrollToBottom() {
   nextTick(() => {
@@ -97,11 +107,21 @@ watch(() => props.domain, () => {
 async function send(text) {
   const msg = (text ?? inputText.value).trim()
   if (!msg || sending.value || !props.domain) return
-  inputText.value = ''
-  messages.value.push({ role: 'user', content: msg })
-  scrollToBottom()
   sending.value = true
   try {
+    // Prove the session BEFORE the input is cleared and the turn is shown. api.js refreshes a
+    // spent token on its own, but it swallows a refresh that fails and sends the stale token
+    // anyway — correct for endpoints that answer 401, wrong for this one. A null here means
+    // the message would land as real visitor traffic, so it does not get sent at all and the
+    // owner keeps what they typed.
+    if (!(await ensureFreshAccessToken('playground send'))) {
+      sessionStale.value = true
+      return
+    }
+    sessionStale.value = false
+    inputText.value = ''
+    messages.value.push({ role: 'user', content: msg })
+    scrollToBottom()
     const { data } = await api.post('/chat', {
       domain: props.domain,
       sessionToken: sessionToken.value,
@@ -136,6 +156,7 @@ function resetConversation() {
   sessionToken.value = currentToken()
   messages.value = []
   countedAsReal.value = false
+  sessionStale.value = false
 }
 
 // ── Debug strip ────────────────────────────────────────────────────────────
@@ -178,6 +199,15 @@ function debugChips(msg) {
       Ask Leo anything a visitor might ask {{ entity?.name || domain }}. These messages don't
       count toward your monthly total and never notify you.
     </div>
+
+    <v-alert
+      v-if="sessionStale"
+      type="error"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+      text="Your sign-in has expired, so that message was not sent — sending it would have counted as real visitor traffic and could have notified you. Sign out and back in, then press Send again."
+    />
 
     <v-alert
       v-if="countedAsReal"
