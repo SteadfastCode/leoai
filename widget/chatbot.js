@@ -614,15 +614,24 @@
   });
 
   // --- Minimal markdown renderer ---
+  // Escaping runs first, and it has to cover the attribute delimiters as well as the
+  // tag delimiters: the output below goes to innerHTML and the link rules drop a
+  // captured URL inside href="...". Escaping only &<> left a double quote intact, so
+  // [x](https://a"onmouseover=alert(1)) used to close href early and inject a live
+  // event-handler attribute (LEO-091 — same defect as dashboard/src/lib/renderMarkdown.js,
+  // fixed in both copies). Second layer: a URL still holding a character RFC 3986
+  // allows nowhere in a URL (" < > backtick; ' is legal, it is a sub-delim) is not a
+  // link. Raw < > are in the set because the inline-code rule above runs first and can
+  // have put real tags into the text by the time the link rules see it.
+  const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const ILLEGAL_IN_URL = /&quot;|&lt;|&gt;|[<>`]/;
+
   function renderMarkdown(text) {
     const el = document.createElement('div');
     el.className = 'leo-markdown';
 
-    // Escape HTML first
-    let html = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    // Escape HTML first — one pass, so no substitution can be re-escaped by a later one
+    let html = String(text ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 
     // Bold **text**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -630,11 +639,30 @@
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
     // Inline code `code`
     html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-    // Markdown links [text](url)
+
+    // url and label arrive already escaped; null when the url is not safe to link
     const linkTarget = linksOpenInNewTab ? ' target="_blank" rel="noopener noreferrer"' : '';
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, `<a href="$2"${linkTarget}>$1</a>`);
-    // Bare URLs not already inside an href
-    html = html.replace(/(?<!href=")(https?:\/\/[^\s<"]+)/g, `<a href="$1"${linkTarget}>$1</a>`);
+    const anchor = (url, label) => {
+      if (!/^https?:\/\/[^\s]/.test(url) || ILLEGAL_IN_URL.test(url)) return null;
+      return `<a href="${url}"${linkTarget}>${label}</a>`;
+    };
+
+    // Markdown links [text](url) — the url is delimited, so an illegal character means
+    // the whole link is junk: keep the escaped source text, render no anchor.
+    html = html.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      (whole, label, url) => anchor(url, label) ?? whole
+    );
+    // Bare URLs not already inside an href. These end at whitespace, so an illegal
+    // character is usually prose running into the link (`"visit https://x.com"`) —
+    // link the legal prefix and hand the remainder back as text.
+    html = html.replace(/(?<!href=")(https?:\/\/[^\s<"]+)/g, (whole) => {
+      const cut = whole.search(ILLEGAL_IN_URL);
+      if (cut === -1) return anchor(whole, whole) ?? whole;
+      const prefix = whole.slice(0, cut);
+      const link = anchor(prefix, prefix);
+      return link ? link + whole.slice(cut) : whole;
+    });
 
     // Convert lines to paragraphs / lists
     const lines = html.split('\n');
