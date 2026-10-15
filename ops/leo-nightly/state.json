@@ -72,10 +72,10 @@
     "LEO-089": {
       "order": 5,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
-      "status": "claimed",
+      "status": "blocked",
       "attempts": 2,
       "cluster": null,
-      "branch": "routine/item/LEO-089",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -83,8 +83,8 @@
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-10-15T12:36:27.984Z",
-      "runId": "2026-10-15T12:07:29.034Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "failed"
     },
     "LEO-090": {
       "order": 6,

@@ -143,12 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…**
-  Found by the grader of LEO-040 (medium, backend/src/routes/chat.js:78). The free-tier quota gate
-  runs before any `isTest` check, so once an entity reaches 100 messages the playground returns
-  402 ("Free plan limit reached") instead of answering, and — worse — a playground message can be
-  the request that flips `quotaExceededNotified` and fires `sendQuotaExceededNotification` to the
-  owner, contradicting the item's "no notifications" promise.
 - [ ] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…**
   Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
   live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and
@@ -1068,6 +1062,12 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Blocked Items
 
+- [ ] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…** — blocked: needs-human: ATTEMPT 2 CONFIRMS ATTEMPT 1 — the fix IS the quota block, so a run may not ship it. Verified independently
+  Found by the grader of LEO-040 (medium, backend/src/routes/chat.js:78). The free-tier quota gate
+  runs before any `isTest` check, so once an entity reaches 100 messages the playground returns
+  402 ("Free plan limit reached") instead of answering, and — worse — a playground message can be
+  the request that flips `quotaExceededNotified` and fires `sendQuotaExceededNotification` to the
+  owner, contradicting the item's "no notifications" promise.
 *(the routine moves items here after 2 failed attempts and notifies once)*
 
 ## Completed Items
