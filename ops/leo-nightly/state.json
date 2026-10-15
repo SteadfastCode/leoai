@@ -545,25 +545,8 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-081": {
-      "order": 33,
-      "title": "Backlog audit: file new candidates under Proposed",
-      "status": "done",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "routine/item/LEO-081",
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": "2026-10-12T20:09:59.856Z",
-      "runId": "2026-10-12T20:09:28.911Z",
-      "lastFail": null
-    },
     "LEO-087": {
-      "order": 34,
+      "order": 33,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -577,6 +560,23 @@
       "notBefore": "2026-10-19",
       "claimedAtUtc": null,
       "runId": null,
+      "lastFail": null
+    },
+    "LEO-081": {
+      "order": null,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-081",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-10-12T20:09:59.856Z",
+      "runId": "2026-10-12T20:09:28.911Z",
       "lastFail": null
     },
     "LEO-040": {
