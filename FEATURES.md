@@ -1033,8 +1033,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   validates against the `Code` model (`type: 'alpha'`, `active`, `maxUses`/`useCount`, `expiresAt`).
   Build: correct those three passages in place and nothing else. Do not restate either item, do not
   renumber anything, do not move a block between sections, do not change any scope beyond the correction,
-  and leave every `[needs-human]` tag exactly as it is. `CLAUDE.md`'s Current State, Architecture and
-  `## Known Issues` blocks are not touched — LEO-063 owns the last of those.
+  and leave every `[needs-human]` tag exactly as it is. `CLAUDE.md`'s Architecture and
+  `## Known Issues` blocks are not touched — LEO-063 owns the second. The stale `ALPHA_CODES`
+  clause at `CLAUDE.md:186` **is** corrected even though that bullet sits inside `## Current State`
+  (lines 151-211): for that one clause this item is a narrow sanctioned exception to the runbook's
+  "do not edit `CLAUDE.md`'s Current State" rule, and it is the ONLY Current State edit permitted —
+  tick no box, add no bullet, reword nothing else in that section. Correcting `:128` while leaving
+  `:186` would leave the same false claim standing in the file this item exists to fix.
   Files: `FEATURES.md`, `CLAUDE.md`.
   *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
   `git diff --stat origin/main` names those two files and nothing else; quote each passage before and after
