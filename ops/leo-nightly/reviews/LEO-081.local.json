@@ -1,0 +1,153 @@
+{
+  "item": "LEO-081",
+  "repo": "leoai",
+  "mergeSha": "c8a53ac631c90f8f81f7031854200c2c7d91de72",
+  "completedAtUtc": "2026-10-12T20:22:30.844Z",
+  "completeRunId": "2026-10-12T20:09:28.911Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:47:50.061Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 19531,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13877,
+      "contextBytes": 0,
+      "promptTokens": 4556,
+      "completionTokens": 679,
+      "latencyMs": 48033,
+      "findings": 6,
+      "critiqued": 6,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 5860,
+      "contextBytes": 7817,
+      "promptTokens": 4453,
+      "completionTokens": 122,
+      "latencyMs": 19244,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/routes/chat.js",
+      "line": 69,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `nextPeriodReset` function does not handle the case where the input date is invalid.",
+      "scenario": "If an invalid date is passed to `nextPeriodReset`, it will return 'Invalid Date', which can cause issues in the billing system.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code does not handle invalid input dates for the `nextPeriodReset` function."
+      }
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 60,
+      "severity": "medium",
+      "confidence": 1,
+      "summary": "The `weeklyDigestDue` function does not handle the case where the last-sent stamp is older than a catch-up window.",
+      "scenario": "If the last-sent stamp is older than a catch-up window, the function will not send a digest, which can cause issues with missed weekly digests.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `weeklyDigestDue` function does not have a catch-up arm to handle cases where the last-sent stamp is older than a catch-up window."
+      }
+    },
+    {
+      "file": "backend/src/services/unansweredDigest.js",
+      "line": 28,
+      "severity": "medium",
+      "confidence": 1,
+      "summary": "The `digestDue` function does not handle the case where the last-sent stamp is older than a catch-up window.",
+      "scenario": "If the last-sent stamp is older than a catch-up window, the function will not send a digest, which can cause issues with missed digests.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `digestDue` function does not have a catch-up arm to handle cases where the last-sent stamp is older than a catch-up window."
+      }
+    },
+    {
+      "file": "backend/src/services/retention.js",
+      "line": 163,
+      "severity": "medium",
+      "confidence": 1,
+      "summary": "The `runRetentionSweepTick` function does not handle the case where the last-sent stamp is older than a catch-up window.",
+      "scenario": "If the last-sent stamp is older than a catch-up window, the function will not run a retention sweep, which can cause issues with missed deletions.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `runRetentionSweepTick` function does not have a mechanism to handle cases where the last-sent stamp is older than a catch-up window."
+      }
+    },
+    {
+      "file": "backend/src/middleware/auth.js",
+      "line": 7,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `JWT_SECRET` is set to a default value that is committed to the repo.",
+      "scenario": "If `JWT_SECRET` is not set in production, the system will use the default value from the repo, which can lead to security vulnerabilities.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code sets JWT_SECRET to a default value 'change-me-in-production' if it's not set in the environment."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/middleware/auth.js:7"
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/src/middleware/auth.js:7"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "There are several issues with the code changes, including handling of invalid input, missing catch-up mechanisms for missed ticks, and a default JWT secret that is committed to the repo. · 1 finding found",
+  "errors": [],
+  "usage": {
+    "promptTokens": 49521,
+    "completionTokens": 1378
+  },
+  "latencyMs": 152644
+}

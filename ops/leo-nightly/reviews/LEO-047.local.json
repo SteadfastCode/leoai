@@ -1,0 +1,119 @@
+{
+  "item": "LEO-047",
+  "repo": "leoai",
+  "mergeSha": "b01d3f0cf84ae1fd21a20e4197b40b2a80bff92b",
+  "completedAtUtc": "2026-10-12T07:20:35.466Z",
+  "completeRunId": "2026-10-12T06:09:28.967Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:32:23.752Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 30967,
+  "contextFiles": 8,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/Entity.js",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/claude.js",
+        "backend/src/services/doNotRelay.js",
+        "backend/src/services/notifications.js"
+      ],
+      "part": null,
+      "bytes": 13116,
+      "contextBytes": 0,
+      "promptTokens": 4390,
+      "completionTokens": 179,
+      "latencyMs": 21824,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/do-not-relay.test.js"
+      ],
+      "part": null,
+      "bytes": 12704,
+      "contextBytes": 0,
+      "promptTokens": 4164,
+      "completionTokens": 145,
+      "latencyMs": 19385,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/ConversationDetail.vue",
+        "dashboard/src/views/Settings.vue"
+      ],
+      "part": null,
+      "bytes": 5147,
+      "contextBytes": 7771,
+      "promptTokens": 4203,
+      "completionTokens": 146,
+      "latencyMs": 19609,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "dashboard/src/views/ConversationDetail.vue",
+      "line": 102,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The `addToDoNotRelay` function does not sanitize the input before adding it to the do-not-relay list.",
+      "scenario": "An attacker could inject malicious input into the `questionText` parameter, which is then directly added to the do-not-relay list without any validation or sanitization. This could potentially lead to unexpected behavior or security vulnerabilities.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `addToDoNotRelay` function does not sanitize the input before adding it to the do-not-relay list."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/middleware/auth.js:12"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/src/services/claude.js:40"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One potential issue found: The `handoffModeInstruction` string may become too long when appending the do-not-relay list, which could cause truncation or errors in the prompt generation. · One high-severity finding identified in the test file. · One potential defect found in the code change.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 38148,
+    "completionTokens": 1034
+  },
+  "latencyMs": 163026
+}

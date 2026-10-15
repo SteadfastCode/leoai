@@ -1,0 +1,163 @@
+{
+  "item": "LEO-073",
+  "repo": "leoai",
+  "mergeSha": "f34ec7c6ec1539d8b86194521187a2c80fdaadac",
+  "completedAtUtc": "2026-10-12T03:51:44.817Z",
+  "completeRunId": "interactive-2026-10-12T03:51:44.628Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:24:12.826Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 21058,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        ".gitignore",
+        "ops/leo-nightly/RUNBOOK.md"
+      ],
+      "part": null,
+      "bytes": 4810,
+      "contextBytes": 7896,
+      "promptTokens": 4173,
+      "completionTokens": 140,
+      "latencyMs": 19224,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "ops/leo-nightly/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 11923,
+      "contextBytes": 0,
+      "promptTokens": 4274,
+      "completionTokens": 531,
+      "latencyMs": 39315,
+      "findings": 4,
+      "critiqued": 4,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "ops/leo-nightly/smoke.test.mjs"
+      ],
+      "part": null,
+      "bytes": 4325,
+      "contextBytes": 0,
+      "promptTokens": 1997,
+      "completionTokens": 162,
+      "latencyMs": 13343,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "ops/leo-nightly/RUNBOOK.md",
+      "line": 102,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The post-deploy smoke script does not handle the case where the baseline file is missing or corrupted.",
+      "scenario": "If the ops/leo-nightly/.baseline.json file is missing or corrupted, the post-deploy smoke script will fail to compare against a valid baseline. This could lead to false positives or negatives in the regression detection process.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The RUNBOOK.md states that if the baseline file cannot be collected at all (the host is unreachable, the file could not be written), it blocks with `baseline-failed`, write `ops/leo-nightly/incident-<ts>.md`, and exit."
+      }
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 185,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The script does not handle the case where the baseline file is empty or malformed.",
+      "scenario": "If the baseline file specified by --baseline is empty or contains invalid JSON, the script will throw an error when trying to parse it. This can cause the deployment process to fail unexpectedly.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The script does not handle cases where the baseline file is empty or malformed."
+      }
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 201,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The script does not handle the case where the --expect-commit argument is missing when running in compare mode.",
+      "scenario": "If the --expect-commit argument is not provided when running the script with --compare, the checkHealth function will always return a regression because it expects a commit hash to match. This can lead to false positives and unnecessary reverts.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The checkHealth function requires an expectCommit parameter to compare against the baseline commit. If --expect-commit is missing, checkHealth will always fail, leading to a regression classification."
+      }
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 150,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The script does not validate the response from the /health endpoint.",
+      "scenario": "If the /health endpoint returns a non-JSON response or a JSON object that does not contain the expected fields (mongo, commit), the script will still consider it as a valid response. This can lead to incorrect results and false negatives.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The script does not validate the response from the /health endpoint."
+      }
+    },
+    {
+      "file": "ops/leo-nightly/smoke.test.mjs",
+      "line": 78,
+      "severity": "medium",
+      "confidence": 0.9,
+      "summary": "The test 'a skipped check is never a regression and never a pass' does not cover the case where a check is skipped in one run but present and failing in another.",
+      "scenario": "If a check is skipped in the baseline run but fails in the post-deploy smoke, it should be classified as a regression. The current implementation treats it as 'skipped', which may lead to incorrect behavior.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test does not cover the scenario where a check is skipped in one run but fails in another."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "ops/leo-nightly/smoke.mjs:45"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "ops/leo-nightly/smoke.mjs:103"
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "ops/leo-nightly/RUNBOOK.md:85"
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "ops/leo-nightly/RUNBOOK.md:102"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One high-severity finding identified. · The script has several issues that could lead to incorrect results or unexpected behavior during deployment. It does not handle cases where the baseline file is empty or malformed, missing --expect-commit argument in compare mode, invalid responses from /health endpoint, or mismatched commit hashes. · One test case does not cover all possible scenarios for skipped checks.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 43964,
+    "completionTokens": 1543
+  },
+  "latencyMs": 168939
+}

@@ -1,0 +1,81 @@
+{
+  "item": "LEO-048",
+  "repo": "leoai",
+  "mergeSha": "baa6c72c78cc930151df3d2d2c2fdc09a246b7a9",
+  "completedAtUtc": "2026-10-12T07:08:10.417Z",
+  "completeRunId": "2026-10-12T06:09:28.967Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:29:40.573Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 12041,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/services/scraper.js",
+        "backend/test/chunk-trailing-merge.test.js"
+      ],
+      "part": null,
+      "bytes": 12041,
+      "contextBytes": 0,
+      "promptTokens": 3898,
+      "completionTokens": 134,
+      "latencyMs": 17640,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 627,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "Appending to the last chunk without a newline can cause text to run together.",
+      "scenario": "If the last character of the previous chunk and the first character of the new text are not separated by a newline, they will be merged into a single word or phrase, which could lead to incorrect parsing or display.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code appends `novel` to the last chunk's content without ensuring a newline separator."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One potential defect found in the change.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 11643,
+    "completionTokens": 296
+  },
+  "latencyMs": 48105
+}

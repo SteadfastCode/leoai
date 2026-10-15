@@ -1,0 +1,25 @@
+{
+  "item": "LEO-049",
+  "repo": "leoai",
+  "mergeSha": "f54e2986bc9eb3f8d306c7f63c83cfef1a8c9b88",
+  "completedAtUtc": "2026-10-12T06:44:00.139Z",
+  "completeRunId": "2026-10-12T06:09:28.967Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:28:52.395Z",
+  "model": "none",
+  "promptVersion": null,
+  "diffBytes": 0,
+  "contextFiles": 0,
+  "excluded": [
+    "backend/yarn.lock",
+    "dashboard/yarn.lock"
+  ],
+  "chunks": [],
+  "findings": [],
+  "triage": null,
+  "summary": "",
+  "errors": [],
+  "usage": null,
+  "latencyMs": 0,
+  "skipped": "nothing reviewable (excluded: backend/yarn.lock, dashboard/yarn.lock)"
+}

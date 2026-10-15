@@ -1,0 +1,117 @@
+{
+  "item": "LEO-072",
+  "repo": "leoai",
+  "mergeSha": "f46c96f3c5940630bc28114ac3cf2406080b297d",
+  "completedAtUtc": "2026-10-08T05:30:33.749Z",
+  "completeRunId": "2026-10-08T05:10:28.964Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:21:23.802Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 17599,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13917,
+      "contextBytes": 0,
+      "promptTokens": 4525,
+      "completionTokens": 156,
+      "latencyMs": 21094,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3888,
+      "contextBytes": 9969,
+      "promptTokens": 4563,
+      "completionTokens": 134,
+      "latencyMs": 20290,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "FEATURES.md",
+      "line": 654,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "`selectModel` is unexported and untested — the cost lever has no gate",
+      "scenario": "A one-character regression on line 125 either sends every simple question to Sonnet, quietly multiplying the API bill that `docs/pricing-strategy.md` sizes the plans against, or routes Church Mode and long messages to Haiku, quietly lowering the answers Leo gives on the material he is least allowed to be sloppy about.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "`selectModel` is unexported and untested"
+      }
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 787,
+      "severity": "high",
+      "confidence": 0.9,
+      "summary": "The new backlog audit item (LEO-081) is scheduled to run before its predecessor (LEO-072), which violates the intended order.",
+      "scenario": "If both items are claimable, LEO-081 will run first, potentially missing candidates that LEO-072 would have identified.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The new backlog audit item (LEO-081) has a 'not-before' date of 2026-10-15, which is earlier than the predecessor's 'not-before' date of 2026-10-08."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/src/services/claude.js:120"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One real defect found in FEATURES.md · One finding detected.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 27185,
+    "completionTokens": 655
+  },
+  "latencyMs": 113152
+}

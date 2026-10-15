@@ -1,0 +1,208 @@
+{
+  "item": "LEO-050",
+  "repo": "leoai",
+  "mergeSha": "b8afecba167643390f7ca5e38689d7fa0e5ca0d4",
+  "completedAtUtc": "2026-10-12T06:20:02.346Z",
+  "completeRunId": "2026-10-12T06:09:28.967Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:28:52.373Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 44593,
+  "contextFiles": 8,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/routes/admin.js",
+        "backend/src/services/usageReport.js"
+      ],
+      "part": null,
+      "bytes": 11500,
+      "contextBytes": 0,
+      "promptTokens": 4217,
+      "completionTokens": 190,
+      "latencyMs": 21555,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/usage-report.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13560,
+      "contextBytes": 0,
+      "promptTokens": 5422,
+      "completionTokens": 150,
+      "latencyMs": 24150,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/usage-report.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 2710,
+      "contextBytes": 4919,
+      "promptTokens": 3332,
+      "completionTokens": 248,
+      "latencyMs": 21733,
+      "findings": 2,
+      "critiqued": 2,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/App.vue",
+        "dashboard/src/lib/api.js",
+        "dashboard/src/main.js",
+        "dashboard/src/views/UsageReport.vue"
+      ],
+      "part": null,
+      "bytes": 12020,
+      "contextBytes": 0,
+      "promptTokens": 4288,
+      "completionTokens": 259,
+      "latencyMs": 25439,
+      "findings": 2,
+      "critiqued": 2,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "ops/leo-nightly/incident-20260917T1812Z.md"
+      ],
+      "part": null,
+      "bytes": 5002,
+      "contextBytes": 0,
+      "promptTokens": 2760,
+      "completionTokens": 214,
+      "latencyMs": 18112,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/test/usage-report.test.js",
+      "line": 285,
+      "severity": "medium",
+      "confidence": 0.9,
+      "summary": "The test does not verify that the `estimatedCostUsd` is correctly rounded to 4 decimal places for each row.",
+      "scenario": "When running the 'route: dense entity x day rows over the seeded three days' test, it checks the total cost but does not validate that each individual row's `estimatedCostUsd` is rounded to 4dp as expected.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test only verifies the total cost is rounded to 4 decimal places, not each individual row's `estimatedCostUsd`."
+      }
+    },
+    {
+      "file": "backend/test/usage-report.test.js",
+      "line": 325,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test does not verify that the `estimatedCostUsd` calculation is correct for user messages.",
+      "scenario": "If the cost calculation logic changes or if there's a bug in how user messages are priced, this test will not catch it.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test only verifies the `estimatedCostUsd` calculation for assistant messages and does not include any checks for user messages."
+      }
+    },
+    {
+      "file": "backend/test/usage-report.test.js",
+      "line": 340,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test does not verify that the `estimatedCostUsd` calculation is correct for messages with no model/classifierRoute.",
+      "scenario": "If the cost calculation logic changes or if there's a bug in how unpriced messages are handled, this test will not catch it.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test does not verify that the `estimatedCostUsd` calculation is correct for messages with no model/classifierRoute."
+      }
+    },
+    {
+      "file": "dashboard/src/views/UsageReport.vue",
+      "line": 120,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The `rangeError` computed property does not validate the date format.",
+      "scenario": "If a user enters an invalid date format (e.g., '2023-02-31'), the application will attempt to parse it, which may lead to unexpected behavior or errors.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `rangeError` computed property does not validate the date format."
+      }
+    },
+    {
+      "file": "dashboard/src/views/UsageReport.vue",
+      "line": 145,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The `load` function does not handle the case where the `from` or `to` date is invalid.",
+      "scenario": "If a user enters an invalid date, the application will attempt to make a request with the invalid date, which may lead to unexpected behavior or errors on the backend.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `load` function does not validate the `from` and `to` dates before making the API request."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/test/usage-report.test.js:204"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/src/services/usageReport.js:105"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/src/services/claude.js:207"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One finding identified: The `shapeUsageRows` function expects an object with `from` and `to` properties, but it is called with the parameters directly. · One finding identified in the provided diff. · The tests do not verify the correctness of the `estimatedCostUsd` calculation for user messages and messages with no model/classifierRoute. · The change introduces a new usage report feature for superadmin users. The code includes some potential issues related to date validation and error handling. · The incident report indicates a critical failure in the production environment due to an account-billing outage, which is preventing the deployment of new features.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 67445,
+    "completionTokens": 2088
+  },
+  "latencyMs": 279389
+}

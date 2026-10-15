@@ -1,0 +1,210 @@
+{
+  "item": "LEO-040",
+  "repo": "leoai",
+  "mergeSha": "b75631fb48c6cf8526aadb538aa62282233462f0",
+  "completedAtUtc": "2026-10-12T15:12:43.403Z",
+  "completeRunId": "2026-10-12T14:09:28.925Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:45:17.357Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 43651,
+  "contextFiles": 11,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/chat.js",
+        "backend/src/services/testMode.js",
+        "backend/test/chat-flow.test.js"
+      ],
+      "part": null,
+      "bytes": 12218,
+      "contextBytes": 0,
+      "promptTokens": 3650,
+      "completionTokens": 93,
+      "latencyMs": 15151,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/test-mode-gate.test.js",
+        "dashboard/src/App.vue",
+        "dashboard/src/components/ChatWindow.vue",
+        "dashboard/src/lib/renderMarkdown.js",
+        "dashboard/src/main.js"
+      ],
+      "part": null,
+      "bytes": 11015,
+      "contextBytes": 0,
+      "promptTokens": 3575,
+      "completionTokens": 654,
+      "latencyMs": 42625,
+      "findings": 6,
+      "critiqued": 6,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/Playground.vue"
+      ],
+      "part": null,
+      "bytes": 11960,
+      "contextBytes": 0,
+      "promptTokens": 4004,
+      "completionTokens": 114,
+      "latencyMs": 17221,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/Playground.spec.js"
+      ],
+      "part": null,
+      "bytes": 8458,
+      "contextBytes": 0,
+      "promptTokens": 2854,
+      "completionTokens": 112,
+      "latencyMs": 13537,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 105,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'owner JWT for its OWN domain → test mode' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'owner JWT for its OWN domain → test mode' does not explicitly check that the session resolver is called."
+      }
+    },
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 120,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'owner JWT for a DIFFERENT domain → not test mode' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'owner JWT for a DIFFERENT domain → not test mode' does not explicitly check that the session resolver is called."
+      }
+    },
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 135,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'unverifiable JWT → not test mode' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'unverifiable JWT → not test mode' does not verify that the session resolver is called."
+      }
+    },
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 150,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'superadmin JWT → test mode on any domain (matches requireAuth)' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'superadmin JWT → test mode on any domain (matches requireAuth)' does not explicitly check that the session resolver is called."
+      }
+    },
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 165,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'an invalid API key does NOT fall through to a valid session' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'an invalid API key does NOT fall through to a valid session' checks that when an invalid API key is present, the session resolver is not used."
+      }
+    },
+    {
+      "file": "backend/test/test-mode-gate.test.js",
+      "line": 180,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'a throwing session resolver fails closed, it does not reject' does not verify that the session resolver is called.",
+      "scenario": "If the session resolver is bypassed or incorrectly implemented, this test will pass even if the JWT validation fails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'a throwing session resolver fails closed, it does not reject' does not verify that the session resolver is called."
+      }
+    },
+    {
+      "file": "dashboard/src/views/Playground.vue",
+      "line": 104,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Potential security vulnerability: JWT validation is not enforced.",
+      "scenario": "An attacker could potentially use a valid JWT from another domain to access the test-mode gate, leading to unauthorized access and potential quota burn or other unintended consequences.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code does not enforce JWT validation for cross-domain usage."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/services/testMode.js:105"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "dashboard/src/views/Playground.vue:103"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One high-severity finding identified. · Multiple tests in backend/test/test-mode-gate.test.js do not verify that the session resolver is called. This could lead to false positives if the session resolver is bypassed or incorrectly implemented. · One high-severity finding identified. · One high-severity finding identified in the code change.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 59631,
+    "completionTokens": 1878
+  },
+  "latencyMs": 215756
+}

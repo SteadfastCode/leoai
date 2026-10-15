@@ -1,0 +1,230 @@
+{
+  "item": "LEO-042",
+  "repo": "leoai",
+  "mergeSha": "48a6731dfa692163d58f8ccc9b5a0264449736a9",
+  "completedAtUtc": "2026-10-12T14:57:58.891Z",
+  "completeRunId": "2026-10-12T14:09:28.925Z",
+  "reviewRunId": "2026-10-15T07:01:32.131Z",
+  "reviewedAtUtc": "2026-10-15T07:41:41.414Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 33985,
+  "contextFiles": 7,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/Entity.js",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/leoRefresh.js"
+      ],
+      "part": null,
+      "bytes": 4495,
+      "contextBytes": 10160,
+      "promptTokens": 4400,
+      "completionTokens": 139,
+      "latencyMs": 19744,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/weeklyDigest.js"
+      ],
+      "part": null,
+      "bytes": 12155,
+      "contextBytes": 0,
+      "promptTokens": 3752,
+      "completionTokens": 169,
+      "latencyMs": 19234,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/weekly-digest.test.js"
+      ],
+      "part": null,
+      "bytes": 13677,
+      "contextBytes": 0,
+      "promptTokens": 4678,
+      "completionTokens": 687,
+      "latencyMs": 49246,
+      "findings": 5,
+      "critiqued": 5,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/Settings.vue"
+      ],
+      "part": null,
+      "bytes": 3658,
+      "contextBytes": 11161,
+      "promptTokens": 4351,
+      "completionTokens": 284,
+      "latencyMs": 27052,
+      "findings": 2,
+      "critiqued": 2,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/services/leoRefresh.js",
+      "line": 138,
+      "severity": "medium",
+      "confidence": 0.9,
+      "summary": "The weekly digest tick is scheduled to run every hour, which may lead to unnecessary processing if no entities are due.",
+      "scenario": "If the system has multiple entities with different weekly digest schedules, running the tick every hour could result in frequent checks that do not trigger any actual digests, leading to inefficient use of resources.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The weekly digest tick is scheduled to run every hour, which may lead to unnecessary processing if no entities are due."
+      }
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 285,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `runWeeklyDigestTick` does not handle the case where `entity.ownerEmail` is an empty string, which could lead to a silent failure in sending emails.",
+      "scenario": "If an entity has `weeklyDigest.enabled` set to true but `ownerEmail` is an empty string, the function will skip sending the email without any error or log message. This can result in owners not receiving their weekly digest emails.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "`weeklyDigestDue` checks for `entity.ownerEmail` and returns false if it is missing, causing the email to be skipped silently."
+      }
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 135,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'wrong hour, not due' does not cover the case where the entity's lastWeeklyDigestAt is within the MIN_GAP_MS threshold.",
+      "scenario": "If the current time is exactly MIN_GAP_MS after the lastWeeklyDigestAt, the test will fail because it should still be considered due.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'wrong hour, not due' does not account for the MIN_GAP_MS threshold."
+      }
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 153,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'elapsed-time guard sits under a nominal week so an early tick still sends' does not cover the edge case where lastWeeklyDigestAt is exactly MIN_GAP_MS before the scheduled time.",
+      "scenario": "If lastWeeklyDigestAt is exactly MIN_GAP_MS before the scheduled time, the test will fail because it should be considered due.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test checks that if `lastWeeklyDigestAt` is within `MIN_GAP_MS` of the scheduled time, it should still be considered due."
+      }
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 173,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'unreadable stamp is treated as never sent, not as a block' does not cover the case where lastWeeklyDigestAt is a valid date string but in an unexpected format.",
+      "scenario": "If lastWeeklyDigestAt is a valid date string but in an unexpected format (e.g., '2026-08-10T13:00:00'), the test will fail because it should still be considered due.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test checks only for a string that is not a date, but does not handle cases where the string is a valid date in an unexpected format."
+      }
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 245,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'DST spring-forward week: due at the next UTC Monday match, exactly once' does not cover the case where the entity's lastWeeklyDigestAt is within the MIN_GAP_MS threshold after DST change.",
+      "scenario": "If the current time is exactly MIN_GAP_MS after the lastWeeklyDigestAt after a DST change, the test will fail because it should still be considered due.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test does not account for the MIN_GAP_MS threshold after a DST change."
+      }
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 265,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'DST fall-back week: the 25-hour local day does not produce a second send' does not cover the case where lastWeeklyDigestAt is within the MIN_GAP_MS threshold after DST change.",
+      "scenario": "If the current time is exactly MIN_GAP_MS after the lastWeeklyDigestAt after a DST change, the test will fail because it should still be considered due.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test does not cover the case where lastWeeklyDigestAt is within the MIN_GAP_MS threshold after DST change."
+      }
+    },
+    {
+      "file": "dashboard/src/views/Settings.vue",
+      "line": 143,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The default day of the week for weekly digest is set to Monday (value: 1), which might not be intuitive for users expecting Sunday as the first day of the week.",
+      "scenario": "A user enables the weekly digest without changing the default settings, expecting the email to be sent on Sunday. However, it will actually be sent on Monday.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The default day of the week for weekly digest is set to Monday (value: 1), which might not be intuitive for users expecting Sunday as the first day of the week."
+      }
+    },
+    {
+      "file": "dashboard/src/views/Settings.vue",
+      "line": 150,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The default hour for weekly digest is set to 1 PM UTC, which might not align with the user's local time expectations.",
+      "scenario": "A user enables the weekly digest without changing the default settings, expecting the email to be sent at a different time that matches their local schedule. However, it will actually be sent at 1 PM UTC.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The default hour for weekly digest is set to 13 (UTC), which does not account for the user's local time."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/src/services/weeklyDigest.js:273"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One potential inefficiency found in the code. · One high-severity issue found: potential silent failure in email sending due to missing owner email validation. · The tests cover most scenarios but do not handle edge cases related to the MIN_GAP_MS threshold and unexpected date formats for lastWeeklyDigestAt. These omissions could lead to incorrect behavior in certain situations. · The change introduces new settings for weekly digests but sets non-intuitive defaults for day of the week and hour, which could lead to confusion for users.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 74380,
+    "completionTokens": 2169
+  },
+  "latencyMs": 264003
+}
