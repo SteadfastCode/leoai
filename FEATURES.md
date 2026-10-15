@@ -143,13 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…**
-  Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
-  renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote
-  (e.g. ``[x](https://a"onmouseover=alert`1`)``) breaks out of the `href="..."` attribute and
-  injects an event-handler attribute into v-html output — the new file's comment calls escaping
-  "the only defence" and the new spec asserts escaping is sufficient, which is not true for
-  attribute context.
 - [ ] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…**
   Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
   count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the
@@ -1065,6 +1058,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…** (routine 2026-10-15, 6251096)
+  Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
+  renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote
+  (e.g. ``[x](https://a"onmouseover=alert`1`)``) breaks out of the `href="..."` attribute and
+  injects an event-handler attribute into v-html output — the new file's comment calls escaping
+  "the only defence" and the new spec asserts escaping is sufficient, which is not true for
+  attribute context.
 - [x] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…** (routine 2026-10-15, 6f22051)
   Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
   live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and

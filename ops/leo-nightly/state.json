@@ -72,7 +72,7 @@
     "LEO-091": {
       "order": 5,
       "title": "The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-091",
