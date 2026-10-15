@@ -216,3 +216,11 @@
 {"event":"claim","runId":"2026-10-12T20:09:28.911Z","item":"LEO-081","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-12T20:09:59.856Z"}
 {"event":"complete","runId":"2026-10-12T20:09:28.911Z","item":"LEO-081","mergeSha":"c8a53ac631c90f8f81f7031854200c2c7d91de72","durationMin":13,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-12T20:22:30.844Z"}
 {"event":"ack","items":["LEO-081"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:52:20.589Z"}
+{"event":"ack","items":["LEO-050"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-049"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-048"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-047"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-046"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-043"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-042"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
+{"event":"ack","items":["LEO-040"],"by":"daniel","source":"dashboard","atUtc":"2026-10-15T04:53:38.025Z"}
