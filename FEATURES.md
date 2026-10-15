@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…**
+- [ ] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…**
   Found by the grader of LEO-040 (medium, backend/src/routes/chat.js:78). The free-tier quota gate
   runs before any `isTest` check, so once an entity reaches 100 messages the playground returns
   402 ("Free plan limit reached") instead of answering, and — worse — a playground message can be
