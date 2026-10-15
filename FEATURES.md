@@ -143,13 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…**
-  Found by the grader of LEO-081 (medium, FEATURES.md:971). LEO-086 self-contradicts on scope: it
-  mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside
-  the `## Current State` section (lines 151-211), while its own closing constraint says
-  "`CLAUDE.md`'s Current State, Architecture and `## Known Issues` blocks are not touched" — an
-  implementer must either skip a mandated correction or violate a stated constraint, the exact
-  spec-defect class LEO-080 was filed to catch.
 - [ ] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…**
   Found by the grader of LEO-040 (medium, backend/src/routes/chat.js:78). The free-tier quota gate
   runs before any `isTest` check, so once an entity reaches 100 messages the playground returns
@@ -1079,6 +1072,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…** (routine 2026-10-15, 6b93ebf)
+  Found by the grader of LEO-081 (medium, FEATURES.md:971). LEO-086 self-contradicts on scope: it
+  mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside
+  the `## Current State` section (lines 151-211), while its own closing constraint says
+  "`CLAUDE.md`'s Current State, Architecture and `## Known Issues` blocks are not touched" — an
+  implementer must either skip a mandated correction or violate a stated constraint, the exact
+  spec-defect class LEO-080 was filed to catch.
 - [x] **(LEO-081) Backlog audit: file new candidates under Proposed** (routine 2026-10-12, c8a53ac)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,

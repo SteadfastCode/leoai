@@ -72,7 +72,7 @@
     "LEO-088": {
       "order": 5,
       "title": "LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-088",
