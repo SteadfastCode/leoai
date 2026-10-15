@@ -143,13 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…**
-  Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
-  live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and
-  public `/chat` never 401s), so a playground tab left idle sends a message with a stale Bearer
-  token: `resolveDashboardSession` returns null, the message is handled as real visitor traffic —
-  counted against quota, logged as unanswered, emitted to dashboard sockets, and able to fire a
-  real handoff SMS/email — with the UI only warning after the fact.
 - [ ] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…**
   Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
   renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote
@@ -1072,6 +1065,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…** (routine 2026-10-15, 6f22051)
+  Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
+  live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and
+  public `/chat` never 401s), so a playground tab left idle sends a message with a stale Bearer
+  token: `resolveDashboardSession` returns null, the message is handled as real visitor traffic —
+  counted against quota, logged as unanswered, emitted to dashboard sockets, and able to fire a
+  real handoff SMS/email — with the UI only warning after the fact.
 - [x] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…** (routine 2026-10-15, 6b93ebf)
   Found by the grader of LEO-081 (medium, FEATURES.md:971). LEO-086 self-contradicts on scope: it
   mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside
