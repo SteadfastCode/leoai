@@ -72,18 +72,18 @@
     "LEO-088": {
       "order": 5,
       "title": "LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-088",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-15T12:07:58.606Z",
+      "runId": "2026-10-15T12:07:29.034Z",
       "lastFail": null
     },
     "LEO-089": {

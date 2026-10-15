@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…**
+- [x] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…**
   Found by the grader of LEO-081 (medium, FEATURES.md:971). LEO-086 self-contradicts on scope: it
   mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside
   the `## Current State` section (lines 151-211), while its own closing constraint says
