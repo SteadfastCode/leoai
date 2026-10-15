@@ -163,6 +163,28 @@ try {
   );
   chatHandler = null;
 
+  // 5b. LEO-091: a reply whose markdown link holds a double quote must not be able to
+  //     write an attribute into the anchor the renderer builds. Asserted on the parsed
+  //     DOM, because what matters is the attributes the browser ends up with.
+  const XSS_REPLY = 'Deals here: [x](https://a"onmouseover=alert`1`) today';
+  chatHandler = () => Promise.resolve(json({ reply: XSS_REPLY }));
+  doc.getElementById('leo-input').value = 'Any deals?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  const xssBubble = [...doc.querySelectorAll('.leo-msg--assistant')].pop();
+  const xssEls = xssBubble ? [...xssBubble.querySelectorAll('*')] : [];
+  const xssAttrs = xssEls.flatMap((el) => [...el.attributes].map((a) => a.name));
+  check(!!xssBubble && xssBubble.textContent.includes('onmouseover'),
+    'quote-bearing link reply renders (as text, not markup)');
+  check(xssAttrs.filter((n) => n.startsWith('on')).length === 0,
+    `no on* attribute is injected by a quote in a link URL (saw ${JSON.stringify(xssAttrs)})`);
+  const xssAnchors = xssEls.filter((el) => el.tagName === 'A');
+  check(
+    xssAnchors.every((a) => [...a.attributes].every((x) => ['href', 'target', 'rel'].includes(x.name))),
+    'anchors built from a quote-bearing URL carry only href/target/rel'
+  );
+  chatHandler = null;
+
   // 6. LEO-043: "Clear my history from the server" arms on the first tap and
   //    only posts /chat/forget on the second, under the CURRENT session token.
   const forgetBtn = doc.getElementById('leo-menu-forget');

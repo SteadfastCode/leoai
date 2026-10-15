@@ -277,8 +277,47 @@ describe('conversation lifecycle', () => {
 })
 
 describe('renderMarkdown (shared with the widget rendering in ChatWindow)', () => {
+  // The output is handed to v-html, so these assertions are about what a browser ends
+  // up parsing. Where that is the point (LEO-091, attribute context) they are made
+  // against the parsed DOM rather than the exact output bytes.
+  const parse = (markdown) => {
+    const host = document.createElement('div')
+    host.innerHTML = renderMarkdown(markdown)
+    return host
+  }
+  const attrNames = (host) =>
+    [...host.querySelectorAll('*')].flatMap((el) => [...el.attributes].map((a) => a.name))
+
   it('escapes markup before applying any rule', () => {
     expect(renderMarkdown('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;')
+  })
+
+  it('escapes quotes as well, not only &<>', () => {
+    // LEO-091: escaping tag delimiters is NOT sufficient on its own, because the link
+    // rules put a captured URL inside href="..." — the attribute delimiter has to hold
+    // too, or the URL keeps writing into the tag.
+    expect(renderMarkdown('he said "hi", it\'s fine')).toBe('he said &quot;hi&quot;, it&#39;s fine')
+  })
+
+  it('refuses to build an href out of a URL that carries a quote', () => {
+    // Before LEO-091 this rendered <a href="https://a" onmouseover=alert`1`> — the URL
+    // closed href and the remainder became a live event-handler attribute.
+    const host = parse('[x](https://a"onmouseover=alert`1`)')
+    expect(attrNames(host).filter((n) => n.startsWith('on'))).toEqual([])
+    for (const a of host.querySelectorAll('a')) {
+      expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'rel', 'target'])
+      expect(a.getAttribute('href')).not.toContain('onmouseover')
+    }
+    // the probe survives as text, which is the honest rendering of it
+    expect(host.textContent).toContain('"onmouseover=alert')
+  })
+
+  it('still links a bare URL that prose has wrapped in quotes', () => {
+    const host = parse('He said "visit https://x.com" today')
+    const links = [...host.querySelectorAll('a')]
+    expect(links).toHaveLength(1)
+    expect(links[0].getAttribute('href')).toBe('https://x.com')
+    expect(host.textContent).toBe('He said "visit https://x.com" today')
   })
 
   it('renders links, bold, italic, code and newlines', () => {
