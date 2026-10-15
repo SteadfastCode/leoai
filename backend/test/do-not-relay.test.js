@@ -141,7 +141,15 @@ stubModule(require.resolve(path.join(srcDir, 'services', 'email.js')), {
   sendEmailRaw: async () => { throw new Error('no email may be sent from tests'); },
 });
 
-const { buildQuestionBlock } = require('../src/services/notifications');
+const {
+  buildQuestionBlock,
+  buildHandoffSms,
+  buildHandoffEmail,
+  buildFollowUpSms,
+  buildFollowUpEmail,
+  describeWithheld,
+  WITHHELD_FIELD,
+} = require('../src/services/notifications');
 
 test('buildQuestionBlock omits a matched question from the alert body', () => {
   const block = buildQuestionBlock(
@@ -165,6 +173,95 @@ test('buildQuestionBlock is unchanged when the list is empty', () => {
   const qs = ['What are your hours?', 'Do you deliver?'];
   assert.equal(buildQuestionBlock(qs, null, []), buildQuestionBlock(qs));
   assert.equal(buildQuestionBlock(qs, null, undefined), buildQuestionBlock(qs));
+});
+
+// ---------------------------------------------------------------------------
+// The ASSEMBLED alert bodies (LEO-094)
+// ---------------------------------------------------------------------------
+//
+// buildQuestionBlock filtering its own list is not enough to claim a question
+// was withheld: chat.js passes the very same string as `reason`, and
+// `lastMessage` is normally the visitor turn that produced it, so both printed
+// it verbatim a line or two above the filtered block. "Not relayed" is only a
+// true statement about the whole body, so that is what these assert.
+
+const SALARY = 'What salary do you pay bakers?';
+const alertParts = {
+  entityName: 'Dosie Dough',
+  reason: SALARY,
+  lastMessage: SALARY,
+  conversationLink: 'http://localhost:5173/#/conversations/abc123',
+  shortSession: 'sess-12345',
+  pendingQuestions: ['What are your hours?', SALARY],
+  doNotRelay: ['salary'],
+};
+
+test('the assembled SMS body relays a matched question nowhere', () => {
+  const sms = buildHandoffSms(alertParts);
+  assert.ok(!/salary/i.test(sms), `matched text leaked into the SMS:\n${sms}`);
+  // The alert still goes out — the owner has to know someone is waiting.
+  assert.ok(sms.includes('• What are your hours?'), 'an unmatched question is still relayed');
+  assert.ok(sms.includes(alertParts.conversationLink));
+  assert.ok(sms.includes(WITHHELD_FIELD), 'withheld fields are marked, not silently blanked');
+  assert.ok(/1 question withheld/.test(sms));
+});
+
+test('the assembled email body relays a matched question nowhere', () => {
+  const { subject, text } = buildHandoffEmail(alertParts);
+  assert.ok(!/salary/i.test(text), `matched text leaked into the email:\n${text}`);
+  assert.ok(!/salary/i.test(subject));
+  assert.ok(text.includes('• What are your hours?'));
+  assert.ok(text.includes(alertParts.conversationLink));
+  assert.ok(text.includes(WITHHELD_FIELD));
+});
+
+test('a clean reason survives while a matched last message is withheld', () => {
+  const sms = buildHandoffSms({ ...alertParts, reason: 'Do you deliver?', pendingQuestions: ['Do you deliver?'] });
+  assert.ok(sms.includes('Visitor needs help: "Do you deliver?"'), 'a surviving field keeps its quotes');
+  assert.ok(!/salary/i.test(sms));
+  assert.ok(sms.includes(`Last message: ${WITHHELD_FIELD}`), 'the marker is never quoted — nobody said it');
+});
+
+test('the follow-up reminder applies the list too', () => {
+  const parts = {
+    entityName: 'Dosie Dough',
+    conversationLink: alertParts.conversationLink,
+    shortSession: 'sess-12345',
+    pendingQuestions: alertParts.pendingQuestions,
+    doNotRelay: ['salary'],
+  };
+  const sms = buildFollowUpSms(parts);
+  const { text } = buildFollowUpEmail(parts);
+  assert.ok(!/salary/i.test(sms), `matched text leaked into the reminder SMS:\n${sms}`);
+  assert.ok(!/salary/i.test(text), `matched text leaked into the reminder email:\n${text}`);
+  assert.ok(sms.includes('• What are your hours?'));
+  assert.ok(/1 question withheld/.test(text));
+});
+
+test('an empty list leaves the assembled bodies untouched', () => {
+  const clean = {
+    ...alertParts,
+    reason: 'Do you deliver?',
+    lastMessage: 'Do you deliver a starter to Canada?',
+    pendingQuestions: ['Do you deliver?'],
+  };
+  assert.equal(buildHandoffSms({ ...clean, doNotRelay: [] }), buildHandoffSms({ ...clean, doNotRelay: undefined }));
+  assert.equal(
+    buildHandoffEmail({ ...clean, doNotRelay: [] }).text,
+    buildHandoffEmail({ ...clean, doNotRelay: undefined }).text
+  );
+  // A configured list that matches nothing must also leave no trace.
+  assert.ok(!buildHandoffSms({ ...clean, doNotRelay: ['salary'] }).includes(WITHHELD_FIELD));
+});
+
+test('describeWithheld names the fields and a count, never the text', () => {
+  assert.equal(describeWithheld(alertParts), 'reason, lastMessage, 1 question');
+  assert.equal(describeWithheld({ ...alertParts, doNotRelay: [] }), null, 'no list, nothing withheld');
+  assert.equal(
+    describeWithheld({ reason: 'hours?', lastMessage: 'hours?', pendingQuestions: ['hours?'], doNotRelay: ['salary'] }),
+    null,
+    'a list that matches nothing reports nothing'
+  );
 });
 
 // ---------------------------------------------------------------------------
