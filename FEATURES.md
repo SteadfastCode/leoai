@@ -143,15 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…**
-  Found by the grader of LEO-047 (medium, backend/src/services/notifications.js:35). The safety
-  net doesn't actually withhold the question: chat.js passes `reason: question` — the same string
-  it pushes into `pendingQuestions` — and `buildHandoffSms`/`buildHandoffEmail` print it verbatim
-  as `Visitor needs help: "<reason>"` / `Reason: <reason>` one line above the filtered block, and
-  `lastMessage` (usually the same visitor text) is printed too, so a matched question is still
-  relayed in full in both SMS and email; the test named 'buildQuestionBlock omits a matched
-  question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so
-  it cannot catch this.
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [needs-human]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
@@ -1044,6 +1035,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…** (routine 2026-10-15, df13710)
+  Found by the grader of LEO-047 (medium, backend/src/services/notifications.js:35). The safety
+  net doesn't actually withhold the question: chat.js passes `reason: question` — the same string
+  it pushes into `pendingQuestions` — and `buildHandoffSms`/`buildHandoffEmail` print it verbatim
+  as `Visitor needs help: "<reason>"` / `Reason: <reason>` one line above the filtered block, and
+  `lastMessage` (usually the same visitor text) is printed too, so a matched question is still
+  relayed in full in both SMS and email; the test named 'buildQuestionBlock omits a matched
+  question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so
+  it cannot catch this.
 - [x] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…** (routine 2026-10-15, 4577f3e)
   Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
   still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
