@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…**
+- [x] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…**
   Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
   live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and
   public `/chat` never 401s), so a playground tab left idle sends a message with a stale Bearer
