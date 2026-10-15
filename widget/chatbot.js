@@ -9,6 +9,27 @@
   const domain = document.currentScript?.getAttribute('data-domain') || window.location.hostname;
   const SESSION_KEY = `leo_session_${domain}`;
 
+  // --- Debug logging (off/light/normal/verbose) ---
+  // Default off: this script runs inside somebody else's page and must not
+  // write to their console uninvited. Set window.LEO_LOG_LEVEL = 'light' (read
+  // per call, so the browser console can turn it on mid-session) to trace the
+  // paths that are painful to reproduce by hand — a forget the backend refused
+  // most of all, since it needs a broken backend to see at all.
+  const LOG_TIERS = { off: 0, light: 1, normal: 2, verbose: 3 };
+
+  function debug(tier, message) {
+    const name = String(window.LEO_LOG_LEVEL || 'off').toLowerCase();
+    const level = LOG_TIERS[name] ?? LOG_TIERS.off;
+    if (level >= LOG_TIERS[tier]) console.log(`[Leo] ${message}`);
+  }
+
+  // A session token is the key to a visitor's whole transcript — never log one
+  // in full, not even at verbose.
+  function shortToken(token) {
+    const t = String(token || '');
+    return t.length > 10 ? `${t.slice(0, 10)}…` : t;
+  }
+
   // --- Session token ---
   function getSessionToken() {
     let token = localStorage.getItem(SESSION_KEY);
@@ -518,7 +539,7 @@
   // forget (LEO-043). Everything keyed to the old token has to be reset
   // together, so there is exactly one copy of that sequence.
   // Returns loadHistory()'s promise so a caller can speak after the reset.
-  function resetConversationLocally() {
+  function resetConversationLocally(source) {
     messagesEl.innerHTML = '';
     clearActiveOptions();
 
@@ -528,6 +549,7 @@
     // never broke. Mint a fresh token and reset everything keyed to it.
     localStorage.removeItem(SESSION_KEY);
     sessionToken = getSessionToken();
+    debug('light', `session token is now ${shortToken(sessionToken)} — source: ${source || 'conversation reset'}`);
 
     oldestTimestamp = null;
     hasMoreHistory = false;
@@ -543,7 +565,7 @@
   }
 
   document.getElementById('leo-menu-clear').addEventListener('click', () => {
-    resetConversationLocally();
+    resetConversationLocally('menu: clear conversation (this device only)');
     menu.hidden = true;
   });
 
@@ -578,6 +600,7 @@
     // the delete is scoped to the token the server knows this transcript by.
     const token = sessionToken;
     let deleted = false;
+    let outcome = '';
     try {
       const res = await fetch(`${BACKEND_URL}/chat/forget`, {
         method: 'POST',
@@ -585,14 +608,27 @@
         body: JSON.stringify({ domain, sessionToken: token }),
       });
       deleted = res.ok;
-    } catch {
+      outcome = `HTTP ${res.status}`;
+    } catch (err) {
       deleted = false; // offline or backend down — say so rather than imply success
+      outcome = `request failed: ${err && err.message}`;
     }
 
-    await resetConversationLocally();
-    appendMessage('assistant', deleted
-      ? "All done — our conversation is deleted from the server, so it's gone from my side too. We're starting completely fresh. 😊"
-      : "I couldn't reach the server just now, so I've only cleared this device. Try again in a moment and I'll finish the job properly.");
+    // A refused delete changes NOTHING on this device (LEO-093). Resetting here
+    // would mint a fresh token and drop the old one, which is the only handle
+    // either side has on the transcript the server still holds: the retry
+    // invited below would then erase a brand-new empty session and that
+    // visitor could never erase the real one — the exact opposite of what this
+    // menu item promises.
+    if (!deleted) {
+      debug('light', `forget refused (${outcome}) — source: POST /chat/forget; keeping session ${shortToken(token)} so a retry still reaches the server's copy`);
+      appendMessage('assistant', "I couldn't reach the server just now, so nothing has been deleted yet — our conversation is still here on both sides. Give it a moment and tap that menu option again, and I'll finish the job properly.");
+      return;
+    }
+
+    debug('light', `forget confirmed (${outcome}) for session ${shortToken(token)} — source: POST /chat/forget`);
+    await resetConversationLocally('menu: clear my history from the server (server confirmed the delete)');
+    appendMessage('assistant', "All done — our conversation is deleted from the server, so it's gone from my side too. We're starting completely fresh. 😊");
   });
 
   const hotkeyBtn = document.getElementById('leo-menu-hotkey');

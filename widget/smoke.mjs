@@ -10,6 +10,8 @@
  *   4. LEO-036: a /chat that rejects twice then resolves succeeds via retry
  *   5. LEO-036: a /chat that always rejects renders the warm failure bubble
  *      and puts the visitor's typed message back into the input
+ *   6. LEO-093: a refused /chat/forget keeps the session token and transcript,
+ *      so the retry it invites still reaches the server's copy
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -52,13 +54,14 @@ try {
   // chatHandler, when set, overrides the POST /chat response (LEO-036 scenarios).
   const fetchCalls = [];
   let chatHandler = null;
+  let forgetHandler = null; // overrides POST /chat/forget (LEO-093 scenario)
   const json = (obj) => ({ ok: true, status: 200, json: async () => obj });
   const stubFetch = async (url, opts = {}) => {
     const u = String(url);
     fetchCalls.push({ url: u, method: opts.method || 'GET', body: opts.body || null });
     if (u.includes('/chat/entity-name')) return json({ name: 'Smoke Test Shop' });
     if (u.includes('/chat/history')) return json({ messages: [], hasMore: false, entityConfig: { linksOpenInNewTab: true } });
-    if (u.includes('/chat/forget')) return json({ deleted: 1, forgotten: true });
+    if (u.includes('/chat/forget')) return forgetHandler ? forgetHandler() : json({ deleted: 1, forgotten: true });
     if (u.includes('/health')) return json({ status: 'ok' });
     if (u.endsWith('/chat')) return chatHandler ? chatHandler() : json({ reply: STUB_REPLY });
     return json({});
@@ -222,6 +225,56 @@ try {
   );
   check(forgetBtn.textContent.includes('from the server') && !forgetBtn.textContent.includes('tap again'),
     'the menu item disarms back to its normal label');
+
+  // 7. LEO-093: a REFUSED forget must leave the session token alone. It is the
+  //    only handle either side has on the transcript the server still holds, so
+  //    minting a fresh one here orphaned that transcript: the retry Leo invites
+  //    posted a brand-new token, deleted nothing, and the visitor could never
+  //    erase the real one.
+  const KEPT_MESSAGE = 'Please survive a failed forget';
+  doc.getElementById('leo-input').value = KEPT_MESSAGE;
+  doc.getElementById('leo-send').click();
+  await settle();
+
+  const tokenBeforeFailedForget = win.localStorage.getItem(`leo_session_${DOMAIN}`);
+  forgetHandler = () => Promise.resolve({ ok: false, status: 503, json: async () => ({ error: 'down' }) });
+  forgetBtn.click(); // arm
+  await flush();
+  forgetBtn.click(); // fire
+  await settle();
+
+  check(
+    win.localStorage.getItem(`leo_session_${DOMAIN}`) === tokenBeforeFailedForget,
+    'a refused forget keeps the session token the server knows the transcript by'
+  );
+  check(
+    doc.body.textContent.includes(KEPT_MESSAGE),
+    'a refused forget leaves the transcript on screen — nothing was deleted anywhere'
+  );
+  check(
+    [...doc.querySelectorAll('.leo-msg--assistant')].some((el) => el.textContent.includes('nothing has been deleted yet')),
+    'a refused forget says plainly that nothing was deleted'
+  );
+
+  // and the retry it invites has to reach the SAME transcript
+  forgetHandler = null; // backend is back
+  forgetBtn.click(); // arm
+  await flush();
+  forgetBtn.click(); // fire
+  await settle();
+  const retryCall = fetchCalls.filter((c) => c.url.includes('/chat/forget')).pop();
+  check(
+    !!retryCall && JSON.parse(retryCall.body).sessionToken === tokenBeforeFailedForget,
+    'the retry after a refused forget posts the original token, not a fresh one'
+  );
+  check(
+    win.localStorage.getItem(`leo_session_${DOMAIN}`) !== tokenBeforeFailedForget,
+    'the retry succeeding then mints a fresh token'
+  );
+  check(
+    !doc.body.textContent.includes(KEPT_MESSAGE),
+    'the transcript pane is empty once the retry succeeds'
+  );
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));
