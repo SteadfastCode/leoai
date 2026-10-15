@@ -81,12 +81,19 @@ function inWindow(at, since, until) {
   return t >= new Date(since).getTime() && t < new Date(until).getTime();
 }
 
+// One handoff is one (question, moment) pair. chat.js writes the same text and
+// askedAt into both handoffLog and pendingQuestions, so a still-open handoff is
+// present in both arrays and must be counted exactly once.
+function handoffKey(q) {
+  return `${q?.text ?? ''}|${new Date(q?.askedAt ?? NaN).getTime()}`;
+}
+
 /**
  * Roll a week of conversation documents into the numbers the digest reports.
  * Pure — the caller does the fetching.
  *
  * `conversations` are lean Conversation docs (messages, pendingQuestions,
- * handoffPending, createdAt). `unansweredCount` is the count of
+ * handoffLog, handoffPending, createdAt). `unansweredCount` is the count of
  * UnansweredQuestion rows created in the same window.
  *
  * `hasActivity` is the single definition of "this entity did something this
@@ -100,6 +107,9 @@ function summarizeWeek({ conversations = [], unansweredCount = 0, since, until }
     activeConversations: 0,
     newConversations: 0,
     handoffs: 0,
+    // Of stats.handoffs, how many were only visible in pendingQuestions —
+    // i.e. came from a conversation older than handoffLog. Diagnostic only.
+    handoffsFromLegacyPending: 0,
     stillWaiting: 0,
     unanswered: Math.max(0, Number(unansweredCount) || 0),
     topQuestions: [],
@@ -131,9 +141,24 @@ function summarizeWeek({ conversations = [], unansweredCount = 0, since, until }
     if (touched) stats.activeConversations++;
     if (inWindow(convo.createdAt, since, until)) stats.newConversations++;
 
-    for (const q of convo.pendingQuestions || []) {
-      if (inWindow(q?.askedAt, since, until)) stats.handoffs++;
+    // The week's handoff TOTAL, not what is left over. pendingQuestions is
+    // emptied when the owner replies or resolves the handoff (dashboard.js
+    // reply / resolve-handoff), so counting only that array made every
+    // answered handoff vanish from the week: an owner who answered everything
+    // was told nothing had been passed to them, and `handoffs` degenerated
+    // into a near-copy of `stillWaiting`. handoffLog is the durable record,
+    // written when the handoff fires and never pruned. pendingQuestions is
+    // still read so conversations that predate the log keep reporting.
+    const counted = new Set();
+    for (const q of convo.handoffLog || []) {
+      if (inWindow(q?.askedAt, since, until)) counted.add(handoffKey(q));
     }
+    const fromLog = counted.size;
+    for (const q of convo.pendingQuestions || []) {
+      if (inWindow(q?.askedAt, since, until)) counted.add(handoffKey(q));
+    }
+    stats.handoffs += counted.size;
+    stats.handoffsFromLegacyPending += counted.size - fromLog;
     // Counted over the conversations the caller fetched (those active in the
     // window), not the whole history — a year-old unanswered handoff is not
     // this week's news.
@@ -207,7 +232,7 @@ async function collectWeekStats(domain, since, until) {
     isTest: { $ne: true },
     $or: [{ lastActiveAt: { $gte: since } }, { updatedAt: { $gte: since } }],
   })
-    .select('messages pendingQuestions handoffPending createdAt isTest')
+    .select('messages pendingQuestions handoffLog handoffPending createdAt isTest')
     .lean();
 
   const unansweredCount = await UnansweredQuestion.countDocuments({
@@ -268,7 +293,7 @@ async function runWeeklyDigestTick(now = Date.now()) {
       continue;
     }
 
-    debug('light', `sending to ${entity.ownerEmail} for ${entity.domain} — source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), window ${since.toISOString()} to ${until.toISOString()}, ${stats.visitorMessages} visitor message(s)`);
+    debug('light', `sending to ${entity.ownerEmail} for ${entity.domain} — source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), window ${since.toISOString()} to ${until.toISOString()}, ${stats.visitorMessages} visitor message(s), ${stats.handoffs} handoff(s) from conversation.handoffLog (${stats.handoffsFromLegacyPending} of them only in pendingQuestions, pre-handoffLog conversations)`);
     try {
       await sendEmailRaw(entity.ownerEmail, `What Leo did for ${entity.name} this week`, body);
       sent++;
@@ -288,6 +313,7 @@ module.exports = {
   summarizeWeek,
   renderWeeklyDigestBody,
   inWindow,
+  handoffKey,
   MIN_GAP_MS,
   WEEK_MS,
   TOP_QUESTION_LIMIT,

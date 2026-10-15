@@ -34,6 +34,11 @@ const conversationSchema = new mongoose.Schema(
     lastHandoffNotifiedAt: { type: Date },
     handoffReminderCount: { type: Number, default: 0 },
     pendingQuestions: [{ text: { type: String }, askedAt: { type: Date, default: Date.now }, _id: false }],
+    // Append-only record of every handoff this conversation has fired (LEO-092).
+    // pendingQuestions is emptied when the owner replies or resolves the handoff, so
+    // it cannot answer "how many questions reached me this week" — this can. Entries
+    // are written beside the pendingQuestions push in chat.js and never removed.
+    handoffLog: [{ text: { type: String }, askedAt: { type: Date, default: Date.now }, _id: false }],
   },
   { timestamps: true }
 );

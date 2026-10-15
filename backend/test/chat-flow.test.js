@@ -211,6 +211,15 @@ test('handoff notification fires exactly once per conversation', async () => {
   const convo = await Conversation.findOne({ sessionToken: 'handoff-session', domain });
   assert.equal(convo.handoffPending, true);
   assert.equal(convo.pendingQuestions.length, 2);
+
+  // ...and the durable record mirrors them (LEO-092). pendingQuestions is
+  // emptied when the owner replies; handoffLog is what weekly reporting counts.
+  assert.equal(convo.handoffLog.length, 2);
+  assert.deepEqual(
+    convo.handoffLog.map((q) => q.text),
+    convo.pendingQuestions.map((q) => q.text)
+  );
+  for (const q of convo.handoffLog) assert.ok(q.askedAt instanceof Date, 'handoffLog entries carry askedAt');
 });
 
 // ---------------------------------------------------------------------------

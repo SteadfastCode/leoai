@@ -182,6 +182,145 @@ test('counts messages, conversations, handoffs and unanswered in the window', ()
   assert.equal(stats.hasActivity, true);
 });
 
+// --- summarizeWeek: the week's handoff total (LEO-092) ----------------------
+// pendingQuestions is emptied when the owner replies (dashboard reply) or
+// resolves the handoff out-of-band, so the week's total has to come from the
+// durable handoffLog — otherwise an owner who answered everything is told
+// nothing was ever passed to them, and `handoffs` is just `stillWaiting` again.
+
+test('answered handoffs still count: handoffLog outlives an emptied pendingQuestions', () => {
+  const stats = summarizeWeek({
+    conversations: [{
+      createdAt: new Date(MONDAY_13 - 3 * DAY),
+      messages: [msg('user', 'Do you cater?', 3), msg('assistant', 'Let me ask the team.', 3), msg('owner_reply', 'We do!', 2)],
+      handoffLog: [
+        { text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 3 * DAY) },
+        { text: 'Can you do 40 people?', askedAt: new Date(MONDAY_13 - 2 * DAY) },
+      ],
+      pendingQuestions: [], // owner answered both, so the array was filtered empty
+      handoffPending: false,
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 2);
+  assert.equal(stats.stillWaiting, 0);
+  assert.equal(stats.handoffsFromLegacyPending, 0);
+  const body = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.match(body, /2 questions passed to you/);
+  assert.doesNotMatch(body, /still waiting/);
+});
+
+test('an open handoff sits in both arrays and is counted once', () => {
+  const askedAt = new Date(MONDAY_13 - 2 * DAY);
+  const stats = summarizeWeek({
+    conversations: [{
+      messages: [msg('user', 'Do you cater?', 2), msg('assistant', 'Let me ask.', 2)],
+      handoffLog: [{ text: 'Do you cater?', askedAt }],
+      pendingQuestions: [{ text: 'Do you cater?', askedAt }],
+      handoffPending: true,
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 1);
+  assert.equal(stats.stillWaiting, 1);
+});
+
+test('handoffs is the week total, not a near-duplicate of stillWaiting', () => {
+  const openAt = new Date(MONDAY_13 - DAY);
+  const stats = summarizeWeek({
+    conversations: [
+      {
+        messages: [msg('user', 'Do you cater?', 4), msg('assistant', 'Asking.', 4)],
+        handoffLog: [{ text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 4 * DAY) }],
+        pendingQuestions: [],
+        handoffPending: false,
+      },
+      {
+        messages: [msg('user', 'Are you open Easter?', 1), msg('assistant', 'Asking.', 1)],
+        handoffLog: [{ text: 'Are you open Easter?', askedAt: openAt }],
+        pendingQuestions: [{ text: 'Are you open Easter?', askedAt: openAt }],
+        handoffPending: true,
+      },
+    ],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 2);
+  assert.equal(stats.stillWaiting, 1);
+  const body = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.match(body, /2 questions passed to you/);
+  assert.match(body, /1 conversation still waiting on your reply/);
+});
+
+test('conversations older than handoffLog keep reporting from pendingQuestions', () => {
+  const stats = summarizeWeek({
+    conversations: [{
+      messages: [msg('user', 'Do you deliver?', 2), msg('assistant', 'Asking.', 2)],
+      // No handoffLog at all — written before the field existed.
+      pendingQuestions: [{ text: 'Do you deliver?', askedAt: new Date(MONDAY_13 - 2 * DAY) }],
+      handoffPending: true,
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 1);
+  assert.equal(stats.handoffsFromLegacyPending, 1);
+});
+
+test('a logged handoff from an earlier week is not this week\'s news', () => {
+  const stats = summarizeWeek({
+    conversations: [{
+      messages: [msg('user', 'Anything new?', 1), msg('assistant', 'Not today.', 1)],
+      handoffLog: [{ text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 30 * DAY) }],
+      pendingQuestions: [],
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 0);
+  const body = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.doesNotMatch(body, /passed to you/);
+});
+
+test('the same question asked again after a reply is two handoffs', () => {
+  const stats = summarizeWeek({
+    conversations: [{
+      messages: [msg('user', 'Do you cater?', 5), msg('assistant', 'Asking.', 5)],
+      handoffLog: [
+        { text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 5 * DAY) },
+        { text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 2 * DAY) },
+      ],
+      pendingQuestions: [],
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 2);
+});
+
+test('an answered handoff alone is activity worth an email', () => {
+  const stats = summarizeWeek({
+    conversations: [{
+      handoffLog: [{ text: 'Do you cater?', askedAt: new Date(MONDAY_13 - 2 * DAY) }],
+      pendingQuestions: [],
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+
+  assert.equal(stats.handoffs, 1);
+  assert.equal(stats.hasActivity, true);
+  assert.ok(renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL }));
+});
+
 test('test-mode conversations never reach an owner total', () => {
   const stats = summarizeWeek({
     conversations: [{ isTest: true, createdAt: new Date(MONDAY_13 - DAY), messages: [msg('user', 'smoke', 1), msg('assistant', 'ok', 1)] }],
