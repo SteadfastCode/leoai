@@ -11,12 +11,14 @@ import { renderMarkdown } from '../src/lib/renderMarkdown'
 
 const post = vi.fn()
 const get = vi.fn()
+const ensureFreshAccessToken = vi.fn()
 
 vi.mock('../src/lib/api', () => ({
   default: {
     post: (...args) => post(...args),
     get: (...args) => get(...args),
   },
+  ensureFreshAccessToken: (...args) => ensureFreshAccessToken(...args),
 }))
 
 const Playground = (await import('../src/views/Playground.vue')).default
@@ -36,6 +38,8 @@ beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   get.mockResolvedValue({ data: { messages: [] } })
+  // The session is provable unless a spec says otherwise.
+  ensureFreshAccessToken.mockResolvedValue('fresh-token')
 })
 
 describe('sending a message', () => {
@@ -81,6 +85,67 @@ describe('sending a message', () => {
     expect(last.error).toBe(true)
     expect(last.content).toBe('Free plan limit reached')
     expect(wrapper.vm.sending).toBe(false)
+  })
+})
+
+describe('a session that cannot be proved (LEO-090)', () => {
+  it('refuses to send, because the message would be charged as real visitor traffic', async () => {
+    ensureFreshAccessToken.mockResolvedValue(null)
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    wrapper.vm.inputText = 'What are your hours?'
+    await wrapper.vm.send()
+    await nextTick()
+
+    expect(post).not.toHaveBeenCalled()
+    expect(wrapper.vm.sessionStale).toBe(true)
+    expect(wrapper.vm.sending).toBe(false)
+    // Nothing was sent, so nothing belongs in the transcript — and the owner keeps their text.
+    expect(wrapper.vm.messages).toEqual([])
+    expect(wrapper.vm.inputText).toBe('What are your hours?')
+  })
+
+  it('tells the owner what happened and what to do about it', async () => {
+    ensureFreshAccessToken.mockResolvedValue(null)
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+    await nextTick()
+
+    const alert = wrapper.find('v-alert-stub')
+    expect(alert.exists()).toBe(true)
+    expect(alert.attributes('text')).toMatch(/was not sent/)
+    expect(alert.attributes('text')).toMatch(/Sign out and back in/)
+  })
+
+  it('proves the session before the message leaves, never after', async () => {
+    const order = []
+    ensureFreshAccessToken.mockImplementation(async () => { order.push('check'); return 'fresh-token' })
+    post.mockImplementation(async () => { order.push('post'); return { data: { reply: 'Hi!', isTest: true } } })
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+
+    expect(order).toEqual(['check', 'post'])
+  })
+
+  it('clears the notice once a send goes through — nothing was charged', async () => {
+    ensureFreshAccessToken.mockResolvedValue(null)
+    const wrapper = mountPlayground()
+    await nextTick()
+    await wrapper.vm.send('hello')
+    expect(wrapper.vm.sessionStale).toBe(true)
+
+    ensureFreshAccessToken.mockResolvedValue('fresh-token')
+    post.mockResolvedValue({ data: { reply: 'Hi!', isTest: true } })
+    await wrapper.vm.send('hello')
+    await nextTick()
+
+    expect(wrapper.vm.sessionStale).toBe(false)
+    expect(post).toHaveBeenCalledTimes(1)
   })
 })
 
