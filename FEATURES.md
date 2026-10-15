@@ -143,13 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…**
-  Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
-  still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
-  old token the server knows the transcript by is destroyed on the client. Leo's message tells the
-  visitor to "try again in a moment and I'll finish the job properly", but a retry now posts the
-  new token, deletes nothing, and the real transcript is orphaned on the server with no way for
-  that visitor to ever erase it (the exact promise of LEO-043).
 - [ ] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…**
   Found by the grader of LEO-047 (medium, backend/src/services/notifications.js:35). The safety
   net doesn't actually withhold the question: chat.js passes `reason: question` — the same string
@@ -1051,6 +1044,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…** (routine 2026-10-15, 4577f3e)
+  Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
+  still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
+  old token the server knows the transcript by is destroyed on the client. Leo's message tells the
+  visitor to "try again in a moment and I'll finish the job properly", but a retry now posts the
+  new token, deletes nothing, and the real transcript is orphaned on the server with no way for
+  that visitor to ever erase it (the exact promise of LEO-043).
 - [x] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…** (routine 2026-10-15, 1c9f3ac)
   Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
   count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the

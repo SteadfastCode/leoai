@@ -72,7 +72,7 @@
     "LEO-093": {
       "order": 5,
       "title": "On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-093",
