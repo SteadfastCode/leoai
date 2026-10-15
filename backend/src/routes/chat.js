@@ -75,7 +75,13 @@ router.post('/', async (req, res) => {
     }
 
     const FREE_TIER_LIMIT = 100;
-    if (entity.plan === 'free' && entity.messageCountThisPeriod >= FREE_TIER_LIMIT) {
+    // Test-mode traffic (LEO-089) is excluded from the counter below, so it must not be
+    // blocked by — or be the request that trips the owner notification for — a limit it
+    // can never consume. Without `!isTest`, an entity that has spent its 100 messages
+    // gets 402 in its OWN dashboard playground, and a playground message can be the one
+    // that flips quotaExceededNotified and emails the owner. Real visitor traffic is
+    // unaffected: isTest requires a valid API key or an own-domain dashboard session.
+    if (!isTest && entity.plan === 'free' && entity.messageCountThisPeriod >= FREE_TIER_LIMIT) {
       // Notify owner once when the limit is first hit
       if (!entity.quotaExceededNotified) {
         entity.quotaExceededNotified = true;
