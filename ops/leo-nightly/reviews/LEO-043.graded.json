@@ -1,0 +1,97 @@
+{
+  "item": "LEO-043",
+  "repo": "leoai",
+  "mergeSha": "ce714f889524c973f77c159f506b520df7bdc4aa",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:40:52.807Z",
+  "independent": [
+    {
+      "file": "widget/chatbot.js",
+      "line": 592,
+      "severity": "medium",
+      "summary": "On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the old token the server knows the transcript by is destroyed on the client. Leo's message tells the visitor to \"try again in a moment and I'll finish the job properly\", but a retry now posts the new token, deletes nothing, and the real transcript is orphaned on the server with no way for that visitor to ever erase it (the exact promise of LEO-043)."
+    },
+    {
+      "file": "widget/chatbot.js",
+      "line": 104,
+      "severity": "low",
+      "summary": "The new privacy copy claims the forget deletes the visitor's conversation \"including the business's copy\", but forgetConversation (and the sweep) only delete the Conversation document; UnansweredQuestion rows keep the visitor's verbatim question text plus the same sessionToken indefinitely and stay visible on the owner's Unanswered page, so visitor-typed text survives a \"delete everywhere\"."
+    },
+    {
+      "file": "backend/src/routes/chat.js",
+      "line": 275,
+      "severity": "low",
+      "summary": "POST /chat/forget is public and destructive yet skips the rate limiter that LEO-034 applies to POST /chat (checkRateLimit/clientIp are already imported in this file) and does not verify the domain belongs to a real entity, so an unauthenticated client can drive unbounded deleteMany queries against the conversations collection."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "forgetConversation is defined and exported by the new backend/src/services/retention.js (in this same diff) and imported at chat.js:15, so there is no ReferenceError."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "The widget does handle fetch failure — it catches, sets deleted=false, and says only this device was cleared; the described scenario is the implemented, deliberate behaviour, not the actual defect (the token rotation that makes the suggested retry impossible)."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change adds a public, credential-by-session-token destructive endpoint and widens the authenticated entity-PATCH allowlist, and the test stubs requireAuth — authz surface is touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only a non-secret RETENTION_LOG_LEVEL knob is added to .env.example; no credentials or keys are involved."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Correct and well-evidenced — the new endpoint and sweep both call Conversation.deleteMany."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No third-party API is called; the widget's fetch goes to LeoAI's own backend, and Claude/Voyage/Twilio/Resend are only stubbed in tests."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "New env var and schema field both have safe defaults (light / 0) and no build, deploy, or migration config changes."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3
+  ],
+  "summary": "Both local findings are false positives — one asserts an undefined symbol that the diff itself defines, the other mislabels the deliberate offline-failure message as missing error handling — and it missed the real widget bug where a failed forget rotates the session token and permanently orphans the server-side transcript.",
+  "counts": {
+    "findings": 2,
+    "confirmed": 0,
+    "falsePositive": 2,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 3,
+    "independent": 3,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.0026674999999998,
+  "numTurns": 7,
+  "durationMs": 133658,
+  "sessionId": "d6d3e072-27ea-4082-8aa9-ee0516017b28"
+}

@@ -1,0 +1,83 @@
+{
+  "item": "LEO-072",
+  "repo": "leoai",
+  "mergeSha": "f46c96f3c5940630bc28114ac3cf2406080b297d",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:57:54.656Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 673,
+      "severity": "low",
+      "summary": "LEO-077's motivation misstates the cost of a missed tick for weekly entities: `isDueNow` has no weekday check (unlike `digestDue`), only an hour match plus the SIX_DAYS_MS gap, so a weekly entity that misses its hour becomes due again 24 hours later at the same hour — not \"another 7 days\". An implementer taking the prose as the spec could encode a 7-day weekly expectation that the existing code never had."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "This is not a defect in the change — it is a near-verbatim restatement of the item the diff correctly files (LEO-079), whose claims I verified true (`selectModel` at claude.js:120 is absent from module.exports and unreferenced by any file under backend/test)."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "LEO-081 is the mandated weekly renewal of LEO-072 (which is already completed, routine 2026-10-08, f46c96f) and its `[not-before: 2026-10-15]` tag is exactly run-date + 7 days, so there is no ordering violation and no claimable predecessor to run first."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change is FEATURES.md prose only; no auth middleware, route gate or role check is modified."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No secret, env var or credential handling is changed — the filed items only describe future env-example additions."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "The change touches no billing, pricing or cost path; it cites backend/src/services/claude.js:120 as evidence, a file the 178-line FEATURES.md-only diff does not modify."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Pure insertion into a markdown backlog file — no deletes, migrations or data-mutating code."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API call, client or contract is added or altered by the diff."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, nixpacks, smoke or CI configuration is touched; the renewal tag only affects backlog claimability, not release machinery."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local review produced two non-findings — one restating a filed item's own (accurate) spec as if it were a defect in the diff, one inventing an ordering violation that misreads the mandated weekly renewal — and wrongly flagged the money category on evidence outside the diff, missing the single genuine (low) factual slip in LEO-077's prose.",
+  "counts": {
+    "findings": 2,
+    "confirmed": 0,
+    "falsePositive": 2,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.4495429999999998,
+  "numTurns": 21,
+  "durationMs": 182211,
+  "sessionId": "82902ae9-ecd6-44bc-8743-6b3cef03c8f0"
+}

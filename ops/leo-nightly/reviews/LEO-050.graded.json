@@ -1,0 +1,89 @@
+{
+  "item": "LEO-050",
+  "repo": "leoai",
+  "mergeSha": "b8afecba167643390f7ca5e38689d7fa0e5ca0d4",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:51:56.093Z",
+  "independent": [],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "Rounding is pinned by the dedicated `cost is rounded to 4dp` test and every row/total assertion compares against `usd(...)` (the same 4dp rounding), so per-row rounding is in fact covered — and an unasserted extra property would not be a defect anyway."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "User messages are deliberately unpriced by design, and the route test for `A/D1` has 2 user messages while asserting `estimatedCostUsd === usd(HAIKU + SONNET)`, which would fail if user messages were ever priced."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "The test `route: a message with no model/classifierRoute lands in the derived buckets` asserts `row.estimatedCostUsd === SONNET` with the comment 'the unpriced legacy turn adds nothing', plus the pure test `an unrecognised model is counted as otherModel and is NOT priced` — exactly the claim said to be untested."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "The fields are `type=\"date\"`, which yield either a valid ISO day or an empty string (handled by 'Pick both dates.'), and the backend `parseDay` rejects impossible dates like 2026-02-31 with a 400 — tested explicitly."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "`load()` returns early whenever `rangeError` is non-empty and the Run button is disabled on it; anything that still reaches the server is rejected as a 400 and rendered in the error alert rather than causing undefined behaviour."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change adds a new authorization-gated surface — a route under `router.use(requireAdminAuth)` in admin.js plus a `meta.superadmin` dashboard route and admin nav entry."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, env vars, or key handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "`usageReport.js` introduces a `RATES` per-message USD table and cost arithmetic feeding a pricing decision, so cost/money logic is genuinely touched (read-only, not the billing path)."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Everything added is read-only: one aggregate, pure shaping, and a display view — no deletes, updates, or migrations."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "Nothing in the diff calls an external service — the cited `claude.js:207` appears only inside the added incident markdown's quoted log, not as changed code; the dashboard only calls the app's own backend."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, nixpacks, version, or CI configuration is modified; the added ops file is an incident note, not a release-process change."
+    }
+  ],
+  "missed": [],
+  "summary": "All five findings are false positives — three complain that tests omit assertions the suite actually makes, and two invent invalid-date behaviour that `type=\"date\"` inputs, the client-side `rangeError` guard, and the backend's `parseDay` 400 all already handle — and the triage is right except for claiming an external-API touch based on a log quote in a markdown incident file.",
+  "counts": {
+    "findings": 5,
+    "confirmed": 0,
+    "falsePositive": 5,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.397914,
+  "numTurns": 14,
+  "durationMs": 178032,
+  "sessionId": "419b4681-7c60-4ce4-96da-6f5e1c0746ab"
+}

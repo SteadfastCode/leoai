@@ -1,0 +1,91 @@
+{
+  "item": "LEO-047",
+  "repo": "leoai",
+  "mergeSha": "b01d3f0cf84ae1fd21a20e4197b40b2a80bff92b",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:45:01.621Z",
+  "independent": [
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 35,
+      "severity": "medium",
+      "summary": "The safety net doesn't actually withhold the question: chat.js passes `reason: question` — the same string it pushes into `pendingQuestions` — and `buildHandoffSms`/`buildHandoffEmail` print it verbatim as `Visitor needs help: \"<reason>\"` / `Reason: <reason>` one line above the filtered block, and `lastMessage` (usually the same visitor text) is printed too, so a matched question is still relayed in full in both SMS and email; the test named 'buildQuestionBlock omits a matched question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so it cannot catch this."
+    },
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 256,
+      "severity": "low",
+      "summary": "`sendHandoffFollowUpNotification` still calls `buildQuestionBlock(pendingQuestions, SMS_QUESTION_CAP)` and `buildQuestionBlock(pendingQuestions)` with no `doNotRelay` argument, so a question suppressed in the initial alert reappears unfiltered in every follow-up reminder SMS/email (up to `handoffFollowUp.maxReminders`)."
+    },
+    {
+      "file": "dashboard/src/views/ConversationDetail.vue",
+      "line": 37,
+      "severity": "low",
+      "summary": "\"Don't relay this type\" puts visitor-authored text (the pending question, verbatim) onto the list, and `buildSystemPrompt` interpolates list entries straight into the system prompt; `sanitizeList` only trims/caps/dedupes and neutralises nothing, so a visitor who crafts a question containing instruction-like text gets it injected into the prompt as soon as an owner clicks the one-click button."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The PATCH handler this button calls runs `sanitizeDoNotRelay` on write (dashboard.js, `if ('doNotRelay' in updates)`), so the claim of \"no validation or sanitization\" is untrue, and the finding names no concrete failure that client-side sanitising would prevent."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff edits the PATCH `allowed` field allowlist — the authorization boundary controlling which fields an owner may write — and the new test drives membership-based 403 through the real router."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys, or secret handling are added or changed; the test's dummy ANTHROPIC_API_KEY placeholder is not a secret."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is modified; the test only asserts `plan` remains unsettable, which is pre-existing behaviour."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or data-destroying operations — only an additive optional array field with a default."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Correct: the change alters the system prompt sent to the Anthropic API and the bodies sent via Twilio/Resend."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy config, build config, versioning, or env/infra files are touched."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review produced one vague, unsubstantiated finding that the server-side sanitiser refutes, and missed the substantive defect that the handoff alert still prints the suppressed question verbatim in its `reason`/`lastMessage` lines (and in every follow-up reminder), though its triage answers were all right.",
+  "counts": {
+    "findings": 1,
+    "confirmed": 0,
+    "falsePositive": 1,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 3,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.503768,
+  "numTurns": 22,
+  "durationMs": 178834,
+  "sessionId": "320bc2f0-b229-4ab0-a711-bbd212eb8717"
+}

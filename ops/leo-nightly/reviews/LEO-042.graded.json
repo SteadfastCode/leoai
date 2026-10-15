@@ -1,0 +1,139 @@
+{
+  "item": "LEO-042",
+  "repo": "leoai",
+  "mergeSha": "48a6731dfa692163d58f8ccc9b5a0264449736a9",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:38:39.113Z",
+  "independent": [
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 135,
+      "severity": "medium",
+      "summary": "The handoff count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the owner replies or resolves the handoff (dashboard.js:183 and dashboard.js:213), so answered handoffs vanish from the week: an owner who replied to everything is told \"0 questions passed to you\" (line omitted entirely), and `handoffs` becomes a near-duplicate of `stillWaiting` rather than the week's handoff total the item promises."
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 172,
+      "severity": "low",
+      "summary": "The headline line is pushed unconditionally while every other line is zero-guarded, so an activity week driven only by `unanswered` (reachable when conversationRetentionDays is set below 7 and the sweep deleted the conversations whose UnansweredQuestion rows remain) emails \"0 visitor messages answered across 0 conversations\" — and the test named \"zero-valued lines are omitted rather than printed as 0\" uses a fixture with nonzero headline counts, so it never exercises the one line that cannot be omitted."
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 181,
+      "severity": "low",
+      "summary": "The \"Most asked\" list emails raw visitor question text without consulting `entity.doNotRelay`, which notifications.js deliberately strips from owner-facing handoff SMS/email bodies, so a topic the owner listed as never-relay (e.g. salary questions) still reaches them verbatim in the weekly digest."
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 264,
+      "severity": "low",
+      "summary": "`lastWeeklyDigestAt` is stamped before the send, so a transient Resend failure loses that entity's digest for the whole week — the catch only console.errors, the 6-day guard plus the single matching day+hour means no retry is possible until the next scheduled tick."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "Running the weekly check inside the existing hourly cron is the documented design and the tick returns immediately when no entity is enabled or due — efficiency speculation, not a defect."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "Untrue in this code: `weeklyDigestDue` explicitly returns false when `ownerEmail` is falsy (there is nowhere to send), and the verbose tier logs the skip, so there is no silent send failure."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "The MIN_GAP_MS boundary is covered by the 'stamped moments ago' and 'elapsed-time guard' tests, and 'exactly MIN_GAP_MS after' returns true via `>= MIN_GAP_MS` — no missing behaviour, and a coverage wish about an unrelated test is not a defect."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "That exact boundary *is* tested — `lastWeeklyDigestAt: MONDAY_13 - MIN_GAP_MS` asserts true, and one minute inside asserts false; the claim is factually wrong about the test file."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "`'2026-08-10T13:00:00'` parses to a finite timestamp in Node, so it is handled by the normal path; nothing fails and no defect is described."
+    },
+    {
+      "index": 6,
+      "verdict": "false-positive",
+      "reason": "Restates finding 3's coverage wish; the schedule is pure UTC so DST cannot interact with MIN_GAP_MS, and the guard boundary is already tested."
+    },
+    {
+      "index": 7,
+      "verdict": "false-positive",
+      "reason": "Same restatement as findings 3 and 6 — a UTC-only schedule plus an already-tested guard boundary; no failure scenario exists in this code."
+    },
+    {
+      "index": 8,
+      "verdict": "false-positive",
+      "reason": "Pure preference: the default is documented, owner-selectable via the new Day select, and Monday is deliberately the 'week just ended' day — not a defect."
+    },
+    {
+      "index": 9,
+      "verdict": "false-positive",
+      "reason": "Preference again, and the select is explicitly labelled 'Time (UTC)' with the schema comment saying UTC; no incorrect behaviour."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The PATCH gate `requireAuth(PERMISSIONS.SETTINGS_EDIT)` and the superadmin split are unchanged — only a settings field name was added inside the existing owner allowlist."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The only env addition is `WEEKLY_DIGEST_LOG_LEVEL`, a log-verbosity tier; no credentials are read, logged or added."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches Stripe, plans, quota counting or billing fields."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The new service only reads (find/countDocuments) and `$set`s a timestamp; no deletes or overwrites of user data."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Correct and well-evidenced: weeklyDigest.js:273 calls `sendEmailRaw`, which sends through the Resend API."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, nixpacks or railway config changed; `.env.example` is documentation of a new optional var, not release machinery."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review found nothing real — two false claims about the service (both contradicted by `weeklyDigestDue`), five near-identical fabricated test-coverage complaints, and two UI default preferences — while missing the handoff-count undercount, the unguarded zero headline, the doNotRelay bypass and the stamp-before-send loss; only its triage was sound.",
+  "counts": {
+    "findings": 9,
+    "confirmed": 0,
+    "falsePositive": 9,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.902842,
+  "numTurns": 27,
+  "durationMs": 240616,
+  "sessionId": "9f5986e2-fd9e-4d2b-aa50-bb9e5fa3e015"
+}

@@ -1,0 +1,105 @@
+{
+  "item": "LEO-081",
+  "repo": "leoai",
+  "mergeSha": "c8a53ac631c90f8f81f7031854200c2c7d91de72",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:30:57.370Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 971,
+      "severity": "medium",
+      "summary": "LEO-086 self-contradicts on scope: it mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside the `## Current State` section (lines 151-211), while its own closing constraint says \"`CLAUDE.md`'s Current State, Architecture and `## Known Issues` blocks are not touched\" — an implementer must either skip a mandated correction or violate a stated constraint, the exact spec-defect class LEO-080 was filed to catch."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 932,
+      "severity": "low",
+      "summary": "LEO-085's deliverable is a boot-time `throw` in `middleware/auth.js` whose safety depends entirely on `JWT_SECRET` being present on the Railway service — a console/credential check the item itself names as a precondition, which this upkeep item's own rule (\"Skip anything needing a phone, a console, a credential or a pricing decision\") told the run to skip; if promoted without that check the guard bricks the next production deploy."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "`nextPeriodReset` does not exist in `backend/src/routes/chat.js` (lines 69/74 are inline `new Date(y, m+1, d)` expressions) — the model reviewed the function LEO-083 *proposes*, not any code in this FEATURES.md-only diff."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "The missing catch-up arm in `weeklyDigestDue` is real in the tree but untouched by this diff — it is verbatim the problem statement of newly filed item LEO-084, so the model reported the change's own deliverable as a defect in the change."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "Same pattern: `digestDue`'s lack of a catch-up arm is pre-existing code that this doc-only diff does not modify, and is precisely what LEO-084 files for future work."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "Not a change defect, and the description is also wrong about this code — `runRetentionSweepTick` keeps no last-sent stamp at all (no `retentionLastSweepAt` on `Entity`), which is why LEO-084 proposes adding one."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "The `'change-me-in-production'` fallback at `backend/src/middleware/auth.js:7` is real and pre-existing, but this diff touches only FEATURES.md — the model restated filed item LEO-085's body as a defect introduced by the change."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "The diff changes only FEATURES.md; `backend/src/middleware/auth.js` is not in it, so no auth code is touched (the cited line is a filed item's evidence, not a change)."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "No secret, env-var default, or `.env.example` entry is modified by this change — the only edit is backlog prose."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, quota, or Stripe code is modified; the billing-period bug is only described in a proposed item."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or data-mutating code — one Markdown file, insertions only."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No calls to Anthropic, Voyage, Stripe, Twilio, or Resend are added or changed."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, nixpacks, railway.toml, package.json, or deploy configuration is touched."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review again failed to review the change at all — all five findings paraphrase the problem statements of the backlog items this FEATURES.md-only diff files, two triage answers mark auth/secrets as touched on the strength of a quoted line that is nowhere in the diff, and both real spec defects in the filed items (LEO-086's Current State contradiction, LEO-085's console-gated throw) were missed.",
+  "counts": {
+    "findings": 5,
+    "confirmed": 0,
+    "falsePositive": 5,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 1.4428995,
+  "numTurns": 20,
+  "durationMs": 219347,
+  "sessionId": "cfc42227-704a-44ec-9566-599982d63c3f"
+}

@@ -143,6 +143,72 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-088) LEO-086 self-contradicts on scope: it mandates correcting the stale ALPHA_CODES wording at CLAUDE…**
+  Found by the grader of LEO-081 (medium, FEATURES.md:971). LEO-086 self-contradicts on scope: it
+  mandates correcting the stale `ALPHA_CODES` wording at `CLAUDE.md:186`, which is a bullet inside
+  the `## Current State` section (lines 151-211), while its own closing constraint says
+  "`CLAUDE.md`'s Current State, Architecture and `## Known Issues` blocks are not touched" — an
+  implementer must either skip a mandated correction or violate a stated constraint, the exact
+  spec-defect class LEO-080 was filed to catch.
+- [ ] **(LEO-089) The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…**
+  Found by the grader of LEO-040 (medium, backend/src/routes/chat.js:78). The free-tier quota gate
+  runs before any `isTest` check, so once an entity reaches 100 messages the playground returns
+  402 ("Free plan limit reached") instead of answering, and — worse — a playground message can be
+  the request that flips `quotaExceededNotified` and fires `sendQuotaExceededNotification` to the
+  owner, contradicting the item's "no notifications" promise.
+- [ ] **(LEO-090) Access tokens live 15 minutes and nothing refreshes them proactively (api.js only refreshes on a…**
+  Found by the grader of LEO-040 (medium, dashboard/src/views/Playground.vue:105). Access tokens
+  live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and
+  public `/chat` never 401s), so a playground tab left idle sends a message with a stale Bearer
+  token: `resolveDashboardSession` returns null, the message is handled as real visitor traffic —
+  counted against quota, logged as unanswered, emitted to dashboard sockets, and able to fire a
+  real handoff SMS/email — with the UI only warning after the fact.
+- [ ] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…**
+  Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
+  renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote
+  (e.g. ``[x](https://a"onmouseover=alert`1`)``) breaks out of the `href="..."` attribute and
+  injects an event-handler attribute into v-html output — the new file's comment calls escaping
+  "the only defence" and the new spec asserts escaping is sufficient, which is not true for
+  attribute context.
+- [ ] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…**
+  Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
+  count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the
+  owner replies or resolves the handoff (dashboard.js:183 and dashboard.js:213), so answered
+  handoffs vanish from the week: an owner who replied to everything is told "0 questions passed to
+  you" (line omitted entirely), and `handoffs` becomes a near-duplicate of `stillWaiting` rather
+  than the week's handoff total the item promises.
+- [ ] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…**
+  Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
+  still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
+  old token the server knows the transcript by is destroyed on the client. Leo's message tells the
+  visitor to "try again in a moment and I'll finish the job properly", but a retry now posts the
+  new token, deletes nothing, and the real transcript is orphaned on the server with no way for
+  that visitor to ever erase it (the exact promise of LEO-043).
+- [ ] **(LEO-094) The safety net doesn't actually withhold the question: chat.js passes reason: question — the same…**
+  Found by the grader of LEO-047 (medium, backend/src/services/notifications.js:35). The safety
+  net doesn't actually withhold the question: chat.js passes `reason: question` — the same string
+  it pushes into `pendingQuestions` — and `buildHandoffSms`/`buildHandoffEmail` print it verbatim
+  as `Visitor needs help: "<reason>"` / `Reason: <reason>` one line above the filtered block, and
+  `lastMessage` (usually the same visitor text) is printed too, so a matched question is still
+  relayed in full in both SMS and email; the test named 'buildQuestionBlock omits a matched
+  question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so
+  it cannot catch this.
+- [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [needs-human]
+  Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
+  express "could not collect": if production is entirely unreachable (DNS/Railway down), every
+  probe returns status 0 / ok:false, the file is written with five red checks and the process
+  exits 0, so the run proceeds. That baseline then makes any genuine post-merge breakage classify
+  as 'pre-existing' (ok:true) and a broken merge stands — the one case the item says must still
+  block is only detected when the file itself cannot be written or parsed, not when the probes
+  never reached production. Its fix is in a path routine runs may not change, so it waits for an
+  interactive session.
+- [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [needs-human]
+  Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:204). Compare mode exits 1 for
+  both a real regression and a blocked/uncollectable baseline (`verdict.blocked || !verdict.ok`),
+  so a runner with autoRevert:true keyed on the exit code will git-revert a healthy merge when the
+  baseline file is missing or corrupt — the item requires that case to block, never to revert.
+  Distinguishing them requires parsing the JSON, which the RUNBOOK does not instruct. Its fix is
+  in a path routine runs may not change, so it waits for an interactive session.
 - [ ] **(LEO-059) The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…** [needs-human]
   Found by the grader of LEO-058 (medium, ops/leo-nightly/README.md:64). The fix missed
   `ops/leo-nightly/README.md`, which still documents the superseded script as the way to

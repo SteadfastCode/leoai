@@ -1,0 +1,78 @@
+{
+  "item": "LEO-048",
+  "repo": "leoai",
+  "mergeSha": "baa6c72c78cc930151df3d2d2c2fdc09a246b7a9",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:48:58.008Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 647,
+      "severity": "low",
+      "summary": "In the trailing flushMergeBuf merge path the absorbed section's metadata is discarded: its text (and `[H2]` line) is appended to the previous chunk, but that chunk keeps its own `sectionH2`/`label`/`sectionAnchor`. Since rag.js:47 builds the cited source URL as `url#sectionAnchor`, a hit on the appended text now deep-links the visitor to the preceding section's anchor, and the absorbed heading's anchor disappears from the corpus entirely. The split-section path is unaffected (same section, same anchor)."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The cited line is `chunks[chunks.length - 1].content += `\\n\\n${novel}``, which inserts an explicit blank-line separator, so no run-together is possible."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only touches chunkText and a new unit test; no authentication, session, or role code."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys, or env handling appear in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, quota, Stripe, or pricing code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or file/DB mutations — chunkText is pure and returns an in-memory array."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No embedding, Claude, or HTTP calls are added or altered; only the chunk string that is later embedded unchanged by the existing path."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bumps, deploy, nixpacks, or CI configuration in the diff."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local review produced one finding that is directly contradicted by the line it cites (the append does include `\\n\\n`), and missed the only real issue (metadata/anchor loss on the merge path), though its triage was fully correct.",
+  "counts": {
+    "findings": 1,
+    "confirmed": 0,
+    "falsePositive": 1,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.5573865000000002,
+  "numTurns": 19,
+  "durationMs": 236357,
+  "sessionId": "3b87d24c-6cd4-4255-81ec-611604b8d2f2"
+}

@@ -1,0 +1,33 @@
+{
+  "item": "LEO-049",
+  "repo": "leoai",
+  "mergeSha": "f54e2986bc9eb3f8d306c7f63c83cfef1a8c9b88",
+  "localPromptVersion": null,
+  "localModel": "none",
+  "grader": "none",
+  "effort": null,
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:48:58.030Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [],
+  "missed": [],
+  "summary": "",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 0,
+    "triageCorrect": 0
+  },
+  "skipped": "nothing reviewable (excluded: backend/yarn.lock, dashboard/yarn.lock)",
+  "costUsd": 0,
+  "numTurns": 0,
+  "durationMs": 0,
+  "sessionId": null
+}

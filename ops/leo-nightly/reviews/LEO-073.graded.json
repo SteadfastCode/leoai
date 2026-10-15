@@ -1,0 +1,133 @@
+{
+  "item": "LEO-073",
+  "repo": "leoai",
+  "mergeSha": "f34ec7c6ec1539d8b86194521187a2c80fdaadac",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:54:52.414Z",
+  "independent": [
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 193,
+      "severity": "medium",
+      "summary": "Baseline mode cannot express \"could not collect\": if production is entirely unreachable (DNS/Railway down), every probe returns status 0 / ok:false, the file is written with five red checks and the process exits 0, so the run proceeds. That baseline then makes any genuine post-merge breakage classify as 'pre-existing' (ok:true) and a broken merge stands — the one case the item says must still block is only detected when the file itself cannot be written or parsed, not when the probes never reached production."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 204,
+      "severity": "medium",
+      "summary": "Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (`verdict.blocked || !verdict.ok`), so a runner with autoRevert:true keyed on the exit code will git-revert a healthy merge when the baseline file is missing or corrupt — the item requires that case to block, never to revert. Distinguishing them requires parsing the JSON, which the RUNBOOK does not instruct."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 136,
+      "severity": "low",
+      "summary": "Checks are not individually guarded: an uncaught local error (e.g. fs.writeFileSync of the widget body to a full or read-only tmpdir, or fs.rmSync failing) rejects runSmoke, crashes the process with a nonzero exit in compare mode, and is indistinguishable from a regression — reverting healthy code for a fault on the runner, the exact class of mistake the item exists to stop."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 165,
+      "severity": "low",
+      "summary": "classify() iterates only `after.checks`, so a check that was green at baseline but absent from the post-deploy result (renamed id, a check dropped from runSmoke) is silently omitted from the comparison and can never be reported as a regression; only the inverse direction (new check absent from baseline) is handled and tested."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 186,
+      "severity": "low",
+      "summary": "isMain is computed by string-concatenating `file://` + path.resolve(argv[1]) instead of pathToFileURL, so a repo or worktree path containing a character that import.meta.url percent-encodes (space, '#', '?') makes the comparison false; the script then falls through, does nothing, and exits 0 — in compare mode that reads as \"nothing regressed\" and the gate silently passes."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 63,
+      "severity": "low",
+      "summary": "The script has no deploy-landing retry, yet the health check hard-fails on a commit mismatch, so a single --compare invocation issued before Railway finishes deploying yields a `health` regression and triggers auto-revert of a good merge; the 30s/12min polling requirement exists only as RUNBOOK prose, which is precisely the re-implemented-from-prose failure mode this file was written to eliminate."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "classify() explicitly returns blocked:true for a missing/non-array baseline (smoke.mjs:161-163) and the CLI wraps the read/parse in try/catch (smoke.mjs:200-204), with a dedicated test covering it."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "The JSON.parse of the baseline is inside a try/catch at smoke.mjs:201 that leaves `baseline` null, which classify() turns into a blocked verdict — nothing throws."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "checkHealth guards the commit assertion with `if (expectCommit && ...)` (smoke.mjs:63), so a missing --expect-commit skips the comparison entirely rather than always failing."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "checkHealth validates that the body parses as JSON, that mongo === 1, and (when given) the commit (smoke.mjs:59-65); a non-JSON or field-less body is reported as a failure."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "The test does cover that case (`classify(run(chk('chat', null)), run(chk('chat', false)))` asserts 'skipped'), and classifying an uncomparable check as a regression would contradict the item's design, so both halves of the claim are untrue."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "No authentication or authorization logic is added or changed — the script only forwards an existing admin key in a header to an already-protected endpoint."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "LEO_ADMIN_API_KEY is read from env and sent to its own API; no secret is stored, logged, or committed (the baseline file is gitignored and contains no credentials)."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "Nothing in the diff touches billing, pricing, quota, or Stripe; the smoke entity is plan `infinity`, and an incidental Claude API call is not the money category."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The change rewrites the condition under which the auto-revert (git revert + push to main) fires and adds filesystem writes/removals, so destructive behaviour is genuinely in scope."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "smoke.mjs newly fetches api.leo-ai.chat/health, leo-ai.app plus its bundle, POST /chat, /api/admin/search, and /demo/chatbot.js."
+    },
+    {
+      "key": "release",
+      "correct": false,
+      "reason": "The diff rewrites the merge/deploy/smoke/revert gate in RUNBOOK.md and adds a new verification step, which is squarely the release pipeline."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "summary": "All five local findings are false positives that assert missing handling the diff plainly contains (baseline parse guard, health validation, expect-commit guard, skipped-check test), it missed every real gap — chiefly that an unreachable-production baseline is recorded as all-red instead of blocking and that compare mode cannot distinguish \"blocked\" from \"regression\" by exit code — and its triage got auth, money, and release wrong.",
+  "counts": {
+    "findings": 5,
+    "confirmed": 0,
+    "falsePositive": 5,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 6,
+    "independent": 6,
+    "triageChecked": 6,
+    "triageCorrect": 3
+  },
+  "costUsd": 1.1615895,
+  "numTurns": 14,
+  "durationMs": 176290,
+  "sessionId": "7f6e0a58-1d94-4ff2-aa40-c24f9e501284"
+}

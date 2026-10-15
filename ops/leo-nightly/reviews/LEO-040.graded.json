@@ -1,0 +1,122 @@
+{
+  "item": "LEO-040",
+  "repo": "leoai",
+  "mergeSha": "b75631fb48c6cf8526aadb538aa62282233462f0",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:34:38.461Z",
+  "independent": [
+    {
+      "file": "backend/src/routes/chat.js",
+      "line": 78,
+      "severity": "medium",
+      "summary": "The free-tier quota gate runs before any `isTest` check, so once an entity reaches 100 messages the playground returns 402 (\"Free plan limit reached\") instead of answering, and — worse — a playground message can be the request that flips `quotaExceededNotified` and fires `sendQuotaExceededNotification` to the owner, contradicting the item's \"no notifications\" promise."
+    },
+    {
+      "file": "dashboard/src/views/Playground.vue",
+      "line": 105,
+      "severity": "medium",
+      "summary": "Access tokens live 15 minutes and nothing refreshes them proactively (`api.js` only refreshes on a 401, and public `/chat` never 401s), so a playground tab left idle sends a message with a stale Bearer token: `resolveDashboardSession` returns null, the message is handled as real visitor traffic — counted against quota, logged as unanswered, emitted to dashboard sockets, and able to fire a real handoff SMS/email — with the UI only warning after the fact."
+    },
+    {
+      "file": "dashboard/src/lib/renderMarkdown.js",
+      "line": 12,
+      "severity": "medium",
+      "summary": "The extracted renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote (e.g. ``[x](https://a\"onmouseover=alert`1`)``) breaks out of the `href=\"...\"` attribute and injects an event-handler attribute into v-html output — the new file's comment calls escaping \"the only defence\" and the new spec asserts escaping is sufficient, which is not true for attribute context."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The gate is called with an injected `fakeSession` and the only way it can return true for `owner-token` is through that resolver, so asserting the boolean return does exercise the session path; \"resolver not asserted as called\" is not a defect."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "Same non-issue restated for the cross-domain test — the false return is produced by the injected resolver plus `sessionOwnsDomain`, which the separate `sessionOwnsDomain` unit test also covers (duplicate of #1)."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "Restated again for the garbage-token test; the fake resolver's null branch is precisely what the assertion exercises (duplicate of #1)."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "Restated for the superadmin test, which can only pass if `fakeSession` returned SUPERADMIN and `isSuperAdmin` matched (duplicate of #1)."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "Restated for the no-fall-through test; here the point is that the session resolver must NOT be reached, so demanding proof it was called inverts the test's purpose (duplicate of #1)."
+    },
+    {
+      "index": 6,
+      "verdict": "false-positive",
+      "reason": "Restated for the throwing-resolver test, which can only pass if the throwing resolver was invoked and the catch swallowed it (duplicate of #1)."
+    },
+    {
+      "index": 7,
+      "verdict": "false-positive",
+      "reason": "JWT validation is enforced server-side in `services/testMode.js` (`jwt.verify` + `sessionOwnsDomain` membership match), so a token for another domain yields `isTest: false`; the client view is not the trust boundary."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change extends the test-mode credential path to accept a verified dashboard JWT with a membership check — squarely an auth change."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only a non-secret log-level knob (`TEST_MODE_LOG_LEVEL`) is added to .env.example; no credentials are introduced, logged, or moved."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "Wrong — the change widens who can suppress the billing meter: a JWT-authenticated member now gets `isTest`, which skips `messageCount`/`messageCountThisPeriod` increments and quota warnings, and the tests assert exactly that counter behaviour."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or irreversible operations anywhere in the diff."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right about the category — the new dashboard surface drives real Anthropic/RAG calls through /chat and changes when Twilio/Resend notifications fire, even though the cited line is an internal API call."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bumps, deploy/build config, or nixpacks/railway changes in the diff."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3
+  ],
+  "summary": "The local review found nothing real: six near-identical complaints that injected-resolver unit tests don't assert the resolver was called, plus a hand-wavy \"JWT not enforced\" claim that the server-side gate disproves, while missing the quota-gate/notification leak, the expired-token fall-through to real traffic, and the quote-unescaped href injection in the newly extracted renderer.",
+  "counts": {
+    "findings": 7,
+    "confirmed": 0,
+    "falsePositive": 7,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 3,
+    "independent": 3,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.756817,
+  "numTurns": 21,
+  "durationMs": 221055,
+  "sessionId": "4f6b8c70-4501-4cf7-a4fa-349cb9256288"
+}

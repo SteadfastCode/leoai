@@ -1,0 +1,63 @@
+{
+  "item": "LEO-046",
+  "repo": "leoai",
+  "mergeSha": "7639e598c96861624291d938c4dca550e021a434",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-15T08:11:37.133Z",
+  "gradedAtUtc": "2026-10-15T08:42:02.752Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only adds pure filter helpers and router-query wiring in a view; no auth/role/middleware logic is touched (route gating in main.js is unchanged)."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, env vars or key handling appear anywhere in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff concerns billing, plans, quotas or pricing."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Only in-memory filtering and router.replace; no deletes, writes or data-losing operations (the `delete` calls are on a local query object copy)."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The getScrapedPages/getChunks call sites are unchanged and no backend endpoint or third-party call is added or modified."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, version, dependency or config changes — vitest/@tanstack deps were already present in dashboard/package.json."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model found no defects, which matches my own cold read of this small, well-tested refactor, and its six triage calls are all correct — but it offered no evidence or analysis, so the agreement carries little signal.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.7841074999999998,
+  "numTurns": 9,
+  "durationMs": 69915,
+  "sessionId": "a3991651-051c-4d26-b9b0-13c6cf1061bd"
+}
