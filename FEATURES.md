@@ -143,13 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…**
-  Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
-  count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the
-  owner replies or resolves the handoff (dashboard.js:183 and dashboard.js:213), so answered
-  handoffs vanish from the week: an owner who replied to everything is told "0 questions passed to
-  you" (line omitted entirely), and `handoffs` becomes a near-duplicate of `stillWaiting` rather
-  than the week's handoff total the item promises.
 - [ ] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…**
   Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
   still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
@@ -1058,6 +1051,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…** (routine 2026-10-15, 1c9f3ac)
+  Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
+  count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the
+  owner replies or resolves the handoff (dashboard.js:183 and dashboard.js:213), so answered
+  handoffs vanish from the week: an owner who replied to everything is told "0 questions passed to
+  you" (line omitted entirely), and `handoffs` becomes a near-duplicate of `stillWaiting` rather
+  than the week's handoff total the item promises.
 - [x] **(LEO-091) The extracted renderer escapes only &<>, not quotes, so a markdown link whose URL contains a doub…** (routine 2026-10-15, 6251096)
   Found by the grader of LEO-040 (medium, dashboard/src/lib/renderMarkdown.js:12). The extracted
   renderer escapes only `&<>`, not quotes, so a markdown link whose URL contains a double quote

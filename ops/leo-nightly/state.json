@@ -72,7 +72,7 @@
     "LEO-092": {
       "order": 5,
       "title": "The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-092",
