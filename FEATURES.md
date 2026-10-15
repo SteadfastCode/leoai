@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…**
+- [x] **(LEO-092) The handoff count is derived from convo.pendingQuestions, but that array is emptied/filtered when…**
   Found by the grader of LEO-042 (medium, backend/src/services/weeklyDigest.js:135). The handoff
   count is derived from `convo.pendingQuestions`, but that array is emptied/filtered when the
   owner replies or resolves the handoff (dashboard.js:183 and dashboard.js:213), so answered
