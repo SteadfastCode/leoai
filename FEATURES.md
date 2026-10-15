@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…**
+- [x] **(LEO-093) On a failed forget the widget still calls resetConversationLocally(), which removes SESSION_KEY a…**
   Found by the grader of LEO-043 (medium, widget/chatbot.js:592). On a failed forget the widget
   still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token — so the
   old token the server knows the transcript by is destroyed on the client. Leo's message tells the
