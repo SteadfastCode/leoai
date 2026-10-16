@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-104) The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…**
+- [x] **(LEO-104) The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…**
   Found by the grader of LEO-090 (medium, dashboard/src/components/ChatWindow.vue:106). The admin
   chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send
   session proof: when ensureFreshAccessToken's refresh fails (expired 7-day refresh token,

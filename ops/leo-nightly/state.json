@@ -72,18 +72,18 @@
     "LEO-104": {
       "order": 5,
       "title": "The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-104",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-16T09:51:32.617Z",
+      "runId": "2026-10-16T09:26:26.080Z",
       "lastFail": null
     },
     "LEO-095": {
