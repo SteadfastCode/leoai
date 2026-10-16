@@ -1000,6 +1000,205 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `ops/leo-nightly/README.md` (denylisted, and LEO-059 owns its stale half); re-grading either review; and
   anything under `.github/**`.
 
+- [ ] **(LEO-097) Query-operator objects reach Mongo from unauthenticated bodies and query strings** [needs-human]
+  Express 4's default query parser is `qs`, so `?sessionToken[$ne]=x` arrives as `{ $ne: 'x' }` (measured in
+  this tree: `qs.parse('domain=d.com&sessionToken[$ne]=x')` → `{"domain":"d.com","sessionToken":{"$ne":"x"}}`),
+  and nothing anywhere under `backend/` strips `$`-prefixed keys — there is no sanitiser dependency and no
+  `sanitizeFilter`. Three unauthenticated handlers hand such a value straight to a query. `GET /chat/history`
+  (`routes/chat.js:303,312`) runs `Conversation.findOne({ sessionToken, domain })`, so
+  `?domain=<any customer>&sessionToken[$ne]=x` returns **the first visitor's entire transcript** for that
+  domain, plus `lastTopic` and any unseen owner replies — which it also marks seen, destroying the owner's
+  evidence that they were never read. `POST /auth/reset-password` (`routes/auth.js:417-419`) runs
+  `User.findOne({ passwordResetToken: token, passwordResetExpiresAt: { $gt: new Date() } })`, so a body of
+  `{"token":{"$gt":""},"password":"…"}` takes over whichever account requested a reset in the past hour,
+  without knowing the token and without touching the owner's inbox. `GET /chat/entity-name`
+  (`routes/chat.js:25,28`) leaks another entity's display name the same way. This is the question LEO-067
+  named and put explicitly out of its own scope.
+  Build a pure `plainString(value)` and `requirePlainStrings(source, keys)` in a new
+  `backend/src/services/queryGuard.js` → `{ ok, badKey }`, where a value is usable only when
+  `typeof value === 'string'`: an object, an array, a number, `null` and `undefined` all fail, so no operator
+  can reach Mongo. Call it at the three sites above plus `POST /auth/login` and `POST /auth/forgot-password`'s
+  `email`. Each caller answers exactly what it already answers for a missing field — 400 for the two chat
+  reads and the reset, the existing generic 401 for login and the deliberate blanket 200 for
+  forgot-password — so no endpoint gains an oracle it did not have.
+  Files: new `backend/src/services/queryGuard.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed
+  lines; about 6, nowhere near the quota block, the handoff atomic test-and-set or `conversation.save()`**),
+  `backend/src/routes/auth.js`, new `backend/test/query-guard.test.js`.
+  *Verify:* `node --test` on the guard — a plain string passes; `{ $ne: 1 }`, `['a','b']`, `42`, `true`,
+  `null`, `undefined` and a `Date` each fail naming the offending key; an empty string is reported as its own
+  case so every caller keeps today's missing-field branch; `requirePlainStrings(null, ['a'])` returns a
+  failure rather than throwing. Then the real routers: `backend/test/chat-flow.test.js` extended so
+  `GET /chat/history?domain=…&sessionToken[$ne]=x` answers 400 with no `messages` while an ordinary token
+  still returns its page, and an auth test over `mongodb-memory-server` (the `backend/test/onboard-entity.test.js`
+  harness shape) where a seeded live reset token is **not** consumed by `{"token":{"$gt":""}}` and is still
+  consumed by the real token. Confirm both go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: length caps and the Leo-voiced 400 on `POST /chat`'s body — LEO-070 owns those, the two touch
+  different lines of `chat.js`, and whichever lands second keeps the other's checks; a global sanitising
+  middleware or `mongoose.set('sanitizeFilter', true)` (a repo-wide behaviour change, and `backend/index.js`
+  is denylisted); the authenticated dashboard and admin routes; rate-limiting any of these endpoints
+  (LEO-052 and LEO-101); and `routes/billing.js`/`routes/webhooks.js` (denylisted).
+
+- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** [needs-human]
+  `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
+  stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
+  this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
+  SHA-256 digest of a key shown exactly once (`routes/admin.js:290`). So anyone with read access to the
+  `users` collection — an Atlas backup, a leaked connection string, a superadmin browsing data, any future
+  read-only report — can take over any account with a live reset request by pasting the token into the reset
+  URL, with no password and no access to the owner's inbox. The window is an hour per request, and the token
+  is the entire credential. LEO-085 named this defect and put it out of its own scope.
+  Build: hash the token the way `ApiKey` already does. `crypto.randomBytes(32)` still produces the value that
+  goes in the email; only its SHA-256 digest is stored, and `/reset-password` looks up the digest of the token
+  it was handed. Put both halves behind one pure `hashResetToken(raw)` in a new
+  `backend/src/services/resetToken.js` so the write site and the read site can never disagree. Tokens already
+  stored in plaintext stop resolving the moment this deploys — correct, since they expire within the hour
+  anyway, but it must be said in the PR body rather than discovered by whoever clicks a stale link.
+  Files: new `backend/src/services/resetToken.js`, `backend/src/routes/auth.js`, `backend/src/models/User.js`
+  (**a comment only — no `required`, no `unique`, no type change**, so the schema-tightening gate stays green),
+  new `backend/test/reset-token.test.js`.
+  *Verify:* `node --test` on `hashResetToken` — a known input yields a known 64-character hex digest, the same
+  input twice is stable, a one-character change differs, and `null`/`undefined`/a non-string returns `null`
+  rather than throwing. Plus the real auth router over `mongodb-memory-server` (the
+  `backend/test/onboard-entity.test.js` harness shape, mailer stubbed and the token captured from the stub):
+  after `POST /auth/forgot-password` the stored `passwordResetToken` is **not** the token in the email;
+  `POST /auth/reset-password` with the emailed token still succeeds and still clears `refreshTokens`; the same
+  call with the *stored* value fails. Confirm the first assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: any other token's storage (the `Invite` flow is its own question — look, report in the PR
+  body, change nothing); sending a real email; the one-hour expiry; rate-limiting `/forgot-password`
+  (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
+  adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
+
+- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** [needs-human]
+  The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
+  conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
+  "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
+  (`backend/src/services/retention.js:141-148`) issues a single `Conversation.deleteMany`, and the owner's age
+  sweep (line 193) does the same. `UnansweredQuestion` rows are touched by neither — and each row stores
+  `question`, the visitor's message **verbatim**, beside `sessionToken` and `conversationId`
+  (`backend/src/models/UnansweredQuestion.js:5-8`), with no expiry of any kind. They stay on the owner's
+  Unanswered page (`routes/dashboard.js:705`) and in the weekly digest's "Most asked" list indefinitely. For a
+  feature filed under privacy, the gap between the promise and the delete is the defect.
+  Build: extend both paths to delete the matching rows, keeping the filter discipline `retention.js` already
+  enforces — pure `unansweredForgetFilter({ domain, sessionToken })` and
+  `unansweredSweepFilter(conversationIds)` that return `null` rather than `{}` for any unusable input, so a
+  malformed call can never widen into a collection wipe. The forget path matches `entityDomain` +
+  `sessionToken`; the sweep path matches only the `conversationId`s it just deleted, collected before the
+  delete, so a row whose conversation outlived the cutoff is never taken. `forgetConversation` returns the two
+  counts separately (`{ conversations, questions }`) and `POST /chat/forget` **adds** a field rather than
+  changing `deleted`/`forgotten`. Light-tier log line naming which collection each deletion came from.
+  Files: `backend/src/services/retention.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed lines;
+  about 3, and not the quota block, the handoff atomic test-and-set or `conversation.save()`**),
+  `backend/test/retention.test.js`.
+  *Verify:* `node --test` on the two filter builders — a good pair yields the exact filter, a missing or
+  non-string half yields `null`, an empty or non-array id list yields `null` and never a filter matching
+  everything; plus the existing `retention.test.js` DB harness extended: a visitor with one conversation and
+  two unanswered rows loses both, a second visitor on the same domain loses neither, and the sweep removes
+  only the rows belonging to conversations it deleted. Confirm the new assertions go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs` stays green.
+  Out of scope: anything else keyed to a session (`handoffLog` lives inside the conversation document and goes
+  with it; `AuditLog` and the console buffer are not visitor data); a retention window for
+  `UnansweredQuestion` independent of conversations; the `unanswered_qa` chunk an owner has already added to
+  the knowledge base from a question — that is the business's own KB content now, so **report the residue in
+  the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
+  makes true as written.
+
+- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** [needs-human]
+  Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
+  (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
+  (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
+  matching text from owner-facing handoff SMS and email, and LEO-047's whole point is that an owner can name
+  topics they never want relayed — yet the "Most asked" block (lines 205-207) emails the raw visitor question
+  text, so a topic on the list reaches the owner verbatim once a week.
+  (2) The headline line (line 197) is pushed unconditionally while every line after it is zero-guarded, and
+  `hasActivity` is true when `unanswered` alone is non-zero — reachable whenever `conversationRetentionDays`
+  is set below 7 and the sweep removed the conversations whose `UnansweredQuestion` rows remain. The owner is
+  then emailed "0 visitor messages answered across 0 conversations". The existing test at
+  `backend/test/weekly-digest.test.js:417` ("zero-valued lines are omitted rather than printed as 0") uses a
+  fixture with non-zero headline counts, so it never exercises the one line that cannot be omitted.
+  (3) `lastWeeklyDigestAt` is stamped by an atomic `findOneAndUpdate` (lines 287-290) **before**
+  `sendEmailRaw` (line 298). A transient Resend failure is caught and `console.error`'d, and the day+hour
+  match plus `MIN_GAP_MS` then make a retry impossible until the next scheduled tick — one flaky send costs
+  the owner the entire week.
+  Build: pass the entity's list into `renderWeeklyDigestBody` and filter "Most asked" through the existing
+  `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
+  headline line when both of its counts are zero; and on a send failure roll the stamp back with a
+  compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
+  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
+  stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
+  retried once.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
+  *Verify:* `node --test` — a question matching a `doNotRelay` phrase is absent from the rendered body while
+  the rest of the list survives, and an empty or absent list changes the output not at all; a stats object
+  with zero visitor messages, zero conversations and non-zero unanswered renders a body with no
+  "0 visitor messages" line that still reports the unanswered count; the stamp is restored when the injected
+  mailer throws and left in place when it resolves, with a second tick in the same hour still refusing to
+  double-send. Confirm each goes red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: `weeklyDigestDue`'s missing catch-up arm — LEO-084 owns it, the two touch different functions
+  in this file and whichever lands second rebases; the digest's schedule, opt-in default or line order;
+  `services/notifications.js` and `services/unansweredDigest.js`; sending a real email to check one; and any
+  `Entity` schema change.
+
+- [ ] **(LEO-101) `POST /chat/forget` is public, unmetered, and never checks the domain exists** [needs-human]
+  `routes/chat.js:288-301` is the one unauthenticated destructive endpoint in the backend. `POST /chat` above
+  it goes through LEO-034's limiter (`checkRateLimit({ sessionToken, ip: clientIp(req), domain })`, line 51)
+  and `GET /chat/entity-name` is a cheap indexed read, but `/forget` takes a domain and a session token from
+  an anonymous body and issues a `Conversation.deleteMany` per call with no limiter — both helpers are already
+  imported at line 14 — and with no check that `domain` names a real entity. `forgetFilter`
+  (`services/retention.js:108`) type-checks both halves and scopes every call to one pair, so this is not a
+  data-loss hole; it is an unbounded write-load hole on the collection that holds every customer's
+  transcripts, and every call naming a domain that does not exist is pure waste.
+  Build: run the existing `checkRateLimit` over `/forget` with its own small preset in
+  `services/rateLimit.js` — a forget is a once-in-a-session action, so a handful per session token and per IP
+  per window is generous — answering 429 with `retryAfterSeconds` in the shape `POST /chat` already returns;
+  and answer the existing 400 for a domain with no `Entity`, the same body the missing-field branch returns,
+  so the endpoint still says nothing about which domains exist. The widget's refusal path (LEO-093) already
+  keeps the session token on a non-200, so a throttled visitor can retry.
+  Files: `backend/src/routes/chat.js` (**restricted — ≤30 changed lines; about 10, and it must not touch the
+  quota block, the handoff atomic test-and-set or `conversation.save()`**), `backend/src/services/rateLimit.js`
+  (one new preset beside the existing ones), new `backend/test/chat-forget-limit.test.js`.
+  *Verify:* `node --test` driving the real chat router the way `backend/test/chat-flow.test.js` does — N
+  forgets from one session token are accepted, the N+1th is 429 carrying `retryAfterSeconds`, a second session
+  token in the same window is unaffected, an unknown domain is 400 with the delete helper provably not called,
+  and a first legitimate forget still returns `{ deleted: 1, forgotten: true }`. Confirm the limiter assertion
+  goes red against unmodified `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs`,
+  since the widget's refusal path is the consumer.
+  Out of scope: `POST /chat`'s own limiter windows and LEO-034's presets for it; the auth endpoints (LEO-052);
+  a captcha; what `/forget` deletes (LEO-099 owns that, and the two touch adjacent lines — whichever lands
+  second keeps the other's change); making the limiter shared across processes; and `backend/index.js`.
+
+- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** [needs-human]
+  `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
+  section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
+  The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
+  `label` and `sectionAnchor` (`models/Chunk.js:10-13`), and the absorbed section's anchor is written nowhere
+  at all. `services/rag.js:47` builds the source Leo cites as `url#sectionAnchor` (LEO-031, LEO-032), so a
+  retrieval hit on the appended text deep-links the visitor to the *preceding* section, and the absorbed
+  heading's own anchor vanishes from the corpus so nothing can ever link to it. Site navigation and deep
+  linking are named in `CLAUDE.md` as a differentiator, which is exactly what a confidently wrong anchor
+  undoes. The `appendToLast` inside `splitOversizedSection` (line 632) is **not** affected — both halves there
+  belong to one section and share its anchor.
+  Build: carry the absorbed anchor alongside rather than overwriting — an optional `extraAnchors: [String]` on
+  the chunk shape and on the `Chunk` and `ArchivedChunk` models (**no `required`, no `unique`, default
+  `[]`**) — and have the citation builder in `rag.js` prefer the anchor whose heading text actually appears in
+  the matched chunk, falling back to `sectionAnchor` exactly as today whenever there is no second anchor. No
+  chunk is split differently and no chunk is added: the boundaries and the content this produces must be
+  byte-identical to today's.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines: the trailing `appendToLast` call
+  site and the shape it pushes**), `backend/src/services/rag.js` (**restricted — ≤30 changed lines: the
+  `sources.push` citation only, never the `$vectorSearch` stage**), `backend/src/models/Chunk.js`,
+  `backend/src/models/ArchivedChunk.js`, `backend/test/chunk-trailing-merge.test.js`.
+  *Verify:* `node --test` over the existing offline harness in `backend/test/chunk-trailing-merge.test.js`
+  (no DB, no network): a page whose last section is under `TINY_BUF_THRESHOLD` produces the same number of
+  chunks with the same text as `main` and the final chunk now carries the absorbed heading's anchor; a page
+  with no merge is byte-identical including an empty `extraAnchors`; and the citation builder picks the
+  absorbed anchor when the matched text sits under that heading and the original otherwise. Confirm the anchor
+  assertions go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: changing `CHUNK_TARGET`, `CHUNK_MAX`, `CHUNK_OVERLAP` or `TINY_BUF_THRESHOLD`; semantic
+  chunking (the `rag.js:88` TODO) and the two-phase sibling retrieval around it; the `$vectorSearch` stage and
+  `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
+  the dashboard's chunk viewer.
+
 ## Block L — Backlog upkeep
 
 
@@ -1008,6 +1207,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 - [x] **(LEO-087) Backlog audit: file new candidates under Proposed**
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-103) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-22]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
