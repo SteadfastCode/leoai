@@ -1,0 +1,110 @@
+{
+  "item": "LEO-087",
+  "repo": "leoai",
+  "mergeSha": "a1c50d14c0b89eeb976caeb9202f307e52adc430",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-16T09:26:35.756Z",
+  "gradedAtUtc": "2026-10-16T09:45:29.862Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 1136,
+      "severity": "low",
+      "summary": "LEO-100's build rationale claims that rolling `lastWeeklyDigestAt` back lets \"the next hourly tick retry inside the same week\", but `weeklyDigestDue` requires an exact UTC hour AND weekday match (`weeklyDigest.js:66-67`), and the catch-up arm that would allow an off-hour tick is explicitly LEO-084's and out of this item's scope — so the rollback can only restore *next week's* send, and an implementer following the spec would write a same-week-retry test that cannot pass."
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 1044,
+      "severity": "low",
+      "summary": "LEO-097 states that LEO-070 owns only \"length caps and the Leo-voiced 400 on POST /chat's body\", but the already-filed LEO-070 explicitly says \"Apply the same string checks to `GET /chat/history`'s query params\" (FEATURES.md:572) — so two open Proposed items both own the type-check on `/chat/history`, and the scope boundary as written mis-states the overlap Daniel would rely on when promoting one."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "`backend/src/services/queryGuard.js` does not exist in this tree — it is a file LEO-097 proposes creating — and a leading-space token is still a plain string that cannot match any stored `sessionToken`, so there is no bypass."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "Same nonexistent file, and the proposed `requirePlainStrings` is specified to accept a value only when `typeof value === 'string'`, so an object like `{ $ne: 'x' }` fails outright — nested traversal is unnecessary."
+    },
+    {
+      "index": 3,
+      "verdict": "false-positive",
+      "reason": "Real pre-existing gap in `weeklyDigest.js`, but this diff touches only FEATURES.md and is the change that *files* it as LEO-100 defect (1), so it is not a defect of this change."
+    },
+    {
+      "index": 4,
+      "verdict": "false-positive",
+      "reason": "Also a real pre-existing behaviour (headline pushed unconditionally at line 197) that this diff does not touch and in fact files as LEO-100 defect (2); duplicating the item's own text is not a review finding."
+    },
+    {
+      "index": 5,
+      "verdict": "false-positive",
+      "reason": "Correct about the existing stamp-before-send ordering, but again untouched by this FEATURES.md-only diff and already filed verbatim as LEO-100 defect (3)."
+    },
+    {
+      "index": 6,
+      "verdict": "false-positive",
+      "reason": "The renewal is exactly what the item mandates — a verbatim copy at the bottom of Block L with the next free id and `[not-before: run date 2026-10-15 + 7 = 2026-10-22]` — so the tag is compliance, not a mismatch."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "The diff changes only FEATURES.md prose; `backend/src/routes/auth.js` is untouched (it is merely described in LEO-097/LEO-098 text)."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or env handling are changed."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe or quota code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": false,
+      "reason": "`backend/src/services/retention.js` is not modified — it is only cited inside the new LEO-099 backlog entry."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No calls to Claude, Voyage, Resend, Twilio or Stripe are added or altered."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, nixpacks, railway or CI configuration is involved."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review found nothing real about this FEATURES.md-only change: two findings cite a file that does not exist, three restate defects the filed items themselves document in untouched code, and the last calls correct renewal compliance a mismatch — while the two genuine spec inaccuracies in the new entries went unnoticed, and its triage wrongly marked auth and destructive as touched.",
+  "counts": {
+    "findings": 6,
+    "confirmed": 0,
+    "falsePositive": 6,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 1.521233,
+  "numTurns": 22,
+  "durationMs": 194248,
+  "sessionId": "dc0bc18d-e445-492b-a187-6b5504a6d8ff"
+}
