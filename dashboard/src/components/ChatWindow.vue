@@ -1,7 +1,24 @@
 <script setup>
+// Admin chat tray window — one per open entity (views/Chat.vue).
+//
+// Sends through the same PUBLIC POST /chat the embedded widget uses. The only thing keeping
+// these messages off the entity's bill is the dashboard Bearer token api.js attaches: the
+// backend gate (services/testMode.js) grants test mode when that token belongs to a member
+// of the named domain — or to a superadmin, who can point this tray at ANY entity.
+//
+// A STALE token is therefore handled before the message leaves (LEO-104, the same fix
+// LEO-090 made in the playground). /chat answers 200 to an unauthenticated request, so an
+// expired token does not fail here — it quietly downgrades the message to real visitor
+// traffic against a customer entity: quota, the unanswered log, dashboard sockets, and a
+// real handoff SMS to that owner. Nothing retries, because nothing failed. So `send` proves
+// the session first, and `isTest` is displayed rather than assumed in case the gate declines
+// for some other reason.
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import api from '../lib/api'
+import api, { ensureFreshAccessToken } from '../lib/api'
 import { renderMarkdown } from '../lib/renderMarkdown'
+import { makeDebug } from '../lib/debug'
+
+const debug = makeDebug('AdminTray')
 
 const props = defineProps({
   domain: { type: String, required: true },
@@ -31,6 +48,14 @@ const loading       = ref(false)
 const historyLoaded = ref(false)
 const confirmClear  = ref(false)
 const messagesEl    = ref(null)
+
+// ── Test-mode safety (LEO-104) ─────────────────────────────────────────────
+// `sessionStale` is transient: a send was refused, so nothing was charged and the text is
+// still sitting in the input box. `countedAsReal` is sticky for the life of the window — a
+// reply that came back without test mode is a billing fact about someone's entity, not a
+// passing state, and it must not scroll away unnoticed.
+const sessionStale  = ref(false)
+const countedAsReal = ref(false)
 
 // ── Resize constraints ─────────────────────────────────────────────────────
 const MIN_H = 200
@@ -98,17 +123,31 @@ watch(() => props.minimized, (val) => {
 async function send() {
   const msg = inputText.value.trim()
   if (!msg || sending.value) return
-  inputText.value = ''
-  messages.value.push({ role: 'user', content: msg })
-  scrollToBottom()
   sending.value = true
   try {
+    // Prove the session BEFORE the input is cleared and the turn is shown. api.js refreshes a
+    // spent token on its own, but it swallows a refresh that fails and attaches the stale one
+    // anyway — right for endpoints that answer 401, wrong for this one. A null here means the
+    // message would land as real traffic against this entity, so it is not sent at all.
+    if (!(await ensureFreshAccessToken(`admin tray send for ${props.domain}`))) {
+      sessionStale.value = true
+      debug('light', `send REFUSED — source: dashboard session could not be proved for ${props.domain}; message kept in the input box`)
+      return
+    }
+    sessionStale.value = false
+    inputText.value = ''
+    messages.value.push({ role: 'user', content: msg })
+    scrollToBottom()
     const { data } = await api.post('/chat', {
       domain: props.domain,
       sessionToken: sessionToken.value,
       message: msg,
     })
-    messages.value.push({ role: 'assistant', content: data.reply })
+    if (data.isTest === false) {
+      countedAsReal.value = true
+      debug('light', `reply NOT in test mode — source: backend gate declined for ${props.domain}; that message counted as real visitor traffic`)
+    }
+    messages.value.push({ role: 'assistant', content: data.reply, isTest: data.isTest })
     scrollToBottom()
   } catch (err) {
     messages.value.push({
@@ -131,6 +170,8 @@ function clearChat() {
   sessionToken.value = getSessionToken()
   messages.value = []
   confirmClear.value = false
+  sessionStale.value = false
+  countedAsReal.value = false
 }
 
 // ── Resize (height) ────────────────────────────────────────────────────────
@@ -232,6 +273,21 @@ const renderContent = renderMarkdown
         <v-btn size="small" color="error" variant="tonal" @click="clearChat">Clear</v-btn>
         <v-btn size="small" variant="text" @click="confirmClear = false">Cancel</v-btn>
       </div>
+    </div>
+
+    <!-- ── Test-mode notices (LEO-104) ──
+         Above the body rather than inside it, so a warning never eats the message area and
+         never scrolls out of view. Named per entity: the tray holds several windows at once
+         and "it counted" is only actionable if you know whose bill it landed on. -->
+    <div v-if="sessionStale && !minimized" class="chat-banner chat-banner--error">
+      Your sign-in expired, so that message was <strong>not sent</strong> — it would have
+      counted as real visitor traffic for {{ entityName || domain }}. Sign out and back in,
+      then press send again.
+    </div>
+    <div v-if="countedAsReal && !minimized" class="chat-banner chat-banner--warn">
+      At least one message here was handled as <strong>real visitor traffic</strong> for
+      {{ entityName || domain }} — it counted toward that entity's monthly total and may have
+      notified its owner.
     </div>
 
     <!-- ── Resize handle + body (v-show keeps mounted so scroll position survives minimize) ── -->
@@ -380,6 +436,24 @@ const renderContent = renderMarkdown
   background: rgb(var(--v-theme-surface));
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   text-align: center;
+}
+
+/* ── Test-mode notices ── */
+.chat-banner {
+  padding: 7px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.chat-banner--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.chat-banner--warn {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 /* ── Body ── */
