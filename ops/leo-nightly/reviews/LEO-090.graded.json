@@ -1,0 +1,97 @@
+{
+  "item": "LEO-090",
+  "repo": "leoai",
+  "mergeSha": "6f220516fcd6d0e0ce8ceef06e4417fb849090b3",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-16T08:08:06.003Z",
+  "gradedAtUtc": "2026-10-16T08:45:51.749Z",
+  "independent": [
+    {
+      "file": "dashboard/src/components/ChatWindow.vue",
+      "line": 106,
+      "severity": "medium",
+      "summary": "The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send session proof: when ensureFreshAccessToken's refresh fails (expired 7-day refresh token, offline), api.js's request interceptor ignores the null return and still attaches the stale token, so the message is handled as real visitor traffic against whichever customer entity the tray is pointed at — burning that entity's quota, logging an unanswered question and able to fire a real handoff SMS to its owner — and unlike Playground, ChatWindow never renders isTest, so there is not even an after-the-fact warning."
+    },
+    {
+      "file": "dashboard/src/lib/api.js",
+      "line": 83,
+      "severity": "low",
+      "summary": "Playground.vue:117 promises it \"refuses to send if it can't [prove the session]\", but ensureFreshAccessToken returns the token (truthy) whenever accessTokenExpiry cannot read exp, so a stored token that is not a readable JWT passes the guard, is sent to public /chat, is rejected by resolveDashboardSession, and lands as real visitor traffic — exactly the outcome the guard exists to prevent."
+    },
+    {
+      "file": "dashboard/src/views/Playground.vue",
+      "line": 209,
+      "severity": "low",
+      "summary": "ensureFreshAccessToken returns null for any refresh failure, including a transient network error or backend 5xx, and Playground reports all of them as \"Your sign-in has expired ... Sign out and back in\" — a diagnosis that is wrong and a remedy that cannot work when the backend is unreachable, so the owner is pushed to destroy a still-valid session."
+    }
+  ],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "refreshNow explicitly single-flights (`if (refreshing) return refreshing`, api.js:53) so concurrent callers share one refresh — and backend /auth/refresh (auth.js:154-174) does not rotate the refresh token at all, so the described failure cannot occur."
+    },
+    {
+      "index": 2,
+      "verdict": "false-positive",
+      "reason": "A refresh token is not refreshable by design (7-day, re-login required); the null return is the intended signal, Playground surfaces it and the 401 path clears the session and raises sessionExpired, so nothing is broken here."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff rewrites the access-token refresh path and the request interceptor that attaches the Bearer token."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No new secret material is introduced; the diff only moves existing localStorage tokens around and a spec asserts the token is never logged."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota or Stripe code is modified — the quota angle is the motivation, not a touched code path."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "No third-party integration is touched; the only outbound call added is to the project's own /auth/refresh, and the cited evidence is an `import axios` line in a test file."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletions, migrations or irreversible operations anywhere in the diff."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bump, package.json, CI or deploy config change."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3
+  ],
+  "summary": "Both findings are false positives aimed at the right file but at invariants the code already enforces — one is directly contradicted by the single-flight guard and the spec that tests it — and the review missed the unguarded second /chat caller in ChatWindow.vue entirely.",
+  "counts": {
+    "findings": 2,
+    "confirmed": 0,
+    "falsePositive": 2,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 3,
+    "independent": 3,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.476066,
+  "numTurns": 17,
+  "durationMs": 194094,
+  "sessionId": "f629ee7c-2ebf-44d7-9ad0-79018a63f721"
+}

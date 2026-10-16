@@ -1,0 +1,69 @@
+{
+  "item": "LEO-088",
+  "repo": "leoai",
+  "mergeSha": "6b93ebff64df3a38700683b035c69298a80567b2",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-16T08:08:06.003Z",
+  "gradedAtUtc": "2026-10-16T08:47:22.807Z",
+  "independent": [],
+  "grades": [
+    {
+      "index": 1,
+      "verdict": "false-positive",
+      "reason": "The diff's entire purpose (LEO-088) was to remove that contradiction, and it does so by stating an explicit, narrowly bounded exception plus what remains forbidden ('tick no box, add no bullet'), so no implementer is left having to skip a mandate or guess; the finding restates the pre-existing defect as if the fix were the defect, and its cited line (FEATURES.md:1052) is not even in the edited region (986-992)."
+    }
+  ],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Prose-only FEATURES.md edit; it describes the alpha-code gate but changes no auth code or policy."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only names the stale `ALPHA_CODES` env var in spec text; no secret value, config, or handling changes."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, or Stripe content in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletions, migrations, or data-touching operations — a single prose paragraph is rewritten."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No API client, endpoint, or third-party integration is involved."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, deploy, nixpacks, or version files touched; FEATURES.md is the work queue, not release config."
+    }
+  ],
+  "missed": [],
+  "summary": "The local review produced one high-severity finding that inverts the item's purpose — flagging the very contradiction the diff resolves, with a line reference outside the changed region — while its triage was uniformly correct for this docs-only change.",
+  "counts": {
+    "findings": 1,
+    "confirmed": 0,
+    "falsePositive": 1,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.8132345,
+  "numTurns": 14,
+  "durationMs": 91026,
+  "sessionId": "6ef14e8a-38c4-4083-9ea2-1c2e5dccc379"
+}

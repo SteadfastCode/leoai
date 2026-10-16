@@ -1,0 +1,63 @@
+{
+  "item": "LEO-092",
+  "repo": "leoai",
+  "mergeSha": "1c9f3acce35e02d897a92298718d276ff21269d6",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-16T08:08:06.003Z",
+  "gradedAtUtc": "2026-10-16T08:39:03.195Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth, permission, or session code is touched; the dashboard reply/resolve routes are only referenced in comments, not modified."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, or env-var handling appear in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in billing, Stripe, quota, or pricing paths changes — only handoff counting in the digest."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Purely additive: a new append-only schema field, an extra push in chat.js, and a widened select — no deletes, overwrites, or migrations."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The Resend send call, its arguments shape, and all third-party integrations are unchanged; only the pure summariser, a debug log string, and tests change."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, dependency, or config files are modified, and the new field needs no migration (absent handoffLog falls back to pendingQuestions)."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read — the handoffLog mirror, the (text, askedAt) dedup key, the legacy pendingQuestions fallback, the widened select, and the new tests are all coherent — and its six triage answers are all right, though it offered no evidence for any of them.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.0211745,
+  "numTurns": 11,
+  "durationMs": 107841,
+  "sessionId": "498e80ab-2219-4bcb-b237-7c8ca113d1f9"
+}

@@ -1,0 +1,63 @@
+{
+  "item": "LEO-091",
+  "repo": "leoai",
+  "mergeSha": "625109639ace6c10fae29caa53c5609f901270a0",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-16T08:08:06.003Z",
+  "gradedAtUtc": "2026-10-16T08:42:37.624Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only touches two markdown renderers and their tests — no authentication, session, or permission logic."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys, or env vars appear anywhere in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or irreversible operations; the renderer only transforms a string."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No outbound calls are added or changed; smoke.mjs only sets a locally stubbed chat handler."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, version, or packaging files are modified."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read — the two-layer fix (single-pass escaping of &<>\"' plus rejecting URLs containing &quot;/&lt;/&gt;/backtick) genuinely closes the href attribute-context breakout in both copies, the rule-ordering difference between the widget and dashboard is correctly accounted for in each ILLEGAL_IN_URL set, and the new tests/smoke assertions would have failed before the fix; the triage answers are all correct, so the review's verdict is right even though it shows no evidence of having reasoned about the attribute-context question.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.3328305,
+  "numTurns": 17,
+  "durationMs": 214399,
+  "sessionId": "d8d87f11-4a37-4031-97c0-e7299108982a"
+}

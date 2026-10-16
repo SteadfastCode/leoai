@@ -143,6 +143,15 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-104) The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…**
+  Found by the grader of LEO-090 (medium, dashboard/src/components/ChatWindow.vue:106). The admin
+  chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send
+  session proof: when ensureFreshAccessToken's refresh fails (expired 7-day refresh token,
+  offline), api.js's request interceptor ignores the null return and still attaches the stale
+  token, so the message is handled as real visitor traffic against whichever customer entity the
+  tray is pointed at — burning that entity's quota, logging an unanswered question and able to
+  fire a real handoff SMS to its owner — and unlike Playground, ChatWindow never renders isTest,
+  so there is not even an after-the-fact warning.
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [needs-human]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
