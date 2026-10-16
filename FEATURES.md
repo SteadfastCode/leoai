@@ -143,15 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-104) The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…**
-  Found by the grader of LEO-090 (medium, dashboard/src/components/ChatWindow.vue:106). The admin
-  chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send
-  session proof: when ensureFreshAccessToken's refresh fails (expired 7-day refresh token,
-  offline), api.js's request interceptor ignores the null return and still attaches the stale
-  token, so the message is handled as real visitor traffic against whichever customer entity the
-  tray is pointed at — burning that entity's quota, logging an unanswered question and able to
-  fire a real handoff SMS to its owner — and unlike Playground, ChatWindow never renders isTest,
-  so there is not even an after-the-fact warning.
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [needs-human]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
@@ -1244,6 +1235,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-104) The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…** (routine 2026-10-16, f84aba9)
+  Found by the grader of LEO-090 (medium, dashboard/src/components/ChatWindow.vue:106). The admin
+  chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send
+  session proof: when ensureFreshAccessToken's refresh fails (expired 7-day refresh token,
+  offline), api.js's request interceptor ignores the null return and still attaches the stale
+  token, so the message is handled as real visitor traffic against whichever customer entity the
+  tray is pointed at — burning that entity's quota, logging an unanswered question and able to
+  fire a real handoff SMS to its owner — and unlike Playground, ChatWindow never renders isTest,
+  so there is not even an after-the-fact warning.
 - [x] **(LEO-087) Backlog audit: file new candidates under Proposed** (routine 2026-10-15, a1c50d1)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,

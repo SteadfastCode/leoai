@@ -72,7 +72,7 @@
     "LEO-104": {
       "order": 5,
       "title": "The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no p…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-104",
