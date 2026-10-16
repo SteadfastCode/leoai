@@ -1,0 +1,81 @@
+{
+  "item": "LEO-093",
+  "repo": "leoai",
+  "mergeSha": "4577f3e1afe83781d85930b40d57dc1a94f4a3dc",
+  "completedAtUtc": "2026-10-15T20:55:30.543Z",
+  "completeRunId": "2026-10-15T20:10:29.045Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:46:38.065Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 8854,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 8854,
+      "contextBytes": 0,
+      "promptTokens": 2843,
+      "completionTokens": 246,
+      "latencyMs": 19842,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "widget/chatbot.js",
+      "line": 592,
+      "severity": "medium",
+      "confidence": 1,
+      "summary": "On a failed forget, the widget still calls resetConversationLocally(), which removes SESSION_KEY and mints a new token.",
+      "scenario": "When the 'forget' operation fails (e.g., due to server unavailability), the client-side code resets the conversation locally by removing the current session key and generating a new one. This action orphaned the transcript on the server because the original session key, which the server recognizes as associated with the transcript, is lost. As a result, even if the visitor retries the forget operation later, it will use the new token instead of the original one, leading to the deletion of an empty session rather than the intended transcript.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code does not handle the scenario where 'forget' fails by resetting the conversation locally and minting a new token."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "widget/chatbot.js:539"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "widget/chatbot.js:585"
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "widget/chatbot.js:579"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The change introduces debug logging and modifies the behavior of the 'forget' operation in the chatbot widget. However, it fails to address the issue where a failed forget operation results in the loss of the original session key, leading to orphaned transcripts on the server.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 8544,
+    "completionTokens": 439
+  },
+  "latencyMs": 44951
+}

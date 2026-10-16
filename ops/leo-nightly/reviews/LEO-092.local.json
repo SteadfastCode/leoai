@@ -1,0 +1,71 @@
+{
+  "item": "LEO-092",
+  "repo": "leoai",
+  "mergeSha": "1c9f3acce35e02d897a92298718d276ff21269d6",
+  "completedAtUtc": "2026-10-15T20:38:18.008Z",
+  "completeRunId": "2026-10-15T20:10:29.045Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:45:53.051Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 13475,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/Conversation.js",
+        "backend/src/routes/chat.js",
+        "backend/src/services/weeklyDigest.js",
+        "backend/test/chat-flow.test.js",
+        "backend/test/weekly-digest.test.js"
+      ],
+      "part": null,
+      "bytes": 13475,
+      "contextBytes": 0,
+      "promptTokens": 4238,
+      "completionTokens": 158,
+      "latencyMs": 20237,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One finding identified: potential double-counting of handoffs in weekly digest.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 12677,
+    "completionTokens": 316
+  },
+  "latencyMs": 52580
+}

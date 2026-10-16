@@ -1,0 +1,80 @@
+{
+  "item": "LEO-088",
+  "repo": "leoai",
+  "mergeSha": "6b93ebff64df3a38700683b035c69298a80567b2",
+  "completedAtUtc": "2026-10-15T12:14:37.966Z",
+  "completeRunId": "2026-10-15T12:07:29.034Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:42:31.217Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 1618,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": null,
+      "bytes": 1618,
+      "contextBytes": 11479,
+      "promptTokens": 4012,
+      "completionTokens": 181,
+      "latencyMs": 20724,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "FEATURES.md",
+      "line": 1052,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The change contradicts its own scope by allowing an edit to `CLAUDE.md`'s Current State section.",
+      "scenario": "An implementer must either skip the mandated correction of the stale `ALPHA_CODES` wording at `CLAUDE.md:186` or violate the stated constraint of not editing `CLAUDE.md`'s Current State block, leading to a violation of the runbook's rules.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The change explicitly states that it corrects the stale `ALPHA_CODES` clause at `CLAUDE.md:186`, which is inside the `## Current State` section, as a narrow sanctioned exception to the rule of not editing `CLAUDE.md`'s Current State block."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The change introduces a contradiction in its scope by allowing an edit to `CLAUDE.md`'s Current State section while stating that such edits are not permitted.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 12005,
+    "completionTokens": 384
+  },
+  "latencyMs": 53907
+}

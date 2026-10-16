@@ -1,0 +1,146 @@
+{
+  "item": "LEO-094",
+  "repo": "leoai",
+  "mergeSha": "df137104d5a72e441b8de29d798cc98e432e2e29",
+  "completedAtUtc": "2026-10-15T21:05:36.232Z",
+  "completeRunId": "2026-10-15T20:10:29.045Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:48:50.507Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 16376,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/notifications.js"
+      ],
+      "part": null,
+      "bytes": 10962,
+      "contextBytes": 0,
+      "promptTokens": 3533,
+      "completionTokens": 613,
+      "latencyMs": 40026,
+      "findings": 4,
+      "critiqued": 4,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/do-not-relay.test.js"
+      ],
+      "part": null,
+      "bytes": 5414,
+      "contextBytes": 9322,
+      "promptTokens": 4124,
+      "completionTokens": 158,
+      "latencyMs": 19831,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 103,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `buildHandoffSms` function still relays the full question in the SMS body.",
+      "scenario": "When a question matches the do-not-relay list, it is replaced with `(withheld — matched your 'don't relay' list)` in the question block. However, the same question is still included in the `Visitor needs help: <reason>` line above the question block, which can lead to the full question being relayed.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `buildHandoffSms` function still includes the original question in the `Visitor needs help: <reason>` line, which can lead to the full question being relayed."
+      }
+    },
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 118,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `buildHandoffEmail` function still relays the full question in the email body.",
+      "scenario": "When a question matches the do-not-relay list, it is replaced with `(withheld — matched your 'don't relay' list)` in the question block. However, the same question is still included in the `Reason: <reason>` line above the question block, which can lead to the full question being relayed.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `buildHandoffEmail` function uses `withholdIfMatched(reason, doNotRelay)` for the `Reason:` line, which replaces the reason with `(withheld — matched your 'don't relay' list)` if it matches the do-not-relay list. However, the question block below still includes the full question."
+      }
+    },
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 356,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `sendHandoffFollowUpNotification` function still relays the full question in the follow-up SMS body.",
+      "scenario": "When a question matches the do-not-relay list, it is replaced with `(withheld — matched your 'don't relay' list)` in the question block. However, the same question is still included in the `Visitor needs help: <reason>` line above the question block, which can lead to the full question being relayed.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `sendHandoffFollowUpNotification` function constructs the SMS body using `buildFollowUpSms`, which includes the `reason` field without applying the do-not-relay filter."
+      }
+    },
+    {
+      "file": "backend/src/services/notifications.js",
+      "line": 410,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The `sendHandoffFollowUpNotification` function still relays the full question in the follow-up email body.",
+      "scenario": "When a question matches the do-not-relay list, it is replaced with `(withheld — matched your 'don't relay' list)` in the question block. However, the same question is still included in the `Reason: <reason>` line above the question block, which can lead to the full question being relayed.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The `sendHandoffFollowUpNotification` function uses `buildFollowUpEmail`, which includes the `reason` field without applying the do-not-relay filter."
+      }
+    },
+    {
+      "file": "backend/test/do-not-relay.test.js",
+      "line": 175,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "The test 'buildQuestionBlock omits a matched question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so it cannot catch this.",
+      "scenario": "The test does not verify if the assembled SMS or email bodies correctly withhold matched questions.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The test 'buildQuestionBlock omits a matched question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so it cannot catch this."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The changes introduced in this diff do not fully address the issue of withholding matched questions from SMS and email notifications. The full question is still relayed in certain lines of the notification bodies, even when it matches the do-not-relay list. · One finding identified: The test 'buildQuestionBlock omits a matched question from the alert body' only exercises `buildQuestionBlock`, never the assembled body, so it cannot catch this.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 33485,
+    "completionTokens": 1314
+  },
+  "latencyMs": 132373
+}

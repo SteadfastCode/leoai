@@ -1,0 +1,70 @@
+{
+  "item": "LEO-091",
+  "repo": "leoai",
+  "mergeSha": "625109639ace6c10fae29caa53c5609f901270a0",
+  "completedAtUtc": "2026-10-15T20:19:57.023Z",
+  "completeRunId": "2026-10-15T20:10:29.045Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:45:00.378Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 11707,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/lib/renderMarkdown.js",
+        "dashboard/test/Playground.spec.js",
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 11707,
+      "contextBytes": 0,
+      "promptTokens": 3906,
+      "completionTokens": 149,
+      "latencyMs": 18685,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The renderer does not escape quotes in URLs, allowing for XSS attacks.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 11674,
+    "completionTokens": 300
+  },
+  "latencyMs": 48653
+}

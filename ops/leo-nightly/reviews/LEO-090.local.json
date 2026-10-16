@@ -1,0 +1,112 @@
+{
+  "item": "LEO-090",
+  "repo": "leoai",
+  "mergeSha": "6f220516fcd6d0e0ce8ceef06e4417fb849090b3",
+  "completedAtUtc": "2026-10-15T12:53:32.743Z",
+  "completeRunId": "2026-10-15T12:07:29.034Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:44:11.641Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 22756,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/lib/api.js",
+        "dashboard/src/lib/debug.js",
+        "dashboard/src/views/Playground.vue"
+      ],
+      "part": null,
+      "bytes": 12190,
+      "contextBytes": 0,
+      "promptTokens": 3688,
+      "completionTokens": 126,
+      "latencyMs": 16786,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/Playground.spec.js",
+        "dashboard/test/accessTokenFreshness.spec.js"
+      ],
+      "part": null,
+      "bytes": 10566,
+      "contextBytes": 4256,
+      "promptTokens": 4342,
+      "completionTokens": 151,
+      "latencyMs": 20258,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "dashboard/src/lib/api.js",
+      "line": 105,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "Access token refresh logic may not handle concurrent requests correctly.",
+      "scenario": "If multiple API requests are made simultaneously and the access token is expired, they may all attempt to refresh it concurrently, leading to potential issues with the refresh token being rotated multiple times.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code does not handle concurrent refresh attempts correctly."
+      }
+    },
+    {
+      "file": "dashboard/test/accessTokenFreshness.spec.js",
+      "line": 135,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "ensureFreshAccessToken does not handle the case where the refresh token is expired or invalid.",
+      "scenario": "If the refresh token itself is expired or invalid, ensureFreshAccessToken will return null and keep the stale access token untouched. However, it does not attempt to refresh the refresh token, which could lead to a situation where both tokens are stale and the user cannot send messages.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "ensureFreshAccessToken returns null when the refresh fails, and keeps the stale token untouched."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "dashboard/src/lib/api.js:103"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "dashboard/test/accessTokenFreshness.spec.js:13"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One finding identified: potential concurrency issue in access token refresh logic. · Found 1 potential defect in the code change.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 23987,
+    "completionTokens": 622
+  },
+  "latencyMs": 100319
+}

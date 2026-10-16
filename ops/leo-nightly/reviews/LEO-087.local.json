@@ -1,0 +1,165 @@
+{
+  "item": "LEO-087",
+  "repo": "leoai",
+  "mergeSha": "a1c50d14c0b89eeb976caeb9202f307e52adc430",
+  "completedAtUtc": "2026-10-16T01:22:57.789Z",
+  "completeRunId": "2026-10-16T01:10:28.951Z",
+  "reviewRunId": "2026-10-16T07:02:09.379Z",
+  "reviewedAtUtc": "2026-10-16T07:51:06.341Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 22109,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13939,
+      "contextBytes": 0,
+      "promptTokens": 4406,
+      "completionTokens": 633,
+      "latencyMs": 45002,
+      "findings": 6,
+      "critiqued": 6,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 8378,
+      "contextBytes": 0,
+      "promptTokens": 3022,
+      "completionTokens": 142,
+      "latencyMs": 15606,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/services/queryGuard.js",
+      "line": 10,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `plainString(value)` does not handle string inputs with leading or trailing whitespace correctly.",
+      "scenario": "A query parameter like `?sessionToken= x` (with a leading space) would pass the validation, allowing unauthorized access.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The function `plainString(value)` does not trim the input string before checking its type, so it allows strings with leading or trailing whitespace to pass."
+      }
+    },
+    {
+      "file": "backend/src/services/queryGuard.js",
+      "line": 20,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `requirePlainStrings(source, keys)` does not validate nested objects or arrays.",
+      "scenario": "A query parameter like `?sessionToken={$ne: 'x'}` would pass the validation because `$ne` is a string key in an object, allowing unauthorized access.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The function `requirePlainStrings(source, keys)` only checks if the value of each key is a plain string and does not recursively validate nested objects or arrays."
+      }
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 205,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `renderWeeklyDigestBody` does not filter out questions that match the `doNotRelay` list.",
+      "scenario": "Questions that should not be relayed due to the `doNotRelay` setting are included in the weekly digest, potentially exposing sensitive information.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The function `renderWeeklyDigestBody` does not filter out questions that match the `doNotRelay` list."
+      }
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 197,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `renderWeeklyDigestBody` does not handle cases where both headline counts are zero.",
+      "scenario": "If there are no visitor messages or conversations, the weekly digest still includes a headline line with zeros, which could be misleading to the owner.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The function `renderWeeklyDigestBody` does not handle cases where both headline counts are zero."
+      }
+    },
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 290,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The function `sendWeeklyDigest` stamps the last send time before sending the email.",
+      "scenario": "If the email fails to send due to a transient error, the stamp is updated, preventing any retry attempts within the same week.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The atomic update of `lastWeeklyDigestAt` occurs before the email sending operation, which prevents retries within the same week if an error occurs."
+      }
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 1035,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "The new backlog audit item does not match the description in the change title.",
+      "scenario": "The description promises that the backlog audit item will run only when nothing above it is claimable, but the diff shows that this item is added to Block L with a `[not-before: 2026-10-22]` tag, which means it will not run immediately.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The backlog audit item is tagged with [not-before: 2026-10-22], meaning it will not run until that date."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:417"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/services/retention.js:141-148"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "Found 6 high-severity issues in the provided diff. These issues include improper input validation, potential exposure of sensitive information, and incorrect handling of edge cases. · One finding identified.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 44006,
+    "completionTokens": 1364
+  },
+  "latencyMs": 135770
+}
