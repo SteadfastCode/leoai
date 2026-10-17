@@ -1,0 +1,63 @@
+{
+  "item": "LEO-104",
+  "repo": "leoai",
+  "mergeSha": "f84aba97dea8992940c46eeffe5dfebd8c044b66",
+  "localPromptVersion": "v5",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-17T21:11:29.048Z",
+  "gradedAtUtc": "2026-10-17T21:27:00.459Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change adds a pre-send `ensureFreshAccessToken` session proof and reasons about the dashboard Bearer token, so auth is squarely touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credential storage, env vars, or secret material is added or handled — only an existing in-memory access token is validated."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "The whole point of the change is preventing admin-tray messages from being billed against a customer entity's quota and firing owner notifications, and it adds a billing-fact warning banner."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Nothing deletes or overwrites data; the only `clearChat` edit resets two new local refs."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The diff changes when/whether the outbound POST /chat request is issued and how its response fields are consumed, so the API-call path is touched (evidence line points at the history GET rather than the send, but the category call is right)."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, version, or config files are changed — only a component plus a new spec file."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model found no defects, which matches my own cold read of this change (the guard mirrors the verified LEO-090 playground fix, `isTest` really is returned by backend/src/routes/chat.js, and the new spec's mocks/assertions line up with real behavior), and all six triage answers are right.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.3330010000000003,
+  "numTurns": 15,
+  "durationMs": 118069,
+  "sessionId": "43826e5e-ef1f-45ad-aa34-b44f4245b07b"
+}
