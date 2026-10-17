@@ -331,6 +331,54 @@ test('test-mode: keyed /chat returns isTest, skips the counter, and fires no own
 });
 
 // ---------------------------------------------------------------------------
+// 5b. Test-mode ABOVE the free-tier limit (LEO-089): the quota gate used to run
+//     before any isTest check, so an entity that had spent its 100 messages got
+//     402 in its own dashboard playground instead of an answer — and worse, a
+//     playground message could be the request that flipped quotaExceededNotified
+//     and emailed the owner, contradicting test-mode's "no notifications"
+//     promise. Test-mode never increments the counter, so it must never be
+//     judged by it. The control half asserts enforcement is still intact for
+//     real visitor traffic.
+// ---------------------------------------------------------------------------
+test('test-mode: a keyed request is answered above the free-tier limit and never notifies', async () => {
+  resetStubs();
+  const domain = 'testmode-quota.example.com';
+  await Entity.create({
+    domain, name: 'Test Mode Quota', plan: 'free',
+    messageCountThisPeriod: 100, ownerEmail: 'stub-owner@example.invalid',
+  });
+
+  const rawKey = 'leoai_tmquota_' + crypto.randomBytes(8).toString('hex');
+  await ApiKey.create({
+    keyHash: crypto.createHash('sha256').update(rawKey).digest('hex'),
+    label: 'chat-flow-quota-test',
+    scope: 'mcp',
+  });
+
+  const r = await postChat(
+    { domain, sessionToken: 'testmode-quota-session', message: 'Does the playground still answer?' },
+    { 'X-API-Key': rawKey }
+  );
+
+  assert.equal(r.status, 200, 'test-mode must not be blocked by a quota it cannot consume');
+  assert.equal(r.body.isTest, true);
+  assert.ok(r.body.reply, 'the playground gets a real reply, not a 402 body');
+  assert.equal(r.body.usage.messageCountThisPeriod, 100, 'the counter does not move');
+  assert.equal(stubState.quotaExceededCalls.length, 0, 'the playground never notifies the owner');
+
+  const entity = await Entity.findOne({ domain });
+  assert.equal(entity.messageCountThisPeriod, 100, 'the persisted counter is unchanged');
+  assert.equal(!!entity.quotaExceededNotified, false, 'a playground message never flips quotaExceededNotified');
+
+  // Control: the same entity, WITHOUT the key, is still gated and still notifies.
+  const rReal = await postChat({ domain, sessionToken: 'real-quota-session', message: 'Are you open today?' });
+  assert.equal(rReal.status, 402, 'real visitor traffic is still blocked at the limit');
+  assert.equal(rReal.body.error, 'quota_exceeded');
+  await waitForEntity(domain, (e) => e.quotaExceededNotified === true);
+  assert.equal(stubState.quotaExceededCalls.length, 1, 'real traffic DOES notify the owner, exactly once');
+});
+
+// ---------------------------------------------------------------------------
 // 6. Rate limit (LEO-034): a rapid over-limit session gets 429 with a widget-
 //    renderable body; a keyed (test-mode) session is never throttled. The
 //    limiter itself is unit-tested in rate-limit.test.js — this asserts the
