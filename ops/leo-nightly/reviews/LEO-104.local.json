@@ -1,0 +1,84 @@
+{
+  "item": "LEO-104",
+  "repo": "leoai",
+  "mergeSha": "f84aba97dea8992940c46eeffe5dfebd8c044b66",
+  "completedAtUtc": "2026-10-16T09:57:53.413Z",
+  "completeRunId": "2026-10-16T09:26:26.080Z",
+  "reviewRunId": "2026-10-17T07:01:09.000Z",
+  "reviewedAtUtc": "2026-10-17T07:16:51.145Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 15202,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/components/ChatWindow.vue"
+      ],
+      "part": null,
+      "bytes": 6075,
+      "contextBytes": 8579,
+      "promptTokens": 4372,
+      "completionTokens": 133,
+      "latencyMs": 19397,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/ChatWindow.spec.js"
+      ],
+      "part": null,
+      "bytes": 9127,
+      "contextBytes": 0,
+      "promptTokens": 2910,
+      "completionTokens": 270,
+      "latencyMs": 21263,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 1,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "dashboard/src/components/ChatWindow.vue:24"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "dashboard/src/components/ChatWindow.vue:106"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "dashboard/src/components/ChatWindow.vue:98"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "One high-severity defect found in ChatWindow.vue. · The admin chat tray posts to the same public /chat relying on Bearer-token test mode but got no pre-send session proof. When ensureFreshAccessToken's refresh fails (expired 7-day refresh token, offline), api.js's request interceptor ignores the null return and still attaches the stale token, so the message is handled as real visitor traffic against whichever customer entity the tray is pointed at — burning that entity's quota, logging an unanswered question and able to fire a real handoff SMS to its owner.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 21781,
+    "completionTokens": 778
+  },
+  "latencyMs": 100530
+}
