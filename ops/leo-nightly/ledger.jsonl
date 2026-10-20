@@ -292,3 +292,4 @@
 {"event":"ack","items":["LEO-087"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
 {"event":"ack","items":["LEO-104"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
 {"event":"note","text":"resupply: unparked LEO-103 (was not-before 2026-10-22) so the next fire files new proposals","source":"dashboard","item":"LEO-103","atUtc":"2026-10-20T18:30:13.632Z"}
+{"event":"claim","runId":"2026-10-20T23:08:06.129Z","item":"LEO-103","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-20T23:08:32.741Z"}
