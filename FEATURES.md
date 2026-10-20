@@ -1199,6 +1199,189 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
   the dashboard's chunk viewer.
 
+- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** [needs-human]
+  The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
+  — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
+  pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
+  the same file (line 20) and is not in the list. It is keyed on `entityDomain`, not `domain`, which is
+  almost certainly why a `{ domain }` sweep missed it, and every row holds a **verbatim visitor question**
+  plus its `sessionToken` and `conversationId` (`backend/src/models/UnansweredQuestion.js:5-9`). So after a
+  delete the conversation the question came from is gone, the entity is gone, and the visitor's own words
+  stay in the database indefinitely — pointing at a `conversationId` that no longer resolves. Because the
+  key is a domain string and nothing else, recreating the same domain (how Daniel re-tests an entity)
+  re-attaches every ghost row to the new entity's `/unanswered` page. The confirm dialog
+  (`dashboard/src/views/AdminEntities.vue:249-251`) promises "all associated data — chunks, scraped pages,
+  conversations, snapshots, and team memberships", so the UI states something untrue rather than merely
+  incomplete.
+  Build: add `UnansweredQuestion.deleteMany({ entityDomain: domain })` to the existing `Promise.all`, return
+  its count beside the others, record it in the `recordAudit` details, and add unanswered questions to the
+  dialog's sentence. Also delete archived chunks by `{ domain }` rather than only by the collected
+  `snapshotIds`: `ArchivedChunk` carries its own required `domain` (`models/ArchivedChunk.js:9`), and while no
+  current path is known to orphan one (`services/scrapePersist.js:48-49` prunes chunks and snapshot together),
+  a by-domain sweep cannot miss one that is.
+  Files: `backend/src/routes/dashboard.js`, `dashboard/src/views/AdminEntities.vue`,
+  `backend/test/entity-delete-cascade.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` in the shape `backend/test/kb-search.test.js` uses —
+  seed **two** entities, each with chunks, pages, a conversation, two `UnansweredQuestion` rows and an
+  archived chunk whose snapshot row has been removed by hand; delete the first as a superadmin; assert every
+  one of those collections is empty for that domain, that nothing belonging to the second entity changed,
+  that the response and the `AuditLog` row both carry the unanswered count, and that re-creating the same
+  domain yields an empty `/unanswered`. Confirm the unanswered assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: `AuditLog` and `Log` retention (deliberate — an append-only trail, and a 30-day TTL at
+  `models/Log.js:12`); what `POST /chat/forget` deletes (LEO-099 owns the visitor-initiated path, and the two
+  touch adjacent concerns, not adjacent lines); a soft-delete or undo; cancelling anything Stripe-side
+  (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
+  memberships at all.
+
+- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** [needs-human]
+  `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
+  straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
+  `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
+  membership: `memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] })`.
+  `User.memberships[].roles` is `[{ type: String }]` with no enum (`models/User.js:29`), and
+  `isSuperAdmin(user)` is true when **any** membership for **any** domain contains the string `superadmin`
+  (`middleware/auth.js:12-14`). The `owner` preset includes `USERS_MANAGE` (`models/Permission.js:52`), so a
+  customer who owns one entity reaches global superadmin in two requests: invite `role: 'superadmin'` to an
+  address they control on their own domain, then accept it. That is the admin console, every other entity's
+  conversations and billing, entity hard-delete, API-key minting and the impersonation endpoint. The proof
+  this was meant to be guarded is 50 lines further down: `PATCH /entities/:domain/team/:userId`
+  (`dashboard.js:591-596`) rejects any role not in `ROLE_PRESETS` **and then rejects `superadmin` by name** —
+  two guards, because `superadmin` is itself a `ROLE_PRESETS` key (`models/Permission.js:41`) and the
+  membership check alone would let it through. Two doors to the same privilege; one of them has both locks
+  and the other has neither.
+  Build: put the rule in one place and call it from both routes so they cannot drift again — export
+  `assertAssignableRole(role)` from `backend/src/services/team.js` (which already holds `isLastOwner`)
+  returning `{ ok, error }`: `undefined`/empty accepted as today's `'agent'` default, any other value required
+  to be a `ROLE_PRESETS` key, `superadmin` always refused. Call it in the invite route (400, no `Invite`
+  written) and in the existing `PATCH` route in place of its two inline checks. Then apply it again at
+  acceptance as a second line of defence — an invite minted before this ships, or written straight into
+  Mongo, must not be honoured: answer 403, leave `acceptedAt` null and the user's `memberships` untouched.
+  Files: `backend/src/services/team.js`, `backend/src/routes/dashboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/invite-role.test.js`.
+  *Verify:* `node --test` on `assertAssignableRole` with no DB — every `ROLE_PRESETS` key except `superadmin`
+  accepted, `superadmin` refused, an unknown string refused, `undefined` and `''` accepted; then the real
+  routers over `mongodb-memory-server`: `POST .../invites` with `role: 'superadmin'` returns 400 and
+  `Invite.countDocuments()` is unchanged, with `role: 'agent'` still returns 201 exactly as today, the
+  existing `PATCH` behaviour is byte-identical, and accepting a hand-seeded `superadmin` invite returns 403
+  with `isSuperAdmin(user)` still false afterwards. All three new assertions must go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: whether `isSuperAdmin` should be domain-scoped at all rather than matching any membership —
+  a much larger change, and this item only stops the role being handed out; the `entityDomain: '*'` shape of
+  the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
+  rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
+
+- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** [needs-human]
+  The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
+  caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
+  next path segment belongs to that domain, and three handlers never check. (1) `GET
+  /entities/:domain/conversations/:id` reads `Conversation.findById(req.params.id)` (line 126) and returns the
+  whole document — every visitor message, `pendingQuestions`, `handoffPending` and the `sessionToken`, which
+  `GET /chat/history` accepts as a credential. (2) `POST .../conversations/:id/reply` loads the conversation
+  the same way (line 201) while taking the entity from the path (line 202), so a member of entity A can push
+  an `owner_reply` into entity B's conversation — delivered to B's visitor on their next widget open, since it
+  is stored `seenByVisitor: false` (line 208) — while the unanswered-question resolution (line 227) and the
+  `owner_reply` chunk (line 253) land on A. One request, two entities, each holding half the result.
+  (3) `DELETE .../invites/:inviteId` deletes by id alone (line 578), cancelling any other entity's pending
+  invite. The correct pattern is already in the same file three times: `Conversation.findOne({ _id:
+  req.params.id, domain: req.params.domain })` at line 179, and `UnansweredQuestion.findOne({ _id: id,
+  entityDomain: domain })` at 719 and 755. Pre-alpha every entity is Daniel's, so nothing is exposed today —
+  Block H is empty and this is the cheapest thing that belongs in it.
+  Build: scope all three lookups by domain, keeping each handler's existing 404 and message. For the invite,
+  `Invite.deleteOne({ _id: req.params.inviteId, domain })` and answer `{ ok: true }` only on
+  `deletedCount === 1`, else 404. No route is renamed, no response field removed.
+  Files: `backend/src/routes/dashboard.js`, `backend/test/entity-scoping.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` with two entities and a user holding a membership for
+  only the first: each of the three calls, made with the user's own domain in the path and the **second**
+  entity's object id, returns 404 and leaves that object byte-identical (conversation `messages.length`
+  unchanged, invite still present); each of the three for their own entity behaves exactly as today; a
+  superadmin is unaffected. All three must go red against unmodified `main` — the GET currently returns 200
+  with the foreign transcript. `cd backend && yarn verify && yarn test`.
+  Out of scope: adding `PERMISSIONS` arguments to the routes that carry none — the floor covers membership and
+  the finer-grained read split is a separate decision; socket rooms (LEO-068); `GET /chat/history`'s public
+  session-token read; auditing or repairing any historical cross-entity write; and the by-id handlers outside
+  this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
+  `routes/codes.js` is superadmin-only and global by design).
+
+- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone** [needs-human]
+  `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
+  then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
+  `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
+  { upsert: true })` (lines 104-110). Nothing anywhere checks whether that domain already has an `Entity` or
+  an owner. So anyone holding a valid alpha code can sign up naming an existing entity's domain, receive
+  `roles: ['owner']` on it — the full dashboard, its conversations, its settings, its billing page — and the
+  `$set` **rewrites the live `ownerEmail`**, which is the address every handoff SMS/email and quota warning is
+  sent to (`services/notifications.js`). The comment at lines 94-97 reasons carefully about the *scrape's*
+  later upsert not clobbering this one; the reverse direction, this upsert landing on a populated document, is
+  not considered. Second defect in the same block: the single-use cap is read at line 77
+  (`code.useCount >= code.maxUses`) and written at lines 118-120, after the user, the entity and the tokens.
+  Two signups in the same tick on a `maxUses: 1` code both pass the check, and any throw in between consumes
+  no use while possibly leaving a `User` behind. That counter is the whole boundary between pre-alpha and open
+  signup.
+  Build: before anything is created, reject a claimed domain — an existing `Entity`, or any `User` holding a
+  membership for it, answers 409 pointing at the invite flow, which is how a second person is supposed to join
+  an entity. Keep the rules pure and testable in a new `backend/src/services/onboard.js`:
+  `normalizeDomain(raw)` (trim, lowercase, strip scheme, `www.`, port and path, reject anything that is not a
+  plausible hostname) and `claimCheck({ entityExists, memberExists })` → `{ ok, status, error }`. Then make
+  the code consumption atomic and **first**: one `Code.findOneAndUpdate` whose filter carries the type, the
+  `active` flag, the cap and the expiry (an `$and` of two `$or` branches, since `maxUses` and `expiresAt` are
+  both nullable) and whose update is `$inc: { useCount: 1 }` plus the `usedBy` `$push` — no match means no
+  slot, so the check and the consume cannot be split. Release the use (`$inc: -1` and `$pull`) if a later step
+  fails, so a crashed signup does not burn a slot.
+  Files: new `backend/src/services/onboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/onboard-claim.test.js`.
+  *Verify:* `node --test` on the two pure helpers with no DB — `HTTPS://WWW.Example.com/path:8080` →
+  `example.com`, a bare hostname unchanged, `''`/`'  '`/`'not a domain'`/`null` rejected without throwing, a
+  claimed domain → 409, an unclaimed one → ok; then the real auth router over `mongodb-memory-server`:
+  onboarding a fresh domain still returns 201 with tokens and creates the `Entity` and membership exactly as
+  today; onboarding a domain that already has an `Entity` returns 409, creates no `User`, and leaves the
+  stored `ownerEmail` untouched; the same for a domain whose `Entity` is absent but some user holds a
+  membership for it; and two onboards awaited together on a `maxUses: 1` code yield exactly one 201, one 403
+  and `useCount === 1`. Every one of those must go red against unmodified `main`. `cd backend && yarn verify
+  && yarn test`.
+  Out of scope: proving the signer actually controls the domain (DNS or meta-tag verification is a feature of
+  its own, and the alpha code is the current answer); `CLAUDE.md`'s stale claim that the gate reads an
+  `ALPHA_CODES` env var — it reads the `Code` collection, and LEO-086 owns that wording; brute-forcing the
+  code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
+  `routes/webhooks.js` (denylisted).
+
+- [ ] **(LEO-109) Every widget open loads the visitor's whole conversation to show twenty messages** [needs-human]
+  `GET /chat/history` (`backend/src/routes/chat.js:303-350`) fetches `Conversation.findOne({ sessionToken,
+  domain })` with no projection (line 312) and then filters and slices in Node: `hasMore =
+  messages.length > PAGE_SIZE` and `page = messages.slice(-PAGE_SIZE)` (lines 337-339, `PAGE_SIZE = 20` at
+  line 22). The entire `messages` array therefore crosses the wire from Atlas on every returning-visitor open,
+  and again for every infinite-scroll page, to return twenty entries; `POST /chat` reads the same full
+  document at line 97. Nothing bounds that array: lines 137-138 push two entries per turn and no code path
+  ever trims one. `services/retention.js` deletes whole conversations by age, and only when the entity sets a
+  retention window — never messages within a conversation. A session token lives in localStorage with a cookie
+  fallback and is reused indefinitely, so one visitor's document grows for as long as they keep coming back,
+  against a hard 16 MB BSON ceiling. The failure at that ceiling is total and permanent for that visitor:
+  `conversation.save()` on the chat path throws, so every further message answers 500, and the owner can no
+  longer open the conversation either. Nobody knows what real session lengths look like yet, which is the
+  argument for measuring now and capping later.
+  Build: extract today's paging into a pure `pageMessages(messages, { before, pageSize })` →
+  `{ page, hasMore }` in a new `backend/src/services/conversationPage.js`, producing output byte-identical to
+  the current inline block, and have the route read only what it needs — a projected `messages: { $slice:
+  -PAGE_SIZE }` fetch plus a count — instead of the whole array. The unseen-owner-reply marking in the same
+  handler (lines 321-328) currently rides on the full document and `conversation.save()`, so it has to become
+  a targeted `updateOne` with an array filter. Light-tier log once per conversation that crosses a
+  message-count threshold, naming the domain and the count, so the ceiling becomes visible before it is hit.
+  Files: new `backend/src/services/conversationPage.js`, `backend/src/routes/chat.js` (**restricted — ≤30
+  changed lines, and the change sits on `conversation.save()` in the history handler, which a routine run may
+  not touch: this one needs an interactive session**), `backend/test/conversation-page.test.js`.
+  *Verify:* `node --test` on `pageMessages` with fixture arrays and no DB — fewer than, exactly, and more than
+  `PAGE_SIZE` messages; a `before` cursor mid-array; an unparseable and an absent `before`; an empty array —
+  each asserted against what the current inline logic returns for the same input. Then the existing
+  `backend/test/chat-flow.test.js` harness: a returning visitor with 50 stored messages still gets the last 20
+  with `hasMore: true`, an unseen `owner_reply` is still returned in `unseenOwnerReplies` and still marked
+  seen, is not returned a second time on the next open, and `lastTopic` and `entityConfig` are unchanged.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: trimming, archiving or deleting stored messages — this item only stops reading what it does
+  not need and makes the growth visible; any change to `PAGE_SIZE`, to `services/retention.js`, or to the
+  history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
+  quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
+  file.
+
 ## Block L — Backlog upkeep
 
 
@@ -1208,6 +1391,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 - [x] **(LEO-103) Backlog audit: file new candidates under Proposed**
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
+  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-110) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-27]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
