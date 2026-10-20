@@ -283,3 +283,11 @@
 {"event":"complete","runId":"2026-10-16T09:26:26.080Z","item":"LEO-104","mergeSha":"f84aba97dea8992940c46eeffe5dfebd8c044b66","durationMin":6,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-16T09:57:53.413Z"}
 {"event":"local-review","item":"LEO-104","model":"qwen2.5-coder:14b","findings":0,"contextFiles":2,"promptVersion":"v5","mergeSha":"f84aba97dea8992940c46eeffe5dfebd8c044b66","runId":"2026-10-17T07:01:09.000Z","promptTokens":21781,"completionTokens":778,"latencyMs":100530,"chunkErrors":0,"triageTouched":["auth","money","externalApi"],"atUtc":"2026-10-17T07:16:51.319Z"}
 {"event":"review-grade","item":"LEO-104","grader":"claude-opus-5","grades":{"findings":0,"confirmed":0,"falsePositive":0,"duplicate":0,"unverifiable":0,"missed":0,"independent":0,"triageChecked":6,"triageCorrect":6},"localPromptVersion":"v5","localModel":"qwen2.5-coder:14b","mergeSha":"f84aba97dea8992940c46eeffe5dfebd8c044b66","runId":"2026-10-17T21:11:29.048Z","costUsd":1.3330010000000003,"atUtc":"2026-10-17T21:27:00.666Z"}
+{"event":"ack","items":["LEO-088"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.906Z"}
+{"event":"ack","items":["LEO-090"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-091"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-092"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-093"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-094"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-087"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
+{"event":"ack","items":["LEO-104"],"by":"daniel","source":"dashboard","atUtc":"2026-10-20T18:29:33.907Z"}
