@@ -1,0 +1,189 @@
+{
+  "item": "LEO-103",
+  "repo": "leoai",
+  "mergeSha": "3b952d1dbf7f8012e5ccbf7211fb99736e455a70",
+  "completedAtUtc": "2026-10-20T23:24:08.340Z",
+  "completeRunId": "2026-10-20T23:08:06.129Z",
+  "reviewRunId": "2026-10-21T07:02:09.320Z",
+  "reviewedAtUtc": "2026-10-21T07:15:17.794Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v5",
+  "diffBytes": 20362,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13958,
+      "contextBytes": 0,
+      "promptTokens": 4505,
+      "completionTokens": 690,
+      "latencyMs": 48260,
+      "findings": 7,
+      "critiqued": 7,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 6612,
+      "contextBytes": 7265,
+      "promptTokens": 4402,
+      "completionTokens": 139,
+      "latencyMs": 20036,
+      "findings": 1,
+      "critiqued": 1,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 650,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Deleting an entity does not delete associated `UnansweredQuestion` records.",
+      "scenario": "When a user deletes an entity, the `UnansweredQuestion` records associated with that entity are not deleted. This leaves orphaned records in the database.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code does not include a delete operation for `UnansweredQuestion` records when deleting an entity."
+      }
+    },
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 540,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Invite route allows assigning `superadmin` role without validation.",
+      "scenario": "The invite route does not validate the `role` parameter, allowing a user to assign the `superadmin` role. This can lead to unauthorized access and privilege escalation.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code at backend/src/routes/dashboard.js:540 takes the `role` parameter directly from the request body without validation, allowing the assignment of the `superadmin` role."
+      }
+    },
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 120,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Conversation route does not check if the conversation belongs to the specified domain.",
+      "scenario": "The conversation route retrieves a conversation by ID without checking if it belongs to the specified domain. This can lead to unauthorized access and data leakage.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code retrieves a conversation by ID without checking if it belongs to the specified domain."
+      }
+    },
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 200,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Reply route does not check if the conversation belongs to the specified domain.",
+      "scenario": "The reply route retrieves a conversation by ID without checking if it belongs to the specified domain. This can lead to unauthorized access and data leakage.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code retrieves a conversation by ID without checking if it belongs to the specified domain."
+      }
+    },
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 570,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Invite delete route does not check if the invite belongs to the specified domain.",
+      "scenario": "The invite delete route retrieves an invite by ID without checking if it belongs to the specified domain. This can lead to unauthorized access and data leakage.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code deletes an invite by ID alone, without checking if it belongs to the specified domain."
+      }
+    },
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 60,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Onboard route allows claiming a domain that already belongs to someone.",
+      "scenario": "The onboard route does not check if the claimed domain already has an `Entity` or any user holding a membership for it. This can lead to unauthorized access and data leakage.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The code at backend/src/routes/auth.js:60 does not check if the claimed domain already has an Entity or any user holding a membership for it."
+      }
+    },
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 75,
+      "severity": "high",
+      "confidence": 1,
+      "summary": "Onboard route does not consume the code atomically.",
+      "scenario": "The onboard route consumes the code after creating the user, entity, and tokens. This can lead to race conditions where two signups in the same tick on a `maxUses: 1` code both pass the check.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The onboard route consumes the code after creating the user, entity, and tokens, leading to potential race conditions."
+      }
+    },
+    {
+      "file": "FEATURES.md",
+      "line": 1358,
+      "severity": "high",
+      "confidence": 0.9,
+      "summary": "The proposed change does not address the issue of message growth leading to BSON ceiling failure.",
+      "scenario": "A visitor's conversation grows indefinitely, eventually hitting the 16 MB BSON ceiling. The proposed solution only stops reading unnecessary messages but does not prevent the document from growing indefinitely, leading to a permanent failure when the ceiling is reached.",
+      "critique": {
+        "verdict": "supported",
+        "reason": "The proposed change extracts paging into a new service and modifies routes to read only what is needed, but it does not address the underlying issue of messages being added indefinitely without trimming."
+      }
+    }
+  ],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:465"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:644"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "This change introduces several security vulnerabilities and data integrity issues that need to be addressed. · One high-severity finding identified in FEATURES.md.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 53368,
+    "completionTokens": 1427
+  },
+  "latencyMs": 154162
+}
