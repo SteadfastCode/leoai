@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [needs-human]
+- [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
   probe returns status 0 / ok:false, the file is written with five red checks and the process
@@ -152,7 +152,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   block is only detected when the file itself cannot be written or parsed, not when the probes
   never reached production. Its fix is in a path routine runs may not change, so it waits for an
   interactive session.
-- [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [needs-human]
+- [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:204). Compare mode exits 1 for
   both a real regression and a blocked/uncollectable baseline (`verdict.blocked || !verdict.ok`),
   so a runner with autoRevert:true keyed on the exit code will git-revert a healthy merge when the
@@ -195,7 +195,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: a persistent lockout flag on `User`, captcha, a shared (Redis) store, any change
   to the `/chat` limiter's own limits, and anything under `.github/**`.
 
-- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** [needs-human]
+- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** [proposed]
   `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
   region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
   `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
@@ -241,7 +241,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   (denylisted); retry or back-off policy changes; `services/embeddings.js` (denylisted), so Voyage
   failures stay out of this slice; persisting the window to Mongo.
 
-- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set** [needs-human]
+- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set** [proposed]
   LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
   0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
   `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
@@ -262,7 +262,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
   `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
 
-- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner** [needs-human]
+- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner** [proposed]
   A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
   silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
   written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
@@ -284,7 +284,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
   populate the new field.
 
-- [ ] **(LEO-060) LeoScan the scrape path — report only, never block** [needs-human]
+- [ ] **(LEO-060) LeoScan the scrape path — report only, never block** [proposed]
   LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
   header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
   during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
@@ -350,7 +350,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `backend/index.js` (denylisted); an allowlist field on Entity; backfilling existing conversations;
   and a `Referer` fallback.
 
-- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** [needs-human]
+- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** [proposed]
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
   against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
   { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
@@ -413,7 +413,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: the Dependabot entry (LEO-049 owns it), `docs/wishlist.md` (LEO-064), any Current
   State tick, and fixing any of the issues themselves.
 
-- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** [needs-human]
+- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** [proposed]
   FEATURES.md's own header says the wishlist "still contains full specs for features that already
   shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
   for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
@@ -518,7 +518,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   wildcard CORS (deliberate — the widget is embedded on arbitrary customer domains), moving the socket
   wiring out of `index.js`, changing what any event carries, and the visitor `join` handler.
 
-- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** [needs-human]
+- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** [proposed]
   `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
   substitution — but it never escapes `"`, and the link pass is
   `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
@@ -575,7 +575,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   widget textarea, per-entity configurable limits, truncating instead of rejecting, any change to the
   LEO-034 rate-limiter windows, and the origin question (LEO-061 owns it).
 
-- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** [needs-human]
+- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** [proposed]
   The scraper fetches other people's sites without identifying itself and without ever asking. There is
   no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
   user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
@@ -612,7 +612,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `$vectorSearch` stage (denylisted), and scraping any real entity.
 
 
-- [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [needs-human]
+- [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [proposed]
   The chat check is the only part of leoai's smoke that costs money, and also the one with the most
   coverage: it exercises routing, auth, Origin/CORS, the conversation write and response shaping as
   well as the model call. Keep the coverage, drop the spend. Add a test path through POST /chat that
@@ -630,7 +630,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   carries isTest. Out of scope: any change to the real chat path's behaviour. Touches a restricted
   path and is the input to the smoke the routine is judged by, hence needs-human.
 
-- [ ] **(LEO-075) Smoke split: a free baseline chat check, and the paid real-model call only after deploy** [needs-human]
+- [ ] **(LEO-075) Smoke split: a free baseline chat check, and the paid real-model call only after deploy** [proposed]
   The baseline runs the full production smoke before any code is touched
   (ops/leo-nightly/RUNBOOK.md, 'Production baseline — default deny'), and one of its five checks —
   chat with Origin — makes a real paid model call. So every fire spends tokens before doing any
@@ -648,7 +648,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   cannot be written, and this item should not start. Edits the routine's own safety net, so
   needs-human by rule: an automated run may not widen the gate it is judged by.
 
-- [ ] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging** [needs-human]
+- [ ] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging** [proposed]
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
   `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
   top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
@@ -682,7 +682,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   moving `unansweredDigestLastSentAt` back inside its subdocument (only safe *after* this lands);
   `routes/billing.js` and `routes/webhooks.js` (denylisted).
 
-- [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed** [needs-human]
+- [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed** [proposed]
   `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
   `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
   (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
@@ -719,7 +719,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `rescrapeSite` (`services/scraper.js` is restricted) or `persistRescrapeResult`; surfacing dropped
   runs in the dashboard; and the handoff follow-up and digest ticks sharing the same cron callback.
 
-- [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`** [needs-human]
+- [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`** [proposed]
   `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
   file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
   `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
@@ -752,7 +752,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
   automated run may not touch its own gate, and this item only makes that gate see more.
 
-- [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** [needs-human]
+- [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** [proposed]
   `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
   from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
   exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
@@ -777,7 +777,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `classifyQuery`'s prompt, its token budget or any live call to it; `routes/chat.js` (restricted); and
   the low-confidence hedging band (LEO-038).
 
-- [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test** [needs-human]
+- [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test** [proposed]
   Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
   (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
   inside a `## Proposed` body, which is where an implementer takes their test expectations from.
@@ -843,7 +843,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   note the duplication and leave it), retiring any of the three variables, sending a real email or SMS to
   confirm the link, `backend/index.js`, the Stripe return URLs, and `dashboard/`'s own `VITE_API_URL`.
 
-- [ ] **(LEO-083) The free-tier billing period skips February: month-end rollover overflows** [needs-human]
+- [ ] **(LEO-083) The free-tier billing period skips February: month-end rollover overflows** [proposed]
   `routes/chat.js:69,74` computes the next reset as
   `new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())`. JavaScript normalises an out-of-range
   day instead of clamping it, so for an entity whose period lands on a month end the next boundary lands in
@@ -884,7 +884,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   exists); the PAYG milestone maths; and any change to the quota check itself, the handoff atomic
   test-and-set or `conversation.save()`.
 
-- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** [needs-human]
+- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** [proposed]
   One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
   beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
   (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
@@ -1038,7 +1038,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   is denylisted); the authenticated dashboard and admin routes; rate-limiting any of these endpoints
   (LEO-052 and LEO-101); and `routes/billing.js`/`routes/webhooks.js` (denylisted).
 
-- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** [needs-human]
+- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** [proposed]
   `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
   stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
   this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
@@ -1069,7 +1069,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
   adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
 
-- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** [needs-human]
+- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** [proposed]
   The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
   conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
   "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
@@ -1103,7 +1103,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
   makes true as written.
 
-- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** [needs-human]
+- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** [proposed]
   Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
   (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
   (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
@@ -1167,7 +1167,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   a captcha; what `/forget` deletes (LEO-099 owns that, and the two touch adjacent lines — whichever lands
   second keeps the other's change); making the limiter shared across processes; and `backend/index.js`.
 
-- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** [needs-human]
+- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** [proposed]
   `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
   section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
   The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
@@ -1199,7 +1199,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
   the dashboard's chunk viewer.
 
-- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** [needs-human]
+- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** [proposed]
   The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
   — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
   pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
@@ -1234,7 +1234,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
   memberships at all.
 
-- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** [needs-human]
+- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** [proposed]
   `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
   straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
   `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
@@ -1271,7 +1271,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
   rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
 
-- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** [needs-human]
+- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** [proposed]
   The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
   caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
   next path segment belongs to that domain, and three handlers never check. (1) `GET
@@ -1303,7 +1303,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
   `routes/codes.js` is superadmin-only and global by design).
 
-- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone** [needs-human]
+- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone** [proposed]
   `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
   then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
   `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
@@ -1345,7 +1345,7 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
   `routes/webhooks.js` (denylisted).
 
-- [ ] **(LEO-109) Every widget open loads the visitor's whole conversation to show twenty messages** [needs-human]
+- [ ] **(LEO-109) Every widget open loads the visitor's whole conversation to show twenty messages** [proposed]
   `GET /chat/history` (`backend/src/routes/chat.js:303-350`) fetches `Conversation.findOne({ sessionToken,
   domain })` with no projection (line 312) and then filters and slices in Node: `hasMore =
   messages.length > PAGE_SIZE` and `page = messages.slice(-PAGE_SIZE)` (lines 337-339, `PAGE_SIZE = 20` at
