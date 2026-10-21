@@ -1399,8 +1399,8 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
   exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
   one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
-  what is out of scope. Tag every filed item `[needs-human]` — Daniel promotes one by deleting the tag, and the
-  daily update lists them. Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  what is out of scope. Tag every filed item `[proposed]` — the routine
+  promotes it after a 48-hour veto window (the daily update says what is coming; `queue demote` holds one back). Skip anything needing a phone, a console, a credential or a pricing decision unless the
   item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
   free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
   FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers

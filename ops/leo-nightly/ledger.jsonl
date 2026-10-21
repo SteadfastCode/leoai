@@ -294,3 +294,4 @@
 {"event":"note","text":"resupply: unparked LEO-103 (was not-before 2026-10-22) so the next fire files new proposals","source":"dashboard","item":"LEO-103","atUtc":"2026-10-20T18:30:13.632Z"}
 {"event":"claim","runId":"2026-10-20T23:08:06.129Z","item":"LEO-103","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-20T23:08:32.741Z"}
 {"event":"complete","runId":"2026-10-20T23:08:06.129Z","item":"LEO-103","mergeSha":"3b952d1dbf7f8012e5ccbf7211fb99736e455a70","durationMin":16,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-20T23:24:08.340Z"}
+{"event":"note","text":"LEO-110: the backlog audit now files [proposed], not [needs-human] (SAI-093 supply automation; Daniel 2026-10-21)","source":"manual","command":"audit-tag","item":"LEO-110","atUtc":"2026-10-21T04:06:22.794Z"}
