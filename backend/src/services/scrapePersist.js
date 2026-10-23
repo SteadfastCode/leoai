@@ -12,6 +12,7 @@ const Chunk = require('../models/Chunk');
 const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
+const { REASONS } = require('./fetchFailure');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
@@ -50,6 +51,48 @@ async function createSnapshot(domain, mode, affectedUrls = null) {
   }
 
   return snapshot;
+}
+
+// Shape a crawl's raw failure list for the summary, the snapshot and the owner (LEO-056).
+//
+// scrapeSite/rescrapeSite only COLLECT — scraper.js is restricted to small diffs —
+// so every assumption the dashboard is allowed to make is established here:
+//   * one entry per URL, since the same URL can be pushed twice in a run (fetched
+//     empty on one pass, failed on a retry of a link to it from another page);
+//   * a reason outside the known set falls back to fetch_error rather than
+//     reaching the UI as an unlabelled chip;
+//   * status is a positive number or null — never 0, which would render as a
+//     plausible-looking HTTP code.
+// A bare string is accepted too, so this can shape skippedUrls (LEO-019, strings)
+// with an explicit reason when a caller wants the two lists merged.
+function shapeFailedUrls(failedUrls = [], defaultReason = 'fetch_error') {
+  const byUrl = new Map();
+  for (const entry of Array.isArray(failedUrls) ? failedUrls : []) {
+    const url = typeof entry === 'string' ? entry : entry?.url;
+    if (!url || byUrl.has(url)) continue;
+    const reason = REASONS.includes(entry?.reason) ? entry.reason : defaultReason;
+    const raw = Number(typeof entry === 'string' ? NaN : entry?.status);
+    byUrl.set(url, { url, reason, status: Number.isFinite(raw) && raw > 0 ? raw : null });
+  }
+  return [...byUrl.values()];
+}
+
+// Record the run's not-learned URLs on its snapshot, so "which pages did this
+// scrape lose?" survives the run that produced it.
+//
+// Best-effort on purpose: a snapshot is null when there was nothing to archive
+// (a first-ever scrape), and a failed write here must never fail a scrape that
+// stored real chunks. Returns the shaped list either way, so the caller can put
+// it in the summary whether or not it was persisted.
+async function recordFailedUrls(snapshotId, failedUrls = []) {
+  const shaped = shapeFailedUrls(failedUrls);
+  if (!snapshotId || shaped.length === 0) return shaped;
+  try {
+    await ScrapeSnapshot.updateOne({ _id: snapshotId }, { failedUrls: shaped });
+  } catch (err) {
+    console.warn(`Could not record ${shaped.length} failed URL(s) on snapshot ${snapshotId}: ${err.message}`);
+  }
+  return shaped;
 }
 
 // Tally how many chunks each page URL contributed to (LEO-028).
@@ -123,6 +166,9 @@ async function persistRescrapeResult({ domain, result, io = null }) {
   // never retry — locking the stale content in permanently. Skip the hash bump for
   // these so the change is re-detected next run.
   const skippedUrls = new Set(result.skippedUrls || []);
+  // URLs that never produced text this run (LEO-056) — collected raw by the crawl,
+  // shaped here, and reported in the summary beside skippedUrls.
+  const failedUrls = shapeFailedUrls(result.failedUrls);
 
   const hasNormalChanges = embeddedChunks.length > 0;
   const hasThinChanges   = thinGroupChunks.length > 0;
@@ -131,6 +177,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
   if (hasNormalChanges || hasThinChanges) {
     // Snapshot first — before any mutations so a restore is always possible
     snapshot = await createSnapshot(domain, 'rescrape', [...changedUrls, ...thinGroupUrls]);
+    await recordFailedUrls(snapshot?._id, failedUrls);
 
     // Counted across BOTH chunk sets so a thin page folded into a group chunk is
     // credited on its own ScrapedPage row rather than written back as zero.
@@ -188,6 +235,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     pagesChanged: changedUrls.length + thinGroupUrls.length,
     pagesUnchanged: unchangedUrls.length,
     chunksUpdated: embeddedChunks.length + thinGroupChunks.length,
+    failedUrls,
   };
 }
 
@@ -196,5 +244,7 @@ module.exports = {
   persistRescrapeResult,
   replaceChunksForUrl,
   tallyChunkCounts,
+  shapeFailedUrls,
+  recordFailedUrls,
   MAX_SNAPSHOTS_PER_DOMAIN,
 };

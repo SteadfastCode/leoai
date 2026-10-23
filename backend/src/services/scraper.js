@@ -8,6 +8,7 @@ const { analyzePageStructure } = require('./claude');
 const { isStale } = require('./staleness');
 const { buildHoursChunk } = require('./hoursChunk');
 const { tryEmbed } = require('./embedGuard');
+const { classifyFetchFailure, noteEmptyAfterRender } = require('./fetchFailure');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -851,6 +852,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   const allPageData = []; // kept for page record building in the route
   const thinPageBuffer = []; // thin pages accumulated across all batches
   const skippedUrls = []; // pages whose embedding failed after retries (LEO-019)
+  const failedUrls = [];  // pages that never produced text — shaped in scrapePersist (LEO-056)
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
@@ -894,6 +896,7 @@ async function scrapeSite(baseUrl, opts = {}) {
       await Promise.all(batch.map(async (url) => {
         try {
           const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, false, pass1Filters);
+          if (!text.trim()) failedUrls.push(noteEmptyAfterRender(url));
           const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants };
           batchPageData.push(pageEntry);
           allPageData.push(pageEntry);
@@ -919,6 +922,7 @@ async function scrapeSite(baseUrl, opts = {}) {
           }
         } catch (err) {
           console.warn(`Skipping ${url}: ${err.message}`);
+          failedUrls.push(classifyFetchFailure(url, err));
         }
       }));
 
@@ -961,10 +965,10 @@ async function scrapeSite(baseUrl, opts = {}) {
     const { chunks: thinGroupChunks } = await tryEmbed(
       () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
       thinPageData, skippedUrls, { chunks: [] });
-    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, durationMs: Date.now() - startedAt };
+    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, failedUrls, durationMs: Date.now() - startedAt };
   }
 
-  return { chunks: [], pageData: allPageData, skippedUrls, durationMs: Date.now() - startedAt };
+  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed.
@@ -987,6 +991,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const allPageData = []; // all fetched pages (text available for thin grouping)
   const changedPages = []; // non-thin pages with changed hash or high-priority
   const unchangedUrls = [];
+  const failedUrls = [];  // pages that never produced text — shaped in scrapePersist (LEO-056)
   const baseDomain = new URL(baseUrl).hostname;
 
   let pass1Filters = { exclude: [], include: [] };
@@ -1030,6 +1035,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           const staleRefresh = staleUrlKeys.has(urlKey(url));
           const needsRefresh = hashChanged || staleRefresh;
 
+          if (!text.trim()) failedUrls.push(noteEmptyAfterRender(url));
           const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants, contentChanged: hashChanged, staleRefresh };
           allPageData.push(pageEntry);
 
@@ -1067,6 +1073,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           }
         } catch (err) {
           console.warn(`Skipping ${url}: ${err.message}`);
+          failedUrls.push(classifyFetchFailure(url, err));
         }
       }));
     }
@@ -1114,6 +1121,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     embeddedChunks,
     thinGroupChunks,
     skippedUrls,
+    failedUrls,
     changedUrls:    changedPages.map(p => p.url),
     thinGroupUrls,
     unchangedUrls,
