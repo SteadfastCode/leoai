@@ -12,6 +12,10 @@
  *      and puts the visitor's typed message back into the input
  *   6. LEO-093: a refused /chat/forget keeps the session token and transcript,
  *      so the retry it invites still reaches the server's copy
+ *   7. LEO-053: the accessibility contract — live region, aria-modal, bubble
+ *      aria-expanded tracking drawer.hidden, Escape closing the drawer and
+ *      returning focus to the bubble, and quick-reply pills carrying their
+ *      hotkey in an accessible name without Escape firing the hotkey path
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -104,12 +108,25 @@ try {
   const cssLink = doc.querySelector('link[rel="stylesheet"]');
   check(!!cssLink && String(cssLink.href).startsWith(BACKEND), 'stylesheet href uses window.LEO_BACKEND_URL');
 
+  // 2c. LEO-053: the attributes a screen reader needs are present from boot,
+  //     before any interaction, and the closed bubble reports itself collapsed.
+  const messagesPane = doc.getElementById('leo-messages');
+  const drawerAtBoot = doc.getElementById('leo-drawer');
+  check(messagesPane?.getAttribute('aria-live') === 'polite',
+    'message list is an aria-live="polite" region');
+  check(drawerAtBoot?.getAttribute('aria-modal') === 'true',
+    'drawer is marked aria-modal="true"');
+  check(drawerAtBoot?.hidden === true && bubble?.getAttribute('aria-expanded') === 'false',
+    'bubble reports aria-expanded="false" while the drawer is hidden');
+
   // open the drawer (consent already granted -> loads history, greets)
   bubble.click();
   await flush();
   await flush();
   const drawer = doc.getElementById('leo-drawer');
   check(!!drawer && !drawer.hidden, 'drawer opens on bubble click');
+  check(bubble.getAttribute('aria-expanded') === 'true',
+    'bubble flips to aria-expanded="true" when the drawer opens');
 
   // 3. type a message, click send, stubbed 200 from /chat renders an assistant bubble
   doc.getElementById('leo-input').value = 'Hello Leo';
@@ -275,6 +292,54 @@ try {
     !doc.body.textContent.includes(KEPT_MESSAGE),
     'the transcript pane is empty once the retry succeeds'
   );
+
+  // 8. LEO-053: Escape dismisses the dialog and hands focus back to the bubble.
+  //    Note this is NOT the close button's path, which minimises into the panel
+  //    chip and hides the bubble outright.
+  const pressEscape = () =>
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+  if (drawer.hidden) { bubble.click(); await flush(); }
+  doc.getElementById('leo-input').focus(); // focus starts somewhere else, so the return is real
+  check(doc.activeElement === doc.getElementById('leo-input'), 'precondition: focus is in the input');
+  pressEscape();
+  await flush();
+  check(drawer.hidden === true, 'Escape on document hides the drawer');
+  check(doc.activeElement === bubble, 'Escape returns focus to the bubble');
+  check(bubble.getAttribute('aria-expanded') === 'false',
+    'Escape leaves the bubble reporting aria-expanded="false"');
+
+  // 9. LEO-053: quick-reply pills name their hotkey, and Escape must not be
+  //    mistaken for one — the hotkey handler ignores every key it does not own.
+  if (drawer.hidden) { bubble.click(); await flush(); }
+  check(!drawer.hidden, 'precondition: drawer is open before the options scenario');
+  chatHandler = () => Promise.resolve(json({ reply: 'Shall I book you in?', options: ['Yes', 'No'] }));
+  doc.getElementById('leo-input').value = 'Can I book?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  chatHandler = null;
+
+  const pills = [...doc.querySelectorAll('.leo-option-btn')];
+  check(pills.length === 2, `quick-reply pills rendered (got ${pills.length})`);
+  check(pills.length > 0 && pills.every((b) => b.type === 'button'),
+    'every quick-reply pill is type="button"');
+  check(
+    pills.map((b) => b.getAttribute('aria-label')).join('|') === 'Yes (press Y)|No (press N)',
+    `pill accessible names carry their hotkey (got ${JSON.stringify(pills.map((b) => b.getAttribute('aria-label')))})`
+  );
+
+  const chatCallsBeforeEscape = fetchCalls.filter((c) => c.method === 'POST' && c.url.endsWith('/chat')).length;
+  pressEscape();
+  await settle();
+  check(
+    fetchCalls.filter((c) => c.method === 'POST' && c.url.endsWith('/chat')).length === chatCallsBeforeEscape,
+    'Escape while options are showing sends no message — the hotkey path did not fire'
+  );
+  check(doc.querySelectorAll('.leo-option-selected').length === 0,
+    'Escape while options are showing selects no option');
+  check(doc.querySelectorAll('.leo-option-btn').length === 2,
+    'Escape while options are showing leaves the pills in place');
+  check(drawer.hidden === true, 'Escape still closes the drawer while options are showing');
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));
