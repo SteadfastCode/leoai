@@ -141,7 +141,7 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return**
+- [x] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return**
   `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
   region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
   `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
