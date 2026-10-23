@@ -203,6 +203,175 @@ standing audit, which is last so it runs only when nothing else is claimable.
   trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
   populate the new field.
 
+- [ ] **(LEO-060) LeoScan the scrape path — report only, never block**
+  LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
+  header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
+  during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
+  rationale rules out *blocking*, not *reporting* — and the wishlist's own framing is that finding it
+  is the feature. Today a password or API key on a scraped page is embedded and answerable, with
+  nothing anywhere saying so. Run the existing rule set over scraped chunks as they are persisted,
+  record **rule names only, never the matched text**, and never skip, alter, reorder or delete a
+  chunk. Shaping in a new `backend/src/services/scanSweep.js`: `sweepChunks(chunks)` →
+  `[{ url, rules: [String] }]`, deduped per URL, crediting every entry in a group chunk's
+  `sourceUrls`. Call it from the two persistence sites — `onChunks` in `backend/src/routes/scrape.js`
+  (full/force) and `persistRescrapeResult` in `backend/src/services/scrapePersist.js` (rescrape and
+  LeoRefresh) — and store an optional `scanRules: [String]` (no `required`, no `unique`, default
+  `[]`) on `ScrapedPage`, so a page that stops tripping clears itself on the next crawl. Surface as a
+  warning chip plus filter in `dashboard/src/views/PageExplorer.vue`, beside the existing "V" variant
+  chip. Tiered logging: at light tier one line per scrape naming how many URLs tripped and which
+  rules fired — never the matched text, never a line per chunk.
+  Files: new `backend/src/services/scanSweep.js`, `backend/src/routes/scrape.js`,
+  `backend/src/services/scrapePersist.js`, `backend/src/models/ScrapedPage.js`,
+  `dashboard/src/views/PageExplorer.vue`, `backend/test/scan-sweep.test.js`.
+  `backend/src/services/scraper.js` must have a **zero-line diff** — the sweep runs at persistence,
+  not during the crawl.
+  *Verify:* `node --test` on `sweepChunks` with inline fixtures — clean chunks yield nothing, a chunk
+  containing a labelled password yields its URL and the rule name, a group chunk credits all three of
+  its `sourceUrls`, and the serialized result contains none of the matched secret text; plus the
+  committed `backend/test/fixtures/leoscan-negative-corpus.json` sweeping to zero findings (it is the
+  28-chunk real-world negative corpus LEO-021 validated against). Extend
+  `backend/test/scrape-persist.test.js` to assert chunk count and chunk content are identical with and
+  without a flagged chunk in the batch — the sweep must be provably inert. `cd backend && yarn verify
+  && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: blocking, dropping or redacting any chunk; the wishlist's Haiku semantic pass;
+  notifying the owner by email or SMS; a dismiss/acknowledge workflow; new detection rules (the
+  LEO-021 set is used as-is); and scraping any real entity.
+
+- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives**
+  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
+  against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
+  { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
+  `runValidators: true` is passed, and it is not — so every `min`/`max` on the Entity model is
+  decorative on the one path owners actually write through. `leoRefreshHour: 99` (model says
+  `min: 0, max: 23`) is stored, and `isDueNow` in `services/leoRefresh.js:21` compares it against a
+  real UTC hour, so that entity silently never refreshes again. `ragThreshold: 5` (superadmin field,
+  `min: 0.5, max: 0.95`) is stored and empties every retrieval. `dailyVolumeAlert: -1` alerts on the
+  first message of every day. `quotaWarningThresholds` has no schema bound at all. A non-numeric value
+  takes the other route — a CastError caught by the handler and returned as a 500 carrying the raw
+  driver message. Add a pure `validateEntityUpdates(body, { isSuperAdmin })` in a new
+  `backend/src/services/entitySettings.js` returning `{ updates, rejected: [{ field, reason }] }`,
+  with the bounds declared in one table mirroring the model: hours 0-23, `dayOfWeek` 0-6,
+  `ragThreshold` 0.5-0.95, `lowConfidenceBand` 0-0.2, `dailyVolumeAlert` and `staleDays` ≥ 0,
+  `quotaWarningThresholds` 1-99 and ascending, `quotaAlertChannels` ⊆ {email, sms},
+  `leoRefreshFrequency` ∈ the model enum, booleans strictly boolean, strings trimmed and
+  length-capped. The route keeps its existing allowlist and superadmin split, calls the validator, and
+  returns 400 `{ error, rejected }` writing nothing when `rejected` is non-empty; `runValidators: true`
+  goes on the update call as a second line of defence. A body with no recognised field keeps today's
+  no-op behaviour.
+  Files: new `backend/src/services/entitySettings.js`, `backend/src/routes/dashboard.js`,
+  `dashboard/src/views/Settings.vue` (surface `rejected` through the existing `lib/notify.js` queue),
+  `backend/test/entity-settings.test.js`.
+  *Verify:* `node --test` on `validateEntityUpdates` — each bound accepted at its edge and rejected
+  just outside it, a string where a number belongs rejected rather than cast, an unknown field ignored
+  exactly as today, a superadmin-only field dropped for a non-superadmin, an empty body yielding empty
+  updates; plus the real dashboard router over `mongodb-memory-server` (the
+  `backend/test/kb-search.test.js` harness shape): the payload `Settings.vue` sends today still returns
+  the updated entity unchanged, while `leoRefreshHour: 99` returns 400 and leaves the stored value
+  untouched. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: the wholesale replacement of nested subdocuments on PATCH (`crawlSettings`,
+  `handoffFollowUp` and `unansweredDigest` are replaced, not merged — a separate change with its own
+  UI implications); which fields are on the `superadminOnly` list; `routes/billing.js` and
+  `routes/webhooks.js` (denylisted); adding any new settable field; and any edit to the Entity schema.
+
+- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`**
+  FEATURES.md's own header says the wishlist "still contains full specs for features that already
+  shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
+  for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
+  named failure the standing backlog audit exists to prevent. At least ten wishlist sections are live:
+  Admin Console Log Viewer (`dashboard/src/views/Logs.vue`, LEO-011), Overview Usage Panel
+  Enhancements (`dashboard/src/components/UsagePanel.vue`), Tiered Model Routing (`classifyQuery` /
+  `selectModel` in `backend/src/services/claude.js`), Superadmin Impersonation (LEO-045,
+  `POST /api/admin/impersonate`), Staleness-Based Force Re-Embed (LEO-029, `crawlSettings.staleDays`),
+  Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
+  digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
+  (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
+  more are partial: LeoScan (LEO-021 shipped the manual ingest paths; the scrape path is LEO-060) and
+  Handoff Filtering (the owner-reply path is live; the do-not-relay slice is LEO-047, which sits under
+  `## Blocked Items`, not Completed). **The ids are not uniform, and inventing one is worse than
+  omitting it:** five of the sections listed above shipped before the routine existed and have no LEO
+  id at all — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply
+  Flow and Multi-User Dashboard Roles & Auth.
+  Add a one-line banner at the top of each, in whichever of these three forms fits:
+  `> **Shipped <YYYY-MM-DD> — <item>, <commit>.**` where an id exists;
+  `> **Shipped <YYYY-MM-DD> — pre-routine, <commit>.**` for the five that have none;
+  `> **Partially shipped <YYYY-MM-DD> — <what is live>, <commit>. Still open: <what>, <the item that
+  owns it, or "no filed item">.**` for the two partials. Plus one sentence in the file header saying
+  the banners are the truth about what is live while the prose under them is design history. **Do not
+  delete or rewrite the spec prose**: several open items still refer to it.
+  Files: `docs/wishlist.md`.
+  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
+  FEATURES.md the right way round — an id offered as evidence something shipped appears under
+  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
+  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
+  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
+  `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
+  exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
+  Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
+  re-prioritising anything, marking as shipped anything that is only partly built (those get the
+  partial banner instead), and inventing or reusing a LEO id for a section that has none.
+
+- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page**
+  `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
+  substitution — but it never escapes `"`, and the link pass is
+  `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
+  matches a double quote happily. A reply containing `[click](https://x" onmouseover="…)` closes the
+  `href` early and lands an arbitrary attribute on an anchor that is then assigned with `el.innerHTML`
+  (line 604) — inside whatever customer page the widget is embedded in. Two smaller sinks share the
+  pattern: `renderOptions` interpolates each option label into `btn.innerHTML` (line 646), and the panel
+  chip interpolates the entity name (line 283). Leo's text is model output shaped by scraped page content
+  and by what a visitor types, so nothing has to be compromised for this to be reachable.
+  Add `"` and `'` to the escape pass in `renderMarkdown`, and build those two templates from elements and
+  text nodes instead of interpolation — a `<span class="leo-hotkey">` plus a text node for the label, the
+  same for the chip name. Rendered output for ordinary replies must be unchanged.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the denylist with
+  LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended — a stubbed reply of
+  `[click](https://x" onmouseover="window.__leoXss=1)` renders exactly one `<a>` whose
+  `getAttribute('onmouseover')` is `null`; an option label of `<img src=x onerror="window.__leoXss=1">`
+  produces no `img` element and the literal text; an entity name of `<b>x</b>` renders as text; and the
+  existing bold/italic/code/link/list assertions stay green. Confirm the new assertions fail against
+  unmodified `main`. Post-deploy: `GET /demo/chatbot.js` is 200, byte length within ±25% of the committed
+  file, `node --check` clean on the downloaded body.
+  Out of scope: replacing the renderer with a markdown library, a Content-Security-Policy, sanitizing on
+  the backend (`routes/chat.js` keeps a zero-line diff), LEO-053's accessibility attributes, the consent
+  screen's markup, and the drag-to-resize handler.
+
+- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed**
+  The scraper fetches other people's sites without identifying itself and without ever asking. There is
+  no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
+  user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
+  `Chrome/120.0.0.0` UA. Crawls run 5 pages concurrently up to `MAX_PAGES = 500`, including a customer's
+  Square or Wix shop subdomain. Owners authorise the crawl of their own site, which is why **enforcement
+  is deliberately not the first slice**: silently dropping pages a paying owner wants learned is the worse
+  failure. Identity and evidence come first.
+  Build: (1) a `LEO_USER_AGENT` constant — `LeoAI/1.0 (+https://leo-ai.chat/crawler)` — sent as a header
+  on every axios fetch in the scraper and set via `page.setUserAgent`; (2) a new
+  `backend/src/services/robots.js` exposing a pure `parseRobots(text, ua)` → ordered allow/deny rules and
+  `isDisallowed(rules, pathname)` with the longest-match rule, plus a per-host cached fetch that treats
+  any error, redirect or non-200 as "no rules"; (3) the crawl **records** every URL it fetched that
+  robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
+  `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
+  goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
+  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
+  naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
+  Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
+  changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
+  persistence belong in `backend/src/services/scrapePersist.js`**), `backend/src/models/Entity.js` (one
+  new Boolean in `crawlSettings`), `backend/src/models/ScrapeSnapshot.js` (one new optional array),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/robots.test.js`.
+  *Verify:* `node --test` on the parser with inline fixtures — an empty body and a 404 body both yielding
+  no rules, `User-agent: *` with `Disallow: /cart`, a `LeoAI`-specific group taking precedence over `*`,
+  an `Allow` beating a shorter `Disallow`, `Disallow:` with an empty value meaning allow-all,
+  `Crawl-delay` parsed and ignored, a malformed line skipped rather than thrown, and a path with a query
+  string matched on pathname only; plus the offline crawl harness in
+  `backend/test/scrape-embed-containment.test.js` extended so a local HTTP server serving a robots.txt
+  that disallows one of two pages still chunks both with `honorRobots` false and records the one URL, and
+  chunks only one with the flag true. No real site is fetched in any test. `cd backend && yarn verify &&
+  yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: honouring `Crawl-delay` or changing `CONCURRENCY`/`MAX_PAGES`, `sitemap.xml` discovery,
+  `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
+  `$vectorSearch` stage (denylisted), and scraping any real entity.
+
 ## Proposed
 
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
@@ -284,40 +453,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   (denylisted); retry or back-off policy changes; `services/embeddings.js` (denylisted), so Voyage
   failures stay out of this slice; persisting the window to Mongo.
 
-- [ ] **(LEO-060) LeoScan the scrape path — report only, never block** [proposed]
-  LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
-  header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
-  during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
-  rationale rules out *blocking*, not *reporting* — and the wishlist's own framing is that finding it
-  is the feature. Today a password or API key on a scraped page is embedded and answerable, with
-  nothing anywhere saying so. Run the existing rule set over scraped chunks as they are persisted,
-  record **rule names only, never the matched text**, and never skip, alter, reorder or delete a
-  chunk. Shaping in a new `backend/src/services/scanSweep.js`: `sweepChunks(chunks)` →
-  `[{ url, rules: [String] }]`, deduped per URL, crediting every entry in a group chunk's
-  `sourceUrls`. Call it from the two persistence sites — `onChunks` in `backend/src/routes/scrape.js`
-  (full/force) and `persistRescrapeResult` in `backend/src/services/scrapePersist.js` (rescrape and
-  LeoRefresh) — and store an optional `scanRules: [String]` (no `required`, no `unique`, default
-  `[]`) on `ScrapedPage`, so a page that stops tripping clears itself on the next crawl. Surface as a
-  warning chip plus filter in `dashboard/src/views/PageExplorer.vue`, beside the existing "V" variant
-  chip. Tiered logging: at light tier one line per scrape naming how many URLs tripped and which
-  rules fired — never the matched text, never a line per chunk.
-  Files: new `backend/src/services/scanSweep.js`, `backend/src/routes/scrape.js`,
-  `backend/src/services/scrapePersist.js`, `backend/src/models/ScrapedPage.js`,
-  `dashboard/src/views/PageExplorer.vue`, `backend/test/scan-sweep.test.js`.
-  `backend/src/services/scraper.js` must have a **zero-line diff** — the sweep runs at persistence,
-  not during the crawl.
-  *Verify:* `node --test` on `sweepChunks` with inline fixtures — clean chunks yield nothing, a chunk
-  containing a labelled password yields its URL and the rule name, a group chunk credits all three of
-  its `sourceUrls`, and the serialized result contains none of the matched secret text; plus the
-  committed `backend/test/fixtures/leoscan-negative-corpus.json` sweeping to zero findings (it is the
-  28-chunk real-world negative corpus LEO-021 validated against). Extend
-  `backend/test/scrape-persist.test.js` to assert chunk count and chunk content are identical with and
-  without a flagged chunk in the batch — the sweep must be provably inert. `cd backend && yarn verify
-  && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: blocking, dropping or redacting any chunk; the wishlist's Haiku semantic pass;
-  notifying the owner by email or SMS; a dismiss/acknowledge workflow; new detection rules (the
-  LEO-021 set is used as-is); and scraping any real entity.
-
 - [ ] **(LEO-061) Record where a visitor's message actually came from** [needs-human]
   `POST /chat` trusts `domain` from the request body and reads nothing else: `routes/chat.js:33`
   destructures it and looks the entity up from it. No `Origin` or `Referer` is read anywhere under
@@ -350,42 +485,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `backend/index.js` (denylisted); an allowlist field on Entity; backfilling existing conversations;
   and a `Referer` fallback.
 
-- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** [proposed]
-  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
-  against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
-  { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
-  `runValidators: true` is passed, and it is not — so every `min`/`max` on the Entity model is
-  decorative on the one path owners actually write through. `leoRefreshHour: 99` (model says
-  `min: 0, max: 23`) is stored, and `isDueNow` in `services/leoRefresh.js:21` compares it against a
-  real UTC hour, so that entity silently never refreshes again. `ragThreshold: 5` (superadmin field,
-  `min: 0.5, max: 0.95`) is stored and empties every retrieval. `dailyVolumeAlert: -1` alerts on the
-  first message of every day. `quotaWarningThresholds` has no schema bound at all. A non-numeric value
-  takes the other route — a CastError caught by the handler and returned as a 500 carrying the raw
-  driver message. Add a pure `validateEntityUpdates(body, { isSuperAdmin })` in a new
-  `backend/src/services/entitySettings.js` returning `{ updates, rejected: [{ field, reason }] }`,
-  with the bounds declared in one table mirroring the model: hours 0-23, `dayOfWeek` 0-6,
-  `ragThreshold` 0.5-0.95, `lowConfidenceBand` 0-0.2, `dailyVolumeAlert` and `staleDays` ≥ 0,
-  `quotaWarningThresholds` 1-99 and ascending, `quotaAlertChannels` ⊆ {email, sms},
-  `leoRefreshFrequency` ∈ the model enum, booleans strictly boolean, strings trimmed and
-  length-capped. The route keeps its existing allowlist and superadmin split, calls the validator, and
-  returns 400 `{ error, rejected }` writing nothing when `rejected` is non-empty; `runValidators: true`
-  goes on the update call as a second line of defence. A body with no recognised field keeps today's
-  no-op behaviour.
-  Files: new `backend/src/services/entitySettings.js`, `backend/src/routes/dashboard.js`,
-  `dashboard/src/views/Settings.vue` (surface `rejected` through the existing `lib/notify.js` queue),
-  `backend/test/entity-settings.test.js`.
-  *Verify:* `node --test` on `validateEntityUpdates` — each bound accepted at its edge and rejected
-  just outside it, a string where a number belongs rejected rather than cast, an unknown field ignored
-  exactly as today, a superadmin-only field dropped for a non-superadmin, an empty body yielding empty
-  updates; plus the real dashboard router over `mongodb-memory-server` (the
-  `backend/test/kb-search.test.js` harness shape): the payload `Settings.vue` sends today still returns
-  the updated entity unchanged, while `leoRefreshHour: 99` returns 400 and leaves the stored value
-  untouched. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: the wholesale replacement of nested subdocuments on PATCH (`crawlSettings`,
-  `handoffFollowUp` and `unansweredDigest` are replaced, not merged — a separate change with its own
-  UI implications); which fields are on the `superadminOnly` list; `routes/billing.js` and
-  `routes/webhooks.js` (denylisted); adding any new settable field; and any edit to the Entity schema.
-
 - [ ] **(LEO-063) `CLAUDE.md` "Known Issues" is three-quarters stale** [needs-human]
   Three of the four entries under `## Known Issues (Fix Before Ship)` describe problems that are
   fixed, in the one file loaded into every session's context. (1) "No test suite … `backend/
@@ -412,43 +511,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   exits 0.
   Out of scope: the Dependabot entry (LEO-049 owns it), `docs/wishlist.md` (LEO-064), any Current
   State tick, and fixing any of the issues themselves.
-
-- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** [proposed]
-  FEATURES.md's own header says the wishlist "still contains full specs for features that already
-  shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
-  for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
-  named failure the standing backlog audit exists to prevent. At least ten wishlist sections are live:
-  Admin Console Log Viewer (`dashboard/src/views/Logs.vue`, LEO-011), Overview Usage Panel
-  Enhancements (`dashboard/src/components/UsagePanel.vue`), Tiered Model Routing (`classifyQuery` /
-  `selectModel` in `backend/src/services/claude.js`), Superadmin Impersonation (LEO-045,
-  `POST /api/admin/impersonate`), Staleness-Based Force Re-Embed (LEO-029, `crawlSettings.staleDays`),
-  Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
-  digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
-  (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
-  more are partial: LeoScan (LEO-021 shipped the manual ingest paths; the scrape path is LEO-060) and
-  Handoff Filtering (the owner-reply path is live; the do-not-relay slice is LEO-047, which sits under
-  `## Blocked Items`, not Completed). **The ids are not uniform, and inventing one is worse than
-  omitting it:** five of the sections listed above shipped before the routine existed and have no LEO
-  id at all — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply
-  Flow and Multi-User Dashboard Roles & Auth.
-  Add a one-line banner at the top of each, in whichever of these three forms fits:
-  `> **Shipped <YYYY-MM-DD> — <item>, <commit>.**` where an id exists;
-  `> **Shipped <YYYY-MM-DD> — pre-routine, <commit>.**` for the five that have none;
-  `> **Partially shipped <YYYY-MM-DD> — <what is live>, <commit>. Still open: <what>, <the item that
-  owns it, or "no filed item">.**` for the two partials. Plus one sentence in the file header saying
-  the banners are the truth about what is live while the prose under them is design history. **Do not
-  delete or rewrite the spec prose**: several open items still refer to it.
-  Files: `docs/wishlist.md`.
-  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
-  FEATURES.md the right way round — an id offered as evidence something shipped appears under
-  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
-  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
-  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
-  `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
-  exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
-  Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
-  re-prioritising anything, marking as shipped anything that is only partly built (those get the
-  partial banner instead), and inventing or reusing a LEO id for a section that has none.
 
 - [ ] **(LEO-067) Unguarded async route handlers: one unauthenticated GET can take the backend down** [needs-human]
   Ten `async (req, res)` handlers under `backend/src/routes` have no `try`/`catch`. Express 4.19 does not
@@ -518,32 +580,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   wildcard CORS (deliberate — the widget is embedded on arbitrary customer domains), moving the socket
   wiring out of `index.js`, changing what any event carries, and the visitor `join` handler.
 
-- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** [proposed]
-  `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
-  substitution — but it never escapes `"`, and the link pass is
-  `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
-  matches a double quote happily. A reply containing `[click](https://x" onmouseover="…)` closes the
-  `href` early and lands an arbitrary attribute on an anchor that is then assigned with `el.innerHTML`
-  (line 604) — inside whatever customer page the widget is embedded in. Two smaller sinks share the
-  pattern: `renderOptions` interpolates each option label into `btn.innerHTML` (line 646), and the panel
-  chip interpolates the entity name (line 283). Leo's text is model output shaped by scraped page content
-  and by what a visitor types, so nothing has to be compromised for this to be reachable.
-  Add `"` and `'` to the escape pass in `renderMarkdown`, and build those two templates from elements and
-  text nodes instead of interpolation — a `<span class="leo-hotkey">` plus a text node for the label, the
-  same for the chip name. Rendered output for ordinary replies must be unchanged.
-  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the denylist with
-  LEO-003.
-  *Verify:* `node widget/smoke.mjs`, extended — a stubbed reply of
-  `[click](https://x" onmouseover="window.__leoXss=1)` renders exactly one `<a>` whose
-  `getAttribute('onmouseover')` is `null`; an option label of `<img src=x onerror="window.__leoXss=1">`
-  produces no `img` element and the literal text; an entity name of `<b>x</b>` renders as text; and the
-  existing bold/italic/code/link/list assertions stay green. Confirm the new assertions fail against
-  unmodified `main`. Post-deploy: `GET /demo/chatbot.js` is 200, byte length within ±25% of the committed
-  file, `node --check` clean on the downloaded body.
-  Out of scope: replacing the renderer with a markdown library, a Content-Security-Policy, sanitizing on
-  the backend (`routes/chat.js` keeps a zero-line diff), LEO-053's accessibility attributes, the consent
-  screen's markup, and the drag-to-resize handler.
-
 - [ ] **(LEO-070) Cap and type-check what `/chat` accepts** [needs-human]
   `routes/chat.js:33-37` destructures `domain`, `sessionToken`, `message`, `type` and `interactiveData`
   and checks only that the first three are truthy. Nothing checks a type or a length after that:
@@ -574,42 +610,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: the express body limit itself (`backend/index.js`, denylisted), a `maxlength` on the
   widget textarea, per-entity configurable limits, truncating instead of rejecting, any change to the
   LEO-034 rate-limiter windows, and the origin question (LEO-061 owns it).
-
-- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** [proposed]
-  The scraper fetches other people's sites without identifying itself and without ever asking. There is
-  no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
-  user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
-  `Chrome/120.0.0.0` UA. Crawls run 5 pages concurrently up to `MAX_PAGES = 500`, including a customer's
-  Square or Wix shop subdomain. Owners authorise the crawl of their own site, which is why **enforcement
-  is deliberately not the first slice**: silently dropping pages a paying owner wants learned is the worse
-  failure. Identity and evidence come first.
-  Build: (1) a `LEO_USER_AGENT` constant — `LeoAI/1.0 (+https://leo-ai.chat/crawler)` — sent as a header
-  on every axios fetch in the scraper and set via `page.setUserAgent`; (2) a new
-  `backend/src/services/robots.js` exposing a pure `parseRobots(text, ua)` → ordered allow/deny rules and
-  `isDisallowed(rules, pathname)` with the longest-match rule, plus a per-host cached fetch that treats
-  any error, redirect or non-200 as "no rules"; (3) the crawl **records** every URL it fetched that
-  robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
-  `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
-  goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
-  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
-  naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
-  Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
-  changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
-  persistence belong in `backend/src/services/scrapePersist.js`**), `backend/src/models/Entity.js` (one
-  new Boolean in `crawlSettings`), `backend/src/models/ScrapeSnapshot.js` (one new optional array),
-  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/robots.test.js`.
-  *Verify:* `node --test` on the parser with inline fixtures — an empty body and a 404 body both yielding
-  no rules, `User-agent: *` with `Disallow: /cart`, a `LeoAI`-specific group taking precedence over `*`,
-  an `Allow` beating a shorter `Disallow`, `Disallow:` with an empty value meaning allow-all,
-  `Crawl-delay` parsed and ignored, a malformed line skipped rather than thrown, and a path with a query
-  string matched on pathname only; plus the offline crawl harness in
-  `backend/test/scrape-embed-containment.test.js` extended so a local HTTP server serving a robots.txt
-  that disallows one of two pages still chunks both with `honorRobots` false and records the one URL, and
-  chunks only one with the flag true. No real site is fetched in any test. `cd backend && yarn verify &&
-  yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: honouring `Crawl-delay` or changing `CONCURRENCY`/`MAX_PAGES`, `sitemap.xml` discovery,
-  `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
-  `$vectorSearch` stage (denylisted), and scraping any real entity.
 
 
 - [ ] **(LEO-074) A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend** [proposed]
