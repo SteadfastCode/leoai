@@ -144,7 +144,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-060) LeoScan the scrape path — report only, never block**
+- [x] **(LEO-060) LeoScan the scrape path — report only, never block**
   LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
   header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
   during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
