@@ -85,10 +85,10 @@
   const container = document.createElement('div');
   container.id = 'leo-widget';
   container.innerHTML = `
-    <button id="leo-bubble" aria-label="Chat with Leo">
+    <button id="leo-bubble" type="button" aria-label="Chat with Leo" aria-expanded="false">
       <span id="leo-bubble-icon">🦁</span>
     </button>
-    <div id="leo-drawer" role="dialog" aria-label="Leo Chat" hidden>
+    <div id="leo-drawer" role="dialog" aria-modal="true" aria-label="Leo Chat" hidden>
       <div id="leo-resize-handle"></div>
       <div id="leo-resize-width-handle"></div>
       <div id="leo-header">
@@ -132,7 +132,7 @@
           </div>
         </div>
       </div>
-      <div id="leo-messages"></div>
+      <div id="leo-messages" aria-live="polite"></div>
       <div id="leo-offline-msg" hidden>⚠️ Connection lost — you can still type, Leo will send your messages once he's back.</div>
       <div id="leo-input-row">
         <input id="leo-input" type="text" placeholder="Ask me anything..." autocomplete="off" />
@@ -156,6 +156,14 @@
   const input      = document.getElementById('leo-input');
   const sendBtn    = document.getElementById('leo-send');
   const offlineMsg = document.getElementById('leo-offline-msg');
+
+  // --- Drawer visibility (LEO-053) ---
+  // Every show/hide goes through here so the bubble's aria-expanded can never
+  // drift out of step with drawer.hidden.
+  function setDrawerHidden(hidden) {
+    drawer.hidden = hidden;
+    bubble.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+  }
 
   // --- Backend health checks & message queue ---
   let isOnline     = true;
@@ -261,7 +269,7 @@
   document.getElementById('leo-consent-accept').addEventListener('click', acceptConsent);
 
   document.getElementById('leo-consent-decline').addEventListener('click', () => {
-    drawer.hidden = true;
+    setDrawerHidden(true);
   });
 
   document.getElementById('leo-consent-details-btn').addEventListener('click', () => {
@@ -307,7 +315,7 @@
       panelChip.parentNode?.removeChild(panelChip);
       panelChip = null;
       bubble.style.display = '';
-      drawer.hidden = false;
+      setDrawerHidden(false);
       restoreDrawerSize();
       checkHealth();
       if (hasConsented()) input.focus();
@@ -427,7 +435,7 @@
   // --- Toggle drawer ---
   bubble.addEventListener('click', () => {
     const isHidden = drawer.hidden;
-    drawer.hidden = !isHidden;
+    setDrawerHidden(!isHidden);
     if (isHidden) {
       hasBeenOpened = true;
       restoreDrawerSize();
@@ -444,12 +452,25 @@
   });
 
   closeBtn.addEventListener('click', () => {
-    drawer.hidden = true;
+    setDrawerHidden(true);
     menu.hidden = true;
     if (hasBeenOpened) {
       bubble.style.display = 'none';
       addToPanel();
     }
+  });
+
+  // --- Escape closes the drawer and hands focus back (LEO-053) ---
+  // Deliberately not the close button's behaviour: that one minimises the
+  // widget into the panel chip and hides the bubble, so there would be nothing
+  // left to focus. Escape just dismisses the dialog and returns the visitor to
+  // the control they opened it from.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || drawer.hidden) return;
+    e.preventDefault();
+    setDrawerHidden(true);
+    menu.hidden = true;
+    if (bubble.style.display !== 'none') bubble.focus();
   });
 
   // --- Resize handle ---
@@ -761,8 +782,10 @@
     options.forEach((opt, i) => {
       const hotkey = isYesNo ? (i === 0 ? 'Y' : 'N') : String(i + 1);
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'leo-option-btn';
       btn.dataset.value = opt;
+      btn.setAttribute('aria-label', `${opt} (press ${hotkey})`);
       btn.innerHTML = `<span class="leo-hotkey">${hotkey}</span>${opt}`;
       btn.addEventListener('click', () => selectOption(opt, options));
       wrap.appendChild(btn);
