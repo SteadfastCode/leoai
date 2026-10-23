@@ -143,27 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-056) Record pages that failed to fetch, and show the owner**
-  A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
-  silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
-  written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
-  pages" with no way to learn which URLs Leo never learned — the same class of silent loss that
-  multi-URL chunking and LEO-028 were built to end. Collect `failedUrls: [{ url, reason, status }]`
-  (reason one of `fetch_error`, `http_error`, `empty_after_render`) in `scrapeSite`/`rescrapeSite`,
-  return it in both summaries beside `skippedUrls`, persist it on the run's `ScrapeSnapshot`, and
-  render both lists as a "Not learned" section in the `KnowledgeBase.vue` scrape feed.
-  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines**, so it only
-  collects and returns; do the shaping in `backend/src/services/scrapePersist.js`),
-  `backend/src/models/ScrapeSnapshot.js` (a new optional field only — no `required`, no `unique`),
-  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/failed-urls.test.js`.
-  *Verify:* extend the offline harness from `backend/test/scrape-embed-containment.test.js` — run
-  the real `scrapeSite` against a local HTTP server serving two good pages, one 404 and one empty
-  body, with embeddings and Puppeteer stubbed: all four URLs accounted for, the two failures in
-  `failedUrls` with the right reason, the two good pages still chunked, and the crawl still
-  resolves. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: retrying failed URLs, any change to `CONCURRENCY`/`MAX_PAGES` or the Puppeteer
-  trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
-  populate the new field.
 
 - [ ] **(LEO-060) LeoScan the scrape path — report only, never block**
   LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
@@ -1381,6 +1360,27 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-056) Record pages that failed to fetch, and show the owner** (routine 2026-10-23, 5526f23)
+  A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
+  silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
+  written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
+  pages" with no way to learn which URLs Leo never learned — the same class of silent loss that
+  multi-URL chunking and LEO-028 were built to end. Collect `failedUrls: [{ url, reason, status }]`
+  (reason one of `fetch_error`, `http_error`, `empty_after_render`) in `scrapeSite`/`rescrapeSite`,
+  return it in both summaries beside `skippedUrls`, persist it on the run's `ScrapeSnapshot`, and
+  render both lists as a "Not learned" section in the `KnowledgeBase.vue` scrape feed.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines**, so it only
+  collects and returns; do the shaping in `backend/src/services/scrapePersist.js`),
+  `backend/src/models/ScrapeSnapshot.js` (a new optional field only — no `required`, no `unique`),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/failed-urls.test.js`.
+  *Verify:* extend the offline harness from `backend/test/scrape-embed-containment.test.js` — run
+  the real `scrapeSite` against a local HTTP server serving two good pages, one 404 and one empty
+  body, with embeddings and Puppeteer stubbed: all four URLs accounted for, the two failures in
+  `failedUrls` with the right reason, the two good pages still chunked, and the crawl still
+  resolves. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: retrying failed URLs, any change to `CONCURRENCY`/`MAX_PAGES` or the Puppeteer
+  trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
+  populate the new field.
 - [x] **(LEO-055) rag-eval: threshold sweep over the committed question set** (routine 2026-10-23, c064a1d)
   LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
   0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
