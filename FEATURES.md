@@ -142,26 +142,6 @@ It sits above "## Block L — Backlog upkeep" on purpose: returned work should g
 standing audit, which is last so it runs only when nothing else is claimable.
 
 
-- [x] **(LEO-055) rag-eval: threshold sweep over the committed question set**
-  LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
-  0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
-  `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
-  so there is no evidence for what a defensible default would be. Extract the scoring into a pure
-  `sweepThresholds(rows, thresholds)` in a new `backend/src/services/ragEval.js`: given the
-  per-question `topScore` the script already collects, return hit-rate plus the hit/miss id lists
-  at each candidate threshold (default 0.60–0.80, step 0.01) and the score distribution
-  (min/median/max). Print it as a sweep table under the existing per-domain scorecard. Retrieval
-  still runs once per question, at the lowest candidate threshold, so the sweep adds no embedding
-  calls and no write of any kind.
-  Files: new `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
-  `backend/test/rag-eval-sweep.test.js`.
-  *Verify:* `node --test` on `sweepThresholds` with fixture rows — all-miss, all-hit, a score
-  exactly on a candidate boundary counting as a hit, an empty set, unsorted input — with no DB and
-  no network in the test; `cd backend && yarn verify && yarn test`. The script itself needs live
-  Mongo and Voyage, so **running it against real entities is Daniel's step, not the routine's**;
-  the PR must not report a live run it did not do.
-  Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
-  `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
 
 - [ ] **(LEO-056) Record pages that failed to fetch, and show the owner**
   A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
@@ -1401,6 +1381,26 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-055) rag-eval: threshold sweep over the committed question set** (routine 2026-10-23, c064a1d)
+  LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
+  0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
+  `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
+  so there is no evidence for what a defensible default would be. Extract the scoring into a pure
+  `sweepThresholds(rows, thresholds)` in a new `backend/src/services/ragEval.js`: given the
+  per-question `topScore` the script already collects, return hit-rate plus the hit/miss id lists
+  at each candidate threshold (default 0.60–0.80, step 0.01) and the score distribution
+  (min/median/max). Print it as a sweep table under the existing per-domain scorecard. Retrieval
+  still runs once per question, at the lowest candidate threshold, so the sweep adds no embedding
+  calls and no write of any kind.
+  Files: new `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test` on `sweepThresholds` with fixture rows — all-miss, all-hit, a score
+  exactly on a candidate boundary counting as a hit, an empty set, unsorted input — with no DB and
+  no network in the test; `cd backend && yarn verify && yarn test`. The script itself needs live
+  Mongo and Voyage, so **running it against real entities is Daniel's step, not the routine's**;
+  the PR must not report a live run it did not do.
+  Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
+  `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
 - [x] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** (routine 2026-10-23, 3e2a4c4)
   `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
   region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no

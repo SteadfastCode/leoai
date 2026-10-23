@@ -72,7 +72,7 @@
     "LEO-055": {
       "order": 5,
       "title": "rag-eval: threshold sweep over the committed question set",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-055",
