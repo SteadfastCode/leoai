@@ -141,6 +141,68 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
+- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return**
+  `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
+  region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
+  `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
+  the drawer at all — the one document-level `keydown` listener is the quick-reply hotkey handler,
+  which returns early unless options are showing; the bubble has no `aria-expanded`. Add
+  `aria-live="polite"` on the message list, `aria-modal="true"` on the drawer, `aria-expanded` on
+  the bubble kept in sync with `drawer.hidden`, Escape closing the drawer and restoring focus to
+  the bubble, and `type="button"` plus an accessible name including the hotkey on quick-reply pills.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the
+  denylist with LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended to assert each attribute after boot, that a
+  `keydown` Escape dispatched on `document` hides the drawer and leaves `document.activeElement`
+  as the bubble, and that Escape while an options set is showing still does not fire the hotkey
+  path. Existing render assertions must stay green. Post-deploy: `GET /demo/chatbot.js` is 200,
+  byte length within ±25% of the committed file, `node --check` clean on the downloaded body.
+  Out of scope: a full focus trap, colour-contrast or dark-mode palette changes, testing against
+  a real screen reader, the consent screen's markup, and the drag-to-resize handler.
+
+- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set**
+  LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
+  0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
+  `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
+  so there is no evidence for what a defensible default would be. Extract the scoring into a pure
+  `sweepThresholds(rows, thresholds)` in a new `backend/src/services/ragEval.js`: given the
+  per-question `topScore` the script already collects, return hit-rate plus the hit/miss id lists
+  at each candidate threshold (default 0.60–0.80, step 0.01) and the score distribution
+  (min/median/max). Print it as a sweep table under the existing per-domain scorecard. Retrieval
+  still runs once per question, at the lowest candidate threshold, so the sweep adds no embedding
+  calls and no write of any kind.
+  Files: new `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test` on `sweepThresholds` with fixture rows — all-miss, all-hit, a score
+  exactly on a candidate boundary counting as a hit, an empty set, unsorted input — with no DB and
+  no network in the test; `cd backend && yarn verify && yarn test`. The script itself needs live
+  Mongo and Voyage, so **running it against real entities is Daniel's step, not the routine's**;
+  the PR must not report a live run it did not do.
+  Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
+  `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
+
+- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner**
+  A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
+  silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
+  written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
+  pages" with no way to learn which URLs Leo never learned — the same class of silent loss that
+  multi-URL chunking and LEO-028 were built to end. Collect `failedUrls: [{ url, reason, status }]`
+  (reason one of `fetch_error`, `http_error`, `empty_after_render`) in `scrapeSite`/`rescrapeSite`,
+  return it in both summaries beside `skippedUrls`, persist it on the run's `ScrapeSnapshot`, and
+  render both lists as a "Not learned" section in the `KnowledgeBase.vue` scrape feed.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines**, so it only
+  collects and returns; do the shaping in `backend/src/services/scrapePersist.js`),
+  `backend/src/models/ScrapeSnapshot.js` (a new optional field only — no `required`, no `unique`),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/failed-urls.test.js`.
+  *Verify:* extend the offline harness from `backend/test/scrape-embed-containment.test.js` — run
+  the real `scrapeSite` against a local HTTP server serving two good pages, one 404 and one empty
+  body, with embeddings and Puppeteer stubbed: all four URLs accounted for, the two failures in
+  `failedUrls` with the right reason, the two good pages still chunked, and the crawl still
+  resolves. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: retrying failed URLs, any change to `CONCURRENCY`/`MAX_PAGES` or the Puppeteer
+  trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
+  populate the new field.
+
 ## Proposed
 
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
@@ -195,25 +257,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: a persistent lockout flag on `User`, captcha, a shared (Redis) store, any change
   to the `/chat` limiter's own limits, and anything under `.github/**`.
 
-- [ ] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** [proposed]
-  `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
-  region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
-  `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
-  the drawer at all — the one document-level `keydown` listener is the quick-reply hotkey handler,
-  which returns early unless options are showing; the bubble has no `aria-expanded`. Add
-  `aria-live="polite"` on the message list, `aria-modal="true"` on the drawer, `aria-expanded` on
-  the bubble kept in sync with `drawer.hidden`, Escape closing the drawer and restoring focus to
-  the bubble, and `type="button"` plus an accessible name including the hotkey on quick-reply pills.
-  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the
-  denylist with LEO-003.
-  *Verify:* `node widget/smoke.mjs`, extended to assert each attribute after boot, that a
-  `keydown` Escape dispatched on `document` hides the drawer and leaves `document.activeElement`
-  as the bubble, and that Escape while an options set is showing still does not fire the hotkey
-  path. Existing render assertions must stay green. Post-deploy: `GET /demo/chatbot.js` is 200,
-  byte length within ±25% of the committed file, `node --check` clean on the downloaded body.
-  Out of scope: a full focus trap, colour-contrast or dark-mode palette changes, testing against
-  a real screen reader, the consent screen's markup, and the drag-to-resize handler.
-
 - [ ] **(LEO-054) Classify and surface upstream provider failures** [needs-human]
   The Anthropic outage first recorded in `ops/leo-nightly/incident-20260820T0107Z.md` has failed
   the baseline smoke for roughly four weeks, and nothing in the product noticed: `services/claude.js`
@@ -240,49 +283,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: sending any alert — recording and display only; `backend/index.js` and `/health`
   (denylisted); retry or back-off policy changes; `services/embeddings.js` (denylisted), so Voyage
   failures stay out of this slice; persisting the window to Mongo.
-
-- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set** [proposed]
-  LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
-  0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
-  `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
-  so there is no evidence for what a defensible default would be. Extract the scoring into a pure
-  `sweepThresholds(rows, thresholds)` in a new `backend/src/services/ragEval.js`: given the
-  per-question `topScore` the script already collects, return hit-rate plus the hit/miss id lists
-  at each candidate threshold (default 0.60–0.80, step 0.01) and the score distribution
-  (min/median/max). Print it as a sweep table under the existing per-domain scorecard. Retrieval
-  still runs once per question, at the lowest candidate threshold, so the sweep adds no embedding
-  calls and no write of any kind.
-  Files: new `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
-  `backend/test/rag-eval-sweep.test.js`.
-  *Verify:* `node --test` on `sweepThresholds` with fixture rows — all-miss, all-hit, a score
-  exactly on a candidate boundary counting as a hit, an empty set, unsorted input — with no DB and
-  no network in the test; `cd backend && yarn verify && yarn test`. The script itself needs live
-  Mongo and Voyage, so **running it against real entities is Daniel's step, not the routine's**;
-  the PR must not report a live run it did not do.
-  Out of scope: changing any `ragThreshold` default or the sibling offset, editing `rag.js` or the
-  `$vectorSearch` stage, adding questions to the fixture set, re-embedding or re-scraping anything.
-
-- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner** [proposed]
-  A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
-  silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
-  written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
-  pages" with no way to learn which URLs Leo never learned — the same class of silent loss that
-  multi-URL chunking and LEO-028 were built to end. Collect `failedUrls: [{ url, reason, status }]`
-  (reason one of `fetch_error`, `http_error`, `empty_after_render`) in `scrapeSite`/`rescrapeSite`,
-  return it in both summaries beside `skippedUrls`, persist it on the run's `ScrapeSnapshot`, and
-  render both lists as a "Not learned" section in the `KnowledgeBase.vue` scrape feed.
-  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines**, so it only
-  collects and returns; do the shaping in `backend/src/services/scrapePersist.js`),
-  `backend/src/models/ScrapeSnapshot.js` (a new optional field only — no `required`, no `unique`),
-  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/failed-urls.test.js`.
-  *Verify:* extend the offline harness from `backend/test/scrape-embed-containment.test.js` — run
-  the real `scrapeSite` against a local HTTP server serving two good pages, one 404 and one empty
-  body, with embeddings and Puppeteer stubbed: all four URLs accounted for, the two failures in
-  `failedUrls` with the right reason, the two good pages still chunked, and the crawl still
-  resolves. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: retrying failed URLs, any change to `CONCURRENCY`/`MAX_PAGES` or the Puppeteer
-  trigger heuristic, notifying the owner by email or SMS, and scraping any real entity to
-  populate the new field.
 
 - [ ] **(LEO-060) LeoScan the scrape path — report only, never block** [proposed]
   LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
