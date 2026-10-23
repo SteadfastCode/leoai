@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { getPages, triggerScrape, getKbEntries, addKbEntry, uploadKbFile, deleteKbEntry, getChunks, searchKb } from '../lib/api'
 import { isSuperAdmin } from '../lib/auth'
 import { socket } from '../lib/socket'
+import { notLearnedFromSummary } from '../lib/notLearned'
 
 const props = defineProps(['domain', 'entity'])
 const pages = ref([])
@@ -14,6 +15,11 @@ const snackbarMsg = ref('')
 
 const scrapeLog = ref([])
 const logEl = ref(null)
+
+// URLs this run never learned — fetch/HTTP failures and pages that came back
+// empty, plus LEO-019's embedding skips. Both arrive on the scrape_complete
+// summary, from a manual scrape and from LeoRefresh alike (LEO-056).
+const notLearned = computed(() => notLearnedFromSummary(scrapeResult.value))
 
 // ── Manual KB entries ──────────────────────────────────────────────────────
 const kbEntries = ref([])
@@ -554,7 +560,7 @@ function sourceColor(source) {
     </v-card>
 
     <!-- Live scrape feed -->
-    <v-card v-if="scraping || scrapeLog.length" rounded="lg" elevation="0" border class="mb-4">
+    <v-card v-if="scraping || scrapeLog.length || notLearned.length" rounded="lg" elevation="0" border class="mb-4">
       <v-card-title class="text-body-2 font-weight-medium pa-3 pb-0 d-flex align-center gap-2">
         <v-progress-circular v-if="scraping" indeterminate size="14" width="2" color="primary" class="mr-1" />
         <v-icon v-else size="16" color="success">mdi-check-circle</v-icon>
@@ -591,6 +597,35 @@ function sourceColor(source) {
         </div>
         <div v-if="!scrapeLog.length" class="text-medium-emphasis text-caption pa-2">
           Waiting for first page…
+        </div>
+      </div>
+
+      <!-- Not learned — URLs the run lost, so "N pages" is never the whole story -->
+      <div v-if="notLearned.length" class="not-learned pa-3 pt-2">
+        <div class="text-caption font-weight-medium d-flex align-center gap-1 mb-2">
+          <v-icon size="15" color="warning">mdi-alert-circle-outline</v-icon>
+          Not learned &mdash; {{ notLearned.length }} {{ notLearned.length === 1 ? 'page' : 'pages' }}
+        </div>
+        <div class="not-learned-list">
+          <div
+            v-for="item in notLearned"
+            :key="item.url"
+            class="scrape-log-entry text-caption d-flex align-center gap-1"
+          >
+            <v-chip
+              size="x-small"
+              color="warning"
+              variant="tonal"
+              class="flex-shrink-0"
+              label
+              :title="item.hint"
+            >{{ item.label }}{{ item.status ? ' ' + item.status : '' }}</v-chip>
+            <a
+              :href="item.url"
+              target="_blank"
+              class="log-url text-medium-emphasis text-decoration-none"
+            >{{ item.url }}</a>
+          </div>
         </div>
       </div>
     </v-card>
@@ -757,6 +792,19 @@ function sourceColor(source) {
 .scrape-log-entry {
   animation: fadeSlideIn 0.2s ease;
   min-width: 0;
+}
+
+.not-learned {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  font-family: monospace;
+}
+
+.not-learned-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .log-url {
