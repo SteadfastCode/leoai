@@ -141,24 +141,6 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-- [x] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return**
-  `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
-  region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
-  `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
-  the drawer at all — the one document-level `keydown` listener is the quick-reply hotkey handler,
-  which returns early unless options are showing; the bubble has no `aria-expanded`. Add
-  `aria-live="polite"` on the message list, `aria-modal="true"` on the drawer, `aria-expanded` on
-  the bubble kept in sync with `drawer.hidden`, Escape closing the drawer and restoring focus to
-  the bubble, and `type="button"` plus an accessible name including the hotkey on quick-reply pills.
-  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the
-  denylist with LEO-003.
-  *Verify:* `node widget/smoke.mjs`, extended to assert each attribute after boot, that a
-  `keydown` Escape dispatched on `document` hides the drawer and leaves `document.activeElement`
-  as the bubble, and that Escape while an options set is showing still does not fire the hotkey
-  path. Existing render assertions must stay green. Post-deploy: `GET /demo/chatbot.js` is 200,
-  byte length within ±25% of the committed file, `node --check` clean on the downloaded body.
-  Out of scope: a full focus trap, colour-contrast or dark-mode palette changes, testing against
-  a real screen reader, the consent screen's markup, and the drag-to-resize handler.
 
 - [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set**
   LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
@@ -1419,6 +1401,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-053) Widget accessibility: live region, Escape-to-close, focus return** (routine 2026-10-23, 3e2a4c4)
+  `widget/chatbot.js` carries five `aria-label`s and nothing else. `#leo-messages` is not a live
+  region, so a screen reader never announces Leo's reply; `#leo-drawer` has `role="dialog"` but no
+  `aria-modal`, and focus is never returned to `#leo-bubble` when it closes; Escape does not close
+  the drawer at all — the one document-level `keydown` listener is the quick-reply hotkey handler,
+  which returns early unless options are showing; the bubble has no `aria-expanded`. Add
+  `aria-live="polite"` on the message list, `aria-modal="true"` on the drawer, `aria-expanded` on
+  the bubble kept in sync with `drawer.hidden`, Escape closing the drawer and restoring focus to
+  the bubble, and `type="button"` plus an accessible name including the hotkey on quick-reply pills.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the
+  denylist with LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended to assert each attribute after boot, that a
+  `keydown` Escape dispatched on `document` hides the drawer and leaves `document.activeElement`
+  as the bubble, and that Escape while an options set is showing still does not fire the hotkey
+  path. Existing render assertions must stay green. Post-deploy: `GET /demo/chatbot.js` is 200,
+  byte length within ±25% of the committed file, `node --check` clean on the downloaded body.
+  Out of scope: a full focus trap, colour-contrast or dark-mode palette changes, testing against
+  a real screen reader, the consent screen's markup, and the drag-to-resize handler.
 - [x] **(LEO-103) Backlog audit: file new candidates under Proposed** (routine 2026-10-20, 3b952d1)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
