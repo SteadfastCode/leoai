@@ -144,39 +144,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-060) LeoScan the scrape path — report only, never block**
-  LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
-  header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
-  during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
-  rationale rules out *blocking*, not *reporting* — and the wishlist's own framing is that finding it
-  is the feature. Today a password or API key on a scraped page is embedded and answerable, with
-  nothing anywhere saying so. Run the existing rule set over scraped chunks as they are persisted,
-  record **rule names only, never the matched text**, and never skip, alter, reorder or delete a
-  chunk. Shaping in a new `backend/src/services/scanSweep.js`: `sweepChunks(chunks)` →
-  `[{ url, rules: [String] }]`, deduped per URL, crediting every entry in a group chunk's
-  `sourceUrls`. Call it from the two persistence sites — `onChunks` in `backend/src/routes/scrape.js`
-  (full/force) and `persistRescrapeResult` in `backend/src/services/scrapePersist.js` (rescrape and
-  LeoRefresh) — and store an optional `scanRules: [String]` (no `required`, no `unique`, default
-  `[]`) on `ScrapedPage`, so a page that stops tripping clears itself on the next crawl. Surface as a
-  warning chip plus filter in `dashboard/src/views/PageExplorer.vue`, beside the existing "V" variant
-  chip. Tiered logging: at light tier one line per scrape naming how many URLs tripped and which
-  rules fired — never the matched text, never a line per chunk.
-  Files: new `backend/src/services/scanSweep.js`, `backend/src/routes/scrape.js`,
-  `backend/src/services/scrapePersist.js`, `backend/src/models/ScrapedPage.js`,
-  `dashboard/src/views/PageExplorer.vue`, `backend/test/scan-sweep.test.js`.
-  `backend/src/services/scraper.js` must have a **zero-line diff** — the sweep runs at persistence,
-  not during the crawl.
-  *Verify:* `node --test` on `sweepChunks` with inline fixtures — clean chunks yield nothing, a chunk
-  containing a labelled password yields its URL and the rule name, a group chunk credits all three of
-  its `sourceUrls`, and the serialized result contains none of the matched secret text; plus the
-  committed `backend/test/fixtures/leoscan-negative-corpus.json` sweeping to zero findings (it is the
-  28-chunk real-world negative corpus LEO-021 validated against). Extend
-  `backend/test/scrape-persist.test.js` to assert chunk count and chunk content are identical with and
-  without a flagged chunk in the batch — the sweep must be provably inert. `cd backend && yarn verify
-  && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: blocking, dropping or redacting any chunk; the wishlist's Haiku semantic pass;
-  notifying the owner by email or SMS; a dismiss/acknowledge workflow; new detection rules (the
-  LEO-021 set is used as-is); and scraping any real entity.
 
 - [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives**
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
@@ -1360,6 +1327,39 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-060) LeoScan the scrape path — report only, never block** (routine 2026-10-23, 1ad7b75)
+  LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
+  header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
+  during an unattended rescrape would silently drop legitimate chunks with nobody watching. That
+  rationale rules out *blocking*, not *reporting* — and the wishlist's own framing is that finding it
+  is the feature. Today a password or API key on a scraped page is embedded and answerable, with
+  nothing anywhere saying so. Run the existing rule set over scraped chunks as they are persisted,
+  record **rule names only, never the matched text**, and never skip, alter, reorder or delete a
+  chunk. Shaping in a new `backend/src/services/scanSweep.js`: `sweepChunks(chunks)` →
+  `[{ url, rules: [String] }]`, deduped per URL, crediting every entry in a group chunk's
+  `sourceUrls`. Call it from the two persistence sites — `onChunks` in `backend/src/routes/scrape.js`
+  (full/force) and `persistRescrapeResult` in `backend/src/services/scrapePersist.js` (rescrape and
+  LeoRefresh) — and store an optional `scanRules: [String]` (no `required`, no `unique`, default
+  `[]`) on `ScrapedPage`, so a page that stops tripping clears itself on the next crawl. Surface as a
+  warning chip plus filter in `dashboard/src/views/PageExplorer.vue`, beside the existing "V" variant
+  chip. Tiered logging: at light tier one line per scrape naming how many URLs tripped and which
+  rules fired — never the matched text, never a line per chunk.
+  Files: new `backend/src/services/scanSweep.js`, `backend/src/routes/scrape.js`,
+  `backend/src/services/scrapePersist.js`, `backend/src/models/ScrapedPage.js`,
+  `dashboard/src/views/PageExplorer.vue`, `backend/test/scan-sweep.test.js`.
+  `backend/src/services/scraper.js` must have a **zero-line diff** — the sweep runs at persistence,
+  not during the crawl.
+  *Verify:* `node --test` on `sweepChunks` with inline fixtures — clean chunks yield nothing, a chunk
+  containing a labelled password yields its URL and the rule name, a group chunk credits all three of
+  its `sourceUrls`, and the serialized result contains none of the matched secret text; plus the
+  committed `backend/test/fixtures/leoscan-negative-corpus.json` sweeping to zero findings (it is the
+  28-chunk real-world negative corpus LEO-021 validated against). Extend
+  `backend/test/scrape-persist.test.js` to assert chunk count and chunk content are identical with and
+  without a flagged chunk in the batch — the sweep must be provably inert. `cd backend && yarn verify
+  && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: blocking, dropping or redacting any chunk; the wishlist's Haiku semantic pass;
+  notifying the owner by email or SMS; a dismiss/acknowledge workflow; new detection rules (the
+  LEO-021 set is used as-is); and scraping any real entity.
 - [x] **(LEO-056) Record pages that failed to fetch, and show the owner** (routine 2026-10-23, 5526f23)
   A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
   silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
