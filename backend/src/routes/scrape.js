@@ -7,6 +7,7 @@ const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
 const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls } = require('../services/scrapePersist');
+const { sweepChunks, mergeSweep, logSweep } = require('../services/scanSweep');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
@@ -45,7 +46,7 @@ router.get('/pages', requireAuth(), async (req, res) => {
       .sort({ url: 1 })
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .select('url priority usedPuppeteer hasVariants chunkCount lastScrapedAt lastChangedAt -_id'),
+      .select('url priority usedPuppeteer hasVariants chunkCount scanRules lastScrapedAt lastChangedAt -_id'),
     ScrapedPage.countDocuments(filter),
     Entity.findOne({ domain }).select('lastScrapedAt name -_id'),
   ]);
@@ -179,6 +180,10 @@ router.post('/', requireAuth(), async (req, res) => {
 
       let totalChunks = 0;
       const chunkCountByUrl = {};
+      // Report-only LeoScan findings, accumulated across batches (LEO-060).
+      // Thin group chunks arrive in the LAST onChunks call, so a page's rule
+      // list is only complete by the time the final bulkWrite runs.
+      const scanRulesByUrl = {};
 
       const { pageData, durationMs, skippedUrls, failedUrls } = await scrapeSite(url, {
         ...opts,
@@ -188,12 +193,15 @@ router.post('/', requireAuth(), async (req, res) => {
           totalChunks += batchChunks.length;
           // Credits every URL in a group chunk's sourceUrls, not just the group URL.
           tallyChunkCounts(batchChunks, chunkCountByUrl);
+          // Scan AFTER the insert, and only record rule names: the sweep reports,
+          // it never decides what is stored.
+          mergeSweep(scanRulesByUrl, sweepChunks(batchChunks));
           // Upsert ScrapedPage records progressively for non-thin pages
           if (pageRecords.length > 0) {
             await Promise.all(pageRecords.map(p =>
               ScrapedPage.findOneAndUpdate(
                 { domain, url: p.url },
-                { contentHash: p.hash, priority: p.priority, usedPuppeteer: !!p.usedPuppeteer, hasVariants: !!p.hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[p.url] || 0 },
+                { contentHash: p.hash, priority: p.priority, usedPuppeteer: !!p.usedPuppeteer, hasVariants: !!p.hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[p.url] || 0, scanRules: scanRulesByUrl[p.url] || [] },
                 { upsert: true }
               )
             ));
@@ -210,7 +218,7 @@ router.post('/', requireAuth(), async (req, res) => {
           pageData.map(({ url: pageUrl, hash, usedPuppeteer, hasVariants }) => ({
             updateOne: {
               filter: { domain, url: pageUrl },
-              update: { $set: { contentHash: hash, usedPuppeteer: !!usedPuppeteer, hasVariants: !!hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] || 0 } },
+              update: { $set: { contentHash: hash, usedPuppeteer: !!usedPuppeteer, hasVariants: !!hasVariants, lastScrapedAt: new Date(), lastChangedAt: new Date(), chunkCount: chunkCountByUrl[pageUrl] || 0, scanRules: scanRulesByUrl[pageUrl] || [] } },
               upsert: true,
             },
           }))
@@ -222,6 +230,9 @@ router.post('/', requireAuth(), async (req, res) => {
         { name, timezone: timezone || 'America/New_York', lastScrapedAt: new Date() },
         { upsert: true, new: true }
       );
+
+      // One line for the whole crawl — never one per chunk, never the matched text.
+      logSweep(domain, scanRulesByUrl, totalChunks);
 
       // Shape + persist the URLs this crawl never learned, then report them.
       const notLearned = await recordFailedUrls(runSnapshot?._id, failedUrls);

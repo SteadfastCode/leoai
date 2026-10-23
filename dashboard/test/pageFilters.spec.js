@@ -6,14 +6,15 @@ import {
   FILTER_QUERY_KEYS,
   RENDERER_VALUES,
   PRIORITY_VALUES,
+  SCAN_VALUES,
 } from '../src/lib/pageFilters'
 
-const p = (url, usedPuppeteer, priority) => ({ url, usedPuppeteer, priority })
+const p = (url, usedPuppeteer, priority, scanRules) => ({ url, usedPuppeteer, priority, scanRules })
 
 const PAGES = [
   p('https://dosiedough.com/',            false, 'high'),
-  p('https://dosiedough.com/menu',        false, 'normal'),
-  p('https://shop.dosiedough.com/breads', true,  'high'),
+  p('https://dosiedough.com/menu',        false, 'normal', []),
+  p('https://shop.dosiedough.com/breads', true,  'high',   ['labelled_password']),
   p('https://shop.dosiedough.com/cakes',  true,  undefined),
 ]
 
@@ -27,7 +28,7 @@ describe('filterPages', () => {
   it('returns every page with no filters applied', () => {
     expect(filterPages(PAGES)).toHaveLength(4)
     expect(filterPages(PAGES, {})).toHaveLength(4)
-    expect(filterPages(PAGES, { search: '', renderer: 'all', priority: 'all' })).toHaveLength(4)
+    expect(filterPages(PAGES, { search: '', renderer: 'all', priority: 'all', scan: 'all' })).toHaveLength(4)
   })
 
   it('matches search against the url, case-insensitively', () => {
@@ -84,6 +85,29 @@ describe('filterPages', () => {
     ).toHaveLength(0)
   })
 
+  // Report-only LeoScan findings (LEO-060). A flagged page is still fully in the
+  // knowledge base — the filter exists to find it, not because it was dropped.
+  it('filters by scan findings on scanRules', () => {
+    expect(filterPages(PAGES, { scan: 'flagged' }).map((x) => x.url)).toEqual([
+      'https://shop.dosiedough.com/breads',
+    ])
+    expect(filterPages(PAGES, { scan: 'all' })).toHaveLength(4)
+    expect(filterPages(PAGES)).toHaveLength(4)
+  })
+
+  it('treats a missing or empty scanRules as nothing tripped', () => {
+    // Pages scraped before LEO-060 have no scanRules field at all
+    expect(filterPages([{ url: 'https://x.test/a' }], { scan: 'flagged' })).toEqual([])
+    expect(filterPages([{ url: 'https://x.test/a', scanRules: [] }], { scan: 'flagged' })).toEqual([])
+  })
+
+  it('combines the scan filter with the others', () => {
+    expect(filterPages(PAGES, { scan: 'flagged', renderer: 'html' })).toHaveLength(0)
+    expect(
+      filterPages(PAGES, { scan: 'flagged', renderer: 'js', priority: 'high', search: 'breads' }),
+    ).toHaveLength(1)
+  })
+
   it('does not mutate the input list', () => {
     const list = [...PAGES]
     filterPages(list, { renderer: 'js' })
@@ -93,8 +117,8 @@ describe('filterPages', () => {
 
 describe('parseFilterQuery', () => {
   it('defaults every filter on an empty or missing query', () => {
-    expect(parseFilterQuery({})).toEqual({ search: '', renderer: 'all', priority: 'all' })
-    expect(parseFilterQuery()).toEqual({ search: '', renderer: 'all', priority: 'all' })
+    expect(parseFilterQuery({})).toEqual({ search: '', renderer: 'all', priority: 'all', scan: 'all' })
+    expect(parseFilterQuery()).toEqual({ search: '', renderer: 'all', priority: 'all', scan: 'all' })
   })
 
   it('reads known values through', () => {
@@ -102,15 +126,18 @@ describe('parseFilterQuery', () => {
       search: 'cakes',
       renderer: 'js',
       priority: 'high',
+      scan: 'all',
     })
     expect(parseFilterQuery({ renderer: 'html', priority: 'normal' })).toEqual({
       search: '',
       renderer: 'html',
       priority: 'normal',
+      scan: 'all',
     })
   })
 
   it('falls back to all on an unknown query value', () => {
+    expect(parseFilterQuery({ scan: 'blocked' }).scan).toBe('all')
     expect(parseFilterQuery({ renderer: 'webflow' }).renderer).toBe('all')
     expect(parseFilterQuery({ priority: 'urgent' }).priority).toBe('all')
     expect(parseFilterQuery({ renderer: 'JS' }).renderer).toBe('all')
@@ -124,6 +151,7 @@ describe('parseFilterQuery', () => {
       search: '',
       renderer: 'all',
       priority: 'all',
+      scan: 'all',
     })
   })
 
@@ -132,13 +160,14 @@ describe('parseFilterQuery', () => {
       search: '',
       renderer: 'all',
       priority: 'all',
+      scan: 'all',
     })
   })
 })
 
 describe('toFilterQuery', () => {
   it('emits no keys when every filter is at its default', () => {
-    expect(toFilterQuery({ search: '', renderer: 'all', priority: 'all' })).toEqual({})
+    expect(toFilterQuery({ search: '', renderer: 'all', priority: 'all', scan: 'all' })).toEqual({})
     expect(toFilterQuery({})).toEqual({})
     expect(toFilterQuery()).toEqual({})
     expect(Object.keys(toFilterQuery({ search: null }))).toEqual([])
@@ -152,6 +181,7 @@ describe('toFilterQuery', () => {
 
   it('emits only the non-default keys', () => {
     expect(toFilterQuery({ renderer: 'js' })).toEqual({ renderer: 'js' })
+    expect(toFilterQuery({ scan: 'flagged' })).toEqual({ scan: 'flagged' })
     expect(toFilterQuery({ search: 'cakes', priority: 'high' })).toEqual({
       search: 'cakes',
       priority: 'high',
@@ -164,15 +194,17 @@ describe('toFilterQuery', () => {
   })
 
   it('only ever emits keys the view knows to clear', () => {
-    const query = toFilterQuery({ search: 'cakes', renderer: 'js', priority: 'high' })
+    const query = toFilterQuery({ search: 'cakes', renderer: 'js', priority: 'high', scan: 'flagged' })
     expect(Object.keys(query).every((k) => FILTER_QUERY_KEYS.includes(k))).toBe(true)
   })
 
   it('round-trips every filter state through parseFilterQuery', () => {
     for (const renderer of RENDERER_VALUES) {
       for (const priority of PRIORITY_VALUES) {
-        const state = { search: 'menu', renderer, priority }
-        expect(parseFilterQuery(toFilterQuery(state))).toEqual(state)
+        for (const scan of SCAN_VALUES) {
+          const state = { search: 'menu', renderer, priority, scan }
+          expect(parseFilterQuery(toFilterQuery(state))).toEqual(state)
+        }
       }
     }
   })

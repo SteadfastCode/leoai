@@ -13,6 +13,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { REASONS } = require('./fetchFailure');
+const { sweepChunks, mergeSweep, logSweep } = require('./scanSweep');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
@@ -183,6 +184,13 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     // credited on its own ScrapedPage row rather than written back as zero.
     const chunkCountByUrl = tallyChunkCounts([...embeddedChunks, ...thinGroupChunks]);
 
+    // Report-only LeoScan sweep (LEO-060). Rule names only, computed from the
+    // chunks that are about to be written and recorded beside them — it never
+    // decides whether a chunk is written, so the persistence below is identical
+    // whether or not anything tripped.
+    const scanRulesByUrl = mergeSweep({}, sweepChunks([...embeddedChunks, ...thinGroupChunks]));
+    logSweep(domain, scanRulesByUrl, embeddedChunks.length + thinGroupChunks.length);
+
     const normalByUrl = groupByUrl(embeddedChunks);
     for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of pageHashUpdates) {
       // Embedding failed for this page — leave its old chunks AND its old contentHash
@@ -202,6 +210,8 @@ async function persistRescrapeResult({ domain, result, io = null }) {
         usedPuppeteer: !!usedPuppeteer,
         lastScrapedAt: new Date(),
         chunkCount: chunkCountByUrl[pageUrl] || 0,
+        // Always written, including as [] — a page that stops tripping clears itself.
+        scanRules: scanRulesByUrl[pageUrl] || [],
       };
       // rescrapeSite does not report hasVariants on pageHashUpdates. Writing
       // `!!undefined` would clear the flag on every rescrape of a variant page,
