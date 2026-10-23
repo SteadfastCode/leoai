@@ -142,7 +142,7 @@ It sits above "## Block L — Backlog upkeep" on purpose: returned work should g
 standing audit, which is last so it runs only when nothing else is claimable.
 
 
-- [ ] **(LEO-055) rag-eval: threshold sweep over the committed question set**
+- [x] **(LEO-055) rag-eval: threshold sweep over the committed question set**
   LEO-037's finding is the largest known quality gap still open — 0/12 natural-phrasing hits at
   0.75 across smoke/dosiedough/campcalvary, with scores clustering 0.63–0.74 — and
   `backend/src/scripts/rag-eval.js` still reports hit/miss only at the entity's own `ragThreshold`,
