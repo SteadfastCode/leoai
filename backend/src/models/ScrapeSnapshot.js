@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+// One URL the run never learned (LEO-056). Optional and additive — a snapshot
+// written before this field existed simply has an empty array.
+// reason: 'fetch_error' | 'http_error' | 'empty_after_render' — left as a plain
+// String rather than an enum so an older backend reading a newer snapshot, or a
+// future reason, can never make an existing document fail validation on save.
+const failedUrlSchema = new mongoose.Schema(
+  {
+    url:    { type: String },
+    reason: { type: String },
+    status: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
 // Metadata record for a scrape backup snapshot.
 // Actual archived chunks live in ArchivedChunk, referenced by snapshotId.
 const scrapeSnapshotSchema = new mongoose.Schema(
@@ -9,6 +23,7 @@ const scrapeSnapshotSchema = new mongoose.Schema(
     chunkCount:   { type: Number, default: 0 },
     pageCount:    { type: Number, default: 0 },
     affectedUrls: { type: [String], default: [] }, // all URLs for full/force; changed URLs for rescrape
+    failedUrls:   { type: [failedUrlSchema], default: [] }, // URLs the crawl never learned (LEO-056)
   },
   { timestamps: true }
 );

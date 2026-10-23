@@ -6,7 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
-const { createSnapshot, persistRescrapeResult, tallyChunkCounts } = require('../services/scrapePersist');
+const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls } = require('../services/scrapePersist');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
@@ -129,6 +129,11 @@ router.post('/', requireAuth(), async (req, res) => {
     const isForce    = force && isSuperAdmin(req.user);
     const isRescrape = !isForce && rescrape && storedPages.length > 0;
     const mode = isForce ? 'force' : isRescrape ? 'rescrape' : 'full';
+    // The snapshot this run's not-learned URLs are recorded on (LEO-056). A force
+    // scrape takes its snapshot here and then deletes the chunks, so the 'full'
+    // snapshot taken below finds nothing to archive and returns null — keep whichever
+    // of the two actually exists.
+    let runSnapshot = null;
 
     activeScrapes.set(domain, { url, name, startedAt: new Date(), mode });
 
@@ -136,7 +141,7 @@ router.post('/', requireAuth(), async (req, res) => {
       // Force rescrape: same as full scrape but triggered on an existing entity.
       // Snapshot current chunks before wiping so they can be restored.
       recordAudit(req, 'scrape.force', { domain, details: { url } });
-      await createSnapshot(domain, 'force');
+      runSnapshot = await createSnapshot(domain, 'force');
       await Chunk.deleteMany({ domain, source: { $nin: PRESERVED_SOURCES } });
       await ScrapedPage.deleteMany({ domain });
     }
@@ -146,7 +151,7 @@ router.post('/', requireAuth(), async (req, res) => {
 
       // Snapshot + per-URL insert-before-delete + ScrapedPage upserts.
       // Shared with LeoRefresh — see services/scrapePersist.js.
-      const { pagesChanged } = await persistRescrapeResult({ domain, result, io: broadcastedIo });
+      const { pagesChanged, failedUrls } = await persistRescrapeResult({ domain, result, io: broadcastedIo });
 
       const summary = {
         success: true,
@@ -156,6 +161,7 @@ router.post('/', requireAuth(), async (req, res) => {
         pagesUnchanged: result.unchangedUrls.length,
         chunksUpdated: result.embeddedChunks.length + result.thinGroupChunks.length,
         skippedUrls: result.skippedUrls || [],
+        failedUrls,
         durationMs: result.durationMs,
         durationFormatted: formatDuration(result.durationMs),
       };
@@ -165,7 +171,7 @@ router.post('/', requireAuth(), async (req, res) => {
       res.json(summary);
     } else {
       // Snapshot existing scraped chunks before wiping (full scrape is destructive)
-      await createSnapshot(domain, 'full');
+      runSnapshot = (await createSnapshot(domain, 'full')) || runSnapshot;
 
       // Delete only scraped chunks — preserve manual, upload, and owner_reply chunks.
       await Chunk.deleteMany({ domain, source: { $nin: PRESERVED_SOURCES } });
@@ -174,7 +180,7 @@ router.post('/', requireAuth(), async (req, res) => {
       let totalChunks = 0;
       const chunkCountByUrl = {};
 
-      const { pageData, durationMs, skippedUrls } = await scrapeSite(url, {
+      const { pageData, durationMs, skippedUrls, failedUrls } = await scrapeSite(url, {
         ...opts,
         // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
         onChunks: async (batchChunks, pageRecords = []) => {
@@ -217,12 +223,16 @@ router.post('/', requireAuth(), async (req, res) => {
         { upsert: true, new: true }
       );
 
+      // Shape + persist the URLs this crawl never learned, then report them.
+      const notLearned = await recordFailedUrls(runSnapshot?._id, failedUrls);
+
       const summary = {
         success: true,
         mode: 'full',
         pagesScraped: pageData.length,
         chunksStored: totalChunks,
         skippedUrls: skippedUrls || [],
+        failedUrls: notLearned,
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };

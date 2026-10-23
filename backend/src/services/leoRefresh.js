@@ -42,7 +42,7 @@ async function runRefreshForEntity(entity, io) {
     // Single shared persistence path with routes/scrape.js (LEO-027). Before the
     // extraction this branch ignored thin group chunks entirely and never wrote a
     // ScrapeSnapshot, so a bad nightly refresh had no restore path.
-    const { pagesChanged, chunksUpdated } = await persistRescrapeResult({
+    const { pagesChanged, chunksUpdated, failedUrls } = await persistRescrapeResult({
       domain,
       result,
       io: broadcastedIo,
@@ -58,12 +58,17 @@ async function runRefreshForEntity(entity, io) {
       pagesChanged,
       pagesUnchanged: result.unchangedUrls.length,
       chunksUpdated,
+      // The dashboard's "Not learned" section reads these off scrape_complete, so a
+      // nightly refresh reports its lost URLs exactly as a manual rescrape does (LEO-056).
+      skippedUrls: result.skippedUrls || [],
+      failedUrls,
       durationMs: result.durationMs,
       durationFormatted: formatDuration(result.durationMs),
     };
 
     io.to(`domain:${domain}`).emit('scrape_complete', summary);
-    console.log(`[LeoRefresh] Done ${domain} — ${summary.pagesChanged} pages changed in ${summary.durationFormatted}`);
+    const lost = (summary.failedUrls?.length || 0) + (summary.skippedUrls?.length || 0);
+    console.log(`[LeoRefresh] Done ${domain} — ${summary.pagesChanged} pages changed in ${summary.durationFormatted}${lost ? `, ${lost} not learned` : ''}`);
   } catch (err) {
     console.error(`[LeoRefresh] Failed for ${domain}:`, err.message);
     io.to(`domain:${domain}`).emit('scrape_complete', { success: false, source: 'leorefresh', error: err.message });
