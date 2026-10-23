@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-056) Record pages that failed to fetch, and show the owner**
+- [x] **(LEO-056) Record pages that failed to fetch, and show the owner**
   A page that 404s, times out, or comes back empty after the Puppeteer fallback is dropped
   silently: `backend/src/services/scraper.js` logs a warning and moves on, no `ScrapedPage` row is
   written, and `skippedUrls` (LEO-019) covers *embedding* failures only. The owner is told "534
