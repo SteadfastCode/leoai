@@ -10,6 +10,10 @@ const scrapedPageSchema = new mongoose.Schema(
     usedPuppeteer:{ type: Boolean, default: false },
     hasVariants:  { type: Boolean, default: false },
     chunkCount:   { type: Number, default: 0 },
+    // Report-only LeoScan findings for this page's chunks (LEO-060): rule
+    // names, never the matched text. Rewritten on every crawl, so a page
+    // that stops tripping clears itself on the next pass.
+    scanRules:    { type: [String], default: [] },
     lastScrapedAt: { type: Date, default: Date.now },
     lastChangedAt: { type: Date, default: Date.now },
   },

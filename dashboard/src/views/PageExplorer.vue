@@ -20,6 +20,7 @@ const explorerDomain  = ref(route.query.domain || '')
 const urlFilter       = ref(initialFilters.search)
 const rendererFilter  = ref(initialFilters.renderer)   // all | html | js
 const priorityFilter  = ref(initialFilters.priority)   // all | high | normal
+const scanFilter      = ref(initialFilters.scan)       // all | flagged
 
 const allPages        = ref([])
 const explorerLoading = ref(false)
@@ -32,6 +33,7 @@ const activeFilters = computed(() => ({
   search:   urlFilter.value,
   renderer: rendererFilter.value,
   priority: priorityFilter.value,
+  scan:     scanFilter.value,
 }))
 
 // Client-side filtered pages — instant, no extra API calls
@@ -65,7 +67,7 @@ async function loadPages() {
 }
 
 // Sync every filter to the router query
-watch([urlFilter, rendererFilter, priorityFilter], syncQuery)
+watch([urlFilter, rendererFilter, priorityFilter, scanFilter], syncQuery)
 
 onMounted(() => {
   if (explorerDomain.value) loadPages()
@@ -123,6 +125,12 @@ function formatChunkContent(content) {
     .replace(/^\[H1\] (.+)$/gm, '# $1')
     .replace(/^\[H2\] (.+)$/gm, '## $1')
     .replace(/^\[H3\] (.+)$/gm, '### $1')
+}
+
+// LeoScan is report-only: the tooltip has to say so, or a warning chip on a page
+// that is still fully in the knowledge base reads as "this page was dropped".
+function scanChipTitle(rules) {
+  return `LeoScan flagged: ${(rules || []).join(', ')} — reported only, every chunk was kept`
 }
 
 function formatTs(ts) {
@@ -198,6 +206,14 @@ function formatTs(ts) {
         <v-btn value="normal" style="font-size: 11px; padding: 0 10px">Normal</v-btn>
       </v-btn-toggle>
 
+      <!-- Report-only LeoScan findings (LEO-060) — nothing was dropped -->
+      <v-btn-toggle v-model="scanFilter" mandatory density="compact" variant="outlined" divided rounded="lg">
+        <v-btn value="all"     style="font-size: 11px; padding: 0 10px">All</v-btn>
+        <v-btn value="flagged" style="font-size: 11px; padding: 0 10px" title="Pages whose chunks tripped a LeoScan rule">
+          <v-icon size="14" class="mr-1" color="warning">mdi-shield-alert-outline</v-icon>Flagged
+        </v-btn>
+      </v-btn-toggle>
+
       <span class="text-caption text-medium-emphasis ml-auto">
         {{ filteredPages.length.toLocaleString() }}
         <template v-if="filteredPages.length !== allPages.length"> / {{ allPages.length.toLocaleString() }}</template>
@@ -256,6 +272,13 @@ function formatTs(ts) {
                   v-if="filteredPages[vRow.index].hasVariants"
                   size="x-small" color="orange" variant="tonal" label title="Variant pricing captured"
                 >V</v-chip>
+                <v-chip
+                  v-if="filteredPages[vRow.index].scanRules?.length"
+                  size="x-small" color="warning" variant="tonal" label
+                  :title="scanChipTitle(filteredPages[vRow.index].scanRules)"
+                >
+                  <v-icon size="12">mdi-shield-alert-outline</v-icon>
+                </v-chip>
               </div>
               <div class="col-priority">
                 <v-chip
@@ -321,6 +344,12 @@ function formatTs(ts) {
               v-if="drawerChunks[0]?.sourceUrls?.length > 1"
               size="x-small" color="indigo" variant="tonal"
             >{{ drawerChunks[0].sourceUrls.length }} pages grouped</v-chip>
+            <v-chip
+              v-if="drawerPage.scanRules?.length"
+              size="x-small" color="warning" variant="tonal"
+              prepend-icon="mdi-shield-alert-outline"
+              :title="scanChipTitle(drawerPage.scanRules)"
+            >{{ drawerPage.scanRules.join(', ') }}</v-chip>
           </div>
 
           <!-- Chunk tabs -->

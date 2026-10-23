@@ -257,3 +257,93 @@ test('an empty result mutates nothing and writes no snapshot', async () => {
     'no chunk may be added or removed'
   );
 });
+
+// ── The report-only LeoScan sweep must be provably inert (LEO-060) ─────────
+//
+// The sweep runs inside persistRescrapeResult, over the very chunks it is about
+// to write. The whole safety argument for running it on the unattended path is
+// that a finding changes nothing but a ScrapedPage field — so the comparison is
+// the same batch twice, once clean and once with a secret in it, asserting the
+// persisted chunks are identical in count, content and order.
+
+// A fabricated fixture, not a real credential.
+const SECRET_LINE = 'password: hunter2AB';
+
+// beforeEach only fires between tests, and this one persists twice.
+const reset = async () => {
+  await Promise.all([
+    Chunk.deleteMany({ domain: DOMAIN }),
+    ScrapedPage.deleteMany({ domain: DOMAIN }),
+    ScrapeSnapshot.deleteMany({ domain: DOMAIN }),
+    ArchivedChunk.deleteMany({ domain: DOMAIN }),
+  ]);
+};
+
+const snapshotChunks = async () => {
+  const chunks = await Chunk.find({ domain: DOMAIN, source: 'scraped' }).sort({ url: 1, chunkIndex: 1 }).lean();
+  return chunks.map((c) => ({ url: c.url, content: c.content, chunkIndex: c.chunkIndex ?? null }));
+};
+
+test('a flagged chunk is persisted exactly as an unflagged one — same count, same content, same order', async () => {
+  await seed();
+  await persistRescrapeResult({ domain: DOMAIN, result: RESULT });
+  const clean = await snapshotChunks();
+
+  // Same batch, same chunk count, with a secret appended to the SECOND body only.
+  const flaggedResult = {
+    ...RESULT,
+    embeddedChunks: [
+      RESULT.embeddedChunks[0],
+      { ...RESULT.embeddedChunks[1], content: `${RESULT.embeddedChunks[1].content}\n${SECRET_LINE}` },
+    ],
+  };
+
+  await reset();
+  await seed();
+  await persistRescrapeResult({ domain: DOMAIN, result: flaggedResult });
+  const flagged = await snapshotChunks();
+
+  assert.equal(flagged.length, clean.length, 'a flagged batch must store exactly as many chunks');
+  assert.deepEqual(
+    flagged.map((c) => c.url),
+    clean.map((c) => c.url),
+    'same URLs, same order — the sweep must not reorder or drop'
+  );
+  assert.deepEqual(
+    flagged.map((c) => c.content),
+    clean.map((c, i) => (i === 1 ? `${c.content}\n${SECRET_LINE}` : c.content)),
+    'every body stored byte-for-byte as given — the sweep reports, it never redacts'
+  );
+});
+
+test('scanRules records the rule name on the page row and clears itself next run', async () => {
+  const flaggedResult = {
+    ...RESULT,
+    embeddedChunks: [
+      RESULT.embeddedChunks[0],
+      { ...RESULT.embeddedChunks[1], content: `${RESULT.embeddedChunks[1].content}\n${SECRET_LINE}` },
+    ],
+  };
+
+  await seed();
+  await persistRescrapeResult({ domain: DOMAIN, result: flaggedResult });
+
+  let page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  assert.deepEqual(page.scanRules, ['labelled_password']);
+  assert.ok(
+    !JSON.stringify(page).includes('hunter2'),
+    'the row carries the rule name only — never the matched text'
+  );
+
+  // The page no longer trips: the next run must blank the field, not keep a stale warning.
+  await persistRescrapeResult({ domain: DOMAIN, result: RESULT });
+  page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  assert.deepEqual(page.scanRules, [], 'a page that stops tripping clears itself');
+});
+
+test('a clean rescrape leaves scanRules empty', async () => {
+  await seed();
+  await persistRescrapeResult({ domain: DOMAIN, result: RESULT });
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  assert.deepEqual(page.scanRules, []);
+});
