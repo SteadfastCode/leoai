@@ -151,7 +151,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…**
+- [x] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…**
   Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
   `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
   attribute must not be used in: assistive tech responds to `aria-modal` by restricting virtual
