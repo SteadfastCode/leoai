@@ -829,11 +829,41 @@
     }
   }
 
-  // Hotkey handler — active only when options are showing
+  // Which option a key selects, or null when this handler does not own the key.
+  function optionForKey(key, { options, isYesNo }) {
+    if (isYesNo) {
+      if (key.toLowerCase() === 'y') return options[0];
+      if (key.toLowerCase() === 'n') return options[1];
+      return null;
+    }
+    const num = parseInt(key);
+    return num >= 1 && num <= options.length ? options[num - 1] : null;
+  }
+
+  // Hotkey handler — active only when options are showing IN AN OPEN DRAWER.
+  // The listener sits on document so a pill can be answered without first
+  // clicking into the widget, which also means it hears keys typed anywhere on
+  // the host page. Every path that closes the drawer — Escape, the close
+  // button, a second bubble click — deliberately leaves `activeOptions` and the
+  // rendered pills intact so reopening restores the visitor's choice, so
+  // `activeOptions` on its own does NOT mean the visitor can see those pills.
+  // Without the `drawer.hidden` test, `y`/`n` (or `1`-`4`) typed into the HOST
+  // page's own form fields after closing the widget was preventDefault()ed and
+  // silently POSTed to /chat as the visitor's answer (LEO-111).
   document.addEventListener('keydown', (e) => {
     if (!activeOptions || e.target === input) return;
-    const { options, isYesNo, pendingValue } = activeOptions;
+    const { options, pendingValue } = activeOptions;
     const behavior = localStorage.getItem('leo_hotkey_behavior') || 'immediate';
+    const matched = optionForKey(e.key, activeOptions);
+
+    if (drawer.hidden) {
+      // Logged only for the keys this handler would otherwise have claimed, so
+      // ordinary typing on the host page stays quiet even at light tier.
+      if (matched || (e.key === 'Enter' && behavior === 'select' && pendingValue)) {
+        debug('light', `hotkey "${e.key}" ignored — source: drawer is closed; the ${options.length} pending options stay rendered for reopen`);
+      }
+      return;
+    }
 
     if (e.key === 'Enter' && behavior === 'select' && pendingValue) {
       e.preventDefault();
@@ -843,14 +873,6 @@
       return;
     }
 
-    let matched = null;
-    if (isYesNo) {
-      if (e.key.toLowerCase() === 'y') matched = options[0];
-      if (e.key.toLowerCase() === 'n') matched = options[1];
-    } else {
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= options.length) matched = options[num - 1];
-    }
     if (matched) { e.preventDefault(); selectOption(matched, options, true); }
   });
 

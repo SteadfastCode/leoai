@@ -19,6 +19,10 @@
  *      aria-expanded tracking drawer.hidden, Escape closing the drawer and
  *      returning focus to the bubble, and quick-reply pills carrying their
  *      hotkey in an accessible name without Escape firing the hotkey path
+ *   9. LEO-111: closing the drawer disarms the document-level quick-reply
+ *      hotkey handler, so a `y`/`n`/`1`-`4` typed into the host page's own
+ *      fields is neither swallowed nor posted to /chat — while the pills
+ *      themselves survive the close, ready for when the visitor reopens
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -361,6 +365,50 @@ try {
   check(doc.querySelectorAll('.leo-option-btn').length === 2,
     'Escape while options are showing leaves the pills in place');
   check(drawer.hidden === true, 'Escape still closes the drawer while options are showing');
+
+  // 9a. LEO-111: keeping the pills across a close is only safe because closing
+  //     the drawer disarms the hotkey handler. The listener is on document, so
+  //     while `activeOptions` was set with the widget closed, a `y` typed into
+  //     the HOST page's own form field — `e.target` is not the widget's input,
+  //     so that guard does not catch it — was preventDefault()ed and silently
+  //     POSTed to /chat as the visitor's answer. Every close path leaks the same
+  //     way (Escape, the close button, a second bubble click), which is why the
+  //     fix guards the handler rather than clearing state in one of them.
+  const hostInput = doc.createElement('input'); // stands in for the customer's own form field
+  doc.body.appendChild(hostInput);
+  const pressKey = (key, target) => {
+    const ev = new win.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    (target || doc).dispatchEvent(ev);
+    return ev;
+  };
+  const chatPosts = () => fetchCalls.filter((c) => c.method === 'POST' && c.url.endsWith('/chat')).length;
+
+  check(doc.activeElement !== doc.getElementById('leo-input'),
+    'precondition: focus is not in the widget input, so only drawer.hidden can stop the hotkey');
+  const postsBeforeClosedHotkey = chatPosts();
+  const closedKey = pressKey('y', hostInput);
+  await settle();
+  check(chatPosts() === postsBeforeClosedHotkey,
+    'a quick-reply hotkey typed on the host page with the drawer closed posts nothing');
+  check(closedKey.defaultPrevented === false,
+    "that keypress is not preventDefault()ed — it still reaches the host page's own input");
+  check(doc.querySelectorAll('.leo-option-selected').length === 0,
+    'a hotkey with the drawer closed highlights no option');
+
+  // ...and the guard must not have disabled the feature it protects.
+  bubble.click();
+  await flush();
+  check(!drawer.hidden, 'precondition: the drawer reopens with the same pills still rendered');
+  const reopenedKey = pressKey('y');
+  await settle();
+  check(chatPosts() === postsBeforeClosedHotkey + 1,
+    'the same hotkey works again once the drawer is reopened');
+  check(reopenedKey.defaultPrevented === true,
+    'a hotkey the open drawer owns is preventDefault()ed');
+  const sentByHotkey = fetchCalls.filter((c) => c.method === 'POST' && c.url.endsWith('/chat')).pop();
+  check(!!sentByHotkey && JSON.parse(sentByHotkey.body).message === 'Yes',
+    `the reopened hotkey posts the option it names (got ${sentByHotkey && JSON.parse(sentByHotkey.body).message})`);
+  hostInput.remove();
 
   // 9b. LEO-069: an option label is model output, shaped by scraped page content
   //     and by what the visitor typed. It used to be interpolated into
