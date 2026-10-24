@@ -151,15 +151,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…**
-  Found by the grader of LEO-053 (medium, widget/chatbot.js:468). Escape closes the drawer but
-  never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey
-  handler (line 814, guarded only by `!activeOptions || e.target === input`) stays armed with the
-  widget closed: after Escape with Yes/No pills showing, pressing `y`/`n` (or `1`-`4` for a
-  numbered set) anywhere on the host page — including into the host's own input fields, since
-  `e.target` is not the widget's input — is `preventDefault()`ed and silently POSTs that option to
-  `/chat`. The new smoke assertion at smoke.mjs:340 cements the leaked state by asserting the
-  pills stay in place.
 - [ ] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…**
   Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
   `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
@@ -1222,6 +1213,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…** (routine 2026-10-24, bc0369c)
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:468). Escape closes the drawer but
+  never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey
+  handler (line 814, guarded only by `!activeOptions || e.target === input`) stays armed with the
+  widget closed: after Escape with Yes/No pills showing, pressing `y`/`n` (or `1`-`4` for a
+  numbered set) anywhere on the host page — including into the host's own input fields, since
+  `e.target` is not the widget's input — is `preventDefault()`ed and silently POSTs that option to
+  `/chat`. The new smoke assertion at smoke.mjs:340 cements the leaked state by asserting the
+  pills stay in place.
 - [x] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** (routine 2026-10-24, 0dc0dfd)
   The scraper fetches other people's sites without identifying itself and without ever asking. There is
   no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
