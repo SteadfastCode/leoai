@@ -21,6 +21,16 @@ const logEl = ref(null)
 // summary, from a manual scrape and from LeoRefresh alike (LEO-056).
 const notLearned = computed(() => notLearnedFromSummary(scrapeResult.value))
 
+// URLs robots.txt disallowed on this run (LEO-071). Collecting is always on, so
+// this list appears whatever the entity's settings say; whether those pages were
+// actually skipped depends on crawlSettings.honorRobots, which defaults to false
+// — hence the label, rather than leaving a bare count to be read either way.
+const robotsDisallowed = computed(() => {
+  const urls = scrapeResult.value?.robotsDisallowed
+  return Array.isArray(urls) ? urls.filter((u) => typeof u === 'string') : []
+})
+const robotsEnforced = computed(() => !!props.entity?.crawlSettings?.honorRobots)
+
 // ── Manual KB entries ──────────────────────────────────────────────────────
 const kbEntries = ref([])
 const kbLoading = ref(false)
@@ -560,7 +570,7 @@ function sourceColor(source) {
     </v-card>
 
     <!-- Live scrape feed -->
-    <v-card v-if="scraping || scrapeLog.length || notLearned.length" rounded="lg" elevation="0" border class="mb-4">
+    <v-card v-if="scraping || scrapeLog.length || notLearned.length || robotsDisallowed.length" rounded="lg" elevation="0" border class="mb-4">
       <v-card-title class="text-body-2 font-weight-medium pa-3 pb-0 d-flex align-center gap-2">
         <v-progress-circular v-if="scraping" indeterminate size="14" width="2" color="primary" class="mr-1" />
         <v-icon v-else size="16" color="success">mdi-check-circle</v-icon>
@@ -625,6 +635,39 @@ function sourceColor(source) {
               target="_blank"
               class="log-url text-medium-emphasis text-decoration-none"
             >{{ item.url }}</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- robots.txt — what this run would have excluded. Evidence before
+           enforcement (LEO-071): with honorRobots off these pages WERE crawled. -->
+      <div v-if="robotsDisallowed.length" class="not-learned pa-3 pt-2">
+        <div class="text-caption font-weight-medium d-flex align-center gap-1 mb-2">
+          <v-icon size="15" color="info">mdi-robot-outline</v-icon>
+          robots.txt disallowed &mdash; {{ robotsDisallowed.length }} {{ robotsDisallowed.length === 1 ? 'page' : 'pages' }}
+          <span class="text-medium-emphasis font-weight-regular">
+            ({{ robotsEnforced ? 'skipped' : 'recorded only — still crawled' }})
+          </span>
+        </div>
+        <div class="not-learned-list">
+          <div
+            v-for="url in robotsDisallowed"
+            :key="url"
+            class="scrape-log-entry text-caption d-flex align-center gap-1"
+          >
+            <v-chip
+              size="x-small"
+              color="info"
+              variant="tonal"
+              class="flex-shrink-0"
+              label
+              :title="robotsEnforced ? 'Not fetched — robots.txt disallows it and honorRobots is on' : 'Fetched anyway — robots.txt disallows it but honorRobots is off'"
+            >robots</v-chip>
+            <a
+              :href="url"
+              target="_blank"
+              class="log-url text-medium-emphasis text-decoration-none"
+            >{{ url }}</a>
           </div>
         </div>
       </div>

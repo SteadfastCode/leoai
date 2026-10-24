@@ -92,3 +92,112 @@ test('scrapeSite resolves with skippedUrls when a batch embed fails', async () =
   // Crawl completed: all 7 pages were fetched despite the mid-crawl failure.
   assert.equal(result.pageData.length, 7);
 });
+
+// ── robots.txt: evidence with the flag off, enforcement with it on (LEO-071) ──
+//
+// Same harness, a second local server. These run AFTER the test above, so the
+// embeddings stub's one-shot failure (embedCalls === 2) is long spent and every
+// embed here succeeds — which is what lets the assertions be about chunking.
+//
+// The server serves a robots.txt disallowing /p1 while leaving / and /p2 alone,
+// so the crawl can still start. 127.0.0.1 only; no real site is fetched.
+
+const { resetRobotsCache, LEO_USER_AGENT } = require('../src/services/robots');
+
+const ROBOTS_BODY = 'User-agent: *\nDisallow: /p1\n';
+
+async function withRobotsSite(fn) {
+  const requested = [];
+  const srv = http.createServer((req, res) => {
+    requested.push(req.url);
+    if (req.url === '/robots.txt') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      return res.end(ROBOTS_BODY);
+    }
+    const m = req.url.match(/^\/p([12])$/);
+    const n = req.url === '/' ? 0 : m ? Number(m[1]) : null;
+    if (n === null) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    // Root links to both children; children are self-contained and non-thin.
+    const links = n === 0 ? '<a href="/p1">p1</a> <a href="/p2">p2</a>' : '';
+    const filler = `Robots page ${n}. ` + `Distinct body text for robots page number ${n} — `.repeat(12) + 'End.';
+    res.end(`<html><body><h1>Robots Page ${n}</h1><p>${filler}</p>${links}</body></html>`);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}/`;
+  resetRobotsCache(); // a fresh port is a fresh origin, but be explicit
+  try {
+    return await fn(base, requested);
+  } finally {
+    await new Promise((r) => srv.close(r));
+    resetRobotsCache();
+  }
+}
+
+test('honorRobots off: a disallowed page is still chunked, and recorded', async () => {
+  await withRobotsSite(async (base, requested) => {
+    const chunked = new Set();
+    const result = await scrapeSite(base, {
+      crawlSettings: {}, // the default — honorRobots is absent, so false
+      onChunks: async (chunks) => { for (const c of chunks) chunked.add(c.url); },
+    });
+
+    // Both pages were fetched and both produced chunks: nothing was dropped.
+    assert.equal(result.pageData.length, 3, 'root + p1 + p2 all fetched');
+    assert.ok(chunked.has(`${base}p1`), 'the disallowed page must still be chunked');
+    assert.ok(chunked.has(`${base}p2`), 'the allowed page must be chunked');
+
+    // And the one URL robots.txt disallowed is recorded as evidence.
+    assert.deepEqual(result.robotsDisallowed, [`${base}p1`]);
+    assert.ok(requested.includes('/robots.txt'), 'robots.txt was actually requested');
+    assert.ok(requested.includes('/p1'), 'the disallowed page was fetched anyway');
+  });
+});
+
+test('honorRobots on: the disallowed page is skipped, the other is chunked', async () => {
+  await withRobotsSite(async (base, requested) => {
+    const chunked = new Set();
+    const result = await scrapeSite(base, {
+      crawlSettings: { honorRobots: true },
+      onChunks: async (chunks) => { for (const c of chunks) chunked.add(c.url); },
+    });
+
+    assert.ok(!chunked.has(`${base}p1`), 'the disallowed page must not be chunked');
+    assert.ok(chunked.has(`${base}p2`), 'the allowed page must still be chunked');
+    assert.ok(!result.pageData.some((p) => p.url === `${base}p1`), 'p1 never became page data');
+    assert.ok(result.pageData.some((p) => p.url === `${base}p2`));
+
+    // Still recorded — with the flag on the list says "not fetched because of this".
+    assert.deepEqual(result.robotsDisallowed, [`${base}p1`]);
+    // The decisive assertion: the page was never requested at all.
+    assert.ok(!requested.includes('/p1'), 'the disallowed page must never be requested');
+    assert.ok(requested.includes('/p2'), 'the allowed page was requested');
+  });
+});
+
+test('every scraper request identifies itself as LeoAI', async () => {
+  const agents = [];
+  const srv = http.createServer((req, res) => {
+    agents.push(req.headers['user-agent'] || '');
+    if (req.url === '/robots.txt') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      return res.end('User-agent: *\nDisallow:\n');
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end('<html><body><h1>Only Page</h1><p>' + 'Body text that is comfortably long enough. '.repeat(10) + '</p></body></html>');
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}/`;
+  resetRobotsCache();
+  try {
+    await scrapeSite(base, { onChunks: async () => {} });
+  } finally {
+    await new Promise((r) => srv.close(r));
+    resetRobotsCache();
+  }
+
+  assert.ok(agents.length >= 2, `expected the Pass 1, robots and page fetches, got ${agents.length}`);
+  for (const ua of agents) {
+    assert.equal(ua, LEO_USER_AGENT, 'no scraper request may go out unidentified');
+  }
+});

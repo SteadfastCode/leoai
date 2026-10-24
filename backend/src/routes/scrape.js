@@ -6,7 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
-const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls } = require('../services/scrapePersist');
+const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls, recordRobotsDisallowed } = require('../services/scrapePersist');
 const { sweepChunks, mergeSweep, logSweep } = require('../services/scanSweep');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
@@ -152,7 +152,7 @@ router.post('/', requireAuth(), async (req, res) => {
 
       // Snapshot + per-URL insert-before-delete + ScrapedPage upserts.
       // Shared with LeoRefresh — see services/scrapePersist.js.
-      const { pagesChanged, failedUrls } = await persistRescrapeResult({ domain, result, io: broadcastedIo });
+      const { pagesChanged, failedUrls, robotsDisallowed } = await persistRescrapeResult({ domain, result, io: broadcastedIo });
 
       const summary = {
         success: true,
@@ -163,6 +163,7 @@ router.post('/', requireAuth(), async (req, res) => {
         chunksUpdated: result.embeddedChunks.length + result.thinGroupChunks.length,
         skippedUrls: result.skippedUrls || [],
         failedUrls,
+        robotsDisallowed,
         durationMs: result.durationMs,
         durationFormatted: formatDuration(result.durationMs),
       };
@@ -185,7 +186,7 @@ router.post('/', requireAuth(), async (req, res) => {
       // list is only complete by the time the final bulkWrite runs.
       const scanRulesByUrl = {};
 
-      const { pageData, durationMs, skippedUrls, failedUrls } = await scrapeSite(url, {
+      const { pageData, durationMs, skippedUrls, failedUrls, robotsDisallowed } = await scrapeSite(url, {
         ...opts,
         // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
         onChunks: async (batchChunks, pageRecords = []) => {
@@ -236,6 +237,9 @@ router.post('/', requireAuth(), async (req, res) => {
 
       // Shape + persist the URLs this crawl never learned, then report them.
       const notLearned = await recordFailedUrls(runSnapshot?._id, failedUrls);
+      // What robots.txt would have excluded (LEO-071). On a full scrape these pages
+      // WERE fetched unless crawlSettings.honorRobots is on — evidence first.
+      const robotsExcluded = await recordRobotsDisallowed(runSnapshot?._id, robotsDisallowed, domain);
 
       const summary = {
         success: true,
@@ -244,6 +248,7 @@ router.post('/', requireAuth(), async (req, res) => {
         chunksStored: totalChunks,
         skippedUrls: skippedUrls || [],
         failedUrls: notLearned,
+        robotsDisallowed: robotsExcluded,
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };

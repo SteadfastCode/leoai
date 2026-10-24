@@ -9,6 +9,7 @@ const { isStale } = require('./staleness');
 const { buildHoursChunk } = require('./hoursChunk');
 const { tryEmbed } = require('./embedGuard');
 const { classifyFetchFailure, noteEmptyAfterRender } = require('./fetchFailure');
+const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -260,8 +261,8 @@ function buildDomSummary($, maxDepth = 3) {
 async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = false, pass1Filters = {}) {
   const page = await browser.newPage();
   try {
-    // Mimic a real browser to avoid bot detection
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // Say who we are (LEO-071) — this used to claim to be desktop Chrome
+    await page.setUserAgent(LEO_USER_AGENT);
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
 
@@ -400,7 +401,7 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1F
   const response = await axios.get(url, {
     timeout: 10000,
     responseType: 'arraybuffer',
-    headers: { 'Accept-Encoding': 'identity' },
+    headers: { 'Accept-Encoding': 'identity', 'User-Agent': LEO_USER_AGENT },
   });
 
   const contentType = response.headers['content-type'] || '';
@@ -853,6 +854,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   const thinPageBuffer = []; // thin pages accumulated across all batches
   const skippedUrls = []; // pages whose embedding failed after retries (LEO-019)
   const failedUrls = [];  // pages that never produced text — shaped in scrapePersist (LEO-056)
+  const robotsDisallowed = []; // URLs robots.txt disallows — shaped in scrapePersist (LEO-071)
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
@@ -862,7 +864,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   // On any failure the scrape continues with no extra filters.
   let pass1Filters = { exclude: [], include: [] };
   try {
-    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity' } });
+    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity', 'User-Agent': LEO_USER_AGENT } });
     const homeHtml = homeResp.data.toString('utf8');
     if (!homeHtml.includes('\x00')) {
       const $home = cheerio.load(homeHtml);
@@ -895,6 +897,7 @@ async function scrapeSite(baseUrl, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
+          if (await shouldSkipUrl(url, cs, robotsDisallowed)) return; // always records; only skips when crawlSettings.honorRobots
           const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, false, pass1Filters);
           if (!text.trim()) failedUrls.push(noteEmptyAfterRender(url));
           const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants };
@@ -965,10 +968,10 @@ async function scrapeSite(baseUrl, opts = {}) {
     const { chunks: thinGroupChunks } = await tryEmbed(
       () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
       thinPageData, skippedUrls, { chunks: [] });
-    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, failedUrls, durationMs: Date.now() - startedAt };
+    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
   }
 
-  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, durationMs: Date.now() - startedAt };
+  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed.
@@ -992,11 +995,12 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const changedPages = []; // non-thin pages with changed hash or high-priority
   const unchangedUrls = [];
   const failedUrls = [];  // pages that never produced text — shaped in scrapePersist (LEO-056)
+  const robotsDisallowed = []; // URLs robots.txt disallows — shaped in scrapePersist (LEO-071)
   const baseDomain = new URL(baseUrl).hostname;
 
   let pass1Filters = { exclude: [], include: [] };
   try {
-    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity' } });
+    const homeResp = await axios.get(baseUrl, { timeout: 10000, responseType: 'arraybuffer', headers: { 'Accept-Encoding': 'identity', 'User-Agent': LEO_USER_AGENT } });
     const homeHtml = homeResp.data.toString('utf8');
     if (!homeHtml.includes('\x00')) {
       const $home = cheerio.load(homeHtml);
@@ -1027,6 +1031,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
 
       await Promise.all(batch.map(async (url) => {
         try {
+          if (await shouldSkipUrl(url, cs, robotsDisallowed)) return; // always records; only skips when crawlSettings.honorRobots
           const { text, links, usedPuppeteer, hasVariants } = await fetchPage(url, browser, cs, variantUrlKeys.has(urlKey(url)), pass1Filters);
           const hash        = hashContent(text);
           const isPriority  = isPriorityUrl(url);
@@ -1122,6 +1127,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     thinGroupChunks,
     skippedUrls,
     failedUrls,
+    robotsDisallowed,
     changedUrls:    changedPages.map(p => p.url),
     thinGroupUrls,
     unchangedUrls,
