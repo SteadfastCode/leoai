@@ -4,6 +4,7 @@ import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/brow
 import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig, requestMinistryPlan, getModelStats } from '../lib/api'
 import EmbedSnippet from '../components/EmbedSnippet.vue'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
+import { notify } from '../lib/notify'
 import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
@@ -231,16 +232,53 @@ async function disableLeoRefresh() {
   }
 }
 
+// Human labels for the fields the server can reject (LEO-062). Keyed by the
+// field path the API reports, so a nested rejection reads as its own control.
+const REJECTION_LABELS = {
+  name: 'Entity Name',
+  timezone: 'Timezone',
+  avgWaitTime: 'Avg. Handoff Wait Time',
+  ownerPhone: 'Owner Phone',
+  ownerEmail: 'Owner Email',
+  quotaWarningThresholds: 'Usage alert thresholds',
+  quotaAlertChannels: 'Alert delivery',
+  conversationRetentionDays: 'Delete conversations after (days)',
+  leoRefreshHour: 'LeoRefresh hour',
+  leoRefreshFrequency: 'LeoRefresh frequency',
+  ragThreshold: 'Context relevance threshold',
+  'crawlSettings.staleDays': 'Re-embed unchanged pages after (days)',
+  'handoffFollowUp.intervalHours': 'Follow-up reminder interval',
+  'weeklyDigest.dayOfWeek': 'Weekly digest day',
+  'weeklyDigest.hour': 'Weekly digest time',
+}
+
 async function save() {
   saving.value = true
   try {
-    const { data } = await updateEntity(props.domain, form.value)
+    // The threshold checkboxes record the order the owner ticked them, not the
+    // order of their values, and the server requires ascending percentages.
+    const payload = {
+      ...form.value,
+      quotaWarningThresholds: [...(form.value.quotaWarningThresholds || [])].sort((a, b) => a - b),
+    }
+    const { data } = await updateEntity(props.domain, payload)
     emit('entity-updated', data)
     snackbarMsg.value = 'Settings saved'
     snackbar.value = true
-  } catch {
-    snackbarMsg.value = 'Save failed'
-    snackbar.value = true
+  } catch (err) {
+    // A 400 from the settings validator names every field it refused, and
+    // nothing was written — say which ones instead of a bare "Save failed".
+    const rejected = err.response?.data?.rejected
+    if (Array.isArray(rejected) && rejected.length) {
+      notify('Nothing was saved — some settings are out of range')
+      for (const r of rejected.slice(0, 4)) {
+        notify(`${REJECTION_LABELS[r.field] || r.field} ${r.reason}`)
+      }
+      if (rejected.length > 4) notify(`…and ${rejected.length - 4} more`)
+    } else {
+      snackbarMsg.value = 'Save failed'
+      snackbar.value = true
+    }
   } finally {
     saving.value = false
   }
