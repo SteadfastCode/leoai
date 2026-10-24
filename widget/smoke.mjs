@@ -12,7 +12,10 @@
  *      and puts the visitor's typed message back into the input
  *   6. LEO-093: a refused /chat/forget keeps the session token and transcript,
  *      so the retry it invites still reaches the server's copy
- *   7. LEO-053: the accessibility contract — live region, aria-modal, bubble
+ *   7. LEO-069: no template interpolation can inject markup into the customer's
+ *      page — not through a quote-bearing link URL, not through a quick-reply
+ *      option label, not through the entity name on the minimised panel chip
+ *   8. LEO-053: the accessibility contract — live region, aria-modal, bubble
  *      aria-expanded tracking drawer.hidden, Escape closing the drawer and
  *      returning focus to the bubble, and quick-reply pills carrying their
  *      hotkey in an accessible name without Escape firing the hotkey path
@@ -59,12 +62,13 @@ try {
   const fetchCalls = [];
   let chatHandler = null;
   let forgetHandler = null; // overrides POST /chat/forget (LEO-093 scenario)
+  let historyHandler = null; // overrides GET /chat/history (LEO-069 entity-name scenario)
   const json = (obj) => ({ ok: true, status: 200, json: async () => obj });
   const stubFetch = async (url, opts = {}) => {
     const u = String(url);
     fetchCalls.push({ url: u, method: opts.method || 'GET', body: opts.body || null });
     if (u.includes('/chat/entity-name')) return json({ name: 'Smoke Test Shop' });
-    if (u.includes('/chat/history')) return json({ messages: [], hasMore: false, entityConfig: { linksOpenInNewTab: true } });
+    if (u.includes('/chat/history')) return historyHandler ? historyHandler() : json({ messages: [], hasMore: false, entityConfig: { linksOpenInNewTab: true } });
     if (u.includes('/chat/forget')) return forgetHandler ? forgetHandler() : json({ deleted: 1, forgotten: true });
     if (u.includes('/health')) return json({ status: 'ok' });
     if (u.endsWith('/chat')) return chatHandler ? chatHandler() : json({ reply: STUB_REPLY });
@@ -205,6 +209,23 @@ try {
   );
   chatHandler = null;
 
+  // 5c. LEO-069: the attacker-shaped form of the same thing — a quote that closes
+  //     href early and opens a live attribute. Asserted on the anchor the renderer
+  //     actually produced, so a regression shows up as a real DOM attribute.
+  const HANDLER_REPLY = 'See [click](https://x" onmouseover="window.__leoXss=1) for more';
+  chatHandler = () => Promise.resolve(json({ reply: HANDLER_REPLY }));
+  doc.getElementById('leo-input').value = 'Tell me more';
+  doc.getElementById('leo-send').click();
+  await settle();
+  const handlerBubble = [...doc.querySelectorAll('.leo-msg--assistant')].pop();
+  const handlerAnchors = handlerBubble ? [...handlerBubble.querySelectorAll('a')] : [];
+  check(handlerAnchors.length === 1,
+    `quote-bearing link reply renders exactly one anchor (got ${handlerAnchors.length})`);
+  check(handlerAnchors.length === 1 && handlerAnchors[0].getAttribute('onmouseover') === null,
+    'the anchor carries no onmouseover attribute');
+  check(win.__leoXss === undefined, 'no injected handler ran (window.__leoXss unset)');
+  chatHandler = null;
+
   // 6. LEO-043: "Clear my history from the server" arms on the first tap and
   //    only posts /chat/forget on the second, under the CURRENT session token.
   const forgetBtn = doc.getElementById('leo-menu-forget');
@@ -340,6 +361,51 @@ try {
   check(doc.querySelectorAll('.leo-option-btn').length === 2,
     'Escape while options are showing leaves the pills in place');
   check(drawer.hidden === true, 'Escape still closes the drawer while options are showing');
+
+  // 9b. LEO-069: an option label is model output, shaped by scraped page content
+  //     and by what the visitor typed. It used to be interpolated into
+  //     btn.innerHTML, so a label holding a tag ran inside the customer's page.
+  //     The pill must show the label as literal text and build no element from it.
+  if (drawer.hidden) { bubble.click(); await flush(); }
+  const OPTION_XSS = '<img src=x onerror="window.__leoXss=1">';
+  chatHandler = () => Promise.resolve(json({ reply: 'Pick one:', options: [OPTION_XSS, 'Something safe'] }));
+  doc.getElementById('leo-input').value = 'What are my choices?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  chatHandler = null;
+
+  const xssPills = [...doc.querySelectorAll('.leo-option-btn')];
+  check(xssPills.length === 2, `tag-bearing option label still renders two pills (got ${xssPills.length})`);
+  check(doc.querySelectorAll('.leo-options img').length === 0,
+    'a tag-bearing option label builds no img element');
+  check(xssPills.length === 2 && xssPills[0].textContent === `1${OPTION_XSS}`,
+    `the option label shows as literal text behind its hotkey (got ${JSON.stringify(xssPills[0]?.textContent)})`);
+  check(xssPills.length === 2 && xssPills[0].querySelectorAll('*').length === 1,
+    'the pill has exactly one child element — the hotkey span');
+  check(win.__leoXss === undefined, 'no injected handler ran from an option label');
+
+  // 10. LEO-069: the minimised panel chip interpolated the entity name, which
+  //     arrives from the backend. Drive the name through /chat/history (the path
+  //     that sets it) and then minimise, which is what builds the chip.
+  const ENTITY_XSS = '<b>x</b>';
+  historyHandler = () => json({ messages: [], hasMore: false, entityConfig: { name: ENTITY_XSS, linksOpenInNewTab: true } });
+  if (drawer.hidden) { bubble.click(); await flush(); }
+  doc.getElementById('leo-menu-clear').click(); // resets locally, which re-runs loadHistory()
+  await settle();
+  historyHandler = null;
+  check(doc.getElementById('leo-header-title')?.textContent === `\u{1F981} ${ENTITY_XSS}`,
+    'precondition: the tag-bearing entity name is in play');
+
+  doc.getElementById('leo-close').click(); // minimise -> addToPanel() builds the chip
+  await flush();
+  const chipNameEl = doc.querySelector('.leo-panel-chip-name');
+  check(!!chipNameEl, 'minimising builds the panel chip');
+  check(!!chipNameEl && chipNameEl.textContent === ENTITY_XSS,
+    `the chip shows the entity name as literal text (got ${JSON.stringify(chipNameEl?.textContent)})`);
+  check(!!chipNameEl && chipNameEl.querySelectorAll('*').length === 0,
+    'the chip name builds no element from the entity name');
+  check(!!doc.querySelector('.leo-panel-chip-icon'),
+    'the chip keeps its icon span — rendered output is unchanged');
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));
