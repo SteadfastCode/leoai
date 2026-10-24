@@ -148,7 +148,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed**
+- [x] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed**
   The scraper fetches other people's sites without identifying itself and without ever asking. There is
   no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
   user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
