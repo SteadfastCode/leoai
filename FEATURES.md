@@ -151,15 +151,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…**
-  Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
-  `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
-  attribute must not be used in: assistive tech responds to `aria-modal` by restricting virtual
-  navigation to the dialog subtree, so for a non-modal floating chat widget appended to
-  `document.body` the entire host page becomes unreachable to screen-reader users for as long as
-  the drawer is open, while keyboard Tab still walks focus out into that now-hidden content.
-  Previously `role="dialog"` alone imposed no such restriction, so this is a net regression for
-  the users the item targets.
 - [ ] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…**
   Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
   `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
@@ -1213,6 +1204,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…** (routine 2026-10-24, aeaba23)
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
+  `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
+  attribute must not be used in: assistive tech responds to `aria-modal` by restricting virtual
+  navigation to the dialog subtree, so for a non-modal floating chat widget appended to
+  `document.body` the entire host page becomes unreachable to screen-reader users for as long as
+  the drawer is open, while keyboard Tab still walks focus out into that now-hidden content.
+  Previously `role="dialog"` alone imposed no such restriction, so this is a net regression for
+  the users the item targets.
 - [x] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…** (routine 2026-10-24, bc0369c)
   Found by the grader of LEO-053 (medium, widget/chatbot.js:468). Escape closes the drawer but
   never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey

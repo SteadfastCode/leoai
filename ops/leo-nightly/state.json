@@ -72,7 +72,7 @@
     "LEO-112": {
       "order": 5,
       "title": "aria-modal=\"true\" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-112",
