@@ -21,7 +21,7 @@ const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOLD, groupQuestions } = require('../services/questions');
 const { recordAudit } = require('../services/audit');
 const { shapeDailyBuckets, shapeTopQuestions } = require('../services/analytics');
-const { sanitizeList: sanitizeDoNotRelay } = require('../services/doNotRelay');
+const { validateEntityUpdates } = require('../services/entitySettings');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -302,17 +302,26 @@ router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async 
   try {
     const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'dailyVolumeAlert', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest', 'weeklyDigest', 'doNotRelay', 'conversationRetentionDays'];
     const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold', 'lowConfidenceBand'];
-    const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
-    // Sanitise on write (LEO-047), not on read — a malformed list reaching the
-    // system prompt is the failure that matters, and it is written far less
-    // often than it is read.
-    if ('doNotRelay' in updates) updates.doNotRelay = sanitizeDoNotRelay(updates.doNotRelay);
-    let appliedSuperadminFields = [];
-    if (isSuperAdmin(req.user)) {
-      appliedSuperadminFields = Object.keys(req.body).filter((k) => superadminOnly.includes(k));
-      Object.assign(updates, Object.fromEntries(Object.entries(req.body).filter(([k]) => superadminOnly.includes(k))));
+    // The allowlist above still decides WHICH fields are settable; the validator
+    // (LEO-062) decides whether the VALUES are storable, and doNotRelay is still
+    // sanitised on write (LEO-047) rather than refused — see services/entitySettings.js.
+    const callerIsSuperAdmin = isSuperAdmin(req.user);
+    const { updates, rejected } = validateEntityUpdates(req.body, {
+      isSuperAdmin: callerIsSuperAdmin,
+      allowed,
+      superadminOnly,
+    });
+    // Nothing is written when anything is out of range: a settings form posts
+    // every field at once, so a partial write would be half the owner's intent.
+    if (rejected.length) {
+      console.warn(`[dashboard] PATCH ${req.params.domain} rejected (source: entitySettings bounds):`,
+        rejected.map((r) => `${r.field} ${r.reason}`).join('; '));
+      return res.status(400).json({ error: 'Some settings were out of range — nothing was saved', rejected });
     }
-    const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true });
+    const appliedSuperadminFields = callerIsSuperAdmin
+      ? Object.keys(updates).filter((k) => superadminOnly.includes(k))
+      : [];
+    const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true, runValidators: true });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
     if (appliedSuperadminFields.length) {
       recordAudit(req, 'entity.superadmin_patch', { domain: req.params.domain, details: { fields: appliedSuperadminFields } });
