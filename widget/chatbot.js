@@ -310,7 +310,17 @@
     const panel = getLeoPanel();
     panelChip = document.createElement('button');
     panelChip.className = 'leo-panel-chip';
-    panelChip.innerHTML = `<span class="leo-panel-chip-icon">🦁</span><span class="leo-panel-chip-name">${entityName}</span>`;
+    // Elements and a text node, not innerHTML (LEO-069): entityName is the
+    // business's own stored name, so interpolating it put whatever that field
+    // holds into the customer's page as markup. Same two children as before.
+    const chipIcon = document.createElement('span');
+    chipIcon.className = 'leo-panel-chip-icon';
+    chipIcon.textContent = '🦁';
+    const chipName = document.createElement('span');
+    chipName.className = 'leo-panel-chip-name';
+    chipName.textContent = entityName;
+    panelChip.appendChild(chipIcon);
+    panelChip.appendChild(chipName);
     panelChip.addEventListener('click', () => {
       panelChip.parentNode?.removeChild(panelChip);
       panelChip = null;
@@ -786,7 +796,16 @@
       btn.className = 'leo-option-btn';
       btn.dataset.value = opt;
       btn.setAttribute('aria-label', `${opt} (press ${hotkey})`);
-      btn.innerHTML = `<span class="leo-hotkey">${hotkey}</span>${opt}`;
+      // Elements and a text node, not innerHTML (LEO-069): an option label is
+      // model output shaped by scraped content and by what the visitor typed, so
+      // interpolating it ran `<img src=x onerror=...>` inside the customer's
+      // page. The pill keeps the same two children — the hotkey span, then the
+      // label — so rendered output is unchanged for ordinary options.
+      const keyEl = document.createElement('span');
+      keyEl.className = 'leo-hotkey';
+      keyEl.textContent = hotkey;
+      btn.appendChild(keyEl);
+      btn.appendChild(document.createTextNode(opt));
       btn.addEventListener('click', () => selectOption(opt, options));
       wrap.appendChild(btn);
     });
