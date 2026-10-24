@@ -145,7 +145,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives**
+- [x] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives**
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
   against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
   { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless

@@ -72,18 +72,18 @@
     "LEO-062": {
       "order": 5,
       "title": "Validate entity settings on PATCH instead of storing whatever arrives",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-062",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-24T04:31:27.355Z",
+      "runId": "2026-10-24T04:31:17.859Z",
       "lastFail": null
     },
     "LEO-064": {

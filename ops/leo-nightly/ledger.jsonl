@@ -346,3 +346,4 @@
 {"event":"ack","items":["LEO-055"],"by":"daniel","source":"dashboard","atUtc":"2026-10-24T04:14:44.355Z"}
 {"event":"ack","items":["LEO-056"],"by":"daniel","source":"dashboard","atUtc":"2026-10-24T04:14:44.355Z"}
 {"event":"ack","items":["LEO-060"],"by":"daniel","source":"dashboard","atUtc":"2026-10-24T04:14:44.355Z"}
+{"event":"claim","runId":"2026-10-24T04:31:17.859Z","item":"LEO-062","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-24T04:31:27.355Z"}
