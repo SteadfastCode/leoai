@@ -82,13 +82,17 @@
   document.head.appendChild(style);
 
   // --- Build widget HTML ---
+  // #leo-drawer is a non-modal dialog on purpose: it is a floating panel appended to
+  // someone else's page, which stays live behind it. aria-modal="true" would tell a
+  // screen reader the rest of that page is inert while Tab still walks out into it, so
+  // it must not be added back without a real focus trap (LEO-112).
   const container = document.createElement('div');
   container.id = 'leo-widget';
   container.innerHTML = `
     <button id="leo-bubble" type="button" aria-label="Chat with Leo" aria-expanded="false">
       <span id="leo-bubble-icon">🦁</span>
     </button>
-    <div id="leo-drawer" role="dialog" aria-modal="true" aria-label="Leo Chat" hidden>
+    <div id="leo-drawer" role="dialog" aria-label="Leo Chat" hidden>
       <div id="leo-resize-handle"></div>
       <div id="leo-resize-width-handle"></div>
       <div id="leo-header">

@@ -15,10 +15,13 @@
  *   7. LEO-069: no template interpolation can inject markup into the customer's
  *      page — not through a quote-bearing link URL, not through a quick-reply
  *      option label, not through the entity name on the minimised panel chip
- *   8. LEO-053: the accessibility contract — live region, aria-modal, bubble
+ *   8. LEO-053: the accessibility contract — live region, bubble
  *      aria-expanded tracking drawer.hidden, Escape closing the drawer and
  *      returning focus to the bubble, and quick-reply pills carrying their
  *      hotkey in an accessible name without Escape firing the hotkey path
+ *  8b. LEO-112: the drawer is role="dialog" but NOT aria-modal — it is a
+ *      non-modal panel on a live host page and there is no focus trap, so
+ *      the attribute would hide that page from assistive tech
  *   9. LEO-111: closing the drawer disarms the document-level quick-reply
  *      hotkey handler, so a `y`/`n`/`1`-`4` typed into the host page's own
  *      fields is neither swallowed nor posted to /chat — while the pills
@@ -122,8 +125,13 @@ try {
   const drawerAtBoot = doc.getElementById('leo-drawer');
   check(messagesPane?.getAttribute('aria-live') === 'polite',
     'message list is an aria-live="polite" region');
-  check(drawerAtBoot?.getAttribute('aria-modal') === 'true',
-    'drawer is marked aria-modal="true"');
+  check(drawerAtBoot?.getAttribute('role') === 'dialog',
+    'drawer is marked role="dialog"');
+  // LEO-112: aria-modal makes assistive tech treat the host page as inert. The
+  // widget has no focus trap and the page behind it stays interactive, so the
+  // attribute must stay off until one exists.
+  check(drawerAtBoot?.hasAttribute('aria-modal') === false,
+    'drawer carries no aria-modal (non-modal panel, no focus trap)');
   check(drawerAtBoot?.hidden === true && bubble?.getAttribute('aria-expanded') === 'false',
     'bubble reports aria-expanded="false" while the drawer is hidden');
 
