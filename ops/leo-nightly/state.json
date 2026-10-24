@@ -72,7 +72,7 @@
     "LEO-071": {
       "order": 5,
       "title": "Say who the crawler is, and record what robots.txt would have disallowed",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-071",

@@ -148,41 +148,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed**
-  The scraper fetches other people's sites without identifying itself and without ever asking. There is
-  no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
-  user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
-  `Chrome/120.0.0.0` UA. Crawls run 5 pages concurrently up to `MAX_PAGES = 500`, including a customer's
-  Square or Wix shop subdomain. Owners authorise the crawl of their own site, which is why **enforcement
-  is deliberately not the first slice**: silently dropping pages a paying owner wants learned is the worse
-  failure. Identity and evidence come first.
-  Build: (1) a `LEO_USER_AGENT` constant — `LeoAI/1.0 (+https://leo-ai.chat/crawler)` — sent as a header
-  on every axios fetch in the scraper and set via `page.setUserAgent`; (2) a new
-  `backend/src/services/robots.js` exposing a pure `parseRobots(text, ua)` → ordered allow/deny rules and
-  `isDisallowed(rules, pathname)` with the longest-match rule, plus a per-host cached fetch that treats
-  any error, redirect or non-200 as "no rules"; (3) the crawl **records** every URL it fetched that
-  robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
-  `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
-  goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
-  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
-  naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
-  Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
-  changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
-  persistence belong in `backend/src/services/scrapePersist.js`**), `backend/src/models/Entity.js` (one
-  new Boolean in `crawlSettings`), `backend/src/models/ScrapeSnapshot.js` (one new optional array),
-  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/robots.test.js`.
-  *Verify:* `node --test` on the parser with inline fixtures — an empty body and a 404 body both yielding
-  no rules, `User-agent: *` with `Disallow: /cart`, a `LeoAI`-specific group taking precedence over `*`,
-  an `Allow` beating a shorter `Disallow`, `Disallow:` with an empty value meaning allow-all,
-  `Crawl-delay` parsed and ignored, a malformed line skipped rather than thrown, and a path with a query
-  string matched on pathname only; plus the offline crawl harness in
-  `backend/test/scrape-embed-containment.test.js` extended so a local HTTP server serving a robots.txt
-  that disallows one of two pages still chunks both with `honorRobots` false and records the one URL, and
-  chunks only one with the flag true. No real site is fetched in any test. `cd backend && yarn verify &&
-  yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: honouring `Crawl-delay` or changing `CONCURRENCY`/`MAX_PAGES`, `sitemap.xml` discovery,
-  `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
-  `$vectorSearch` stage (denylisted), and scraping any real entity.
 
 ## Proposed
 
@@ -1257,6 +1222,41 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed** (routine 2026-10-24, 0dc0dfd)
+  The scraper fetches other people's sites without identifying itself and without ever asking. There is
+  no `robots.txt` request anywhere under `backend/src` (grepped), axios sends its default `axios/1.x`
+  user agent, and the Puppeteer path actively disguises itself — `services/scraper.js:263` sets a desktop
+  `Chrome/120.0.0.0` UA. Crawls run 5 pages concurrently up to `MAX_PAGES = 500`, including a customer's
+  Square or Wix shop subdomain. Owners authorise the crawl of their own site, which is why **enforcement
+  is deliberately not the first slice**: silently dropping pages a paying owner wants learned is the worse
+  failure. Identity and evidence come first.
+  Build: (1) a `LEO_USER_AGENT` constant — `LeoAI/1.0 (+https://leo-ai.chat/crawler)` — sent as a header
+  on every axios fetch in the scraper and set via `page.setUserAgent`; (2) a new
+  `backend/src/services/robots.js` exposing a pure `parseRobots(text, ua)` → ordered allow/deny rules and
+  `isDisallowed(rules, pathname)` with the longest-match rule, plus a per-host cached fetch that treats
+  any error, redirect or non-200 as "no rules"; (3) the crawl **records** every URL it fetched that
+  robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
+  `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
+  goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
+  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
+  naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
+  Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
+  changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
+  persistence belong in `backend/src/services/scrapePersist.js`**), `backend/src/models/Entity.js` (one
+  new Boolean in `crawlSettings`), `backend/src/models/ScrapeSnapshot.js` (one new optional array),
+  `dashboard/src/views/KnowledgeBase.vue`, `backend/test/robots.test.js`.
+  *Verify:* `node --test` on the parser with inline fixtures — an empty body and a 404 body both yielding
+  no rules, `User-agent: *` with `Disallow: /cart`, a `LeoAI`-specific group taking precedence over `*`,
+  an `Allow` beating a shorter `Disallow`, `Disallow:` with an empty value meaning allow-all,
+  `Crawl-delay` parsed and ignored, a malformed line skipped rather than thrown, and a path with a query
+  string matched on pathname only; plus the offline crawl harness in
+  `backend/test/scrape-embed-containment.test.js` extended so a local HTTP server serving a robots.txt
+  that disallows one of two pages still chunks both with `honorRobots` false and records the one URL, and
+  chunks only one with the flag true. No real site is fetched in any test. `cd backend && yarn verify &&
+  yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: honouring `Crawl-delay` or changing `CONCURRENCY`/`MAX_PAGES`, `sitemap.xml` discovery,
+  `noindex` meta tags, the wishlist's Crawl Profiles work, `services/embeddings.js` and the
+  `$vectorSearch` stage (denylisted), and scraping any real entity.
 - [x] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** (routine 2026-10-24, 95a620a)
   `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
   substitution — but it never escapes `"`, and the link pass is
