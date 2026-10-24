@@ -2,6 +2,8 @@
 
 Post-MVP concepts. Nothing here is a commitment. Add freely.
 
+Where a section opens with a **Shipped** or **Partially shipped** banner, that banner — not the prose beneath it — is the truth about what is live; the spec text under a banner is kept as design history because open items still refer to it.
+
 ---
 
 ## Crawl Profiles — Platform-Aware Scraping
@@ -73,6 +75,8 @@ Leo may currently quote hymn lyrics from memory with a precision caveat. This is
 
 ## Multi-URL Chunks — Thin Page Appending
 
+> **Shipped 2026-03-27 — pre-routine, b2b7d3d.**
+
 **Priority: Low — current H1-exemption fix covers the immediate need**
 
 Some pages (e.g. staff pages with just a name, title, phone) are too thin to stand alone as meaningful chunks but too specific to discard. The idea: detect pages below a content threshold after chunking and append their content to a logically related chunk from another URL (e.g. the parent `/staff/` listing page). This creates chunks that reference multiple source URLs.
@@ -89,6 +93,8 @@ Some pages (e.g. staff pages with just a name, title, phone) are too thin to sta
 ---
 
 ## Staleness-Based Force Re-Embed
+
+> **Shipped 2026-08-13 — LEO-029, 584725e.**
 
 **Priority: Low — LeoRefresh covers most cases**
 
@@ -266,6 +272,8 @@ For translations not available on API.Bible (check LSB specifically — it's new
 
 ## Admin Console Log Viewer
 
+> **Shipped 2026-08-12 — LEO-011, 9037470.**
+
 Live backend log stream visible in the admin dashboard without needing to SSH into the host.
 
 **Implementation:**
@@ -283,6 +291,8 @@ Live backend log stream visible in the admin dashboard without needing to SSH in
 ---
 
 ## LeoScan — Sensitive Content Detection
+
+> **Partially shipped 2026-10-23 — the regex pattern scan, blocking on the manual KB ingest path (LEO-021) and report-only on the scrape path (LEO-060), 1ad7b75. Still open: the Haiku semantic check, the cloud-storage ingest paths, and the dashboard LeoScan Alerts review/dismiss audit log, no filed item.**
 
 Before any chunk gets embedded into the knowledge base — whether from a website scrape, manual text entry, file upload, or cloud storage sync — scan it for sensitive information that a visitor (or bad actor) could extract by asking Leo directly.
 
@@ -331,6 +341,8 @@ The people LeoAI serves are not technical. A church admin might upload the wrong
 
 ## Handoff Filtering — What Gets Forwarded to the Team
 
+> **Partially shipped 2026-10-12 — the per-entity do-not-relay list, with the owner-reply and one-click “don’t relay this type” dashboard paths (LEO-047), b01d3f0. Still open: the per-entity tolerance slider and the dashboard’s suggested auto-denial phrasing, no filed item.**
+
 Leo should be discerning about what questions actually get forwarded. Several related capabilities:
 
 **Leo-side discretion:** Leo already uses judgment, but explicit guidance would help. Some things should never be forwarded (spam, abuse, nonsensical inputs). Others are ambiguous.
@@ -351,6 +363,8 @@ Leo should be discerning about what questions actually get forwarded. Several re
 ---
 
 ## Overview — Usage Panel Enhancements
+
+> **Shipped 2026-05-03 — pre-routine, 7c28055.**
 
 Upgrade the message count display on the dashboard Overview from a raw number to a smart usage panel.
 
@@ -405,6 +419,8 @@ Large churches with dedicated pastoral care may want Leo to escalate almost anyt
 
 ## Tiered Model Routing (Post-MVP, High Priority)
 
+> **Shipped 2026-04-21 — pre-routine, 04fbed7.**
+
 Classify each query first, route accordingly. Haiku for simple factual traffic; Sonnet for what it's actually good at.
 
 **Classifier (Haiku, near-zero cost):** Single call before main chat. Outputs `{"route": "simple"}` or `{"route": "complex"}`.
@@ -448,6 +464,8 @@ Cost: ~$0.05/scrape. Regenerate only prefetched answers whose source chunk IDs c
 
 ## Superadmin Impersonation (Post-MVP)
 
+> **Shipped 2026-08-15 — LEO-045, 7f71bbe.**
+
 Daniel impersonates any user or role from superadmin dashboard for testing and support.
 
 **Behavior:**
@@ -461,6 +479,8 @@ Daniel impersonates any user or role from superadmin dashboard for testing and s
 
 ## Handoff Follow-Up Notifications
 
+> **Shipped 2026-08-12 — LEO-016, 82cce19.**
+
 When a handoff is pending and the owner hasn't replied, Leo follows up automatically. Configurable per entity (default: daily).
 
 **Notification content:** "Visitor still waiting." New questions since last notification. Total pending count. Direct dashboard link.
@@ -472,6 +492,8 @@ When a handoff is pending and the owner hasn't replied, Leo follows up automatic
 ---
 
 ## Multi-User Dashboard — Roles & Auth
+
+> **Shipped 2026-03-18 — pre-routine, 294bf2c.**
 
 **User model:** `email`, `hashedPassword`, `name`, `displayName`, `entityDomain`, `role`, `showNameInReplies`
 
@@ -503,6 +525,8 @@ Team member jumps into an active conversation in real time.
 
 ## Owner Reply Flow (Follow-up to Handoff — High Priority)
 
+> **Shipped 2026-03-16 — pre-routine, 9c5de68.**
+
 Current handoff is one-way. Owner needs a path to reply.
 
 **Approach (dashboard reply, not SMS inbound):**
@@ -517,6 +541,8 @@ Current handoff is one-way. Owner needs a path to reply.
 ---
 
 ## Unanswered Questions Log
+
+> **Shipped 2026-08-13 — LEO-026, af06c4d.**
 
 Log every question Leo can't answer. Fields: question, timestamp, handoff offered/accepted, conversation snippet.
 
