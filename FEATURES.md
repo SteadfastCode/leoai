@@ -151,7 +151,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…**
+- [x] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…**
   Found by the grader of LEO-053 (medium, widget/chatbot.js:468). Escape closes the drawer but
   never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey
   handler (line 814, guarded only by `!activeOptions || e.target === input`) stays armed with the

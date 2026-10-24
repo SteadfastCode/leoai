@@ -69,42 +69,25 @@
       "runId": "2026-08-10T01:37:22.700Z",
       "lastFail": null
     },
-    "LEO-071": {
+    "LEO-111": {
       "order": 5,
-      "title": "Say who the crawler is, and record what robots.txt would have disallowed",
-      "status": "done",
+      "title": "Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…",
+      "status": "claimed",
       "attempts": 1,
       "cluster": null,
-      "branch": "routine/item/LEO-071",
+      "branch": "routine/item/LEO-111",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": "2026-10-24T13:29:35.097Z",
+      "claimedAtUtc": "2026-10-24T13:46:15.507Z",
       "runId": "2026-10-24T13:08:06.186Z",
       "lastFail": null
     },
-    "LEO-111": {
-      "order": 6,
-      "title": "Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
     "LEO-112": {
-      "order": 7,
+      "order": 6,
       "title": "aria-modal=\"true\" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…",
       "status": "pending",
       "attempts": 0,
@@ -121,7 +104,7 @@
       "lastFail": null
     },
     "LEO-113": {
-      "order": 8,
+      "order": 7,
       "title": "aria-live=\"polite\" is put on #leo-messages, which is also the container that history is bulk-inse…",
       "status": "pending",
       "attempts": 0,
@@ -138,7 +121,7 @@
       "lastFail": null
     },
     "LEO-095": {
-      "order": 9,
+      "order": 8,
       "title": "Baseline mode cannot express \"could not collect\": if production is entirely unreachable (DNS/Rail…",
       "status": "pending",
       "attempts": 0,
@@ -155,7 +138,7 @@
       "lastFail": null
     },
     "LEO-096": {
-      "order": 10,
+      "order": 9,
       "title": "Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…",
       "status": "pending",
       "attempts": 0,
@@ -172,7 +155,7 @@
       "lastFail": null
     },
     "LEO-059": {
-      "order": 11,
+      "order": 10,
       "title": "The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…",
       "status": "pending",
       "attempts": 0,
@@ -189,7 +172,7 @@
       "lastFail": null
     },
     "LEO-052": {
-      "order": 12,
+      "order": 11,
       "title": "Brute-force protection on the auth endpoints",
       "status": "pending",
       "attempts": 0,
@@ -206,7 +189,7 @@
       "lastFail": null
     },
     "LEO-054": {
-      "order": 13,
+      "order": 12,
       "title": "Classify and surface upstream provider failures",
       "status": "pending",
       "attempts": 0,
@@ -223,7 +206,7 @@
       "lastFail": null
     },
     "LEO-061": {
-      "order": 14,
+      "order": 13,
       "title": "Record where a visitor's message actually came from",
       "status": "pending",
       "attempts": 0,
@@ -240,7 +223,7 @@
       "lastFail": null
     },
     "LEO-063": {
-      "order": 15,
+      "order": 14,
       "title": "`CLAUDE.md` \"Known Issues\" is three-quarters stale",
       "status": "pending",
       "attempts": 0,
@@ -257,7 +240,7 @@
       "lastFail": null
     },
     "LEO-067": {
-      "order": 16,
+      "order": 15,
       "title": "Unguarded async route handlers: one unauthenticated GET can take the backend down",
       "status": "pending",
       "attempts": 0,
@@ -274,7 +257,7 @@
       "lastFail": null
     },
     "LEO-068": {
-      "order": 17,
+      "order": 16,
       "title": "Socket.io rooms are unauthenticated — any browser can stream another entity's conversations",
       "status": "pending",
       "attempts": 0,
@@ -291,7 +274,7 @@
       "lastFail": null
     },
     "LEO-070": {
-      "order": 18,
+      "order": 17,
       "title": "Cap and type-check what `/chat` accepts",
       "status": "pending",
       "attempts": 0,
@@ -308,7 +291,7 @@
       "lastFail": null
     },
     "LEO-074": {
-      "order": 19,
+      "order": 18,
       "title": "A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend",
       "status": "pending",
       "attempts": 0,
@@ -325,7 +308,7 @@
       "lastFail": null
     },
     "LEO-075": {
-      "order": 20,
+      "order": 19,
       "title": "Smoke split: a free baseline chat check, and the paid real-model call only after deploy",
       "status": "pending",
       "attempts": 0,
@@ -342,7 +325,7 @@
       "lastFail": null
     },
     "LEO-076": {
-      "order": 21,
+      "order": 20,
       "title": "`PATCH` replaces nested settings subdocuments wholesale instead of merging",
       "status": "pending",
       "attempts": 0,
@@ -359,7 +342,7 @@
       "lastFail": null
     },
     "LEO-077": {
-      "order": 22,
+      "order": 21,
       "title": "LeoRefresh silently skips a whole period when its scheduled hour is missed",
       "status": "pending",
       "attempts": 0,
@@ -376,7 +359,7 @@
       "lastFail": null
     },
     "LEO-078": {
-      "order": 23,
+      "order": 22,
       "title": "A LeoRefresh rescrape is invisible to `GET /scrape/active`",
       "status": "pending",
       "attempts": 0,
@@ -393,7 +376,7 @@
       "lastFail": null
     },
     "LEO-079": {
-      "order": 24,
+      "order": 23,
       "title": "`selectModel` is unexported and untested — the cost lever has no gate",
       "status": "pending",
       "attempts": 0,
@@ -410,7 +393,7 @@
       "lastFail": null
     },
     "LEO-080": {
-      "order": 25,
+      "order": 24,
       "title": "Three filed specs carry factual errors an implementer would encode as a test",
       "status": "pending",
       "attempts": 0,
@@ -427,7 +410,7 @@
       "lastFail": null
     },
     "LEO-082": {
-      "order": 26,
+      "order": 25,
       "title": "Every owner notification links to `localhost`: `DASHBOARD_URL` is undeclared",
       "status": "pending",
       "attempts": 0,
@@ -444,7 +427,7 @@
       "lastFail": null
     },
     "LEO-083": {
-      "order": 27,
+      "order": 26,
       "title": "The free-tier billing period skips February: month-end rollover overflows",
       "status": "pending",
       "attempts": 0,
@@ -461,7 +444,7 @@
       "lastFail": null
     },
     "LEO-084": {
-      "order": 28,
+      "order": 27,
       "title": "A missed hourly tick silently drops a digest or a day of privacy deletions",
       "status": "pending",
       "attempts": 0,
@@ -478,7 +461,7 @@
       "lastFail": null
     },
     "LEO-085": {
-      "order": 29,
+      "order": 28,
       "title": "`JWT_SECRET` silently falls back to a literal committed to this repo",
       "status": "pending",
       "attempts": 0,
@@ -495,7 +478,7 @@
       "lastFail": null
     },
     "LEO-086": {
-      "order": 30,
+      "order": 29,
       "title": "Two grader findings about the docs were recorded and never filed",
       "status": "pending",
       "attempts": 0,
@@ -512,7 +495,7 @@
       "lastFail": null
     },
     "LEO-097": {
-      "order": 31,
+      "order": 30,
       "title": "Query-operator objects reach Mongo from unauthenticated bodies and query strings",
       "status": "pending",
       "attempts": 0,
@@ -529,7 +512,7 @@
       "lastFail": null
     },
     "LEO-098": {
-      "order": 32,
+      "order": 31,
       "title": "`passwordResetToken` is stored in plaintext while every other credential here is hashed",
       "status": "pending",
       "attempts": 0,
@@ -546,7 +529,7 @@
       "lastFail": null
     },
     "LEO-099": {
-      "order": 33,
+      "order": 32,
       "title": "\"Delete it everywhere\" leaves the visitor's own words in `UnansweredQuestion`",
       "status": "pending",
       "attempts": 0,
@@ -563,7 +546,7 @@
       "lastFail": null
     },
     "LEO-100": {
-      "order": 34,
+      "order": 33,
       "title": "The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends",
       "status": "pending",
       "attempts": 0,
@@ -580,7 +563,7 @@
       "lastFail": null
     },
     "LEO-101": {
-      "order": 35,
+      "order": 34,
       "title": "`POST /chat/forget` is public, unmetered, and never checks the domain exists",
       "status": "pending",
       "attempts": 0,
@@ -597,7 +580,7 @@
       "lastFail": null
     },
     "LEO-102": {
-      "order": 36,
+      "order": 35,
       "title": "A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading",
       "status": "pending",
       "attempts": 0,
@@ -614,7 +597,7 @@
       "lastFail": null
     },
     "LEO-105": {
-      "order": 37,
+      "order": 36,
       "title": "Deleting an entity leaves its visitors' unanswered questions behind",
       "status": "pending",
       "attempts": 0,
@@ -631,7 +614,7 @@
       "lastFail": null
     },
     "LEO-106": {
-      "order": 38,
+      "order": 37,
       "title": "An invite can hand out `superadmin`; the role change route 50 lines down refuses to",
       "status": "pending",
       "attempts": 0,
@@ -648,7 +631,7 @@
       "lastFail": null
     },
     "LEO-107": {
-      "order": 39,
+      "order": 38,
       "title": "Three dashboard routes act on an object by id without checking it belongs to `:domain`",
       "status": "pending",
       "attempts": 0,
@@ -665,7 +648,7 @@
       "lastFail": null
     },
     "LEO-108": {
-      "order": 40,
+      "order": 39,
       "title": "`POST /auth/onboard` lets a signup claim a domain that already belongs to someone",
       "status": "pending",
       "attempts": 0,
@@ -682,7 +665,7 @@
       "lastFail": null
     },
     "LEO-109": {
-      "order": 41,
+      "order": 40,
       "title": "Every widget open loads the visitor's whole conversation to show twenty messages",
       "status": "pending",
       "attempts": 0,
@@ -699,7 +682,7 @@
       "lastFail": null
     },
     "LEO-110": {
-      "order": 42,
+      "order": 41,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -716,7 +699,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 43,
+      "order": 42,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
@@ -731,6 +714,23 @@
       "claimedAtUtc": "2026-10-15T12:36:27.984Z",
       "runId": null,
       "lastFail": "failed"
+    },
+    "LEO-071": {
+      "order": null,
+      "title": "Say who the crawler is, and record what robots.txt would have disallowed",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-071",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": "2026-10-24T13:29:35.097Z",
+      "runId": "2026-10-24T13:08:06.186Z",
+      "lastFail": null
     },
     "LEO-069": {
       "order": null,
