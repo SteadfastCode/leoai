@@ -146,42 +146,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-064) Mark what already shipped in `docs/wishlist.md`**
-  FEATURES.md's own header says the wishlist "still contains full specs for features that already
-  shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
-  for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
-  named failure the standing backlog audit exists to prevent. At least ten wishlist sections are live:
-  Admin Console Log Viewer (`dashboard/src/views/Logs.vue`, LEO-011), Overview Usage Panel
-  Enhancements (`dashboard/src/components/UsagePanel.vue`), Tiered Model Routing (`classifyQuery` /
-  `selectModel` in `backend/src/services/claude.js`), Superadmin Impersonation (LEO-045,
-  `POST /api/admin/impersonate`), Staleness-Based Force Re-Embed (LEO-029, `crawlSettings.staleDays`),
-  Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
-  digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
-  (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
-  more are partial: LeoScan (LEO-021 shipped the manual ingest paths; the scrape path is LEO-060) and
-  Handoff Filtering (the owner-reply path is live; the do-not-relay slice is LEO-047, which sits under
-  `## Blocked Items`, not Completed). **The ids are not uniform, and inventing one is worse than
-  omitting it:** five of the sections listed above shipped before the routine existed and have no LEO
-  id at all — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply
-  Flow and Multi-User Dashboard Roles & Auth.
-  Add a one-line banner at the top of each, in whichever of these three forms fits:
-  `> **Shipped <YYYY-MM-DD> — <item>, <commit>.**` where an id exists;
-  `> **Shipped <YYYY-MM-DD> — pre-routine, <commit>.**` for the five that have none;
-  `> **Partially shipped <YYYY-MM-DD> — <what is live>, <commit>. Still open: <what>, <the item that
-  owns it, or "no filed item">.**` for the two partials. Plus one sentence in the file header saying
-  the banners are the truth about what is live while the prose under them is design history. **Do not
-  delete or rewrite the spec prose**: several open items still refer to it.
-  Files: `docs/wishlist.md`.
-  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
-  FEATURES.md the right way round — an id offered as evidence something shipped appears under
-  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
-  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
-  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
-  `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
-  exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
-  Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
-  re-prioritising anything, marking as shipped anything that is only partly built (those get the
-  partial banner instead), and inventing or reusing a LEO id for a section that has none.
 
 - [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page**
   `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
@@ -1318,6 +1282,42 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** (routine 2026-10-24, 9f5e7a1)
+  FEATURES.md's own header says the wishlist "still contains full specs for features that already
+  shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
+  for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
+  named failure the standing backlog audit exists to prevent. At least ten wishlist sections are live:
+  Admin Console Log Viewer (`dashboard/src/views/Logs.vue`, LEO-011), Overview Usage Panel
+  Enhancements (`dashboard/src/components/UsagePanel.vue`), Tiered Model Routing (`classifyQuery` /
+  `selectModel` in `backend/src/services/claude.js`), Superadmin Impersonation (LEO-045,
+  `POST /api/admin/impersonate`), Staleness-Based Force Re-Embed (LEO-029, `crawlSettings.staleDays`),
+  Multi-URL Chunks (`sourceUrls` on Chunk), Owner Reply Flow, Unanswered Questions Log plus its weekly
+  digest (LEO-026, `dashboard/src/views/UnansweredQuestions.vue`), Handoff Follow-Up Notifications
+  (LEO-016, `Entity.handoffFollowUp`), and Multi-User Dashboard Roles & Auth (RBAC, `Team.vue`). Two
+  more are partial: LeoScan (LEO-021 shipped the manual ingest paths; the scrape path is LEO-060) and
+  Handoff Filtering (the owner-reply path is live; the do-not-relay slice is LEO-047, which sits under
+  `## Blocked Items`, not Completed). **The ids are not uniform, and inventing one is worse than
+  omitting it:** five of the sections listed above shipped before the routine existed and have no LEO
+  id at all — Overview Usage Panel Enhancements, Tiered Model Routing, Multi-URL Chunks, Owner Reply
+  Flow and Multi-User Dashboard Roles & Auth.
+  Add a one-line banner at the top of each, in whichever of these three forms fits:
+  `> **Shipped <YYYY-MM-DD> — <item>, <commit>.**` where an id exists;
+  `> **Shipped <YYYY-MM-DD> — pre-routine, <commit>.**` for the five that have none;
+  `> **Partially shipped <YYYY-MM-DD> — <what is live>, <commit>. Still open: <what>, <the item that
+  owns it, or "no filed item">.**` for the two partials. Plus one sentence in the file header saying
+  the banners are the truth about what is live while the prose under them is design history. **Do not
+  delete or rewrite the spec prose**: several open items still refer to it.
+  Files: `docs/wishlist.md`.
+  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
+  FEATURES.md the right way round — an id offered as evidence something shipped appears under
+  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
+  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
+  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
+  `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
+  exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
+  Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
+  re-prioritising anything, marking as shipped anything that is only partly built (those get the
+  partial banner instead), and inventing or reusing a LEO id for a section that has none.
 - [x] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** (routine 2026-10-24, 5c8ad75)
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
   against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,

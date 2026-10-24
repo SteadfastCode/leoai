@@ -72,7 +72,7 @@
     "LEO-064": {
       "order": 5,
       "title": "Mark what already shipped in `docs/wishlist.md`",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-064",
