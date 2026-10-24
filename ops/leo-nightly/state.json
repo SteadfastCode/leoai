@@ -72,7 +72,7 @@
     "LEO-113": {
       "order": 5,
       "title": "aria-live=\"polite\" is put on #leo-messages, which is also the container that history is bulk-inse…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-113",

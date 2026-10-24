@@ -151,14 +151,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [x] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…**
-  Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
-  `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
-  inserts up to 20 messages plus a greeting on open, and prepends another 20 on scroll-to-top at
-  line 429), and the container `setLoading` appends the `…` typing bubble to. Opening the drawer
-  therefore makes the screen reader queue the whole restored transcript rather than just Leo's new
-  reply, and every send announces a bare ellipsis; the announcement target needed to be scoped to
-  newly arrived assistant messages (or suppressed during history load).
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
@@ -1204,6 +1196,14 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…** (routine 2026-10-24, 8a24142)
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
+  `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
+  inserts up to 20 messages plus a greeting on open, and prepends another 20 on scroll-to-top at
+  line 429), and the container `setLoading` appends the `…` typing bubble to. Opening the drawer
+  therefore makes the screen reader queue the whole restored transcript rather than just Leo's new
+  reply, and every send announces a bare ellipsis; the announcement target needed to be scoped to
+  newly arrived assistant messages (or suppressed during history load).
 - [x] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…** (routine 2026-10-24, aeaba23)
   Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
   `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
