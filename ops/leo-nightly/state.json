@@ -72,7 +72,7 @@
     "LEO-062": {
       "order": 5,
       "title": "Validate entity settings on PATCH instead of storing whatever arrives",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-062",

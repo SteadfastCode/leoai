@@ -347,3 +347,4 @@
 {"event":"ack","items":["LEO-056"],"by":"daniel","source":"dashboard","atUtc":"2026-10-24T04:14:44.355Z"}
 {"event":"ack","items":["LEO-060"],"by":"daniel","source":"dashboard","atUtc":"2026-10-24T04:14:44.355Z"}
 {"event":"claim","runId":"2026-10-24T04:31:17.859Z","item":"LEO-062","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-24T04:31:27.355Z"}
+{"event":"complete","runId":"2026-10-24T04:31:17.859Z","item":"LEO-062","mergeSha":"5c8ad75a445af5e14976451a2b2f4e285b1f7644","durationMin":12,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-24T04:43:33.062Z"}

@@ -145,41 +145,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives**
-  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
-  against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
-  { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
-  `runValidators: true` is passed, and it is not — so every `min`/`max` on the Entity model is
-  decorative on the one path owners actually write through. `leoRefreshHour: 99` (model says
-  `min: 0, max: 23`) is stored, and `isDueNow` in `services/leoRefresh.js:21` compares it against a
-  real UTC hour, so that entity silently never refreshes again. `ragThreshold: 5` (superadmin field,
-  `min: 0.5, max: 0.95`) is stored and empties every retrieval. `dailyVolumeAlert: -1` alerts on the
-  first message of every day. `quotaWarningThresholds` has no schema bound at all. A non-numeric value
-  takes the other route — a CastError caught by the handler and returned as a 500 carrying the raw
-  driver message. Add a pure `validateEntityUpdates(body, { isSuperAdmin })` in a new
-  `backend/src/services/entitySettings.js` returning `{ updates, rejected: [{ field, reason }] }`,
-  with the bounds declared in one table mirroring the model: hours 0-23, `dayOfWeek` 0-6,
-  `ragThreshold` 0.5-0.95, `lowConfidenceBand` 0-0.2, `dailyVolumeAlert` and `staleDays` ≥ 0,
-  `quotaWarningThresholds` 1-99 and ascending, `quotaAlertChannels` ⊆ {email, sms},
-  `leoRefreshFrequency` ∈ the model enum, booleans strictly boolean, strings trimmed and
-  length-capped. The route keeps its existing allowlist and superadmin split, calls the validator, and
-  returns 400 `{ error, rejected }` writing nothing when `rejected` is non-empty; `runValidators: true`
-  goes on the update call as a second line of defence. A body with no recognised field keeps today's
-  no-op behaviour.
-  Files: new `backend/src/services/entitySettings.js`, `backend/src/routes/dashboard.js`,
-  `dashboard/src/views/Settings.vue` (surface `rejected` through the existing `lib/notify.js` queue),
-  `backend/test/entity-settings.test.js`.
-  *Verify:* `node --test` on `validateEntityUpdates` — each bound accepted at its edge and rejected
-  just outside it, a string where a number belongs rejected rather than cast, an unknown field ignored
-  exactly as today, a superadmin-only field dropped for a non-superadmin, an empty body yielding empty
-  updates; plus the real dashboard router over `mongodb-memory-server` (the
-  `backend/test/kb-search.test.js` harness shape): the payload `Settings.vue` sends today still returns
-  the updated entity unchanged, while `leoRefreshHour: 99` returns 400 and leaves the stored value
-  untouched. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: the wholesale replacement of nested subdocuments on PATCH (`crawlSettings`,
-  `handoffFollowUp` and `unansweredDigest` are replaced, not merged — a separate change with its own
-  UI implications); which fields are on the `superadminOnly` list; `routes/billing.js` and
-  `routes/webhooks.js` (denylisted); adding any new settable field; and any edit to the Entity schema.
 
 - [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`**
   FEATURES.md's own header says the wishlist "still contains full specs for features that already
@@ -1327,6 +1292,41 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-062) Validate entity settings on PATCH instead of storing whatever arrives** (routine 2026-10-24, 5c8ad75)
+  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-317`) filters the body
+  against an allowlist and hands the survivors straight to `Entity.findOneAndUpdate(..., updates,
+  { new: true })`. Mongoose does not run schema validators on `findOneAndUpdate` unless
+  `runValidators: true` is passed, and it is not — so every `min`/`max` on the Entity model is
+  decorative on the one path owners actually write through. `leoRefreshHour: 99` (model says
+  `min: 0, max: 23`) is stored, and `isDueNow` in `services/leoRefresh.js:21` compares it against a
+  real UTC hour, so that entity silently never refreshes again. `ragThreshold: 5` (superadmin field,
+  `min: 0.5, max: 0.95`) is stored and empties every retrieval. `dailyVolumeAlert: -1` alerts on the
+  first message of every day. `quotaWarningThresholds` has no schema bound at all. A non-numeric value
+  takes the other route — a CastError caught by the handler and returned as a 500 carrying the raw
+  driver message. Add a pure `validateEntityUpdates(body, { isSuperAdmin })` in a new
+  `backend/src/services/entitySettings.js` returning `{ updates, rejected: [{ field, reason }] }`,
+  with the bounds declared in one table mirroring the model: hours 0-23, `dayOfWeek` 0-6,
+  `ragThreshold` 0.5-0.95, `lowConfidenceBand` 0-0.2, `dailyVolumeAlert` and `staleDays` ≥ 0,
+  `quotaWarningThresholds` 1-99 and ascending, `quotaAlertChannels` ⊆ {email, sms},
+  `leoRefreshFrequency` ∈ the model enum, booleans strictly boolean, strings trimmed and
+  length-capped. The route keeps its existing allowlist and superadmin split, calls the validator, and
+  returns 400 `{ error, rejected }` writing nothing when `rejected` is non-empty; `runValidators: true`
+  goes on the update call as a second line of defence. A body with no recognised field keeps today's
+  no-op behaviour.
+  Files: new `backend/src/services/entitySettings.js`, `backend/src/routes/dashboard.js`,
+  `dashboard/src/views/Settings.vue` (surface `rejected` through the existing `lib/notify.js` queue),
+  `backend/test/entity-settings.test.js`.
+  *Verify:* `node --test` on `validateEntityUpdates` — each bound accepted at its edge and rejected
+  just outside it, a string where a number belongs rejected rather than cast, an unknown field ignored
+  exactly as today, a superadmin-only field dropped for a non-superadmin, an empty body yielding empty
+  updates; plus the real dashboard router over `mongodb-memory-server` (the
+  `backend/test/kb-search.test.js` harness shape): the payload `Settings.vue` sends today still returns
+  the updated entity unchanged, while `leoRefreshHour: 99` returns 400 and leaves the stored value
+  untouched. `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: the wholesale replacement of nested subdocuments on PATCH (`crawlSettings`,
+  `handoffFollowUp` and `unansweredDigest` are replaced, not merged — a separate change with its own
+  UI implications); which fields are on the `superadminOnly` list; `routes/billing.js` and
+  `routes/webhooks.js` (denylisted); adding any new settable field; and any edit to the Entity schema.
 - [x] **(LEO-060) LeoScan the scrape path — report only, never block** (routine 2026-10-23, 1ad7b75)
   LEO-021 shipped `scanText()` wired into `routes/knowledge.js` `ingestText` only, and the module
   header (`backend/src/services/leoscan.js:1-9`) says why the scraper was excluded: a false positive
