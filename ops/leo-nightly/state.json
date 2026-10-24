@@ -72,18 +72,18 @@
     "LEO-064": {
       "order": 5,
       "title": "Mark what already shipped in `docs/wishlist.md`",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-064",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-24T13:08:51.787Z",
+      "runId": "2026-10-24T13:08:06.186Z",
       "lastFail": null
     },
     "LEO-069": {

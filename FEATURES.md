@@ -146,7 +146,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-064) Mark what already shipped in `docs/wishlist.md`**
+- [x] **(LEO-064) Mark what already shipped in `docs/wishlist.md`**
   FEATURES.md's own header says the wishlist "still contains full specs for features that already
   shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
   for work. That mitigation is a rule nobody can check, and re-proposing a shipped feature is the
