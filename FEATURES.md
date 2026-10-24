@@ -147,31 +147,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page**
-  `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
-  substitution — but it never escapes `"`, and the link pass is
-  `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
-  matches a double quote happily. A reply containing `[click](https://x" onmouseover="…)` closes the
-  `href` early and lands an arbitrary attribute on an anchor that is then assigned with `el.innerHTML`
-  (line 604) — inside whatever customer page the widget is embedded in. Two smaller sinks share the
-  pattern: `renderOptions` interpolates each option label into `btn.innerHTML` (line 646), and the panel
-  chip interpolates the entity name (line 283). Leo's text is model output shaped by scraped page content
-  and by what a visitor types, so nothing has to be compromised for this to be reachable.
-  Add `"` and `'` to the escape pass in `renderMarkdown`, and build those two templates from elements and
-  text nodes instead of interpolation — a `<span class="leo-hotkey">` plus a text node for the label, the
-  same for the chip name. Rendered output for ordinary replies must be unchanged.
-  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the denylist with
-  LEO-003.
-  *Verify:* `node widget/smoke.mjs`, extended — a stubbed reply of
-  `[click](https://x" onmouseover="window.__leoXss=1)` renders exactly one `<a>` whose
-  `getAttribute('onmouseover')` is `null`; an option label of `<img src=x onerror="window.__leoXss=1">`
-  produces no `img` element and the literal text; an entity name of `<b>x</b>` renders as text; and the
-  existing bold/italic/code/link/list assertions stay green. Confirm the new assertions fail against
-  unmodified `main`. Post-deploy: `GET /demo/chatbot.js` is 200, byte length within ±25% of the committed
-  file, `node --check` clean on the downloaded body.
-  Out of scope: replacing the renderer with a markdown library, a Content-Security-Policy, sanitizing on
-  the backend (`routes/chat.js` keeps a zero-line diff), LEO-053's accessibility attributes, the consent
-  screen's markup, and the drag-to-resize handler.
 
 - [ ] **(LEO-071) Say who the crawler is, and record what robots.txt would have disallowed**
   The scraper fetches other people's sites without identifying itself and without ever asking. There is
@@ -1282,6 +1257,31 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page** (routine 2026-10-24, 95a620a)
+  `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
+  substitution — but it never escapes `"`, and the link pass is
+  `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
+  matches a double quote happily. A reply containing `[click](https://x" onmouseover="…)` closes the
+  `href` early and lands an arbitrary attribute on an anchor that is then assigned with `el.innerHTML`
+  (line 604) — inside whatever customer page the widget is embedded in. Two smaller sinks share the
+  pattern: `renderOptions` interpolates each option label into `btn.innerHTML` (line 646), and the panel
+  chip interpolates the entity name (line 283). Leo's text is model output shaped by scraped page content
+  and by what a visitor types, so nothing has to be compromised for this to be reachable.
+  Add `"` and `'` to the escape pass in `renderMarkdown`, and build those two templates from elements and
+  text nodes instead of interpolation — a `<span class="leo-hotkey">` plus a text node for the label, the
+  same for the chip name. Rendered output for ordinary replies must be unchanged.
+  Files: `widget/chatbot.js`, `widget/smoke.mjs`. No backend change; `widget/` came off the denylist with
+  LEO-003.
+  *Verify:* `node widget/smoke.mjs`, extended — a stubbed reply of
+  `[click](https://x" onmouseover="window.__leoXss=1)` renders exactly one `<a>` whose
+  `getAttribute('onmouseover')` is `null`; an option label of `<img src=x onerror="window.__leoXss=1">`
+  produces no `img` element and the literal text; an entity name of `<b>x</b>` renders as text; and the
+  existing bold/italic/code/link/list assertions stay green. Confirm the new assertions fail against
+  unmodified `main`. Post-deploy: `GET /demo/chatbot.js` is 200, byte length within ±25% of the committed
+  file, `node --check` clean on the downloaded body.
+  Out of scope: replacing the renderer with a markdown library, a Content-Security-Policy, sanitizing on
+  the backend (`routes/chat.js` keeps a zero-line diff), LEO-053's accessibility attributes, the consent
+  screen's markup, and the drag-to-resize handler.
 - [x] **(LEO-064) Mark what already shipped in `docs/wishlist.md`** (routine 2026-10-24, 9f5e7a1)
   FEATURES.md's own header says the wishlist "still contains full specs for features that already
   shipped — treating it as a queue re-implements live code", and this repo's runbook bans reading it
