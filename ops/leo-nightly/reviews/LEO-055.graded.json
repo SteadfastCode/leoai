@@ -1,0 +1,79 @@
+{
+  "item": "LEO-055",
+  "repo": "leoai",
+  "mergeSha": "c064a1dc5167f55c989f700d600bba965f68527d",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-24T09:08:50.888Z",
+  "gradedAtUtc": "2026-10-24T09:44:27.093Z",
+  "independent": [
+    {
+      "file": "backend/src/scripts/rag-eval.js",
+      "line": 72,
+      "severity": "low",
+      "summary": "Retrieval is now pinned to the sweep floor (0.60), but ragThreshold is valid down to 0.50 (Entity.js:65, entitySettings.js:111). For an entity set below 0.60 the pass is stricter than the entity's own threshold, so the \"top page\" column no longer reflects what that entity actually retrieves — a question with topScore 0.58 and threshold 0.55 prints hit ✅ (score >= threshold) yet '—' for the page, and the sweep table has no '← entity' row at all."
+    },
+    {
+      "file": "backend/src/services/ragEval.js",
+      "line": 29,
+      "severity": "low",
+      "summary": "thresholdRange derives the step count with Math.round((max-min)/step), so a step that does not divide the range evenly emits candidates past max: thresholdRange(0.6, 0.8, 0.03) returns a final 0.81 and thresholdRange(0.6, 0.8, 0.07) likewise ends at 0.81, outside the requested bound. Unreached by the defaults, and the tests only cover divisible/degenerate steps."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change adds a pure scoring module, a CLI script edit and a unit test; no auth, role or session code is involved."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens or env-var handling are added or changed (the script's existing MONGODB_URI use is untouched)."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code is touched; the only cost note is that the sweep adds no embedding calls."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Read-only: sweepThresholds is pure and the script only adds a retrieval pass and console output — no writes, deletes or migrations."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No new external call; retrieveContext is still invoked once per question, only with a different threshold argument."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, config or dependency changes — a new service file, a dev script and a test file only."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model found nothing and its triage is entirely correct, but it also missed both (admittedly low-severity) edge cases — the sub-0.60 ragThreshold reporting inconsistency and thresholdRange overshooting max on a non-divisible step — so it offered no actual review signal on a change that is otherwise sound and faithful to the item.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.9949225000000002,
+  "numTurns": 10,
+  "durationMs": 129336,
+  "sessionId": "41c53866-bc05-4916-a3e9-0388ab55e549"
+}

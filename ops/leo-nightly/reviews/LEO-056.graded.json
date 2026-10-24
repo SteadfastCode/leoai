@@ -1,0 +1,79 @@
+{
+  "item": "LEO-056",
+  "repo": "leoai",
+  "mergeSha": "5526f2353368f032eddca4c0ba344fdf09e3053e",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-24T09:08:50.888Z",
+  "gradedAtUtc": "2026-10-24T09:42:17.727Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 90,
+      "severity": "low",
+      "summary": "The new `failedUrls` are only persisted when a ScrapeSnapshot exists: `createSnapshot` returns null when there are no archivable chunks, so a first-ever full scrape (the signup path, and the case where knowing the unlearned URLs matters most) and a rescrape in which nothing changed both drop the list — it survives only in the transient socket summary, so the item's \"persist it on the run's ScrapeSnapshot\" holds only for re-scrapes of an already-populated entity."
+    },
+    {
+      "file": "backend/src/routes/scrape.js",
+      "line": 243,
+      "severity": "low",
+      "summary": "A page classified `empty_after_render` is still pushed into `allPageData` (scraper.js:898), so it is counted in `pagesScraped` and gets a ScrapedPage row written by the final bulkWrite — the owner-facing headline count still includes pages simultaneously listed under \"Not learned\" (e.g. the test's 4-URL site reports 4 pages scraped with 1 of them unlearned)."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The only auth-adjacent file touched is routes/scrape.js, and the diff there changes nothing about requireAuth/isSuperAdmin gating."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The .env.example addition is a non-sensitive log-verbosity knob (SCRAPE_FAILURE_LOG_LEVEL); no credential, key, or secret handling is touched anywhere in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The deleteMany/snapshot-restore logic is untouched — the diff only captures the snapshot's return value and adds an additive updateOne on a new field."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Outbound fetch behaviour (axios options, retries, Puppeteer trigger) is unchanged; the new module only classifies errors already being caught."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy/build config or version change, and the new ScrapeSnapshot field is optional and additive, so no migration or release step is implicated."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model reported no findings at all and got the secrets triage call wrong by treating a plain log-level env var as a secret, so its only contribution was three uncontroversial \"not touched\" judgements.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.7297310000000001,
+  "numTurns": 17,
+  "durationMs": 192920,
+  "sessionId": "b488448f-fd7b-4adb-80dc-3268ac6afdb7"
+}

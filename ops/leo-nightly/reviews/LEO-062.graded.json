@@ -1,0 +1,72 @@
+{
+  "item": "LEO-062",
+  "repo": "leoai",
+  "mergeSha": "5c8ad75a445af5e14976451a2b2f4e285b1f7644",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-24T09:08:50.888Z",
+  "gradedAtUtc": "2026-10-24T09:35:09.471Z",
+  "independent": [
+    {
+      "file": "dashboard/src/views/Settings.vue",
+      "line": 261,
+      "severity": "low",
+      "summary": "The two numeric settings inputs (`crawlSettings.staleDays`, `conversationRetentionDays`) use `v-model.number` on `type=\"number\"` fields, and Vue's `looseToNumber('')` returns the empty string — so clearing either box posts `\"\"`, which the new validator rejects as 'received text' and the route turns into a 400 that discards every other edit in the form; before this change the empty string was cast to null by mongoose and the save succeeded. The payload builder normalises `quotaWarningThresholds` for the new ascending rule but does not coerce these blank numerics to 0."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff rewrites the superadmin split (`callerIsSuperAdmin`, dropping superadmin-only fields for owners, `appliedSuperadminFields` for the audit record), so the authorization path is genuinely touched even though the cited line number is approximate."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, env vars or key handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Only free-tier quota *alert* thresholds are validated; billing.js, webhooks.js and Stripe paths are untouched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The change adds no deletion or migration and in fact makes the PATCH write nothing when anything is out of range; nested-subdocument replacement is pre-existing and out of scope."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The validator is pure and the route makes no outbound calls; no SMS/email/Stripe/Anthropic call sites are modified."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No package.json, deploy, nixpacks or schema/version changes — just a new service module, its tests, and two call sites."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model found no defects and reported none, which is close to right for a careful change — its triage is fully correct, but it missed the one low-severity regression where a cleared numeric settings field now 400s the entire save.</summary>",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 2.185722,
+  "numTurns": 24,
+  "durationMs": 296362,
+  "sessionId": "6c66bf61-75ef-44af-990b-0b11dc91bb30"
+}

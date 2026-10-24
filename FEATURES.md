@@ -247,6 +247,32 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-111) Escape closes the drawer but never clears activeOptions or the rendered pills, so the document-le…**
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:468). Escape closes the drawer but
+  never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey
+  handler (line 814, guarded only by `!activeOptions || e.target === input`) stays armed with the
+  widget closed: after Escape with Yes/No pills showing, pressing `y`/`n` (or `1`-`4` for a
+  numbered set) anywhere on the host page — including into the host's own input fields, since
+  `e.target` is not the widget's input — is `preventDefault()`ed and silently POSTs that option to
+  `/chat`. The new smoke assertion at smoke.mjs:340 cements the leaked state by asserting the
+  pills stay in place.
+- [ ] **(LEO-112) aria-modal="true" is added to #leo-drawer while a focus trap is explicitly out of scope, which is…**
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:91). `aria-modal="true"` is added to
+  `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the
+  attribute must not be used in: assistive tech responds to `aria-modal` by restricting virtual
+  navigation to the dialog subtree, so for a non-modal floating chat widget appended to
+  `document.body` the entire host page becomes unreachable to screen-reader users for as long as
+  the drawer is open, while keyboard Tab still walks focus out into that now-hidden content.
+  Previously `role="dialog"` alone imposed no such restriction, so this is a net regression for
+  the users the item targets.
+- [ ] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…**
+  Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
+  `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
+  inserts up to 20 messages plus a greeting on open, and prepends another 20 on scroll-to-top at
+  line 429), and the container `setLoading` appends the `…` typing bubble to. Opening the drawer
+  therefore makes the screen reader queue the whole restored transcript rather than just Leo's new
+  reply, and every send announces a bare ellipsis; the announcement target needed to be scoped to
+  newly arrived assistant messages (or suppressed during history load).
 - [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every

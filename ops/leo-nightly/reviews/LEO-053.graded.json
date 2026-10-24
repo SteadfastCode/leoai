@@ -1,0 +1,93 @@
+{
+  "item": "LEO-053",
+  "repo": "leoai",
+  "mergeSha": "3e2a4c46e954b0bc74e2ab863dc1b67b6001ee55",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-24T09:08:50.888Z",
+  "gradedAtUtc": "2026-10-24T09:46:50.335Z",
+  "independent": [
+    {
+      "file": "widget/chatbot.js",
+      "line": 468,
+      "severity": "medium",
+      "summary": "Escape closes the drawer but never clears `activeOptions` or the rendered pills, so the document-level quick-reply hotkey handler (line 814, guarded only by `!activeOptions || e.target === input`) stays armed with the widget closed: after Escape with Yes/No pills showing, pressing `y`/`n` (or `1`-`4` for a numbered set) anywhere on the host page — including into the host's own input fields, since `e.target` is not the widget's input — is `preventDefault()`ed and silently POSTs that option to `/chat`. The new smoke assertion at smoke.mjs:340 cements the leaked state by asserting the pills stay in place."
+    },
+    {
+      "file": "widget/chatbot.js",
+      "line": 91,
+      "severity": "medium",
+      "summary": "`aria-modal=\"true\"` is added to `#leo-drawer` while a focus trap is explicitly out of scope, which is the one combination the attribute must not be used in: assistive tech responds to `aria-modal` by restricting virtual navigation to the dialog subtree, so for a non-modal floating chat widget appended to `document.body` the entire host page becomes unreachable to screen-reader users for as long as the drawer is open, while keyboard Tab still walks focus out into that now-hidden content. Previously `role=\"dialog\"` alone imposed no such restriction, so this is a net regression for the users the item targets."
+    },
+    {
+      "file": "widget/chatbot.js",
+      "line": 135,
+      "severity": "medium",
+      "summary": "`aria-live=\"polite\"` is put on `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory` inserts up to 20 messages plus a greeting on open, and prepends another 20 on scroll-to-top at line 429), and the container `setLoading` appends the `…` typing bubble to. Opening the drawer therefore makes the screen reader queue the whole restored transcript rather than just Leo's new reply, and every send announces a bare ellipsis; the announcement target needed to be scoped to newly arrived assistant messages (or suppressed during history load)."
+    },
+    {
+      "file": "widget/smoke.mjs",
+      "line": 334,
+      "severity": "low",
+      "summary": "The assertion \"Escape while options are showing sends no message — the hotkey path did not fire\" cannot fail for the reason it names: the hotkey handler only matches `y`/`n` or `parseInt(e.key)` in 1..options.length, and `parseInt('Escape')` is `NaN`, so Escape could never reach `selectOption` before or after this change. It guards nothing about handler ordering or the new Escape listener, despite the item requesting it as a regression check."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only adds ARIA attributes, a drawer-visibility helper and an Escape listener in the widget plus smoke assertions — no auth, token or session logic is touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or env vars appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, quota, Stripe or pricing code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Nothing deletes or overwrites data; the only state mutated is `drawer.hidden`, `aria-expanded` and DOM attributes."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No fetch call, endpoint, payload or third-party integration is added or changed; the new smoke stub only reuses the existing `/chat` handler hook."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No package.json, build, nixpacks, deploy or version artifact is modified — only two files under `widget/`."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review produced no findings on a diff that has at least one real behavioural leak (hotkey handler left armed after Escape) and two questionable ARIA choices, so its triage being fully correct is the only signal it contributed.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.2342895,
+  "numTurns": 17,
+  "durationMs": 143211,
+  "sessionId": "a776b00f-08ad-4110-a5ca-359370114d32"
+}
