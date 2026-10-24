@@ -151,7 +151,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
-- [ ] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…**
+- [x] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…**
   Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
   `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
   inserts up to 20 messages plus a greeting on open, and prepends another 20 on scroll-to-top at
