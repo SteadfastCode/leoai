@@ -26,6 +26,12 @@
  *      hotkey handler, so a `y`/`n`/`1`-`4` typed into the host page's own
  *      fields is neither swallowed nor posted to /chat — while the pills
  *      themselves survive the close, ready for when the visitor reopens
+ *  11. LEO-113: the screen-reader live region is #leo-announcer and is scoped
+ *      to messages that newly ARRIVED — restoring a transcript announces none
+ *      of it, the "…" typing bubble and the visitor's own message are never
+ *      announced, markdown is spoken as prose, and an identical consecutive
+ *      reply is still announced. Asserted off a MutationObserver on the region,
+ *      because what matters is the sequence a screen reader would read out.
  *
  * Usage:
  *   node smoke.mjs              # test ./chatbot.js
@@ -123,8 +129,36 @@ try {
   //     before any interaction, and the closed bubble reports itself collapsed.
   const messagesPane = doc.getElementById('leo-messages');
   const drawerAtBoot = doc.getElementById('leo-drawer');
-  check(messagesPane?.getAttribute('aria-live') === 'polite',
-    'message list is an aria-live="polite" region');
+  // LEO-113: the transcript pane must NOT be the live region. It is what
+  // loadHistory bulk-inserts a restored transcript into and what setLoading
+  // appends the typing bubble to, so marking it live queued the whole transcript
+  // on open and announced a bare ellipsis on every send. role="log" is checked
+  // too: it carries an implicit aria-live and would reintroduce the same bug.
+  check(messagesPane?.hasAttribute('aria-live') === false,
+    'message list carries no aria-live of its own');
+  check(messagesPane?.getAttribute('role') !== 'log',
+    'message list is not role="log" either (that implies a live region)');
+  const announcer = doc.getElementById('leo-announcer');
+  check(!!announcer && announcer.getAttribute('aria-live') === 'polite',
+    'a dedicated #leo-announcer live region exists at aria-live="polite"');
+  check(announcer?.getAttribute('aria-atomic') === 'true',
+    'the live region is aria-atomic so a reply is read as one unit');
+  check(!!announcer && drawerAtBoot?.contains(announcer),
+    'the live region sits inside the drawer, so a closed widget stays silent');
+
+  // Every announcement, in order: a screen reader reads each added text node, so
+  // the records ARE the sequence it would speak.
+  const announcements = [];
+  if (announcer) {
+    new win.MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes || []) {
+          const t = String(n.textContent || '').trim();
+          if (t) announcements.push(t);
+        }
+      }
+    }).observe(announcer, { childList: true, characterData: true, subtree: true });
+  }
   check(drawerAtBoot?.getAttribute('role') === 'dialog',
     'drawer is marked role="dialog"');
   // LEO-112: aria-modal makes assistive tech treat the host page as inert. The
@@ -462,6 +496,107 @@ try {
     'the chip name builds no element from the entity name');
   check(!!doc.querySelector('.leo-panel-chip-icon'),
     'the chip keeps its icon span — rendered output is unchanged');
+
+  // 11. LEO-113: aria-live used to sit on #leo-messages, the same pane that
+  //     loadHistory bulk-inserts a restored transcript into and that setLoading
+  //     appends the "…" typing bubble to. Opening the drawer therefore made the
+  //     screen reader queue the entire restored transcript, and every send
+  //     announced an ellipsis. The region is now scoped to what ARRIVED.
+  const reopen = async () => {
+    if (!drawer.hidden) return;
+    const chip = doc.querySelector('.leo-panel-chip'); // section 10 left it minimised
+    if (chip) chip.click(); else bubble.click();
+    await flush();
+    await flush();
+  };
+  const spoken = (from) => announcements.slice(from);
+
+  // 11a. a restored transcript is not news. Driven through the clear-conversation
+  //      path, which is the one place loadHistory can be made to run again.
+  const histMsgs = Array.from({ length: 20 }, (_, i) => ({
+    role: i % 2 ? 'assistant' : 'user',
+    content: `restored transcript line ${i}`,
+    timestamp: new Date(1700000000000 + i * 1000).toISOString(),
+  }));
+  historyHandler = () => json({
+    messages: histMsgs,
+    hasMore: true,
+    lastTopic: 'opening hours',
+    entityConfig: { linksOpenInNewTab: true },
+  });
+  await reopen();
+  check(!drawer.hidden, 'precondition: the drawer is open before the live-region scenario');
+  const beforeRestore = announcements.length;
+  doc.getElementById('leo-menu-clear').click(); // resets locally, which re-runs loadHistory()
+  await settle();
+  historyHandler = null;
+
+  const restoredBubbles = [...doc.querySelectorAll('.leo-msg')].filter((el) =>
+    el.textContent.includes('restored transcript line'));
+  check(restoredBubbles.length === 20,
+    `precondition: all 20 history messages are in the pane (got ${restoredBubbles.length})`);
+  const onRestore = spoken(beforeRestore);
+  check(onRestore.every((t) => !t.includes('restored transcript line')),
+    `restoring 20 messages announces none of them (got ${JSON.stringify(onRestore)})`);
+  check(onRestore.length === 1 && onRestore[0].includes('opening hours'),
+    `exactly one thing is announced on open — the greeting (got ${JSON.stringify(onRestore)})`);
+
+  // 11b. a send announces Leo's reply, and only that: not the ellipsis the
+  //      typing bubble is made of, and not the visitor's own words back at them.
+  const HOURS_REPLY = 'We open at nine on weekdays.';
+  const TYPED = 'what are your hours';
+  chatHandler = () => Promise.resolve(json({ reply: HOURS_REPLY }));
+  const beforeSend = announcements.length;
+  doc.getElementById('leo-input').value = TYPED;
+  doc.getElementById('leo-send').click();
+  await settle();
+  chatHandler = null;
+  const onSend = spoken(beforeSend);
+  check(onSend.length === 1 && onSend[0] === HOURS_REPLY,
+    `a send announces Leo's reply and nothing else (got ${JSON.stringify(onSend)})`);
+  check(onSend.every((t) => !t.includes('\u2026')),
+    'the "…" typing bubble is never announced');
+  check(onSend.every((t) => !t.includes(TYPED)),
+    "the visitor's own message is not announced back at them");
+
+  // 11c. the announcement is the RENDERED text. Announcing the raw reply would
+  //      read markdown punctuation out loud.
+  chatHandler = () => Promise.resolve(json({
+    reply: 'We sell **sourdough** and [rye](https://example.com/rye) daily.',
+  }));
+  const beforeMarkdown = announcements.length;
+  doc.getElementById('leo-input').value = 'What bread?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  chatHandler = null;
+  const onMarkdown = spoken(beforeMarkdown);
+  check(onMarkdown.length === 1 && onMarkdown[0] === 'We sell sourdough and rye daily.',
+    `a markdown reply is announced as prose, not punctuation (got ${JSON.stringify(onMarkdown)})`);
+
+  // 11d. assigning identical text is not a mutation, so a live region that was
+  //      not blanked first would say nothing the second time — and the reply that
+  //      repeats most is the warm failure bubble, when the backend is down.
+  const REPEATED = 'Sorry, something went wrong. Please try again!';
+  chatHandler = () => Promise.resolve(json({ reply: REPEATED }));
+  const beforeRepeat = announcements.length;
+  doc.getElementById('leo-input').value = 'hello?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  doc.getElementById('leo-input').value = 'hello again?';
+  doc.getElementById('leo-send').click();
+  await settle();
+  chatHandler = null;
+  const onRepeat = spoken(beforeRepeat);
+  check(onRepeat.length === 2 && onRepeat.every((t) => t === REPEATED),
+    `an identical consecutive reply is announced both times (got ${JSON.stringify(onRepeat)})`);
+
+  // 11e. closing drops the last announcement, so a reopen cannot re-speak a
+  //      reply the visitor has already dismissed.
+  check(!drawer.hidden, 'precondition: the drawer is still open');
+  pressEscape();
+  await settle();
+  check((announcer?.textContent || '') === '',
+    `closing the drawer empties the live region (got ${JSON.stringify(announcer?.textContent)})`);
 
   // 2b. every network call went to LEO_BACKEND_URL
   const offBackend = fetchCalls.filter((c) => !c.url.startsWith(BACKEND));

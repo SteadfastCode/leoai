@@ -339,6 +339,22 @@
   #leo-messages::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
 }
 
+/* The screen-reader live region (LEO-113). Clipped, not hidden: display:none or
+   visibility:hidden takes a node out of the accessibility tree, and a live region
+   that is not in that tree announces nothing at all. */
+#leo-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .leo-msg {
   max-width: 85%;
   padding: 10px 14px;
