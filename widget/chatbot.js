@@ -86,6 +86,10 @@
   // someone else's page, which stays live behind it. aria-modal="true" would tell a
   // screen reader the rest of that page is inert while Tab still walks out into it, so
   // it must not be added back without a real focus trap (LEO-112).
+  //
+  // #leo-messages deliberately carries NO aria-live (and no role="log", which implies
+  // one) — #leo-announcer beside it is the live region. See the announce() block below
+  // for why the transcript pane itself must not be one (LEO-113).
   const container = document.createElement('div');
   container.id = 'leo-widget';
   container.innerHTML = `
@@ -136,7 +140,8 @@
           </div>
         </div>
       </div>
-      <div id="leo-messages" aria-live="polite"></div>
+      <div id="leo-messages"></div>
+      <div id="leo-announcer" aria-live="polite" aria-atomic="true"></div>
       <div id="leo-offline-msg" hidden>⚠️ Connection lost — you can still type, Leo will send your messages once he's back.</div>
       <div id="leo-input-row">
         <input id="leo-input" type="text" placeholder="Ask me anything..." autocomplete="off" />
@@ -160,6 +165,53 @@
   const input      = document.getElementById('leo-input');
   const sendBtn    = document.getElementById('leo-send');
   const offlineMsg = document.getElementById('leo-offline-msg');
+  const announcerEl = document.getElementById('leo-announcer');
+
+  // --- Screen-reader announcements (LEO-113) ---
+  // #leo-announcer is the live region, not #leo-messages, which used to carry
+  // aria-live="polite" itself. That pane is also what loadHistory bulk-inserts a
+  // restored transcript into — up to 20 messages plus a greeting on open, 20 more
+  // per scroll-to-top — and what setLoading appends the "…" typing bubble to. So
+  // marking it live made opening the drawer queue the entire restored transcript
+  // for the screen reader, and made every send announce a bare ellipsis. Only a
+  // message that newly ARRIVED — Leo's reply or an owner's — is spoken here, and
+  // it is spoken as rendered text rather than as raw markdown.
+  //
+  // The region sits inside the drawer on purpose: hidden subtrees are out of the
+  // accessibility tree, so a reply landing while the widget is closed stays as
+  // silent as it is invisible.
+  let announceTimer = null;
+  let announceQueue = '';
+
+  function clearAnnouncement() {
+    clearTimeout(announceTimer);
+    announceTimer = null;
+    announceQueue = '';
+    if (announcerEl) announcerEl.textContent = '';
+  }
+
+  function announce(text, source) {
+    if (!announcerEl) return;
+    const spoken = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!spoken) return;
+    // Two messages can land in the same task — the socket renders an owner's
+    // reply and then Leo pointing at it — so coalesce rather than replace, or the
+    // one that actually carries the news is the one that never gets spoken.
+    announceQueue = announceQueue ? `${announceQueue} ${spoken}` : spoken;
+    // Blank the region now, fill it on a later task. Assigning identical text is
+    // not a mutation, and a live region that did not change says nothing — which
+    // would silence a repeated reply, the warm "trouble reaching my brain" bubble
+    // most of all, since that one arrives twice over whenever the backend is down.
+    announcerEl.textContent = '';
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(() => {
+      announceTimer = null;
+      announcerEl.textContent = announceQueue;
+      announceQueue = '';
+    }, 0);
+    debug('light', `live region will announce ${spoken.length} chars — source: ${source}`);
+    debug('verbose', `announcement text: ${spoken}`);
+  }
 
   // --- Drawer visibility (LEO-053) ---
   // Every show/hide goes through here so the bubble's aria-expanded can never
@@ -167,6 +219,9 @@
   function setDrawerHidden(hidden) {
     drawer.hidden = hidden;
     bubble.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+    // Drop the last announcement on close so reopening cannot re-speak a reply
+    // the visitor already dismissed (LEO-113).
+    if (hidden) clearAnnouncement();
   }
 
   // --- Backend health checks & message queue ---
@@ -401,6 +456,9 @@
         }
         messagesEl.insertBefore(el, messagesEl.firstChild);
       }
+
+      // Not announced, by design (LEO-113): these are restored, not new.
+      debug('light', `restored ${data.messages.length} history messages silently — source: GET /chat/history${before ? ' (older page, scroll-to-top)' : ' (drawer opened)'}`);
 
       // Track oldest message for next page
       oldestTimestamp = data.messages[0].timestamp;
@@ -777,6 +835,10 @@
     }
     messagesEl.appendChild(msg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    // The visitor's own bubble is never announced — they just typed it. Announce
+    // msg.textContent, not `text`: for an assistant message `text` is markdown,
+    // which a screen reader would read out as punctuation (LEO-113).
+    if (role === 'assistant' || role === 'owner_reply') announce(msg.textContent, `appendMessage(${role})`);
   }
 
   // --- Interactive option buttons ---
