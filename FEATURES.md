@@ -147,7 +147,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page**
+- [x] **(LEO-069) Widget: a markdown link can inject an event handler into the customer's page**
   `renderMarkdown` (`widget/chatbot.js:561-606`) escapes `&`, `<` and `>` and then builds HTML by string
   substitution — but it never escapes `"`, and the link pass is
   `html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2"…>$1</a>')`, where `[^\s)]+`
