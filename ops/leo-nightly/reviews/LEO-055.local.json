@@ -1,0 +1,87 @@
+{
+  "item": "LEO-055",
+  "repo": "leoai",
+  "mergeSha": "c064a1dc5167f55c989f700d600bba965f68527d",
+  "completedAtUtc": "2026-10-23T11:14:37.204Z",
+  "completeRunId": "2026-10-23T10:54:02.651Z",
+  "reviewRunId": "2026-10-24T07:01:19.039Z",
+  "reviewedAtUtc": "2026-10-24T07:23:17.062Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 16204,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/scripts/rag-eval.js",
+        "backend/src/services/ragEval.js"
+      ],
+      "part": null,
+      "bytes": 9579,
+      "contextBytes": 0,
+      "promptTokens": 3651,
+      "completionTokens": 84,
+      "latencyMs": 13540,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/rag-eval-sweep.test.js"
+      ],
+      "part": null,
+      "bytes": 6625,
+      "contextBytes": 0,
+      "promptTokens": 3134,
+      "completionTokens": 141,
+      "latencyMs": 16052,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The change introduces a new service for threshold sweeping and updates the evaluation script to use it. The code is well-structured, and the tests are specified in the description. · No real defects found in the provided diff. However, additional code for `sweepThresholds`, `thresholdRange`, and `DEFAULT_THRESHOLDS` is needed to fully understand and verify the implementation.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 13308,
+    "completionTokens": 477
+  },
+  "latencyMs": 59763
+}

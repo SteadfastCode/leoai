@@ -1,0 +1,128 @@
+{
+  "item": "LEO-060",
+  "repo": "leoai",
+  "mergeSha": "1ad7b75901f074d90941f365c05eb0a9c93e3c0c",
+  "completedAtUtc": "2026-10-23T11:48:33.160Z",
+  "completeRunId": "2026-10-23T10:54:02.651Z",
+  "reviewRunId": "2026-10-24T07:01:19.039Z",
+  "reviewedAtUtc": "2026-10-24T07:28:00.853Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 39004,
+  "contextFiles": 10,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/ScrapedPage.js",
+        "backend/src/routes/scrape.js",
+        "backend/src/services/scanSweep.js"
+      ],
+      "part": null,
+      "bytes": 11573,
+      "contextBytes": 0,
+      "promptTokens": 4377,
+      "completionTokens": 84,
+      "latencyMs": 17053,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scrapePersist.js",
+        "backend/test/scan-sweep.test.js"
+      ],
+      "part": null,
+      "bytes": 9971,
+      "contextBytes": 2402,
+      "promptTokens": 4554,
+      "completionTokens": 125,
+      "latencyMs": 17056,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/scrape-persist.test.js",
+        "dashboard/src/lib/pageFilters.js",
+        "dashboard/src/views/PageExplorer.vue"
+      ],
+      "part": null,
+      "bytes": 11337,
+      "contextBytes": 0,
+      "promptTokens": 4214,
+      "completionTokens": 78,
+      "latencyMs": 16174,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/pageFilters.spec.js"
+      ],
+      "part": null,
+      "bytes": 6123,
+      "contextBytes": 6382,
+      "promptTokens": 4622,
+      "completionTokens": 121,
+      "latencyMs": 17034,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:35"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context from `backend/src/services/leoscan.js` is needed to fully understand the implementation of `scanText()`. · No real defects found in the provided diff. The code appears to implement the described functionality without introducing any obvious issues. · No real defects found in the provided diff. However, additional information about the `sweepChunks` function is needed to ensure it meets the requirements. · No real defects found in the provided diff. The changes appear to be consistent with the description and do not introduce any apparent issues.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 35010,
+    "completionTokens": 956
+  },
+  "latencyMs": 145346
+}

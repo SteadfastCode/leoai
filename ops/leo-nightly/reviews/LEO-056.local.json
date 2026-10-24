@@ -1,0 +1,129 @@
+{
+  "item": "LEO-056",
+  "repo": "leoai",
+  "mergeSha": "5526f2353368f032eddca4c0ba344fdf09e3053e",
+  "completedAtUtc": "2026-10-23T11:36:54.667Z",
+  "completeRunId": "2026-10-23T10:54:02.651Z",
+  "reviewRunId": "2026-10-24T07:01:19.039Z",
+  "reviewedAtUtc": "2026-10-24T07:25:35.347Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 40046,
+  "contextFiles": 11,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/ScrapeSnapshot.js",
+        "backend/src/routes/scrape.js",
+        "backend/src/services/fetchFailure.js",
+        "backend/src/services/leoRefresh.js"
+      ],
+      "part": null,
+      "bytes": 11706,
+      "contextBytes": 0,
+      "promptTokens": 4050,
+      "completionTokens": 106,
+      "latencyMs": 16782,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scrapePersist.js",
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 8889,
+      "contextBytes": 0,
+      "promptTokens": 3290,
+      "completionTokens": 108,
+      "latencyMs": 14527,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/failed-urls.test.js",
+        "dashboard/src/lib/notLearned.js"
+      ],
+      "part": null,
+      "bytes": 12387,
+      "contextBytes": 0,
+      "promptTokens": 4368,
+      "completionTokens": 154,
+      "latencyMs": 18166,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/KnowledgeBase.vue",
+        "dashboard/test/notLearned.spec.js"
+      ],
+      "part": null,
+      "bytes": 7064,
+      "contextBytes": 6298,
+      "promptTokens": 4685,
+      "completionTokens": 77,
+      "latencyMs": 17616,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:28"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff introduces a new feature to record and persist URLs that failed to fetch during the scraping process. The changes include updates to models, routes, and services to handle the new `failedUrls` field. However, the implementation of `recordFailedUrls` is not shown in the provided diff. · No real defects found. The change collects and returns failed URLs, but the implementation details of `classifyFetchFailure` and `noteEmptyAfterRender` are not provided. · The diff introduces a new test file `failed-urls.test.js` to verify the functionality of recording failed URLs during scraping. It also adds a new library file `notLearned.js` for handling and displaying not learned URLs in the dashboard. The changes are focused on collecting, returning, persisting, and shaping failed URLs without altering existing logic or adding retries, notifications, or real entity scraping. · No real defects found in the provided diff. However, additional information is needed to verify the implementation of `notLearnedFromSummary`.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 32262,
+    "completionTokens": 957
+  },
+  "latencyMs": 138070
+}

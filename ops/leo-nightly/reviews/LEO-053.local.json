@@ -1,0 +1,69 @@
+{
+  "item": "LEO-053",
+  "repo": "leoai",
+  "mergeSha": "3e2a4c46e954b0bc74e2ab863dc1b67b6001ee55",
+  "completedAtUtc": "2026-10-23T11:04:15.457Z",
+  "completeRunId": "2026-10-23T10:54:02.651Z",
+  "reviewRunId": "2026-10-24T07:01:19.039Z",
+  "reviewedAtUtc": "2026-10-24T07:22:17.205Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 9208,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 9208,
+      "contextBytes": 0,
+      "promptTokens": 3326,
+      "completionTokens": 97,
+      "latencyMs": 31371,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, the symbols `flush` and `settle` are used in the smoke test but not defined in the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 6521,
+    "completionTokens": 223
+  },
+  "latencyMs": 45419
+}
