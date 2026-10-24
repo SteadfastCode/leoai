@@ -79,6 +79,10 @@ const entitySchema = new mongoose.Schema(
       keepSocialHandles:  { type: Boolean, default: false },
       keepShortUrls:      { type: Boolean, default: false },
       variantPriceSweep:  { type: Boolean, default: false },
+      // Skip URLs robots.txt disallows (LEO-071). DEFAULT OFF — every crawl keeps
+      // recording what robots WOULD have excluded regardless, so Daniel can read
+      // the evidence for an entity before changing what it fetches.
+      honorRobots:        { type: Boolean, default: false },
       // Days after which a page is re-embedded even if its content hash matches.
       // 0 = disabled (the default) — existing entities are unaffected.
       staleDays:          { type: Number,  default: 0, min: 0 },

@@ -13,6 +13,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { REASONS } = require('./fetchFailure');
+const { summariseRobots } = require('./robots');
 const { sweepChunks, mergeSweep, logSweep } = require('./scanSweep');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
@@ -96,6 +97,45 @@ async function recordFailedUrls(snapshotId, failedUrls = []) {
   return shaped;
 }
 
+// Shape a crawl's raw robots.txt evidence for the summary and the snapshot (LEO-071).
+//
+// Same division of labour as shapeFailedUrls above: scrapeSite/rescrapeSite only
+// COLLECT, because services/scraper.js is restricted to small diffs, so every
+// assumption the dashboard is allowed to make is established here:
+//   * one entry per URL — the same URL is pushed twice in a run when two pages
+//     link to it and both batches reach the gate before either is marked visited;
+//   * strings only, non-strings and blanks dropped, so the field stays writable
+//     to a plain [String] on ScrapeSnapshot;
+//   * order preserved, so the list reads in crawl order like affectedUrls does.
+function shapeRobotsDisallowed(urls = []) {
+  const seen = new Set();
+  for (const entry of Array.isArray(urls) ? urls : []) {
+    if (typeof entry !== 'string') continue;
+    const url = entry.trim();
+    if (url) seen.add(url);
+  }
+  return [...seen];
+}
+
+// Record what robots.txt would have excluded on the run's snapshot, and log the
+// per-host summary.
+//
+// Best-effort for exactly the reasons recordFailedUrls is: a snapshot is null on
+// a first-ever scrape (nothing to archive), and a failed write here must never
+// fail a scrape that stored real chunks. Returns the shaped list either way so
+// the caller can report it whether or not it was persisted.
+async function recordRobotsDisallowed(snapshotId, urls = [], domain = '') {
+  const shaped = shapeRobotsDisallowed(urls);
+  summariseRobots(shaped, domain);
+  if (!snapshotId || shaped.length === 0) return shaped;
+  try {
+    await ScrapeSnapshot.updateOne({ _id: snapshotId }, { robotsDisallowed: shaped });
+  } catch (err) {
+    console.warn(`Could not record ${shaped.length} robots-disallowed URL(s) on snapshot ${snapshotId}: ${err.message}`);
+  }
+  return shaped;
+}
+
 // Tally how many chunks each page URL contributed to (LEO-028).
 //
 // A group chunk (multi-URL chunking for thin pages) carries the GROUP url on
@@ -170,6 +210,10 @@ async function persistRescrapeResult({ domain, result, io = null }) {
   // URLs that never produced text this run (LEO-056) — collected raw by the crawl,
   // shaped here, and reported in the summary beside skippedUrls.
   const failedUrls = shapeFailedUrls(result.failedUrls);
+  // URLs robots.txt disallowed this run (LEO-071). Recorded whether or not they
+  // were skipped — with crawlSettings.honorRobots off they WERE fetched, which is
+  // the whole point of shipping the evidence before the enforcement.
+  const robotsDisallowed = shapeRobotsDisallowed(result.robotsDisallowed);
 
   const hasNormalChanges = embeddedChunks.length > 0;
   const hasThinChanges   = thinGroupChunks.length > 0;
@@ -233,6 +277,10 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     }
   }
 
+  // Outside the block above on purpose: a rescrape where nothing changed takes no
+  // snapshot, and the robots summary for the hosts it crawled is still worth logging.
+  await recordRobotsDisallowed(snapshot?._id, robotsDisallowed, domain);
+
   if (unchangedUrls.length > 0) {
     await ScrapedPage.updateMany(
       { domain, url: { $in: unchangedUrls } },
@@ -246,6 +294,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     pagesUnchanged: unchangedUrls.length,
     chunksUpdated: embeddedChunks.length + thinGroupChunks.length,
     failedUrls,
+    robotsDisallowed,
   };
 }
 
@@ -256,5 +305,7 @@ module.exports = {
   tallyChunkCounts,
   shapeFailedUrls,
   recordFailedUrls,
+  shapeRobotsDisallowed,
+  recordRobotsDisallowed,
   MAX_SNAPSHOTS_PER_DOMAIN,
 };

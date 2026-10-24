@@ -24,6 +24,11 @@ const scrapeSnapshotSchema = new mongoose.Schema(
     pageCount:    { type: Number, default: 0 },
     affectedUrls: { type: [String], default: [] }, // all URLs for full/force; changed URLs for rescrape
     failedUrls:   { type: [failedUrlSchema], default: [] }, // URLs the crawl never learned (LEO-056)
+    // URLs robots.txt would have disallowed (LEO-071). Optional and additive, in
+    // the same shape as failedUrls above: a snapshot written before this field
+    // existed simply has an empty array. Plain [String] with no required and no
+    // unique — the same URL legitimately appears across runs and across domains.
+    robotsDisallowed: { type: [String], default: [] },
   },
   { timestamps: true }
 );

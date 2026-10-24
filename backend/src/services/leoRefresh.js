@@ -42,7 +42,7 @@ async function runRefreshForEntity(entity, io) {
     // Single shared persistence path with routes/scrape.js (LEO-027). Before the
     // extraction this branch ignored thin group chunks entirely and never wrote a
     // ScrapeSnapshot, so a bad nightly refresh had no restore path.
-    const { pagesChanged, chunksUpdated, failedUrls } = await persistRescrapeResult({
+    const { pagesChanged, chunksUpdated, failedUrls, robotsDisallowed } = await persistRescrapeResult({
       domain,
       result,
       io: broadcastedIo,
@@ -62,6 +62,9 @@ async function runRefreshForEntity(entity, io) {
       // nightly refresh reports its lost URLs exactly as a manual rescrape does (LEO-056).
       skippedUrls: result.skippedUrls || [],
       failedUrls,
+      // What robots.txt would have excluded (LEO-071). Reported, not acted on —
+      // unless this entity has crawlSettings.honorRobots on.
+      robotsDisallowed,
       durationMs: result.durationMs,
       durationFormatted: formatDuration(result.durationMs),
     };
