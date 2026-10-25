@@ -20,6 +20,12 @@
  * A baseline that could not be collected at all still blocks: with nothing to compare against
  * there is no way to tell a regression from a pre-existing failure, which is the whole point.
  *
+ * "Could not collect" is not the same as "red" (LEO-095). When a host answers nothing at all, its
+ * checks go red for a reason that says nothing about production, and recording those reds as the
+ * baseline would later excuse every genuine post-merge breakage as pre-existing. So --baseline
+ * exits 2 when a host was never reached, and the file it writes carries collected:false so a
+ * --compare against a leftover copy of it refuses as well.
+ *
  * Checks 3 and 4 need LEO_ADMIN_API_KEY. Without it they are skipped and said to be skipped; a
  * skipped check is never a regression and never a pass.
  */
@@ -42,12 +48,34 @@ const SEARCH_FLOOR = Number(process.env.LEO_SEARCH_FLOOR || 0.75);
 
 const SKIPPED = 'skipped';
 
+// Debug tiers — LEO_SMOKE_LOG_LEVEL = off | light | normal | verbose:
+//   off (default)   nothing; the JSON on stdout is the record
+//   light           one line per host, naming the checks that decided whether it was reached
+//   normal          adds a line per probe that got no HTTP response, with the transport error
+//   verbose         adds a line per probe: status and latency
+// Unreachable-production is the one path in this file that cannot be staged without taking DNS or
+// Railway down, so even the light tier names the SOURCE of the verdict rather than just the
+// verdict. All of it goes to stderr: stdout is the JSON a caller parses.
+const TIERS = { off: 0, light: 1, normal: 2, verbose: 3 };
+
+function logTier() {
+  const name = String(process.env.LEO_SMOKE_LOG_LEVEL || 'off').toLowerCase();
+  return TIERS[name] ?? TIERS.off;
+}
+
+function debug(tier, message) {
+  if (logTier() >= TIERS[tier]) console.error(`[Smoke] ${message}`);
+}
+
 async function probe(url, init = {}) {
   const started = Date.now();
   try {
     const res = await fetch(url, { redirect: 'follow', ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    debug('verbose', `probe ${url} — HTTP ${res.status} in ${Date.now() - started}ms`);
     return { status: res.status, ms: Date.now() - started, body: await res.text(), headers: res.headers };
   } catch (err) {
+    // status 0 is this file's only way of saying "no HTTP response at all" — see collectability().
+    debug('normal', `probe ${url} — no HTTP response: ${err.message}`);
     return { status: 0, ms: Date.now() - started, body: '', error: err.message };
   }
 }
@@ -144,9 +172,51 @@ async function checkWidget() {
   return { id: 'widget', ok: true, status: 200, ms: r.ms, detail: `${r.body.length} bytes, parses` };
 }
 
+/**
+ * Which host each check talks to. A check id missing from this map stands as its own host, so
+ * adding a check and forgetting to extend the map fails loudly rather than quietly widening what
+ * counts as a collected baseline.
+ */
+const HOST_OF = { health: 'api', app: 'app', chat: 'api', search: 'api', widget: 'api' };
+
+/**
+ * Was there anything to record at all? (LEO-095)
+ *
+ * A host whose every non-skipped check came back with no HTTP response (status 0: DNS, refused,
+ * TLS, timeout) was never reached, so those reds describe the network between here and there, not
+ * production. Per host rather than overall, because that is what the RUNBOOK promises and because
+ * the partial case is the dangerous one: Railway down with Netlify up leaves four checks that can
+ * say nothing, and a baseline recording them as red would then classify a failed deploy — health
+ * serving the wrong commit — as pre-existing, which is the hole this closes.
+ *
+ * A pre-existing application failure is NOT this: a 500 from /chat is a reply, the host was
+ * reached, and blocking on it is the default-deny mistake that cost 26 days.
+ *
+ * Pure apart from the debug lines, so the failure that needs a host taken down is tested without.
+ */
+export function collectability(checks, hostOf = HOST_OF) {
+  const byHost = new Map();
+  for (const c of checks || []) {
+    if (c.ok === null) continue; // skipped: never probed, so it cannot vouch for its host either
+    const host = hostOf[c.id] || c.id;
+    if (!byHost.has(host)) byHost.set(host, []);
+    byHost.get(host).push(c);
+  }
+  const reached = (c) => Number(c.status) > 0;
+  const unreachable = [...byHost.entries()].filter(([, mine]) => !mine.some(reached)).map(([host]) => host).sort();
+  for (const [host, mine] of byHost) {
+    const how = mine.map((c) => `${c.id} ${reached(c) ? `HTTP ${c.status}` : 'no response'}`).join(', ');
+    debug('light', `collectability: ${host} ${unreachable.includes(host) ? 'UNREACHABLE' : 'reached'} — source: ${how}`);
+  }
+  const probed = [...byHost.values()].reduce((n, mine) => n + mine.length, 0);
+  if (!probed) debug('light', 'collectability: nothing was probed — source: every check skipped');
+  return { collected: probed > 0 && unreachable.length === 0, unreachable };
+}
+
 export async function runSmoke({ expectCommit = null } = {}) {
   const checks = [await checkHealth(expectCommit), await checkApp(), await checkChat(), await checkSearch(), await checkWidget()];
-  return { atUtc: new Date().toISOString(), api: API, app: APP, checks, ok: checks.every((c) => c.ok !== false) };
+  const { collected, unreachable } = collectability(checks);
+  return { atUtc: new Date().toISOString(), api: API, app: APP, checks, ok: checks.every((c) => c.ok !== false), collected, unreachable };
 }
 
 /**
@@ -160,6 +230,13 @@ export async function runSmoke({ expectCommit = null } = {}) {
 export function classify(baseline, after) {
   if (!baseline || !Array.isArray(baseline.checks)) {
     return { ok: false, blocked: true, reason: 'no baseline to compare against', rows: [] };
+  }
+  // A file written by a run that never reached production is not a baseline (LEO-095): its reds
+  // would make every post-merge failure read as pre-existing. `=== false` on purpose — a baseline
+  // written before this field existed holds no opinion and stays usable.
+  if (baseline.collected === false) {
+    const hosts = (baseline.unreachable || []).join(', ') || 'host';
+    return { ok: false, blocked: true, reason: `baseline could not be collected: ${hosts} unreachable`, rows: [] };
   }
   const was = new Map(baseline.checks.map((c) => [c.id, c]));
   const rows = after.checks.map((c) => {
@@ -191,9 +268,17 @@ if (isMain) {
   const result = await runSmoke({ expectCommit: arg('--expect-commit') });
 
   if (baselineOut) {
+    // Written either way: an uncollectable baseline is still the record an incident file quotes,
+    // and writing it means a --compare that runs anyway refuses instead of trusting a stale copy.
     fs.writeFileSync(baselineOut, JSON.stringify(result, null, 2) + '\n');
-    // Exit 0 even when red: a failing baseline is a fact to record, not a reason to stop the run.
     console.log(JSON.stringify({ wrote: baselineOut, ...result }, null, 2));
+    if (!result.collected) {
+      // The one case the RUNBOOK still blocks on. Exit 2, distinct from the 1 that means a check
+      // failed, so "block with baseline-failed" never reads as "a check went red".
+      debug('light', `baseline NOT collected — source: ${result.unreachable.join(', ') || 'nothing probed'}`);
+      process.exit(2);
+    }
+    // Exit 0 even when red: a failing baseline is a fact to record, not a reason to stop the run.
     process.exit(0);
   }
   if (compareWith) {

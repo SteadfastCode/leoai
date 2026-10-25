@@ -24,18 +24,32 @@ Before touching code, record the baseline:
 node ops/leo-nightly/smoke.mjs --baseline ops/leo-nightly/.baseline.json
 ```
 
-It exits 0 whether or not checks pass. **A red baseline is a fact to write down, not a reason to
-stop.** The old rule here was default-deny — any failing check blocked the item — and it cost 26
-days: `POST /chat` answered 500 from 2026-09-09 because the Anthropic credits ran out, and eight
-items that never touched the chat path sat blocked behind it, three of them already built.
+It exits 0 whenever the checks were *collected*, whether or not they passed. **A red baseline is a
+fact to write down, not a reason to stop.** The old rule here was default-deny — any failing check
+blocked the item — and it cost 26 days: `POST /chat` answered 500 from 2026-09-09 because the
+Anthropic credits ran out, and eight items that never touched the chat path sat blocked behind it,
+three of them already built.
 
 What the baseline is *for* is the comparison after deploy. Keeping it means a check that was
 already red cannot be mistaken for something this run broke.
 
-Only one thing still stops the run here: a baseline that could not be collected at all (the host
-is unreachable, the file could not be written). With nothing to compare against there is no way to
-tell a regression from a fault that was already there, so block with `baseline-failed`, write
-`ops/leo-nightly/incident-<ts>.md`, and exit.
+Only one thing still stops the run here: a baseline that could not be collected at all. With
+nothing to compare against there is no way to tell a regression from a fault that was already
+there, so block with `baseline-failed`, write `ops/leo-nightly/incident-<ts>.md`, and exit.
+
+**Exit 2 is the script saying that itself** (LEO-095). A host that answered nothing at all leaves
+its checks red about the network between here and there, not about production; the file then says
+`"collected": false` and names the hosts in `"unreachable"`. The verdict is per host, so Railway
+unreachable with Netlify up is still exit 2 — the four API checks can say nothing, and a baseline
+recording them as red would later classify a failed deploy as pre-existing. A 500 or a 404 is an
+answer and is never exit 2; that is the 26-day case above. Any other non-zero exit from this mode
+is the script itself failing (the file could not be written) and blocks the same way.
+
+A `--compare` against a `"collected": false` file refuses as well, so a leftover baseline from a
+run that never reached production cannot quietly stand in for a missing one.
+
+`LEO_SMOKE_LOG_LEVEL=light` (also `normal`, `verbose`) traces that decision on stderr, naming the
+checks behind each host's verdict; stdout stays the JSON record.
 
 Note the baseline file is gitignored — it belongs to one run, not to the repo.
 
