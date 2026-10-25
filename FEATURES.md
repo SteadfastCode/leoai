@@ -141,17 +141,7 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-
-
-
-
-
-
-
-
-## Proposed
-
-- [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** [proposed]
+- [ ] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…**
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
   probe returns status 0 / ok:false, the file is written with five red checks and the process
@@ -160,6 +150,9 @@ standing audit, which is last so it runs only when nothing else is claimable.
   block is only detected when the file itself cannot be written or parsed, not when the probes
   never reached production. Its fix is in a path routine runs may not change, so it waits for an
   interactive session.
+
+## Proposed
+
 - [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:204). Compare mode exits 1 for
   both a real regression and a blocked/uncollectable baseline (`verdict.blocked || !verdict.ok`),
