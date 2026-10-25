@@ -72,7 +72,7 @@
     "LEO-095": {
       "order": 5,
       "title": "Baseline mode cannot express \"could not collect\": if production is entirely unreachable (DNS/Rail…",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-095",

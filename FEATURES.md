@@ -141,15 +141,6 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-- [x] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…**
-  Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
-  express "could not collect": if production is entirely unreachable (DNS/Railway down), every
-  probe returns status 0 / ok:false, the file is written with five red checks and the process
-  exits 0, so the run proceeds. That baseline then makes any genuine post-merge breakage classify
-  as 'pre-existing' (ok:true) and a broken merge stands — the one case the item says must still
-  block is only detected when the file itself cannot be written or parsed, not when the probes
-  never reached production. Its fix is in a path routine runs may not change, so it waits for an
-  interactive session.
 
 ## Proposed
 
@@ -1189,6 +1180,15 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** (routine 2026-10-25, 007dcfc)
+  Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
+  express "could not collect": if production is entirely unreachable (DNS/Railway down), every
+  probe returns status 0 / ok:false, the file is written with five red checks and the process
+  exits 0, so the run proceeds. That baseline then makes any genuine post-merge breakage classify
+  as 'pre-existing' (ok:true) and a broken merge stands — the one case the item says must still
+  block is only detected when the file itself cannot be written or parsed, not when the probes
+  never reached production. Its fix is in a path routine runs may not change, so it waits for an
+  interactive session.
 - [x] **(LEO-113) aria-live="polite" is put on #leo-messages, which is also the container that history is bulk-inse…** (routine 2026-10-24, 8a24142)
   Found by the grader of LEO-053 (medium, widget/chatbot.js:135). `aria-live="polite"` is put on
   `#leo-messages`, which is also the container that history is bulk-inserted into (`loadHistory`
