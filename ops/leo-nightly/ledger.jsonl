@@ -373,3 +373,4 @@
 {"event":"note","text":"bridge queue.promote moved LEO-095 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-095","atUtc":"2026-10-25T01:31:44.798Z"}
 {"event":"claim","runId":"2026-10-25T05:28:43.347Z","item":"LEO-095","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-10-25T05:29:12.911Z"}
 {"event":"complete","runId":"2026-10-25T05:28:43.347Z","item":"LEO-095","mergeSha":"007dcfce9bf6435263e8305f8e0bde557d30c274","durationMin":10,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-10-25T05:39:04.646Z"}
+{"event":"policy-violation","runId":"2026-10-25T05:28:43.347Z","item":"LEO-095","mergeSha":"007dcfce9bf6435263e8305f8e0bde557d30c274","files":["ops/leo-nightly/RUNBOOK.md","ops/leo-nightly/smoke.mjs","ops/leo-nightly/smoke.test.mjs"],"atUtc":"2026-10-25T05:50:20.287Z"}
