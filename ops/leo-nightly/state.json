@@ -72,18 +72,18 @@
     "LEO-095": {
       "order": 5,
       "title": "Baseline mode cannot express \"could not collect\": if production is entirely unreachable (DNS/Rail…",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-095",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-10-25T05:29:12.911Z",
+      "runId": "2026-10-25T05:28:43.347Z",
       "lastFail": null
     },
     "LEO-096": {
