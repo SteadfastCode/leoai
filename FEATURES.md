@@ -1143,6 +1143,221 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
 
+- [ ] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s** [proposed]
+  `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
+  `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
+  (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
+  `parseFloat` yields `NaN`, so an owner who clears either box to mean "off" posts the empty string.
+  `validateEntityUpdates` checks `typeof raw !== 'number'` (`backend/src/services/entitySettings.js:170`)
+  and rejects it as `(received text)`, and the route then refuses the entire PATCH
+  (`routes/dashboard.js:316-320` — "Nothing is written when anything is out of range"). So one emptied box
+  silently discards every other edit on the page, and the only clue is the LEO-062 rejection toast naming
+  the field the owner deliberately cleared. Before LEO-062 the empty string reached mongoose, was cast to
+  `null`, and the save succeeded — so this is a regression that arrived with the validator, found by its
+  own grader (`ops/leo-nightly/reviews/LEO-062.graded.json`). `save()` (line 255) already normalises
+  `quotaWarningThresholds` for the server's ascending rule; this is the same class of fix, one field over.
+  Build: extract the payload shaping out of `save()` into a pure `settingsPayload(form)` in a new
+  `dashboard/src/lib/settingsPayload.js` — the `src/lib` + `test/*.spec.js` pattern `notLearned.js` and
+  `pageFilters.js` already use — keeping the threshold sort byte-identical and coercing a blank numeric to
+  `0`, which is the documented "disabled" value for both fields and what both already fall back to when the
+  entity is loaded (lines 50 and 66). Have `save()` call it and change nothing else.
+  Files: new `dashboard/src/lib/settingsPayload.js`, `dashboard/src/views/Settings.vue`, new
+  `dashboard/test/settingsPayload.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — a form with `crawlSettings.staleDays: ''` and
+  `conversationRetentionDays: ''` yields `0` for both; a real `0` and a real `7` pass through untouched;
+  `quotaWarningThresholds: [90, 50, 75]` still comes out `[50, 75, 90]`; every other key is copied through
+  unchanged, including the nested `crawlSettings` booleans. Confirm the blank-numeric spec goes red against
+  the current inline builder. Then `yarn build`, and `cd backend && yarn verify && yarn test` to show the
+  validator itself is untouched.
+  Out of scope: the validator's bounds and its "received text" wording — `entitySettings.js` is right, the
+  empty string genuinely is not a number; LEO-076's nested-subdocument replacement; adding `v-model.number`
+  anywhere else or replacing it with a watcher; the sliders and every non-numeric control on the page; and
+  any change to `backend/src/routes/dashboard.js`.
+
+- [ ] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape** [proposed]
+  LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
+  are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
+  (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
+  to archive (line 32). So a first-ever full scrape — the signup path, where knowing which pages were not
+  learned matters most — and a rescrape in which nothing changed both persist nothing;
+  `recordRobotsDisallowed` (line 127) carries the same guard. Found by the grader of LEO-056
+  (`ops/leo-nightly/reviews/LEO-056.graded.json`). The other half is worse: nothing reads the persisted
+  copy. `grep -rn failedUrls backend/src dashboard/src` finds one writer and no reader, and
+  `KnowledgeBase.vue:22` computes its "Not learned" panel from `scrapeResult`, which is only ever the live
+  `scrape_complete` socket payload. An owner who closes the tab, or whose rescrape ran under LeoRefresh at
+  3am, cannot see the list at all — `GET /scrape/snapshots` would return it but is superadmin-only and no
+  view calls it.
+  Build: write the run's own summary on the `Entity` as a new optional `lastScrape` subdocument carrying
+  `at` plus the same keys the `scrape_complete` summary already has (`mode`, `pagesScraped`/`pagesChanged`,
+  `skippedUrls`, `failedUrls`, `robotsDisallowed`, `durationMs`) — a new field with no `required` and no
+  `unique`, so an entity that has never scraped simply has none and the schema gate stays green. Write it
+  unconditionally at the end of `persistRescrapeResult` and beside the existing
+  `Entity.findOneAndUpdate` on the full-scrape path (`backend/src/routes/scrape.js:229-233`), from the
+  already-shaped arrays, and leave the snapshot writes exactly as they are. `KnowledgeBase.vue` already
+  receives the entity as a prop, so seed `scrapeResult` from `props.entity.lastScrape` on mount and let
+  `notLearnedFromSummary` consume it unchanged. Light-tier log one line per run naming the counts and
+  where they were stored.
+  Files: `backend/src/models/Entity.js`, `backend/src/services/scrapePersist.js`,
+  `backend/src/routes/scrape.js`, `dashboard/src/views/KnowledgeBase.vue`,
+  `backend/test/failed-urls.test.js`, `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` — a rescrape whose result carries two failed URLs
+  and **no** changed chunks stores both on `entity.lastScrape` (today it stores nothing); a full scrape of
+  an entity with no prior chunks does the same; a run with no failures stores an empty list rather than
+  leaving the previous run's; the existing snapshot assertions still pass unchanged. Then
+  `cd dashboard && yarn test` for `notLearnedFromSummary` over the stored shape, and `yarn build`. The
+  first two must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: a `ScrapeRun` collection or any history beyond the latest run; exposing
+  `ScrapeSnapshot.failedUrls` to non-superadmins; retrying a failed URL (LEO-019 owns the embedding
+  retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
+  (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
+
+- [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules** [proposed]
+  Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
+  (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
+  inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
+  `assert.ok(!logged.includes(SECRET) …)` runs at line 149 the buffer holds only the "clean sweep" line.
+  The light and verbose lines, the only ones that could ever carry a match or a `scanText` preview, were
+  discarded before the assertion. A regression that printed the matched secret at verbose tier passes this
+  suite, and that assertion is the only gate on the module's central promise — "Never includes the matched
+  text" (`services/scanSweep.js:62-63`).
+  (2) On the rescrape path a finding computed for an unchanged thin page is thrown away. `sweepChunks`
+  credits every URL in a chunk's `sourceUrls` (`scanSweep.js:54-56`), so a thin page folded into a group
+  chunk is flagged — but `scanRules` is written only inside the `pageHashUpdates` loop
+  (`services/scrapePersist.js:239-262`), which carries changed pages only. An unchanged group member goes
+  through the `unchangedUrls` `updateMany` (line 284), which sets `lastScrapedAt` and nothing else. A thin
+  page that carries a secret and sits in a group rebuilt because a *sibling* changed is provably flagged
+  this run yet keeps whatever its `ScrapedPage` row already had — nothing, for any page last crawled
+  before LEO-060 — so no chip appears in Page Explorer until a full or forced scrape. The full-scrape path
+  is unaffected: its final `bulkWrite` (`routes/scrape.js:220-226`) writes `scanRules` for every page.
+  Build: (1) accumulate every tier's output into one buffer that is never reset before the leak assertion
+  (keep the per-tier line counts by slicing, not clearing), and add the case the current shape cannot
+  express — verbose tier over a chunk whose match looks like a real secret, asserting that secret's own
+  characters appear in no line. (2) write `scanRules` for every URL the sweep credited rather than only
+  the changed ones, and clear it on an unchanged URL the sweep did *not* credit this run, so the "a page
+  that stops tripping clears itself" promise (line 260) holds on both paths.
+  Files: `backend/test/scan-sweep.test.js`, `backend/src/services/scrapePersist.js`,
+  `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` — the rewritten leak assertion goes red when `logSweep`'s verbose line is made
+  to interpolate the match (do it in a scratch copy, confirm red, restore); over `mongodb-memory-server`,
+  a rescrape in which one thin page is unchanged and its group chunk is rebuilt because a sibling changed
+  leaves `scanRules` set on **both** pages, and a later rescrape where nothing trips clears both. The
+  second must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: the rule set and regexes in `services/leoScan.js`; acting on a finding — the sweep is
+  report-only by design and must stay so; the Page Explorer chip's rendering; `services/scraper.js`
+  (restricted, and it needs no change here); and the full-scrape path, which is already correct.
+
+- [ ] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row** [proposed]
+  Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
+  (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
+  `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
+  while filling the "top page" column from whether retrieval *at the floor* returned context (lines
+  77-84). `ragThreshold` is valid from 0.50 to 0.95 (`models/Entity.js:65`) but the sweep spans 0.60-0.80
+  (`services/ragEval.js:15-17`). So for an entity below 0.60 a question scoring 0.58 prints hit ✅ with
+  `—` for the page it supposedly hit, and for an entity above 0.80 a question scoring 0.70 prints miss ❌
+  beside a page it will never cite. `printSweep`'s `← entity` marker (line 108) compares the entity's
+  threshold only against the swept levels, so an entity outside 0.60-0.80 gets a sweep table with no row
+  marking where it actually stands — the one thing the table exists to show.
+  (2) `thresholdRange` derives its step count with `Math.round((max - min) / step)`
+  (`services/ragEval.js:29`), so a step that does not divide the range evenly emits a candidate past
+  `max`: `thresholdRange(0.6, 0.8, 0.03)` and `(0.6, 0.8, 0.07)` both end at 0.81.
+  `backend/test/rag-eval-sweep.test.js:139-144` covers only divisible and degenerate steps.
+  Build: (1) retrieve at `Math.min(SWEEP_FLOOR, entityThreshold)` so the page column is computed at or
+  below what the entity actually uses; move the row shaping into a pure
+  `evalRow({ topScore, hadContext, sources, threshold })` in `services/ragEval.js` and derive hit and page
+  from one comparison so the two columns can never disagree; and include the entity's own threshold among
+  the swept levels when it falls outside the default range, so the `← entity` row always exists.
+  (2) switch the step count to `Math.floor((max - min) / step + 1e-9)` so no candidate exceeds `max`,
+  keeping `round()`'s drift fix as it is.
+  Files: `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test`, no DB and no network — `thresholdRange(0.6, 0.8, 0.03)` ends at 0.78 and
+  `(0.6, 0.8, 0.07)` at 0.74, no returned candidate exceeds `max` for any step from 0.01 to 0.11, and
+  every existing case in that file is unchanged; `sweepThresholds` over fixture rows with an entity
+  threshold of 0.55 and of 0.90 contains a level equal to it; `evalRow` never returns a hit with `—` for
+  its page, nor a page for a miss, across scores either side of 0.60, 0.80 and the entity's threshold.
+  Each must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: running the script against a live entity — it needs `MONGODB_URI` and a Voyage key, so
+  not routine work; changing any default (0.60 / 0.80 / 0.01) or the committed question set;
+  `services/rag.js` (restricted) and the `$vectorSearch` stage (denylisted); and LEO-018's "what are your
+  hours?" diagnosis, which this script exists to serve but does not itself answer.
+
+- [ ] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error** [proposed]
+  Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
+  LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
+  whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
+  charged against the owner's quota and able to fire a handoff notification (`ChatWindow.vue:11-14`,
+  `Playground.vue:15-17`).
+  (1) The gate is `if (!(await ensureFreshAccessToken(...)))` (`Playground.vue:117`,
+  `ChatWindow.vue:132`), but `ensureFreshAccessToken` returns the token **unchanged and truthy** when
+  `accessTokenExpiry` cannot read an `exp` claim (`dashboard/src/lib/api.js:83-88`). That is the right
+  default for the axios interceptor, where the server has the last word — but these two call sites are
+  exactly where it does not, so a malformed or truncated `leo_access_token` sails through the gate and the
+  message is charged as real traffic. The function's own docblock promises "null when no usable token
+  could be proved".
+  (2) It also returns `null` for *any* refresh failure (line 97), a 5xx or a dropped connection included,
+  and both call sites render that as "Your sign-in has expired … Sign out and back in, then press Send
+  again." (`Playground.vue:209`, `ChatWindow.vue:283`). The owner is told to re-authenticate over a
+  transient blip, and doing so will not help.
+  Build: give `ensureFreshAccessToken` an explicit outcome instead of token-or-null —
+  `{ token, proved, reason }`, where `reason` separates `no-token`, `unreadable`, `refresh-rejected` (a
+  401/403 from `/auth/refresh`: the session really is gone) and `refresh-unavailable` (anything else).
+  Keep the request interceptor byte-identical by having it attach `token` whenever one exists, and make
+  only the two chat call sites refuse unless `proved`. Give the banner two texts: today's for a session
+  that is genuinely gone, and "couldn't reach the server to check your sign-in — nothing was sent, try
+  again" for `refresh-unavailable`. Keep every light-tier line naming the reason.
+  Files: `dashboard/src/lib/api.js`, `dashboard/src/views/Playground.vue`,
+  `dashboard/src/components/ChatWindow.vue`, `dashboard/test/accessTokenFreshness.spec.js`,
+  `dashboard/test/Playground.spec.js`, `dashboard/test/ChatWindow.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — an unreadable token yields `proved: false` with reason
+  `unreadable` and both call sites refuse to send (red today: both send); a refresh rejected 401 yields
+  `refresh-rejected` and today's banner; a refresh failing with a network error yields
+  `refresh-unavailable` and the new banner; a healthy token still sends; and the interceptor still
+  attaches a token in every one of those cases. Then `yarn build`, and `cd backend && yarn verify &&
+  yarn test` to show the backend is untouched.
+  Out of scope: making `POST /chat` reject an unproved Bearer token — it must keep answering real
+  visitors, and `routes/chat.js` is restricted; the 15-minute / 7-day token lifetimes and the silent
+  refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
+  `backend/`.
+
+- [ ] **(LEO-119) Four more filed specs carry factual errors an implementer would encode as a test** [proposed]
+  Four independent grader findings, from LEO-072, LEO-087 and LEO-103, recorded and never filed
+  (`ops/leo-nightly/reviews/LEO-072.graded.json`, `LEO-087.graded.json`, `LEO-103.graded.json`). Same
+  class as LEO-080: each is a wrong statement inside a `## Proposed` body, which is where an implementer
+  takes their test expectations from.
+  (1) LEO-077 says a missed hour costs "a `daily` entity … another 24 hours, a `weekly` one another 7
+  days". `isDueNow` (`services/leoRefresh.js:22-29`) has no weekday check — only an hour match plus a
+  `SIX_DAYS_MS` gap — so a weekly entity that misses its hour is due again at the same hour the **next
+  day**. The item's case still stands for `daily`; the weekly figure does not, and the item's own verify
+  gate ("weekly at 3d not due and at 8d due") is written against the real behaviour, so its prose and its
+  gate disagree.
+  (2) LEO-100's build says rolling `lastWeeklyDigestAt` back lets "the next hourly tick retry inside the
+  same week". `weeklyDigestDue` requires an exact UTC **hour and weekday** match
+  (`services/weeklyDigest.js:66-67`), and the catch-up arm that would let an off-hour tick through is
+  explicitly LEO-084's and out of LEO-100's scope — so the rollback can only restore next week's send. An
+  implementer following the spec writes a same-week-retry test that cannot pass.
+  (3) LEO-097's out-of-scope says LEO-070 owns "length caps and the Leo-voiced 400 on `POST /chat`'s
+  body", but LEO-070 also says "Apply the same string checks to `GET /chat/history`'s query params"
+  (FEATURES.md:360) — which is exactly where LEO-097's own operator guard lands. Two open items own the
+  same check, and the boundary Daniel would rely on when promoting one understates the overlap.
+  (4) LEO-109 prescribes a `messages: { $slice: -PAGE_SIZE }` projection plus a count while naming "again
+  for every infinite-scroll page" as part of the cost it removes. That projection can only serve the
+  newest page: the `before` cursor path filters by `timestamp < before` (`routes/chat.js:332-335`, driven
+  by `widget/chatbot.js:405-411`) and needs messages before an arbitrary instant. The item's DB-level
+  verify asserts only the first-open case, so building it as written could silently break back-paging.
+  Build: correct those four passages in place and nothing else. Do not restate the items, do not renumber
+  anything, do not move a block between sections, do not change any scope beyond the correction, and
+  leave every `[proposed]` and `[needs-human]` tag exactly as it is.
+  Files: `FEATURES.md`.
+  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
+  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and after
+  in the PR body with its one-line evidence (the missing weekday check, the hour-and-weekday guard,
+  LEO-070's own `/chat/history` sentence, the `before` filter). No code changes, so the four code gates
+  are unaffected — run and report them anyway.
+  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs — in
+  particular, deciding *how* LEO-109 should serve the `before` page: say that it must, and leave the plan
+  to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
+  any review.
+
 ## Block L — Backlog upkeep
 
 
@@ -1153,6 +1368,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 - [x] **(LEO-110) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-27]
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[proposed]` — the routine
+  promotes it after a 48-hour veto window (the daily update says what is coming; `queue demote` holds one back). Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
+
+- [ ] **(LEO-120) Backlog audit: file new candidates under Proposed** [not-before: 2026-11-03]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
   the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
