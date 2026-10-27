@@ -1367,21 +1367,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 
 
-- [x] **(LEO-110) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-27]
-  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
-  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
-  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
-  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
-  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
-  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
-  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
-  what is out of scope. Tag every filed item `[proposed]` — the routine
-  promotes it after a 48-hour veto window (the daily update says what is coming; `queue demote` holds one back). Skip anything needing a phone, a console, a credential or a pricing decision unless the
-  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
-  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
-  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
-  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
-  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
 
 - [ ] **(LEO-120) Backlog audit: file new candidates under Proposed** [not-before: 2026-11-03]
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
@@ -1411,6 +1396,21 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-110) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-27] (routine 2026-10-27, 1dacd1b)
+  A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
+  For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
+  the outcomes under Completed Items, review files under `ops/leo-nightly/` and TODO/FIXME comments are candidate
+  sources. The wishlist holds full specs of features that already shipped, so for every candidate grep the code and
+  `git log` and confirm it is NOT built before filing it; re-proposing a shipped feature is the failure this item
+  exists to prevent. File 3–8 items under `## Proposed` in this file's exact format (next free ids, never reuse
+  one): a one-line title, then an indented body with what to build, the files involved, the verify commands, and
+  what is out of scope. Tag every filed item `[proposed]` — the routine
+  promotes it after a 48-hour veto window (the daily update says what is coming; `queue demote` holds one back). Skip anything needing a phone, a console, a credential or a pricing decision unless the
+  item IS that decision. Then renew this item: append a copy of this block at the bottom of Block L with the next
+  free id and the tag `[not-before: <today + 7 days as YYYY-MM-DD>]`, so it runs weekly. The PR touches only
+  FEATURES.md. *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 and its `items` count covers
+  every item you filed (the `<orchestrator>` path is the one this runbook names for `diff-policy`). Do NOT
+  run `node ops/leo-nightly/build-state.js` — see the superseded note at the top of this file.
 - [x] **(LEO-095) Baseline mode cannot express "could not collect": if production is entirely unreachable (DNS/Rail…** (routine 2026-10-25, 007dcfc)
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:193). Baseline mode cannot
   express "could not collect": if production is entirely unreachable (DNS/Railway down), every
