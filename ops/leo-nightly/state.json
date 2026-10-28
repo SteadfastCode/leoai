@@ -715,25 +715,8 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-110": {
-      "order": 43,
-      "title": "Backlog audit: file new candidates under Proposed",
-      "status": "done",
-      "attempts": 1,
-      "cluster": null,
-      "branch": "routine/item/LEO-110",
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": "2026-10-27",
-      "claimedAtUtc": "2026-10-27T08:51:17.960Z",
-      "runId": "2026-10-27T08:51:07.200Z",
-      "lastFail": null
-    },
     "LEO-120": {
-      "order": 44,
+      "order": 43,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -750,7 +733,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 45,
+      "order": 44,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
@@ -765,6 +748,23 @@
       "claimedAtUtc": "2026-10-15T12:36:27.984Z",
       "runId": null,
       "lastFail": "failed"
+    },
+    "LEO-110": {
+      "order": null,
+      "title": "Backlog audit: file new candidates under Proposed",
+      "status": "done",
+      "attempts": 1,
+      "cluster": null,
+      "branch": "routine/item/LEO-110",
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": "2026-10-27",
+      "claimedAtUtc": "2026-10-27T08:51:17.960Z",
+      "runId": "2026-10-27T08:51:07.200Z",
+      "lastFail": null
     },
     "LEO-095": {
       "order": null,
