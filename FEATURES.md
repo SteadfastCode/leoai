@@ -141,6 +141,109 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
+- [ ] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging**
+  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
+  `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
+  top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
+  one as a whole value — so a body naming one nested key silently resets every sibling key in that
+  subdocument to its schema default. This is already a known wound, not a theory: `Entity.js:83-85`
+  keeps `unansweredDigestLastSentAt` deliberately *outside* `unansweredDigest` with the comment "the
+  PATCH handler replaces that whole subdocument, which would wipe a nested send stamp", LEO-062 names
+  the fix and puts it out of its own scope, and the grader of LEO-065 hit it from the other end
+  (`ops/leo-nightly/reviews/LEO-065.graded.json`): a `crawlSettings` flag set out of band is wiped by
+  the next owner save, because `dashboard/src/views/Settings.vue:42-47` rebuilds the subdocument from a
+  4-key literal. Today the dashboard happens to send all four keys, so the bug is latent there and live
+  for every other caller — the MCP server, a future guided-setup write, any `curl` with an API key.
+  Build a pure `flattenEntityUpdates(updates)` in a new `backend/src/services/entityUpdates.js` that
+  rewrites an allowlisted nested object into dot-paths (`crawlSettings.keepShortUrls`) so unmentioned
+  siblings are untouched, accepts only nested keys declared in a per-subdocument allowlist mirroring the
+  model, and passes arrays (`quotaWarningThresholds`, `quotaAlertChannels`) through as whole values —
+  merging an array by index is wrong. The route keeps its existing top-level allowlist, its superadmin
+  split and its response shape; the only change is what it hands Mongoose.
+  Files: new `backend/src/services/entityUpdates.js`, `backend/src/routes/dashboard.js`,
+  new `backend/test/entity-updates.test.js`. No denylisted or restricted file is touched.
+  *Verify:* `node --test` on `flattenEntityUpdates` — one nested key yields one dot-path and nothing
+  else, an undeclared nested key is dropped, a non-object value for a subdocument key is dropped rather
+  than spread, arrays survive whole, an empty body yields empty updates; plus the real dashboard router
+  over `mongodb-memory-server` (the `backend/test/kb-search.test.js` harness shape): `PATCH
+  { crawlSettings: { keepShortUrls: true } }` leaves `variantPriceSweep` and `staleDays` at their prior
+  values, and the full payload `Settings.vue` sends today still returns the entity unchanged. Confirm the
+  suite goes red against unmodified `main`. `cd backend && yarn verify && yarn test`; `cd dashboard &&
+  yarn build && yarn test`.
+  Out of scope: bounds and type validation (LEO-062 owns it, and the two land independently); which
+  fields sit on `superadminOnly`; adding any new settable field; any Entity schema change, including
+  moving `unansweredDigestLastSentAt` back inside its subdocument (only safe *after* this lands);
+  `routes/billing.js` and `routes/webhooks.js` (denylisted).
+
+- [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed**
+  `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
+  `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
+  (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
+  every merge, several a night — and a `daily` entity waits another 24 hours, a `weekly` one another 7
+  days, with nothing logged, nothing emitted and nothing on the dashboard to say a refresh was dropped.
+  `leoRefreshLastRun` is already written on every run (line 48) but is only consulted for `weekly`. The
+  sibling scheduler solved exactly this: `digestDue` in `services/unansweredDigest.js:30-41` carries a
+  `DAILY_MIN_GAP_MS` elapsed-time guard "so a tick landing a little early still sends, while a
+  DST-length day can never double-send", is exported, and is unit-tested in
+  `backend/test/unanswered-digest.test.js`. `isDueNow` is neither exported nor tested — no file under
+  `backend/test` references it.
+  Build: (1) a catch-up arm mirroring `digestDue` — due when the scheduled hour matches, **or** when
+  `leoRefreshLastRun` is older than a catch-up window (daily 26h, weekly 8d), with an elapsed-gap guard
+  (daily 20h, weekly 6d) that still makes a second run inside the same period impossible; (2) export
+  `isDueNow` so it can be tested directly; (3) an in-process re-entrancy flag around `runHourlyTick`, so
+  the next hour's fire cannot re-enter a tick that is still running — the "Sequential … no parallel runs"
+  comment at line 80 is otherwise only true *within* one tick, and two concurrent Puppeteer crawls is
+  what it exists to prevent; (4) tiered debug logging (off/light/normal/verbose) behind one env var, the
+  light tier emitting one line per decision naming the *reason* — hour match, catch-up after N hours, gap
+  guard, disabled — not just the outcome.
+  Deliberate consequence to state in the PR body: a caught-up refresh starts outside the entity's chosen
+  hour, once, and may therefore run during the routine's own merge blackout; the protection against that
+  is `GET /scrape/active`, which LEO-078 makes able to see a LeoRefresh crawl at all.
+  Files: `backend/src/services/leoRefresh.js`, new `backend/test/leo-refresh-due.test.js`,
+  `backend/.env.example` (the log-tier variable, so the env-example gate stays green).
+  *Verify:* `node --test` on `isDueNow` with an injected `now` — exact hour due; wrong hour not due;
+  wrong hour with last run 30h ago due (catch-up); exact hour with last run 1h ago not due (gap guard);
+  weekly at 3d not due and at 8d due; no `leoRefreshLastRun` at the scheduled hour due. Plus a test that
+  two overlapping `runHourlyTick` calls invoke the inner refresh once, with the second logging the
+  re-entrancy reason. Break the gap guard in a scratch copy and confirm the suite goes red.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: the cron expression itself and anything about moving off `node-cron`; per-entity
+  timezones (`leoRefreshHour` is UTC by definition); making refreshes parallel; any change to
+  `rescrapeSite` (`services/scraper.js` is restricted) or `persistRescrapeResult`; surfacing dropped
+  runs in the dashboard; and the handoff follow-up and digest ticks sharing the same cron callback.
+
+- [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`**
+  `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
+  file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
+  `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
+  site, ~7 for a 534-page shop — `GET /scrape/active` (scrape.js:29) answers `[]`. Two things ride on
+  that endpoint. The dashboard shows no crawl in flight. And the routine's own merge gate does not
+  either: `deferIf: GET /scrape/active non-empty` in the orchestrator's leoai config, documented under
+  "Blackout" in `ops/leo-nightly/RUNBOOK.md`, is what stops a merge from triggering a Railway redeploy
+  mid-crawl — and it is blind to the one crawl that runs unattended. Progressive per-URL saves mean
+  chunks are never absent, but the run dies with a partial snapshot, no `scrape_complete`, and a
+  `lastScrapedAt` that was never written.
+  Build `backend/src/services/scrapeRegistry.js` over one module-level Map: `begin(domain, info)`,
+  `end(domain)`, `list()`, `isActive(domain)`, with `source: 'manual' | 'leorefresh'` alongside the
+  existing `{ url, name, startedAt, mode }`. `routes/scrape.js` uses it in place of its local Map —
+  **the `router.get('/active', …)` line must not be rewritten** (the no-route-removed gate greps for
+  exactly that), and the response gains `source` while keeping every existing field. `leoRefresh.js`
+  wraps `runRefreshForEntity` in `begin`/`end` inside `try`/`finally`, so a thrown rescrape always
+  clears the entry rather than wedging the gate shut. Light-tier log line on each begin and end naming
+  the domain and the source of the change.
+  Files: new `backend/src/services/scrapeRegistry.js`, `backend/src/routes/scrape.js`,
+  `backend/src/services/leoRefresh.js`, new `backend/test/scrape-registry.test.js`.
+  *Verify:* `node --test` on the registry — `begin` then `list` shows the entry with its source, `end`
+  removes it, a second `begin` for a live domain does not duplicate it, `end` on an unknown domain is a
+  no-op, and a body that throws still clears via `finally`. Plus the real scrape router over http (the
+  `backend/test/kb-search.test.js` harness shape): `GET /scrape/active` still 403s a non-superadmin JWT,
+  200s for the admin key, returns `[]` when idle, and returns the entry while one is registered.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: cross-process state (Railway runs one instance; a Mongo-backed registry is a separate
+  decision with its own staleness problem); refusing to start a second scrape for a domain already
+  active; any change to `services/scraper.js` (restricted) or to the `scrape_page_saved` /
+  `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
+  automated run may not touch its own gate, and this item only makes that gate see more.
 
 ## Proposed
 
@@ -408,110 +511,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Depends on the zero-token test path landing first — until it exists the free baseline chat check
   cannot be written, and this item should not start. Edits the routine's own safety net, so
   needs-human by rule: an automated run may not widen the gate it is judged by.
-
-- [ ] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging** [proposed]
-  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
-  `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
-  top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
-  one as a whole value — so a body naming one nested key silently resets every sibling key in that
-  subdocument to its schema default. This is already a known wound, not a theory: `Entity.js:83-85`
-  keeps `unansweredDigestLastSentAt` deliberately *outside* `unansweredDigest` with the comment "the
-  PATCH handler replaces that whole subdocument, which would wipe a nested send stamp", LEO-062 names
-  the fix and puts it out of its own scope, and the grader of LEO-065 hit it from the other end
-  (`ops/leo-nightly/reviews/LEO-065.graded.json`): a `crawlSettings` flag set out of band is wiped by
-  the next owner save, because `dashboard/src/views/Settings.vue:42-47` rebuilds the subdocument from a
-  4-key literal. Today the dashboard happens to send all four keys, so the bug is latent there and live
-  for every other caller — the MCP server, a future guided-setup write, any `curl` with an API key.
-  Build a pure `flattenEntityUpdates(updates)` in a new `backend/src/services/entityUpdates.js` that
-  rewrites an allowlisted nested object into dot-paths (`crawlSettings.keepShortUrls`) so unmentioned
-  siblings are untouched, accepts only nested keys declared in a per-subdocument allowlist mirroring the
-  model, and passes arrays (`quotaWarningThresholds`, `quotaAlertChannels`) through as whole values —
-  merging an array by index is wrong. The route keeps its existing top-level allowlist, its superadmin
-  split and its response shape; the only change is what it hands Mongoose.
-  Files: new `backend/src/services/entityUpdates.js`, `backend/src/routes/dashboard.js`,
-  new `backend/test/entity-updates.test.js`. No denylisted or restricted file is touched.
-  *Verify:* `node --test` on `flattenEntityUpdates` — one nested key yields one dot-path and nothing
-  else, an undeclared nested key is dropped, a non-object value for a subdocument key is dropped rather
-  than spread, arrays survive whole, an empty body yields empty updates; plus the real dashboard router
-  over `mongodb-memory-server` (the `backend/test/kb-search.test.js` harness shape): `PATCH
-  { crawlSettings: { keepShortUrls: true } }` leaves `variantPriceSweep` and `staleDays` at their prior
-  values, and the full payload `Settings.vue` sends today still returns the entity unchanged. Confirm the
-  suite goes red against unmodified `main`. `cd backend && yarn verify && yarn test`; `cd dashboard &&
-  yarn build && yarn test`.
-  Out of scope: bounds and type validation (LEO-062 owns it, and the two land independently); which
-  fields sit on `superadminOnly`; adding any new settable field; any Entity schema change, including
-  moving `unansweredDigestLastSentAt` back inside its subdocument (only safe *after* this lands);
-  `routes/billing.js` and `routes/webhooks.js` (denylisted).
-
-- [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed** [proposed]
-  `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
-  `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
-  (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
-  every merge, several a night — and a `daily` entity waits another 24 hours, a `weekly` one another 7
-  days, with nothing logged, nothing emitted and nothing on the dashboard to say a refresh was dropped.
-  `leoRefreshLastRun` is already written on every run (line 48) but is only consulted for `weekly`. The
-  sibling scheduler solved exactly this: `digestDue` in `services/unansweredDigest.js:30-41` carries a
-  `DAILY_MIN_GAP_MS` elapsed-time guard "so a tick landing a little early still sends, while a
-  DST-length day can never double-send", is exported, and is unit-tested in
-  `backend/test/unanswered-digest.test.js`. `isDueNow` is neither exported nor tested — no file under
-  `backend/test` references it.
-  Build: (1) a catch-up arm mirroring `digestDue` — due when the scheduled hour matches, **or** when
-  `leoRefreshLastRun` is older than a catch-up window (daily 26h, weekly 8d), with an elapsed-gap guard
-  (daily 20h, weekly 6d) that still makes a second run inside the same period impossible; (2) export
-  `isDueNow` so it can be tested directly; (3) an in-process re-entrancy flag around `runHourlyTick`, so
-  the next hour's fire cannot re-enter a tick that is still running — the "Sequential … no parallel runs"
-  comment at line 80 is otherwise only true *within* one tick, and two concurrent Puppeteer crawls is
-  what it exists to prevent; (4) tiered debug logging (off/light/normal/verbose) behind one env var, the
-  light tier emitting one line per decision naming the *reason* — hour match, catch-up after N hours, gap
-  guard, disabled — not just the outcome.
-  Deliberate consequence to state in the PR body: a caught-up refresh starts outside the entity's chosen
-  hour, once, and may therefore run during the routine's own merge blackout; the protection against that
-  is `GET /scrape/active`, which LEO-078 makes able to see a LeoRefresh crawl at all.
-  Files: `backend/src/services/leoRefresh.js`, new `backend/test/leo-refresh-due.test.js`,
-  `backend/.env.example` (the log-tier variable, so the env-example gate stays green).
-  *Verify:* `node --test` on `isDueNow` with an injected `now` — exact hour due; wrong hour not due;
-  wrong hour with last run 30h ago due (catch-up); exact hour with last run 1h ago not due (gap guard);
-  weekly at 3d not due and at 8d due; no `leoRefreshLastRun` at the scheduled hour due. Plus a test that
-  two overlapping `runHourlyTick` calls invoke the inner refresh once, with the second logging the
-  re-entrancy reason. Break the gap guard in a scratch copy and confirm the suite goes red.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: the cron expression itself and anything about moving off `node-cron`; per-entity
-  timezones (`leoRefreshHour` is UTC by definition); making refreshes parallel; any change to
-  `rescrapeSite` (`services/scraper.js` is restricted) or `persistRescrapeResult`; surfacing dropped
-  runs in the dashboard; and the handoff follow-up and digest ticks sharing the same cron callback.
-
-- [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`** [proposed]
-  `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
-  file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
-  `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
-  site, ~7 for a 534-page shop — `GET /scrape/active` (scrape.js:29) answers `[]`. Two things ride on
-  that endpoint. The dashboard shows no crawl in flight. And the routine's own merge gate does not
-  either: `deferIf: GET /scrape/active non-empty` in the orchestrator's leoai config, documented under
-  "Blackout" in `ops/leo-nightly/RUNBOOK.md`, is what stops a merge from triggering a Railway redeploy
-  mid-crawl — and it is blind to the one crawl that runs unattended. Progressive per-URL saves mean
-  chunks are never absent, but the run dies with a partial snapshot, no `scrape_complete`, and a
-  `lastScrapedAt` that was never written.
-  Build `backend/src/services/scrapeRegistry.js` over one module-level Map: `begin(domain, info)`,
-  `end(domain)`, `list()`, `isActive(domain)`, with `source: 'manual' | 'leorefresh'` alongside the
-  existing `{ url, name, startedAt, mode }`. `routes/scrape.js` uses it in place of its local Map —
-  **the `router.get('/active', …)` line must not be rewritten** (the no-route-removed gate greps for
-  exactly that), and the response gains `source` while keeping every existing field. `leoRefresh.js`
-  wraps `runRefreshForEntity` in `begin`/`end` inside `try`/`finally`, so a thrown rescrape always
-  clears the entry rather than wedging the gate shut. Light-tier log line on each begin and end naming
-  the domain and the source of the change.
-  Files: new `backend/src/services/scrapeRegistry.js`, `backend/src/routes/scrape.js`,
-  `backend/src/services/leoRefresh.js`, new `backend/test/scrape-registry.test.js`.
-  *Verify:* `node --test` on the registry — `begin` then `list` shows the entry with its source, `end`
-  removes it, a second `begin` for a live domain does not duplicate it, `end` on an unknown domain is a
-  no-op, and a body that throws still clears via `finally`. Plus the real scrape router over http (the
-  `backend/test/kb-search.test.js` harness shape): `GET /scrape/active` still 403s a non-superadmin JWT,
-  200s for the admin key, returns `[]` when idle, and returns the entry while one is registered.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: cross-process state (Railway runs one instance; a Mongo-backed registry is a separate
-  decision with its own staleness problem); refusing to start a second scrape for a domain already
-  active; any change to `services/scraper.js` (restricted) or to the `scrape_page_saved` /
-  `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
-  automated run may not touch its own gate, and this item only makes that gate see more.
 
 - [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** [proposed]
   `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
