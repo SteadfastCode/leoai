@@ -1,0 +1,94 @@
+{
+  "item": "LEO-110",
+  "repo": "leoai",
+  "mergeSha": "1dacd1b718192e653158b4887eef8e8df7de76fa",
+  "completedAtUtc": "2026-10-27T09:05:28.758Z",
+  "completeRunId": "2026-10-27T08:51:07.200Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:21:01.969Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 22556,
+  "contextFiles": 0,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13832,
+      "contextBytes": 0,
+      "promptTokens": 4809,
+      "completionTokens": 383,
+      "latencyMs": 33795,
+      "findings": 0,
+      "needs": 12,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 8932,
+      "contextBytes": 0,
+      "promptTokens": 3393,
+      "completionTokens": 109,
+      "latencyMs": 15028,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "dashboard/src/lib/api.js:83-88"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "FEATURES.md:1204"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff introduces several new features and bug fixes. The changes include handling numeric settings, persisting failed URLs during scraping, fixing the leak test in scan-sweep, and addressing issues with rag-eval script. No real defects are identified based on the provided information. · No real defects found, but additional context is needed to fully assess the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 16142,
+    "completionTokens": 765
+  },
+  "latencyMs": 85565
+}

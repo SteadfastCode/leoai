@@ -1,0 +1,69 @@
+{
+  "item": "LEO-111",
+  "repo": "leoai",
+  "mergeSha": "bc0369c32049578d667540a11242491e88f077a5",
+  "completedAtUtc": "2026-10-24T13:53:26.398Z",
+  "completeRunId": "2026-10-24T13:08:06.186Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:17:13.223Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 6506,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 6506,
+      "contextBytes": 8121,
+      "promptTokens": 4433,
+      "completionTokens": 127,
+      "latencyMs": 19279,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "widget/chatbot.js:843"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The change addresses the issue of the hotkey handler staying armed after closing the drawer, preventing unintended POST requests to /chat when typing into host page's input fields.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 8735,
+    "completionTokens": 262
+  },
+  "latencyMs": 38680
+}

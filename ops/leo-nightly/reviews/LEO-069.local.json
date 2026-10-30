@@ -1,0 +1,69 @@
+{
+  "item": "LEO-069",
+  "repo": "leoai",
+  "mergeSha": "95a620af1b325195712b2a566a4c8e77739a05d1",
+  "completedAtUtc": "2026-10-24T13:26:36.659Z",
+  "completeRunId": "2026-10-24T13:08:06.186Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:12:54.609Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 8813,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 8813,
+      "contextBytes": 0,
+      "promptTokens": 3406,
+      "completionTokens": 82,
+      "latencyMs": 13477,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff addresses the issue of XSS vulnerabilities in the widget by escaping quotes and using elements and text nodes instead of interpolation. However, it does not provide a complete solution for all potential XSS vectors.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 6681,
+    "completionTokens": 208
+  },
+  "latencyMs": 28851
+}

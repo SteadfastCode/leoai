@@ -1,0 +1,70 @@
+{
+  "item": "LEO-113",
+  "repo": "leoai",
+  "mergeSha": "8a24142645e3c17a74e8d7e1daa40f6354a60480",
+  "completedAtUtc": "2026-10-24T20:12:33.003Z",
+  "completeRunId": "2026-10-24T19:55:06.125Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:18:27.151Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 14571,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "widget/chatbot.css",
+        "widget/chatbot.js",
+        "widget/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 14571,
+      "contextBytes": 0,
+      "promptTokens": 4591,
+      "completionTokens": 132,
+      "latencyMs": 20138,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff introduces a new live region for screen reader announcements to address the issue of bulk-inserted messages and typing bubbles being announced. The changes include adding a new `#leo-announcer` element in the CSS and JavaScript files, modifying the HTML structure to include this new element, and implementing an announcement queue in the JavaScript file.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 9051,
+    "completionTokens": 258
+  },
+  "latencyMs": 39524
+}

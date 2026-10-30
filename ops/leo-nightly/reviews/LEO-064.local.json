@@ -1,0 +1,68 @@
+{
+  "item": "LEO-064",
+  "repo": "leoai",
+  "mergeSha": "9f5e7a117682f81bec40d27511551b878d1a3cb9",
+  "completedAtUtc": "2026-10-24T13:17:51.085Z",
+  "completeRunId": "2026-10-24T13:08:06.186Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:12:25.685Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 6330,
+  "contextFiles": 1,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "docs/wishlist.md"
+      ],
+      "part": null,
+      "bytes": 6330,
+      "contextBytes": 0,
+      "promptTokens": 3067,
+      "completionTokens": 318,
+      "latencyMs": 23583,
+      "findings": 0,
+      "needs": 10,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff adds banners to mark sections as shipped or partially shipped. The needs list includes symbols and files that should be verified for correctness.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 6003,
+    "completionTokens": 444
+  },
+  "latencyMs": 37755
+}

@@ -1,0 +1,87 @@
+{
+  "item": "LEO-095",
+  "repo": "leoai",
+  "mergeSha": "007dcfce9bf6435263e8305f8e0bde557d30c274",
+  "completedAtUtc": "2026-10-25T05:39:04.646Z",
+  "completeRunId": "2026-10-25T05:28:43.347Z",
+  "reviewRunId": "2026-10-30T07:01:47.011Z",
+  "reviewedAtUtc": "2026-10-30T07:19:36.350Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 15755,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "ops/leo-nightly/RUNBOOK.md",
+        "ops/leo-nightly/smoke.mjs"
+      ],
+      "part": null,
+      "bytes": 10715,
+      "contextBytes": 0,
+      "promptTokens": 3599,
+      "completionTokens": 101,
+      "latencyMs": 15420,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "ops/leo-nightly/smoke.test.mjs"
+      ],
+      "part": null,
+      "bytes": 5040,
+      "contextBytes": 8173,
+      "promptTokens": 4304,
+      "completionTokens": 124,
+      "latencyMs": 18745,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "ops/leo-nightly/smoke.mjs:144"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, there are some symbols that need to be checked for their existence and implementation. · The diff introduces new tests for the `collectability` function and updates the `classify` function to handle uncollectable baselines. The changes aim to address the issue where a baseline that could not be collected was incorrectly classified as valid, leading to false positives in post-merge breakage detection.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 15544,
+    "completionTokens": 491
+  },
+  "latencyMs": 69122
+}
