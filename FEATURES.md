@@ -245,6 +245,167 @@ standing audit, which is last so it runs only when nothing else is claimable.
   `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
   automated run may not touch its own gate, and this item only makes that gate see more.
 
+- [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate**
+  `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
+  from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
+  exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
+  nothing under `backend/test` exercises it — `chat-flow.test.js:58` stubs `classifyQuery` and never
+  asserts which model was chosen. So a one-character regression on line 125 either sends every simple
+  question to Sonnet, quietly multiplying the API bill that `docs/pricing-strategy.md` sizes the plans
+  against, or routes Church Mode and long messages to Haiku, quietly lowering the answers Leo gives on
+  the material he is least allowed to be sloppy about. The `model` and `classifierRoute` fields stored
+  on each assistant message record what happened; no gate asserts what should.
+  Build: add `selectModel` to `module.exports` — one line, no behaviour change — and
+  `backend/test/model-routing.test.js` covering the matrix: Church Mode on with a `simple` result →
+  Sonnet; exactly 500 characters with `simple` → Haiku; 501 characters → Sonnet; `classifierResult`
+  `null`, `{ route: 'complex' }`, `{}` and `{ route: 'SIMPLE' }` (wrong case) → Sonnet; `simple` with
+  Church Mode off and a short message → Haiku. Read the two expected model ids from one constant at the
+  top of the test, so a deliberate model upgrade is a one-line change and the matrix still holds.
+  Files: `backend/src/services/claude.js` (export line only), new `backend/test/model-routing.test.js`.
+  *Verify:* `node --test backend/test/model-routing.test.js` green; then flip line 125's `!==` to `===`
+  in a scratch copy and confirm the suite goes red — **demonstrate both states in the PR body**, per
+  Block A's standard. `cd backend && yarn verify && yarn test`.
+  Out of scope: changing any routing rule, the 500-character boundary or the band above it; changing
+  *which* model ids are used (a cost and quality decision for Daniel, not a test fixture);
+  `classifyQuery`'s prompt, its token budget or any live call to it; `routes/chat.js` (restricted); and
+  the low-confidence hedging band (LEO-038).
+
+- [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test**
+  Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
+  (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
+  inside a `## Proposed` body, which is where an implementer takes their test expectations from.
+  (1) LEO-067 says "an *array* value casts fine, an object does not". In the installed mongoose 8.23 the
+  guard in `lib/cast/string.js` reads `value.toString && value.toString !== Object.prototype.toString &&
+  !Array.isArray(value)` — an array throws `CastError` too. So `?domain=a&domain=b` is a *second*
+  unauthenticated crash vector the item describes as harmless, and anyone encoding "array casts fine"
+  as an assertion gets a red test. (2) LEO-067 attributes the crash to "Node 24's default" while the
+  deployed runtime is pinned to `nodejs_20` in the root `nixpacks.toml`; the conclusion still holds —
+  throw-on-unhandled-rejection has been the default since Node 15 — but a reader who checks the pin
+  could wrongly dismiss the whole item. (3) LEO-064 opens its verify gate with "every banner names a
+  file that exists", yet none of the three banner forms it mandates has a file slot: the pre-routine
+  form carries only a commit, so a run following the forms literally fails its own gate. The file
+  evidence actually lives in the item's PR-body clause ("one `grep -n` hit proving the feature is in the
+  tree") and the gate should say so. (4) LEO-071 scopes `crawlSettings.honorRobots` as a flag "Daniel
+  turns on for one entity" but names no path that can set it: `dashboard/src/views/Settings.vue:42-47`
+  rebuilds `crawlSettings` from a 4-key literal and `backend/src/routes/dashboard.js:310` `$set`s the
+  subdocument wholesale, so a flag set out of band is wiped by the next settings save — either add the
+  switch to LEO-071's file list or make it depend on LEO-076.
+  Build: correct those four passages in place, and nothing else. Do not restate the items, do not
+  renumber anything, do not move a block between sections, do not change any scope beyond the
+  correction, and leave every `[needs-human]` tag exactly as it is.
+  Files: `FEATURES.md`.
+  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
+  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and
+  after in the PR body, with the one-line evidence for each (the mongoose guard, the nixpacks pin, the
+  three banner forms, the Settings.vue literal). No code changes, so the four code gates are unaffected
+  — run and report them anyway.
+  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs; anything
+  under `ops/leo-nightly/` (`README.md` is denylisted and LEO-059 already owns its stale half); and
+  re-grading either review.
+
+- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions**
+  One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
+  beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
+  (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
+  `digestDue` (`services/unansweredDigest.js:28-41`) requires the hour, plus the day when weekly; and
+  `runRetentionSweepTick` (`services/retention.js:163-164`) opens with
+  `if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;` and keeps no last-run stamp anywhere, so
+  it cannot tell a missed hour from a completed one. Their `MIN_GAP_MS` guards stop a *double* send;
+  nothing makes a *missed* fire recoverable. Railway redeploys on every merge — several a night — so
+  losing one top-of-the-hour tick is ordinary, and the cost is a whole week of digest for a weekly sender
+  and a whole day of deletion for an owner who has opted into a retention window. For a privacy feature,
+  quietly not deleting is the failure that matters.
+  This is the same defect LEO-077 describes in `isDueNow`, which is scoped to `leoRefresh.js` and names
+  these three nowhere; the file lists are disjoint and the two land in either order.
+  Build, mirroring the gap-guard shape already in `digestDue`: (1) a catch-up arm on `weeklyDigestDue` and
+  `digestDue` — due when the scheduled day+hour match, **or** when the last-sent stamp is older than a
+  catch-up window (daily 26h, weekly 8d), with the existing `MIN_GAP_MS` still making a second send inside
+  the same period impossible; (2) a `retentionLastSweepAt` optional Date on `Entity` (no `required`, no
+  `unique`) plus an exported `sweepDue(entity, now)` with the same two arms, so a missed 4 AM sweep runs at
+  5; (3) tiered debug logging (off/light/normal/verbose) through each service's existing `debug()` helper,
+  the light tier emitting one line per decision naming the **reason** — day+hour match, catch-up after N
+  hours, gap guard, disabled — not just the outcome.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/src/services/unansweredDigest.js`,
+  `backend/src/services/retention.js`, `backend/src/models/Entity.js` (one new optional Date),
+  `backend/test/weekly-digest.test.js`, `backend/test/unanswered-digest.test.js`,
+  `backend/test/retention.test.js`. `backend/src/services/leoRefresh.js` must have a **zero-line diff** —
+  LEO-077 owns that file.
+  *Verify:* `node --test` with an injected `now` against each of the three — exact day+hour due; wrong hour
+  not due; wrong hour with the last stamp 30h (daily) or 8d (weekly) old due as catch-up; the scheduled
+  hour with the stamp 1h old not due (gap guard holds); no stamp at the scheduled hour due; a disabled
+  entity never due. For the sweep, that a catch-up run writes `retentionLastSweepAt` and a second call in
+  the same hour is a no-op. Break one gap guard in a scratch copy and confirm the suite goes red.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: `services/leoRefresh.js` including the cron expression, the re-entrancy flag and the
+  handoff follow-up tick (LEO-077 owns the first three; the follow-up tick is already idempotent through
+  its atomic `findOneAndUpdate`); moving off `node-cron`; per-entity timezones; making the ticks parallel;
+  sending any real email or SMS to check one; and surfacing dropped runs in the dashboard.
+
+- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed**
+  `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
+  stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
+  this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
+  SHA-256 digest of a key shown exactly once (`routes/admin.js:290`). So anyone with read access to the
+  `users` collection — an Atlas backup, a leaked connection string, a superadmin browsing data, any future
+  read-only report — can take over any account with a live reset request by pasting the token into the reset
+  URL, with no password and no access to the owner's inbox. The window is an hour per request, and the token
+  is the entire credential. LEO-085 named this defect and put it out of its own scope.
+  Build: hash the token the way `ApiKey` already does. `crypto.randomBytes(32)` still produces the value that
+  goes in the email; only its SHA-256 digest is stored, and `/reset-password` looks up the digest of the token
+  it was handed. Put both halves behind one pure `hashResetToken(raw)` in a new
+  `backend/src/services/resetToken.js` so the write site and the read site can never disagree. Tokens already
+  stored in plaintext stop resolving the moment this deploys — correct, since they expire within the hour
+  anyway, but it must be said in the PR body rather than discovered by whoever clicks a stale link.
+  Files: new `backend/src/services/resetToken.js`, `backend/src/routes/auth.js`, `backend/src/models/User.js`
+  (**a comment only — no `required`, no `unique`, no type change**, so the schema-tightening gate stays green),
+  new `backend/test/reset-token.test.js`.
+  *Verify:* `node --test` on `hashResetToken` — a known input yields a known 64-character hex digest, the same
+  input twice is stable, a one-character change differs, and `null`/`undefined`/a non-string returns `null`
+  rather than throwing. Plus the real auth router over `mongodb-memory-server` (the
+  `backend/test/onboard-entity.test.js` harness shape, mailer stubbed and the token captured from the stub):
+  after `POST /auth/forgot-password` the stored `passwordResetToken` is **not** the token in the email;
+  `POST /auth/reset-password` with the emailed token still succeeds and still clears `refreshTokens`; the same
+  call with the *stored* value fails. Confirm the first assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: any other token's storage (the `Invite` flow is its own question — look, report in the PR
+  body, change nothing); sending a real email; the one-hour expiry; rate-limiting `/forgot-password`
+  (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
+  adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
+
+- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`**
+  The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
+  conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
+  "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
+  (`backend/src/services/retention.js:141-148`) issues a single `Conversation.deleteMany`, and the owner's age
+  sweep (line 193) does the same. `UnansweredQuestion` rows are touched by neither — and each row stores
+  `question`, the visitor's message **verbatim**, beside `sessionToken` and `conversationId`
+  (`backend/src/models/UnansweredQuestion.js:5-8`), with no expiry of any kind. They stay on the owner's
+  Unanswered page (`routes/dashboard.js:705`) and in the weekly digest's "Most asked" list indefinitely. For a
+  feature filed under privacy, the gap between the promise and the delete is the defect.
+  Build: extend both paths to delete the matching rows, keeping the filter discipline `retention.js` already
+  enforces — pure `unansweredForgetFilter({ domain, sessionToken })` and
+  `unansweredSweepFilter(conversationIds)` that return `null` rather than `{}` for any unusable input, so a
+  malformed call can never widen into a collection wipe. The forget path matches `entityDomain` +
+  `sessionToken`; the sweep path matches only the `conversationId`s it just deleted, collected before the
+  delete, so a row whose conversation outlived the cutoff is never taken. `forgetConversation` returns the two
+  counts separately (`{ conversations, questions }`) and `POST /chat/forget` **adds** a field rather than
+  changing `deleted`/`forgotten`. Light-tier log line naming which collection each deletion came from.
+  Files: `backend/src/services/retention.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed lines;
+  about 3, and not the quota block, the handoff atomic test-and-set or `conversation.save()`**),
+  `backend/test/retention.test.js`.
+  *Verify:* `node --test` on the two filter builders — a good pair yields the exact filter, a missing or
+  non-string half yields `null`, an empty or non-array id list yields `null` and never a filter matching
+  everything; plus the existing `retention.test.js` DB harness extended: a visitor with one conversation and
+  two unanswered rows loses both, a second visitor on the same domain loses neither, and the sweep removes
+  only the rows belonging to conversations it deleted. Confirm the new assertions go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs` stays green.
+  Out of scope: anything else keyed to a session (`handoffLog` lives inside the conversation document and goes
+  with it; `AuditLog` and the console buffer are not visitor data); a retention window for
+  `UnansweredQuestion` independent of conversations; the `unanswered_qa` chunk an owner has already added to
+  the knowledge base from a question — that is the business's own KB content now, so **report the residue in
+  the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
+  makes true as written.
+
 ## Proposed
 
 - [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [proposed]
@@ -512,64 +673,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   cannot be written, and this item should not start. Edits the routine's own safety net, so
   needs-human by rule: an automated run may not widen the gate it is judged by.
 
-- [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** [proposed]
-  `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
-  from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
-  exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
-  nothing under `backend/test` exercises it — `chat-flow.test.js:58` stubs `classifyQuery` and never
-  asserts which model was chosen. So a one-character regression on line 125 either sends every simple
-  question to Sonnet, quietly multiplying the API bill that `docs/pricing-strategy.md` sizes the plans
-  against, or routes Church Mode and long messages to Haiku, quietly lowering the answers Leo gives on
-  the material he is least allowed to be sloppy about. The `model` and `classifierRoute` fields stored
-  on each assistant message record what happened; no gate asserts what should.
-  Build: add `selectModel` to `module.exports` — one line, no behaviour change — and
-  `backend/test/model-routing.test.js` covering the matrix: Church Mode on with a `simple` result →
-  Sonnet; exactly 500 characters with `simple` → Haiku; 501 characters → Sonnet; `classifierResult`
-  `null`, `{ route: 'complex' }`, `{}` and `{ route: 'SIMPLE' }` (wrong case) → Sonnet; `simple` with
-  Church Mode off and a short message → Haiku. Read the two expected model ids from one constant at the
-  top of the test, so a deliberate model upgrade is a one-line change and the matrix still holds.
-  Files: `backend/src/services/claude.js` (export line only), new `backend/test/model-routing.test.js`.
-  *Verify:* `node --test backend/test/model-routing.test.js` green; then flip line 125's `!==` to `===`
-  in a scratch copy and confirm the suite goes red — **demonstrate both states in the PR body**, per
-  Block A's standard. `cd backend && yarn verify && yarn test`.
-  Out of scope: changing any routing rule, the 500-character boundary or the band above it; changing
-  *which* model ids are used (a cost and quality decision for Daniel, not a test fixture);
-  `classifyQuery`'s prompt, its token budget or any live call to it; `routes/chat.js` (restricted); and
-  the low-confidence hedging band (LEO-038).
-
-- [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test** [proposed]
-  Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
-  (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
-  inside a `## Proposed` body, which is where an implementer takes their test expectations from.
-  (1) LEO-067 says "an *array* value casts fine, an object does not". In the installed mongoose 8.23 the
-  guard in `lib/cast/string.js` reads `value.toString && value.toString !== Object.prototype.toString &&
-  !Array.isArray(value)` — an array throws `CastError` too. So `?domain=a&domain=b` is a *second*
-  unauthenticated crash vector the item describes as harmless, and anyone encoding "array casts fine"
-  as an assertion gets a red test. (2) LEO-067 attributes the crash to "Node 24's default" while the
-  deployed runtime is pinned to `nodejs_20` in the root `nixpacks.toml`; the conclusion still holds —
-  throw-on-unhandled-rejection has been the default since Node 15 — but a reader who checks the pin
-  could wrongly dismiss the whole item. (3) LEO-064 opens its verify gate with "every banner names a
-  file that exists", yet none of the three banner forms it mandates has a file slot: the pre-routine
-  form carries only a commit, so a run following the forms literally fails its own gate. The file
-  evidence actually lives in the item's PR-body clause ("one `grep -n` hit proving the feature is in the
-  tree") and the gate should say so. (4) LEO-071 scopes `crawlSettings.honorRobots` as a flag "Daniel
-  turns on for one entity" but names no path that can set it: `dashboard/src/views/Settings.vue:42-47`
-  rebuilds `crawlSettings` from a 4-key literal and `backend/src/routes/dashboard.js:310` `$set`s the
-  subdocument wholesale, so a flag set out of band is wiped by the next settings save — either add the
-  switch to LEO-071's file list or make it depend on LEO-076.
-  Build: correct those four passages in place, and nothing else. Do not restate the items, do not
-  renumber anything, do not move a block between sections, do not change any scope beyond the
-  correction, and leave every `[needs-human]` tag exactly as it is.
-  Files: `FEATURES.md`.
-  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
-  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and
-  after in the PR body, with the one-line evidence for each (the mongoose guard, the nixpacks pin, the
-  three banner forms, the Settings.vue literal). No code changes, so the four code gates are unaffected
-  — run and report them anyway.
-  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs; anything
-  under `ops/leo-nightly/` (`README.md` is denylisted and LEO-059 already owns its stale half); and
-  re-grading either review.
-
 - [ ] **(LEO-082) Every owner notification links to `localhost`: `DASHBOARD_URL` is undeclared** [needs-human]
   `services/notifications.js` builds the dashboard link in all six of its senders from
   `process.env.DASHBOARD_URL || 'http://localhost:5173'` (lines 80, 113, 159, 205, 251, 290), and
@@ -643,44 +746,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `billingPeriodResetAt` already stored on existing entities (a one-off Daniel can run once the function
   exists); the PAYG milestone maths; and any change to the quota check itself, the handoff atomic
   test-and-set or `conversation.save()`.
-
-- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** [proposed]
-  One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
-  beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
-  (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
-  `digestDue` (`services/unansweredDigest.js:28-41`) requires the hour, plus the day when weekly; and
-  `runRetentionSweepTick` (`services/retention.js:163-164`) opens with
-  `if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;` and keeps no last-run stamp anywhere, so
-  it cannot tell a missed hour from a completed one. Their `MIN_GAP_MS` guards stop a *double* send;
-  nothing makes a *missed* fire recoverable. Railway redeploys on every merge — several a night — so
-  losing one top-of-the-hour tick is ordinary, and the cost is a whole week of digest for a weekly sender
-  and a whole day of deletion for an owner who has opted into a retention window. For a privacy feature,
-  quietly not deleting is the failure that matters.
-  This is the same defect LEO-077 describes in `isDueNow`, which is scoped to `leoRefresh.js` and names
-  these three nowhere; the file lists are disjoint and the two land in either order.
-  Build, mirroring the gap-guard shape already in `digestDue`: (1) a catch-up arm on `weeklyDigestDue` and
-  `digestDue` — due when the scheduled day+hour match, **or** when the last-sent stamp is older than a
-  catch-up window (daily 26h, weekly 8d), with the existing `MIN_GAP_MS` still making a second send inside
-  the same period impossible; (2) a `retentionLastSweepAt` optional Date on `Entity` (no `required`, no
-  `unique`) plus an exported `sweepDue(entity, now)` with the same two arms, so a missed 4 AM sweep runs at
-  5; (3) tiered debug logging (off/light/normal/verbose) through each service's existing `debug()` helper,
-  the light tier emitting one line per decision naming the **reason** — day+hour match, catch-up after N
-  hours, gap guard, disabled — not just the outcome.
-  Files: `backend/src/services/weeklyDigest.js`, `backend/src/services/unansweredDigest.js`,
-  `backend/src/services/retention.js`, `backend/src/models/Entity.js` (one new optional Date),
-  `backend/test/weekly-digest.test.js`, `backend/test/unanswered-digest.test.js`,
-  `backend/test/retention.test.js`. `backend/src/services/leoRefresh.js` must have a **zero-line diff** —
-  LEO-077 owns that file.
-  *Verify:* `node --test` with an injected `now` against each of the three — exact day+hour due; wrong hour
-  not due; wrong hour with the last stamp 30h (daily) or 8d (weekly) old due as catch-up; the scheduled
-  hour with the stamp 1h old not due (gap guard holds); no stamp at the scheduled hour due; a disabled
-  entity never due. For the sweep, that a catch-up run writes `retentionLastSweepAt` and a second call in
-  the same hour is a no-op. Break one gap guard in a scratch copy and confirm the suite goes red.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: `services/leoRefresh.js` including the cron expression, the re-entrancy flag and the
-  handoff follow-up tick (LEO-077 owns the first three; the follow-up tick is already idempotent through
-  its atomic `findOneAndUpdate`); moving off `node-cron`; per-entity timezones; making the ticks parallel;
-  sending any real email or SMS to check one; and surfacing dropped runs in the dashboard.
 
 - [ ] **(LEO-085) `JWT_SECRET` silently falls back to a literal committed to this repo** [needs-human]
   `backend/src/middleware/auth.js:7` is
@@ -797,71 +862,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   middleware or `mongoose.set('sanitizeFilter', true)` (a repo-wide behaviour change, and `backend/index.js`
   is denylisted); the authenticated dashboard and admin routes; rate-limiting any of these endpoints
   (LEO-052 and LEO-101); and `routes/billing.js`/`routes/webhooks.js` (denylisted).
-
-- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** [proposed]
-  `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
-  stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
-  this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
-  SHA-256 digest of a key shown exactly once (`routes/admin.js:290`). So anyone with read access to the
-  `users` collection — an Atlas backup, a leaked connection string, a superadmin browsing data, any future
-  read-only report — can take over any account with a live reset request by pasting the token into the reset
-  URL, with no password and no access to the owner's inbox. The window is an hour per request, and the token
-  is the entire credential. LEO-085 named this defect and put it out of its own scope.
-  Build: hash the token the way `ApiKey` already does. `crypto.randomBytes(32)` still produces the value that
-  goes in the email; only its SHA-256 digest is stored, and `/reset-password` looks up the digest of the token
-  it was handed. Put both halves behind one pure `hashResetToken(raw)` in a new
-  `backend/src/services/resetToken.js` so the write site and the read site can never disagree. Tokens already
-  stored in plaintext stop resolving the moment this deploys — correct, since they expire within the hour
-  anyway, but it must be said in the PR body rather than discovered by whoever clicks a stale link.
-  Files: new `backend/src/services/resetToken.js`, `backend/src/routes/auth.js`, `backend/src/models/User.js`
-  (**a comment only — no `required`, no `unique`, no type change**, so the schema-tightening gate stays green),
-  new `backend/test/reset-token.test.js`.
-  *Verify:* `node --test` on `hashResetToken` — a known input yields a known 64-character hex digest, the same
-  input twice is stable, a one-character change differs, and `null`/`undefined`/a non-string returns `null`
-  rather than throwing. Plus the real auth router over `mongodb-memory-server` (the
-  `backend/test/onboard-entity.test.js` harness shape, mailer stubbed and the token captured from the stub):
-  after `POST /auth/forgot-password` the stored `passwordResetToken` is **not** the token in the email;
-  `POST /auth/reset-password` with the emailed token still succeeds and still clears `refreshTokens`; the same
-  call with the *stored* value fails. Confirm the first assertion goes red against unmodified `main`.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: any other token's storage (the `Invite` flow is its own question — look, report in the PR
-  body, change nothing); sending a real email; the one-hour expiry; rate-limiting `/forgot-password`
-  (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
-  adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
-
-- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** [proposed]
-  The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
-  conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
-  "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
-  (`backend/src/services/retention.js:141-148`) issues a single `Conversation.deleteMany`, and the owner's age
-  sweep (line 193) does the same. `UnansweredQuestion` rows are touched by neither — and each row stores
-  `question`, the visitor's message **verbatim**, beside `sessionToken` and `conversationId`
-  (`backend/src/models/UnansweredQuestion.js:5-8`), with no expiry of any kind. They stay on the owner's
-  Unanswered page (`routes/dashboard.js:705`) and in the weekly digest's "Most asked" list indefinitely. For a
-  feature filed under privacy, the gap between the promise and the delete is the defect.
-  Build: extend both paths to delete the matching rows, keeping the filter discipline `retention.js` already
-  enforces — pure `unansweredForgetFilter({ domain, sessionToken })` and
-  `unansweredSweepFilter(conversationIds)` that return `null` rather than `{}` for any unusable input, so a
-  malformed call can never widen into a collection wipe. The forget path matches `entityDomain` +
-  `sessionToken`; the sweep path matches only the `conversationId`s it just deleted, collected before the
-  delete, so a row whose conversation outlived the cutoff is never taken. `forgetConversation` returns the two
-  counts separately (`{ conversations, questions }`) and `POST /chat/forget` **adds** a field rather than
-  changing `deleted`/`forgotten`. Light-tier log line naming which collection each deletion came from.
-  Files: `backend/src/services/retention.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed lines;
-  about 3, and not the quota block, the handoff atomic test-and-set or `conversation.save()`**),
-  `backend/test/retention.test.js`.
-  *Verify:* `node --test` on the two filter builders — a good pair yields the exact filter, a missing or
-  non-string half yields `null`, an empty or non-array id list yields `null` and never a filter matching
-  everything; plus the existing `retention.test.js` DB harness extended: a visitor with one conversation and
-  two unanswered rows loses both, a second visitor on the same domain loses neither, and the sweep removes
-  only the rows belonging to conversations it deleted. Confirm the new assertions go red against unmodified
-  `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs` stays green.
-  Out of scope: anything else keyed to a session (`handoffLog` lives inside the conversation document and goes
-  with it; `AuditLog` and the console buffer are not visitor data); a retention window for
-  `UnansweredQuestion` independent of conversations; the `unanswered_qa` chunk an owner has already added to
-  the knowledge base from a question — that is the business's own KB content now, so **report the residue in
-  the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
-  makes true as written.
 
 - [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** [proposed]
   Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
