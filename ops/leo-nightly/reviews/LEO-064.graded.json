@@ -1,0 +1,63 @@
+{
+  "item": "LEO-064",
+  "repo": "leoai",
+  "mergeSha": "9f5e7a117682f81bec40d27511551b878d1a3cb9",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T13:28:51.666Z",
+  "gradedAtUtc": "2026-10-31T13:31:41.657Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Diff touches only `docs/wishlist.md` prose; no auth, RBAC or middleware code changes."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or env handling appear in the added banner lines."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Banners only annotate the usage-panel/billing design history; no Stripe, quota or pricing logic is altered."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Change is pure insertion of markdown lines — no deletes, migrations or data-touching code (diff is all `+`)."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No calls to Anthropic, Voyage, Twilio, Resend or any other service are added or modified."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No nixpacks/railway/netlify or build config touched; documentation only."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read — all twelve banners resolve (every cited commit exists with a matching author date, every cited LEO id — 011, 016, 021, 026, 029, 045, 047, 060 — sits under `## Completed Items`, the five pre-routine sections cite no id, the underlying features exist in the tree, and no spec prose was removed) — though with zero findings and bare \"not touched\" verdicts the review carried little evidence of actually having checked the ids, commits and date claims.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.1885185,
+  "numTurns": 17,
+  "durationMs": 166708,
+  "sessionId": "37bb1b73-f4d1-4e0c-894b-c5f1d6debbf1"
+}
