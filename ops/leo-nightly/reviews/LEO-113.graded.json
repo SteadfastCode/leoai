@@ -1,0 +1,79 @@
+{
+  "item": "LEO-113",
+  "repo": "leoai",
+  "mergeSha": "8a24142645e3c17a74e8d7e1daa40f6354a60480",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:38:01.956Z",
+  "independent": [
+    {
+      "file": "widget/chatbot.js",
+      "line": 841,
+      "severity": "medium",
+      "summary": "announce(msg.textContent) flattens the rendered markdown DOM with no separator between block elements, so a reply with bullets or multiple paragraphs is announced as run-together words (`<li>rye</li><li>sourdough</li>` → \"ryesourdough\", \"...9-5.Anything else?\"); the item's promise that \"markdown is spoken as prose\" only holds for the single-paragraph replies the new smoke assertions exercise."
+    },
+    {
+      "file": "widget/chatbot.js",
+      "line": 881,
+      "severity": "low",
+      "summary": "renderOptions() appends the quick-reply pills to #leo-messages, which no longer carries aria-live, and nothing announces them — since the backend strips `[OPTIONS: …]` from the reply text, a screen-reader user is now never told that options appeared (they were announced before this change)."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Change is widget ARIA/live-region plumbing plus smoke assertions; no auth, token, or session-authorization logic is altered."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys, or env handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, quota, or pricing code is modified; the 402/429 branches are untouched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The only deletions are blanking a live region's textContent; the clear/forget paths are merely driven by the test, not changed."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No new or modified network calls — only existing /chat and /chat/history calls are stubbed inside the smoke harness."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, config, version, or infrastructure files are touched (widget JS/CSS and smoke script only)."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model reported nothing and so missed the markdown-flattening defect in the announcement text, though its six triage calls were all correct for this widget-only change.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.9561854999999999,
+  "numTurns": 11,
+  "durationMs": 109842,
+  "sessionId": "52024d8f-ba63-42e8-afc3-f3e4eda38dde"
+}

@@ -408,6 +408,37 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-121) checkApp reports status: asset.status (0) when only the hashed-bundle probe transport-fails, even…** [needs-human]
+  Found by the grader of LEO-095 (medium, ops/leo-nightly/smoke.mjs:106). checkApp reports
+  `status: asset.status` (0) when only the hashed-bundle probe transport-fails, even though the
+  app page itself answered 200; since 'app' is a single-check host, collectability then calls the
+  host unreachable and --baseline exits 2, blocking the whole night on a
+  reached-but-partially-failing Netlify — exactly the default-deny outcome the item exists to
+  avoid (and the detail string reads 'which answers 0'). Its fix is in a path routine runs may not
+  change, so it waits for an interactive session.
+- [ ] **(LEO-122) announce(msg.textContent) flattens the rendered markdown DOM with no separator between block elem…**
+  Found by the grader of LEO-113 (medium, widget/chatbot.js:841). announce(msg.textContent)
+  flattens the rendered markdown DOM with no separator between block elements, so a reply with
+  bullets or multiple paragraphs is announced as run-together words
+  (`<li>rye</li><li>sourdough</li>` → "ryesourdough", "...9-5.Anything else?"); the item's promise
+  that "markdown is spoken as prose" only holds for the single-paragraph replies the new smoke
+  assertions exercise.
+- [ ] **(LEO-123) The fix only disarms the document-level hotkey handler while the drawer is hidden; the other half…**
+  Found by the grader of LEO-111 (medium, widget/chatbot.js:918). The fix only disarms the
+  document-level hotkey handler while the drawer is hidden; the other half of the same leak
+  remains — with the drawer open (it is a floating panel, the host page stays interactive) a
+  `y`/`n`/`1`-`4`, or Enter in 'select' behavior with a pendingValue, typed into the HOST page's
+  own form field is still preventDefault()ed and silently POSTed to /chat, because `e.target ===
+  input` only exempts the widget's own input and no check excludes editable targets outside the
+  widget.
+- [ ] **(LEO-124) honorRobots is unreachable through the API and is silently reverted: it is absent from FIELD_RULE…**
+  Found by the grader of LEO-071 (medium, backend/src/services/entitySettings.js:63).
+  `honorRobots` is unreachable through the API and is silently reverted: it is absent from
+  FIELD_RULES.crawlSettings, so validateEntityUpdates drops it from any PATCH body (`if
+  (!nestedRule) continue`), and because the validator rebuilds `crawlSettings` as a whole object
+  from only the four declared keys, `Entity.findOneAndUpdate({crawlSettings:{...}})` $sets the
+  entire nested object — so a value Daniel enables directly in the DB is wiped back to false the
+  next time any owner saves Settings.vue (whose form also carries only the four keys).
 - [ ] **(LEO-096) Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…** [proposed]
   Found by the grader of LEO-073 (medium, ops/leo-nightly/smoke.mjs:204). Compare mode exits 1 for
   both a real regression and a blocked/uncollectable baseline (`verdict.blocked || !verdict.ok`),

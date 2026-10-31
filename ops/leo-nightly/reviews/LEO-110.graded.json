@@ -1,0 +1,72 @@
+{
+  "item": "LEO-110",
+  "repo": "leoai",
+  "mergeSha": "1dacd1b718192e653158b4887eef8e8df7de76fa",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:34:47.901Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 1241,
+      "severity": "low",
+      "summary": "LEO-116's build step (2) instructs clearing `scanRules` on any unchanged URL the sweep did not credit this run, but on a rescrape unchanged pages are never swept at all (their chunks aren't rebuilt, so `sweepChunks` never sees them) — following the spec would erase valid findings from the previous full scrape on every nightly LeoRefresh, the opposite of the chip-persistence problem the item is filed to fix; 'did not trip' and 'was never looked at' are indistinguishable there, and the verify line ('a later rescrape where nothing trips clears both') encodes the same confusion."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "The diff changes only FEATURES.md prose; `dashboard/src/lib/api.js` is merely quoted inside a proposed spec and no auth code, token handling or permission check is modified."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or secret-handling code appear in the diff (LEO-116 only describes the existing report-only scanner)."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "No billing, quota or pricing code is touched — the change is a backlog document edit, and the cited FEATURES.md line is ordinary spec prose about scrape persistence."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations or destructive operations — only added Markdown blocks."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No calls to Stripe, Twilio, Resend, Anthropic or Voyage are added or altered."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version, deploy, nixpacks or CI configuration is involved."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model reported no findings and its triage is wrong in both directions it bothered to mark, flagging auth and money as touched on the strength of file paths quoted inside a FEATURES.md-only backlog edit, and it missed the one real spec-logic error in the filed items.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 1.814195,
+  "numTurns": 31,
+  "durationMs": 179256,
+  "sessionId": "dd835815-6d32-4171-840a-1dba3ae111ff"
+}

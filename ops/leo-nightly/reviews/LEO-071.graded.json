@@ -1,0 +1,100 @@
+{
+  "item": "LEO-071",
+  "repo": "leoai",
+  "mergeSha": "0dc0dfd079a77365e5c101d3ce3dbc1cb09de34c",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:45:39.186Z",
+  "independent": [
+    {
+      "file": "backend/src/services/entitySettings.js",
+      "line": 63,
+      "severity": "medium",
+      "summary": "`honorRobots` is unreachable through the API and is silently reverted: it is absent from FIELD_RULES.crawlSettings, so validateEntityUpdates drops it from any PATCH body (`if (!nestedRule) continue`), and because the validator rebuilds `crawlSettings` as a whole object from only the four declared keys, `Entity.findOneAndUpdate({crawlSettings:{...}})` $sets the entire nested object — so a value Daniel enables directly in the DB is wiped back to false the next time any owner saves Settings.vue (whose form also carries only the four keys)."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 867,
+      "severity": "low",
+      "summary": "The Pass 1 structural-analysis fetch of the base URL happens before the crawl loop and bypasses shouldSkipUrl entirely, so with honorRobots on a robots-disallowed home page is still requested (and its DOM sent to Haiku) — breaking the 'never fetched' guarantee the on-flag containment test asserts for non-base URLs; the same bypass exists in rescrapeSite:1003."
+    },
+    {
+      "file": "backend/src/services/robots.js",
+      "line": 340,
+      "severity": "low",
+      "summary": "summariseRobots iterates the process-wide `hostCache`, not the hosts of the current run, so within the one-hour TTL a run logs per-host 'N URL(s) disallowed' lines for hosts belonging to other entities' crawls, prefixed with this run's domain label (very visible in leoRefresh's sequential per-entity loop); relatedly the 'robots.txt from cache' branch is unreachable because hostCache stores each entry's fetch-time `from`, so a host carried over from an earlier run is reported as freshly 'fetched'."
+    },
+    {
+      "file": "backend/src/routes/scrape.js",
+      "line": 177,
+      "severity": "low",
+      "summary": "A full/force scrape deletes all scraped chunks and ScrapedPages before crawling, so with honorRobots on a robots.txt that disallows the base path (or `Disallow: /`) makes the crawl skip the seed URL, discover no links, and leave the entity with an empty knowledge base — recoverable only from the snapshot, and nothing in the gate exempts the entity's own seed URL."
+    },
+    {
+      "file": "backend/src/services/robots.js",
+      "line": 66,
+      "severity": "low",
+      "summary": "pickGroup resolves groups by substring-matching agent tokens against the whole UA string including its URL (`uaLower.includes(agent)`) rather than the product token, so a group named e.g. `ai`, `chat`, `leo` or `crawler` is treated as LeoAI-specific and overrides the `*` group; and only the first `User-agent: *` group is used, so rules in a second wildcard group (common in plugin-appended robots.txt) are never recorded."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, permission or role logic is changed; the scrape and dashboard routes keep their existing requireAuth guards."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only a new non-sensitive ROBOTS_LOG_LEVEL knob is added to .env.example; no credentials, tokens or keys are touched."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, quota or pricing paths."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff itself adds only additive writes (one snapshot field) and an opt-in, default-off skip; it adds no delete or overwrite of its own, even though it can interact with the pre-existing delete-then-crawl in a full scrape."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right verdict — the change adds a new outbound HTTP GET of third-party /robots.txt and alters the User-Agent sent to every crawled host — though the cited line 183 is inside matchingRule, not the axios call."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bump, build/deploy config or migration is involved; the new Entity and ScrapeSnapshot fields are optional with defaults and the env var falls back to 'light'."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "summary": "The local model reported nothing at all and so missed every issue, including the one that defeats the feature's own control path (honorRobots is unsettable via the API and is wiped by an ordinary Settings save); its triage verdicts were all defensible, but the one 'touched' answer cited an irrelevant line.}",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 5,
+    "independent": 5,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 2.647907499999999,
+  "numTurns": 29,
+  "durationMs": 313318,
+  "sessionId": "80c435c9-1576-43ea-8b42-9a54e7e2f83e"
+}

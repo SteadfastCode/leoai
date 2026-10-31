@@ -1,0 +1,63 @@
+{
+  "item": "LEO-069",
+  "repo": "leoai",
+  "mergeSha": "95a620af1b325195712b2a566a4c8e77739a05d1",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:47:39.190Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only touches widget DOM construction and the widget smoke harness — no authentication, token, or permission logic is changed."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys, or env handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota, or Stripe code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Product code only builds DOM nodes; the only delete-ish calls are stubbed menu clicks inside the jsdom smoke test, which touch nothing real."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The widget's fetch calls are unchanged; the new `historyHandler` is a test-local stub of the already-stubbed `/chat/history` route, not a change to any outbound call."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, CI, version, or packaging files are modified."
+    }
+  ],
+  "missed": [],
+  "summary": "The local review reported nothing, which matches my own cold read — the two interpolation sinks are correctly rebuilt from elements plus text nodes (renderMarkdown's quote escaping and href guard having already landed with LEO-091), and the new smoke assertions are sound, so \"no defects\" is the right call here even if arrived at with no visible verification.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.09046,
+  "numTurns": 15,
+  "durationMs": 119975,
+  "sessionId": "be16d422-619b-47b2-a055-9393c852bb0b"
+}

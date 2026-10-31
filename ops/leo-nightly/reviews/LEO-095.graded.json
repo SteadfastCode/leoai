@@ -1,0 +1,79 @@
+{
+  "item": "LEO-095",
+  "repo": "leoai",
+  "mergeSha": "007dcfce9bf6435263e8305f8e0bde557d30c274",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:36:12.083Z",
+  "independent": [
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 106,
+      "severity": "medium",
+      "summary": "checkApp reports `status: asset.status` (0) when only the hashed-bundle probe transport-fails, even though the app page itself answered 200; since 'app' is a single-check host, collectability then calls the host unreachable and --baseline exits 2, blocking the whole night on a reached-but-partially-failing Netlify — exactly the default-deny outcome the item exists to avoid (and the detail string reads 'which answers 0')."
+    },
+    {
+      "file": "ops/leo-nightly/smoke.mjs",
+      "line": 287,
+      "severity": "low",
+      "summary": "classify() refuses a baseline with collected:false but never looks at `after.collected`, which runSmoke now computes: if production is unreachable at compare time every green check reads as a regression, so a DNS/network fault on the runner side triggers autoRevert of a healthy merge — the mirror of the hole just closed on the baseline side, with the data to detect it already in hand."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication or authorization logic is added or changed; the pre-existing X-API-Key headers are untouched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials are added, logged, or moved — the new debug lines print URLs, statuses and transport errors only."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "The paid /chat probe is unchanged; nothing in the diff alters billing, pricing, or spend."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The only write is the pre-existing baseline file write; no deletes or irreversible operations are introduced."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right that the change touches outbound HTTP handling — probe() is modified and collectability() reinterprets probe results — even though line 144 is weak evidence."
+    },
+    {
+      "key": "release",
+      "correct": false,
+      "reason": "Wrong: this is the nightly deploy gate — the diff adds a new blocking exit 2, a --compare refusal, and rewrites the RUNBOOK's deploy/block procedure, so release gating is squarely touched."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review found nothing at all, missing both the single-check 'app' host misclassification and the unused after.collected on the compare path, and its triage was right on five of six categories while calling the deploy-gate change not release-related.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 0.7257279999999999,
+  "numTurns": 5,
+  "durationMs": 84152,
+  "sessionId": "aa334512-51a6-45ae-be14-f1fb8983096b"
+}

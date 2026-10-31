@@ -1,0 +1,63 @@
+{
+  "item": "LEO-112",
+  "repo": "leoai",
+  "mergeSha": "aeaba23a69511ddd02d3b1712235de072a9cea4d",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:38:45.045Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Diff only removes an ARIA attribute from the widget drawer and updates its smoke assertion; no auth/session/permission code involved."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, keys, or env handling appear anywhere in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations, or data mutations — a single attribute removal and a test assertion swap."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No network calls, endpoints, or third-party SDK usage are added or modified."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, deploy, nixpacks/railway, version, or packaging files are in the diff."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported nothing, which happens to be the right verdict here — the change is a minimal, correct removal of aria-modal from the non-modal drawer with a matching inverted smoke assertion and no stale references left anywhere in widget/ — and its triage was accurate, though with no findings it demonstrates no actual review depth.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.6318239999999999,
+  "numTurns": 11,
+  "durationMs": 43058,
+  "sessionId": "4843af9d-0d36-410d-8408-ec4424054a16"
+}

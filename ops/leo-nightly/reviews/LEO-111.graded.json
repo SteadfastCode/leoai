@@ -1,0 +1,72 @@
+{
+  "item": "LEO-111",
+  "repo": "leoai",
+  "mergeSha": "bc0369c32049578d667540a11242491e88f077a5",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-10-31T05:18:50.818Z",
+  "gradedAtUtc": "2026-10-31T05:40:25.829Z",
+  "independent": [
+    {
+      "file": "widget/chatbot.js",
+      "line": 918,
+      "severity": "medium",
+      "summary": "The fix only disarms the document-level hotkey handler while the drawer is hidden; the other half of the same leak remains — with the drawer open (it is a floating panel, the host page stays interactive) a `y`/`n`/`1`-`4`, or Enter in 'select' behavior with a pendingValue, typed into the HOST page's own form field is still preventDefault()ed and silently POSTed to /chat, because `e.target === input` only exempts the widget's own input and no check excludes editable targets outside the widget."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff is widget keydown gating plus a smoke test; no auth, tokens, roles or middleware involved."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or env vars appear in either changed file's diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, pricing or quota code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletions, migrations or data-mutating operations; only an in-browser event guard and test additions."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The change's whole purpose is gating whether a POST to the backend /chat endpoint fires, and the new smoke assertions count those POSTs, so the outbound-API category is genuinely in play (the cited line number is off but evidence quality is not graded)."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bumps, deploy config, nixpacks/railway files or build scripts are in the diff."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model reported nothing and its triage was accurate, but it missed that the drawer.hidden guard leaves the open-drawer half of the same host-page keystroke hijack in place.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.00733,
+  "numTurns": 13,
+  "durationMs": 100754,
+  "sessionId": "49421fc3-14a7-44e5-9390-89146b6764a1"
+}
