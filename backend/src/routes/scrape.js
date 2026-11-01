@@ -8,6 +8,7 @@ const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
 const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls, recordRobotsDisallowed } = require('../services/scrapePersist');
 const { sweepChunks, mergeSweep, logSweep } = require('../services/scanSweep');
+const scrapeRegistry = require('../services/scrapeRegistry');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const logger = require('../services/logger');
@@ -16,9 +17,9 @@ const { recordAudit } = require('../services/audit');
 // Chunk sources a scrape may never delete — defined once on the model, see Chunk.js.
 const { PRESERVED_SOURCES } = Chunk;
 
-// In-memory tracking of currently active scrapes
-// domain → { url, name, startedAt, mode }
-const activeScrapes = new Map();
+// Currently active scrapes live in services/scrapeRegistry.js, NOT here — a Map
+// private to this file was invisible to LeoRefresh, so an unattended nightly
+// rescrape never showed up on /active (LEO-078).
 
 function formatDuration(ms) {
   const s = Math.round(ms / 1000);
@@ -29,7 +30,7 @@ function formatDuration(ms) {
 // GET /scrape/active — superadmin only, returns currently running scrapes
 router.get('/active', requireAuth(), (req, res) => {
   if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Forbidden' });
-  res.json([...activeScrapes.entries()].map(([domain, info]) => ({ domain, ...info })));
+  res.json(scrapeRegistry.list());
 });
 
 // GET /scrape/pages — superadmin only, paginated scraped page records for a domain
@@ -136,7 +137,7 @@ router.post('/', requireAuth(), async (req, res) => {
     // of the two actually exists.
     let runSnapshot = null;
 
-    activeScrapes.set(domain, { url, name, startedAt: new Date(), mode });
+    scrapeRegistry.begin(domain, { url, name, mode, source: 'manual' });
 
     if (isForce) {
       // Force rescrape: same as full scrape but triggered on an existing entity.
@@ -168,7 +169,7 @@ router.post('/', requireAuth(), async (req, res) => {
         durationFormatted: formatDuration(result.durationMs),
       };
 
-      activeScrapes.delete(domain);
+      scrapeRegistry.end(domain);
       broadcastedIo.to(`domain:${domain}`).emit('scrape_complete', summary);
       res.json(summary);
     } else {
@@ -253,12 +254,12 @@ router.post('/', requireAuth(), async (req, res) => {
         durationFormatted: formatDuration(durationMs),
       };
 
-      activeScrapes.delete(domain);
+      scrapeRegistry.end(domain);
       broadcastedIo.to(`domain:${domain}`).emit('scrape_complete', summary);
       res.json(summary);
     }
   } catch (err) {
-    activeScrapes.delete(domain);
+    scrapeRegistry.end(domain);
     logger.error('scrape', err.message, { stack: err.stack }, domain);
     res.status(500).json({ error: 'Scrape failed', details: err.message });
   }
