@@ -72,7 +72,7 @@
     "LEO-079": {
       "order": 5,
       "title": "`selectModel` is unexported and untested — the cost lever has no gate",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-079",

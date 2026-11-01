@@ -144,30 +144,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate**
-  `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
-  from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
-  exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
-  nothing under `backend/test` exercises it — `chat-flow.test.js:58` stubs `classifyQuery` and never
-  asserts which model was chosen. So a one-character regression on line 125 either sends every simple
-  question to Sonnet, quietly multiplying the API bill that `docs/pricing-strategy.md` sizes the plans
-  against, or routes Church Mode and long messages to Haiku, quietly lowering the answers Leo gives on
-  the material he is least allowed to be sloppy about. The `model` and `classifierRoute` fields stored
-  on each assistant message record what happened; no gate asserts what should.
-  Build: add `selectModel` to `module.exports` — one line, no behaviour change — and
-  `backend/test/model-routing.test.js` covering the matrix: Church Mode on with a `simple` result →
-  Sonnet; exactly 500 characters with `simple` → Haiku; 501 characters → Sonnet; `classifierResult`
-  `null`, `{ route: 'complex' }`, `{}` and `{ route: 'SIMPLE' }` (wrong case) → Sonnet; `simple` with
-  Church Mode off and a short message → Haiku. Read the two expected model ids from one constant at the
-  top of the test, so a deliberate model upgrade is a one-line change and the matrix still holds.
-  Files: `backend/src/services/claude.js` (export line only), new `backend/test/model-routing.test.js`.
-  *Verify:* `node --test backend/test/model-routing.test.js` green; then flip line 125's `!==` to `===`
-  in a scratch copy and confirm the suite goes red — **demonstrate both states in the PR body**, per
-  Block A's standard. `cd backend && yarn verify && yarn test`.
-  Out of scope: changing any routing rule, the 500-character boundary or the band above it; changing
-  *which* model ids are used (a cost and quality decision for Daniel, not a test fixture);
-  `classifyQuery`'s prompt, its token budget or any live call to it; `routes/chat.js` (restricted); and
-  the low-confidence hedging band (LEO-038).
 
 - [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test**
   Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
@@ -1325,6 +1301,30 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** (routine 2026-11-01, 3b32b7e)
+  `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
+  from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
+  exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
+  nothing under `backend/test` exercises it — `chat-flow.test.js:58` stubs `classifyQuery` and never
+  asserts which model was chosen. So a one-character regression on line 125 either sends every simple
+  question to Sonnet, quietly multiplying the API bill that `docs/pricing-strategy.md` sizes the plans
+  against, or routes Church Mode and long messages to Haiku, quietly lowering the answers Leo gives on
+  the material he is least allowed to be sloppy about. The `model` and `classifierRoute` fields stored
+  on each assistant message record what happened; no gate asserts what should.
+  Build: add `selectModel` to `module.exports` — one line, no behaviour change — and
+  `backend/test/model-routing.test.js` covering the matrix: Church Mode on with a `simple` result →
+  Sonnet; exactly 500 characters with `simple` → Haiku; 501 characters → Sonnet; `classifierResult`
+  `null`, `{ route: 'complex' }`, `{}` and `{ route: 'SIMPLE' }` (wrong case) → Sonnet; `simple` with
+  Church Mode off and a short message → Haiku. Read the two expected model ids from one constant at the
+  top of the test, so a deliberate model upgrade is a one-line change and the matrix still holds.
+  Files: `backend/src/services/claude.js` (export line only), new `backend/test/model-routing.test.js`.
+  *Verify:* `node --test backend/test/model-routing.test.js` green; then flip line 125's `!==` to `===`
+  in a scratch copy and confirm the suite goes red — **demonstrate both states in the PR body**, per
+  Block A's standard. `cd backend && yarn verify && yarn test`.
+  Out of scope: changing any routing rule, the 500-character boundary or the band above it; changing
+  *which* model ids are used (a cost and quality decision for Daniel, not a test fixture);
+  `classifyQuery`'s prompt, its token budget or any live call to it; `routes/chat.js` (restricted); and
+  the low-confidence hedging band (LEO-038).
 - [x] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`** (routine 2026-11-01, 279d4df)
   `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
   file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
