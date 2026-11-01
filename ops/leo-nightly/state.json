@@ -72,7 +72,7 @@
     "LEO-076": {
       "order": 5,
       "title": "`PATCH` replaces nested settings subdocuments wholesale instead of merging",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-076",

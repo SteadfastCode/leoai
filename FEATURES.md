@@ -141,39 +141,6 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-- [x] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging**
-  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
-  `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
-  top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
-  one as a whole value — so a body naming one nested key silently resets every sibling key in that
-  subdocument to its schema default. This is already a known wound, not a theory: `Entity.js:83-85`
-  keeps `unansweredDigestLastSentAt` deliberately *outside* `unansweredDigest` with the comment "the
-  PATCH handler replaces that whole subdocument, which would wipe a nested send stamp", LEO-062 names
-  the fix and puts it out of its own scope, and the grader of LEO-065 hit it from the other end
-  (`ops/leo-nightly/reviews/LEO-065.graded.json`): a `crawlSettings` flag set out of band is wiped by
-  the next owner save, because `dashboard/src/views/Settings.vue:42-47` rebuilds the subdocument from a
-  4-key literal. Today the dashboard happens to send all four keys, so the bug is latent there and live
-  for every other caller — the MCP server, a future guided-setup write, any `curl` with an API key.
-  Build a pure `flattenEntityUpdates(updates)` in a new `backend/src/services/entityUpdates.js` that
-  rewrites an allowlisted nested object into dot-paths (`crawlSettings.keepShortUrls`) so unmentioned
-  siblings are untouched, accepts only nested keys declared in a per-subdocument allowlist mirroring the
-  model, and passes arrays (`quotaWarningThresholds`, `quotaAlertChannels`) through as whole values —
-  merging an array by index is wrong. The route keeps its existing top-level allowlist, its superadmin
-  split and its response shape; the only change is what it hands Mongoose.
-  Files: new `backend/src/services/entityUpdates.js`, `backend/src/routes/dashboard.js`,
-  new `backend/test/entity-updates.test.js`. No denylisted or restricted file is touched.
-  *Verify:* `node --test` on `flattenEntityUpdates` — one nested key yields one dot-path and nothing
-  else, an undeclared nested key is dropped, a non-object value for a subdocument key is dropped rather
-  than spread, arrays survive whole, an empty body yields empty updates; plus the real dashboard router
-  over `mongodb-memory-server` (the `backend/test/kb-search.test.js` harness shape): `PATCH
-  { crawlSettings: { keepShortUrls: true } }` leaves `variantPriceSweep` and `staleDays` at their prior
-  values, and the full payload `Settings.vue` sends today still returns the entity unchanged. Confirm the
-  suite goes red against unmodified `main`. `cd backend && yarn verify && yarn test`; `cd dashboard &&
-  yarn build && yarn test`.
-  Out of scope: bounds and type validation (LEO-062 owns it, and the two land independently); which
-  fields sit on `superadminOnly`; adding any new settable field; any Entity schema change, including
-  moving `unansweredDigestLastSentAt` back inside its subdocument (only safe *after* this lands);
-  `routes/billing.js` and `routes/webhooks.js` (denylisted).
 
 - [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed**
   `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
@@ -1426,6 +1393,39 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging** (routine 2026-10-31, a91a9c0)
+  `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
+  `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
+  top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
+  one as a whole value — so a body naming one nested key silently resets every sibling key in that
+  subdocument to its schema default. This is already a known wound, not a theory: `Entity.js:83-85`
+  keeps `unansweredDigestLastSentAt` deliberately *outside* `unansweredDigest` with the comment "the
+  PATCH handler replaces that whole subdocument, which would wipe a nested send stamp", LEO-062 names
+  the fix and puts it out of its own scope, and the grader of LEO-065 hit it from the other end
+  (`ops/leo-nightly/reviews/LEO-065.graded.json`): a `crawlSettings` flag set out of band is wiped by
+  the next owner save, because `dashboard/src/views/Settings.vue:42-47` rebuilds the subdocument from a
+  4-key literal. Today the dashboard happens to send all four keys, so the bug is latent there and live
+  for every other caller — the MCP server, a future guided-setup write, any `curl` with an API key.
+  Build a pure `flattenEntityUpdates(updates)` in a new `backend/src/services/entityUpdates.js` that
+  rewrites an allowlisted nested object into dot-paths (`crawlSettings.keepShortUrls`) so unmentioned
+  siblings are untouched, accepts only nested keys declared in a per-subdocument allowlist mirroring the
+  model, and passes arrays (`quotaWarningThresholds`, `quotaAlertChannels`) through as whole values —
+  merging an array by index is wrong. The route keeps its existing top-level allowlist, its superadmin
+  split and its response shape; the only change is what it hands Mongoose.
+  Files: new `backend/src/services/entityUpdates.js`, `backend/src/routes/dashboard.js`,
+  new `backend/test/entity-updates.test.js`. No denylisted or restricted file is touched.
+  *Verify:* `node --test` on `flattenEntityUpdates` — one nested key yields one dot-path and nothing
+  else, an undeclared nested key is dropped, a non-object value for a subdocument key is dropped rather
+  than spread, arrays survive whole, an empty body yields empty updates; plus the real dashboard router
+  over `mongodb-memory-server` (the `backend/test/kb-search.test.js` harness shape): `PATCH
+  { crawlSettings: { keepShortUrls: true } }` leaves `variantPriceSweep` and `staleDays` at their prior
+  values, and the full payload `Settings.vue` sends today still returns the entity unchanged. Confirm the
+  suite goes red against unmodified `main`. `cd backend && yarn verify && yarn test`; `cd dashboard &&
+  yarn build && yarn test`.
+  Out of scope: bounds and type validation (LEO-062 owns it, and the two land independently); which
+  fields sit on `superadminOnly`; adding any new settable field; any Entity schema change, including
+  moving `unansweredDigestLastSentAt` back inside its subdocument (only safe *after* this lands);
+  `routes/billing.js` and `routes/webhooks.js` (denylisted).
 - [x] **(LEO-110) Backlog audit: file new candidates under Proposed** [not-before: 2026-10-27] (routine 2026-10-27, 1dacd1b)
   A standing upkeep item, last on purpose: it runs only when nothing above it is claimable.
   For this item ONLY, `docs/wishlist.md`, `CLAUDE.md` "Known Issues" and "Alpha Roadmap", `docs/pricing-strategy.md`,
