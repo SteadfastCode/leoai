@@ -22,6 +22,7 @@ const { questionSimilarity, SIMILARITY_THRESHOLD: UNANSWERED_SIMILARITY_THRESHOL
 const { recordAudit } = require('../services/audit');
 const { shapeDailyBuckets, shapeTopQuestions } = require('../services/analytics');
 const { validateEntityUpdates } = require('../services/entitySettings');
+const { flattenEntityUpdates } = require('../services/entityUpdates');
 
 // All dashboard routes require auth
 router.use(requireAuth());
@@ -321,7 +322,10 @@ router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async 
     const appliedSuperadminFields = callerIsSuperAdmin
       ? Object.keys(updates).filter((k) => superadminOnly.includes(k))
       : [];
-    const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, updates, { new: true, runValidators: true });
+    // Nested subdocuments go to Mongoose as dot-paths (LEO-076) so a body naming
+    // one nested key does not reset its siblings to their schema defaults. The
+    // allowlist, the superadmin split and the response shape are unchanged.
+    const entity = await Entity.findOneAndUpdate({ domain: req.params.domain }, flattenEntityUpdates(updates), { new: true, runValidators: true });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
     if (appliedSuperadminFields.length) {
       recordAudit(req, 'entity.superadmin_patch', { domain: req.params.domain, details: { fields: appliedSuperadminFields } });
