@@ -416,3 +416,4 @@
 {"event":"local-review","item":"LEO-076","model":"qwen2.5-coder:14b","findings":0,"contextFiles":4,"promptVersion":"v6","mergeSha":"a91a9c08246977e98cbeda05915eb1a833276a0b","runId":"2026-11-01T08:01:36.953Z","promptTokens":24111,"completionTokens":665,"latencyMs":97702,"chunkErrors":0,"triageTouched":["secrets","externalApi"],"atUtc":"2026-11-01T08:34:54.520Z"}
 {"event":"claim","runId":"2026-11-01T12:14:43.156Z","item":"LEO-077","model":"claude-opus-5","effort":"xhigh","attempt":2,"atUtc":"2026-11-01T12:15:24.393Z"}
 {"event":"complete","runId":"2026-11-01T12:14:43.156Z","item":"LEO-077","mergeSha":"57ae9dbda63e320482578167996827d75213810f","durationMin":9,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-11-01T12:24:46.367Z"}
+{"event":"claim","runId":"2026-11-01T12:14:43.156Z","item":"LEO-078","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-01T12:28:03.870Z"}

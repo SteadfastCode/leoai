@@ -143,7 +143,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`**
+- [x] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`**
   `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
   file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
   `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
