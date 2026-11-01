@@ -39,6 +39,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const Conversation = require('../models/Conversation');
 const { rescrapeSite } = require('./scraper');
 const { persistRescrapeResult } = require('./scrapePersist');
+const scrapeRegistry = require('./scrapeRegistry');
 const { makeBroadcastIo } = require('../utils/broadcastIo');
 const { sendHandoffFollowUpNotification } = require('./notifications');
 const { reminderDue } = require('./handoff');
@@ -158,6 +159,13 @@ async function runRefreshForEntity(entity, io) {
   const url = `https://${domain}`;
   console.log(`[LeoRefresh] Starting rescrape for ${domain}`);
 
+  // Make this crawl visible on GET /scrape/active for as long as it runs
+  // (LEO-078). Before this, the endpoint only ever saw a manual scrape, so the
+  // dashboard showed no crawl in flight and the routine's merge gate let a
+  // deploy restart the container mid-rescrape. Cleared in `finally`, so a
+  // thrown rescrape can never wedge the gate shut.
+  scrapeRegistry.begin(domain, { url, name: entity.name, mode: 'rescrape', source: 'leorefresh' });
+
   try {
     const storedPages = await ScrapedPage.find({ domain });
     const broadcastedIo = makeBroadcastIo(io, domain);
@@ -200,6 +208,8 @@ async function runRefreshForEntity(entity, io) {
   } catch (err) {
     console.error(`[LeoRefresh] Failed for ${domain}:`, err.message);
     io.to(`domain:${domain}`).emit('scrape_complete', { success: false, source: 'leorefresh', error: err.message });
+  } finally {
+    scrapeRegistry.end(domain);
   }
 }
 
