@@ -145,7 +145,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test**
+- [x] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test**
   Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
   (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
   inside a `## Proposed` body, which is where an implementer takes their test expectations from.
