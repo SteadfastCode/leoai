@@ -1,0 +1,114 @@
+{
+  "item": "LEO-076",
+  "repo": "leoai",
+  "mergeSha": "a91a9c08246977e98cbeda05915eb1a833276a0b",
+  "completedAtUtc": "2026-11-01T02:23:11.555Z",
+  "completeRunId": "2026-11-01T02:14:43.139Z",
+  "reviewRunId": "2026-11-01T08:01:36.953Z",
+  "reviewedAtUtc": "2026-11-01T08:34:54.334Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 30140,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/entityUpdates.js"
+      ],
+      "part": null,
+      "bytes": 10028,
+      "contextBytes": 2306,
+      "promptTokens": 4387,
+      "completionTokens": 121,
+      "latencyMs": 18807,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-updates.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 12347,
+      "contextBytes": 0,
+      "promptTokens": 4515,
+      "completionTokens": 74,
+      "latencyMs": 14241,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-updates.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 7971,
+      "contextBytes": 0,
+      "promptTokens": 3350,
+      "completionTokens": 72,
+      "latencyMs": 10443,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:47"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/test/entity-updates.test.js:290"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The change introduces a new service `flattenEntityUpdates` to handle nested subdocument updates correctly, and it is used in the dashboard route. However, additional context from other files is needed to fully verify the implementation. · No real defects found in the provided diff. The code appears to be correctly implementing the `flattenEntityUpdates` function and its associated tests. · No real defects found in the provided diff. However, additional code for `flattenEntityUpdates` is needed to verify the implementation.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 24111,
+    "completionTokens": 665
+  },
+  "latencyMs": 97702
+}
