@@ -72,19 +72,19 @@
     "LEO-077": {
       "order": 5,
       "title": "LeoRefresh silently skips a whole period when its scheduled hour is missed",
-      "status": "pending",
-      "attempts": 1,
+      "status": "claimed",
+      "attempts": 2,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-077",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": "2026-11-01T02:34:23.684Z",
-      "runId": null,
-      "lastFail": "abandoned"
+      "claimedAtUtc": "2026-11-01T12:15:24.393Z",
+      "runId": "2026-11-01T12:14:43.156Z",
+      "lastFail": null
     },
     "LEO-078": {
       "order": 6,

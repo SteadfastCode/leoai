@@ -142,7 +142,7 @@ It sits above "## Block L — Backlog upkeep" on purpose: returned work should g
 standing audit, which is last so it runs only when nothing else is claimable.
 
 
-- [ ] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed**
+- [x] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed**
   `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
   `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
   (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
