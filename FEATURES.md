@@ -446,15 +446,19 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 - [ ] **(LEO-067) Unguarded async route handlers: one unauthenticated GET can take the backend down** [needs-human]
   Ten `async (req, res)` handlers under `backend/src/routes` have no `try`/`catch`. Express 4.19 does not
   catch a rejected promise, `backend/index.js` registers no error middleware and no
-  `process.on('unhandledRejection')`, and Node 24's default is `--unhandled-rejections=throw` — so one
-  rejection exits the process. The public one is the serious one: `GET /chat/entity-name`
+  `process.on('unhandledRejection')`, and `--unhandled-rejections=throw` has been the Node default
+  since v15 — so it holds on the `nodejs_20` the root `nixpacks.toml` pins, and one rejection exits the
+  process. The public one is the serious one: `GET /chat/entity-name`
   (`backend/src/routes/chat.js:24`) passes `req.query.domain` straight into `Entity.findOne({ domain })`,
   and express's extended query parser turns `?domain[x]=1` into an object, which Mongoose rejects
-  (measured on mongoose 8.23: `CastError: Cast to string failed for value "{ x: 1 }" … at path "domain"`;
-  an *array* value casts fine, an object does not). One unauthenticated GET therefore restarts the
-  container, dropping every in-flight chat and the in-memory `activeScrapes` map a running crawl's live
-  feed depends on. The other nine are authenticated but just as fatal: `routes/codes.js:12,21,43,53` (a
-  non-ObjectId `:id` casts the same way), `routes/knowledge.js:69`, `routes/scrape.js:35,57,66,77`.
+  (measured on mongoose 8.23: `CastError: Cast to string failed for value "{ x: 1 }" … at path "domain"`).
+  An *array* throws the same way, not harmlessly: the guard in mongoose's `lib/cast/string.js` is
+  `value.toString && value.toString !== Object.prototype.toString && !Array.isArray(value)`, so
+  `?domain=a&domain=b` — which the same parser turns into `['a','b']` — is a *second* unauthenticated
+  crash vector on this one handler. One unauthenticated GET therefore restarts the container, dropping
+  every in-flight chat and the in-memory `activeScrapes` map a running crawl's live feed depends on.
+  The other nine are authenticated but just as fatal: `routes/codes.js:12,21,43,53` (a non-ObjectId
+  `:id` casts the same way), `routes/knowledge.js:69`, `routes/scrape.js:35,57,66,77`.
   Build a `routeError(res, scope, err)` helper in a new `backend/src/middleware/routeError.js` that logs
   through `services/logger` and answers 400 for a `CastError`, 500 otherwise, and call it from a
   `try`/`catch` **inside each handler body**. Do not rewrite the `router.<verb>(…)` lines: wrapping them
@@ -1492,7 +1496,12 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   robots.txt would have disallowed, as an optional `robotsDisallowed: [String]` on the run's
   `ScrapeSnapshot` (no `required`, no `unique`), with the count shown in the KB scrape feed. Enforcement
   goes behind a new `crawlSettings.honorRobots`, default **false**, so no existing crawl changes
-  behaviour until Daniel turns it on for one entity. Tiered logging: at light tier one line per host
+  behaviour until it is on for one entity — but nothing in this item makes it settable, so for now that
+  means directly in the database: the flag is absent from `FIELD_RULES.crawlSettings`
+  (`backend/src/services/entitySettings.js:63-71`), which drops it from any `PATCH` body, and absent
+  from the 4-key `crawlSettings` literal `dashboard/src/views/Settings.vue:46-51` rebuilds. LEO-124
+  owns closing that; LEO-076 has since stopped an owner save from wiping a value set out of band,
+  which was the other half of the gap. Tiered logging: at light tier one line per host
   naming where the rules came from (fetched, cached, or absent) and how many URLs they would exclude.
   Files: new `backend/src/services/robots.js`, `backend/src/services/scraper.js` (**restricted — ≤30
   changed lines: the UA constant, the per-host lookup and one push per disallowed URL; shaping and
@@ -1562,11 +1571,13 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   the banners are the truth about what is live while the prose under them is design history. **Do not
   delete or rewrite the spec prose**: several open items still refer to it.
   Files: `docs/wishlist.md`.
-  *Verify:* every banner names a file that exists, and every LEO id a banner cites resolves in
-  FEATURES.md the right way round — an id offered as evidence something shipped appears under
-  `## Completed Items`, while an id named as owning still-open work (LEO-047, LEO-060) appears under a
-  work block, `## Proposed` or `## Blocked Items` and is never presented as shipped. A section with no
-  id cites none. Quote in the PR body, per banner, the `git log --oneline -1 <commit>` line and one
+  *Verify:* none of the three banner forms above has a file slot — the file evidence is the PR-body
+  clause below, not the banner — so the gate is that every `grep -n` hit quoted there names a file
+  that exists. And every LEO id a banner cites resolves in FEATURES.md the right way round — an id
+  offered as evidence something shipped appears under `## Completed Items`, while an id named as owning
+  still-open work (LEO-047, LEO-060) appears under a work block, `## Proposed` or `## Blocked Items`
+  and is never presented as shipped. A section with no id cites none. Quote in the PR body, per
+  banner, the `git log --oneline -1 <commit>` line and one
   `grep -n` hit proving the feature is in the tree. `node <orchestrator> lint leoai --worktree`
   exits 0. No code changes, so the four code gates are unaffected — but run and report them anyway.
   Out of scope: deleting or reordering any wishlist section, moving wishlist content into FEATURES.md,
