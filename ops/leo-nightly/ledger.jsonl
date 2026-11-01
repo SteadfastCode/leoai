@@ -412,3 +412,4 @@
 {"event":"claim","runId":"2026-11-01T02:14:43.139Z","item":"LEO-076","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-01T02:15:17.139Z"}
 {"event":"complete","runId":"2026-11-01T02:14:43.139Z","item":"LEO-076","mergeSha":"a91a9c08246977e98cbeda05915eb1a833276a0b","durationMin":8,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-11-01T02:23:11.555Z"}
 {"event":"claim","runId":"2026-11-01T02:14:43.139Z","item":"LEO-077","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-01T02:34:23.684Z"}
+{"event":"blocked","runId":"2026-11-01T02:14:43.139Z","item":"LEO-077","detail":"killed: timeout (after 75 min)","final":false,"lastFail":"abandoned","atUtc":"2026-11-01T03:49:26.295Z"}
