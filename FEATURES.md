@@ -144,7 +144,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate**
+- [x] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate**
   `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
   from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not
   exactly `'simple'` → Sonnet, otherwise Haiku. It is absent from `module.exports` (line 300), and
