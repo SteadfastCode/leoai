@@ -1,3 +1,38 @@
+// LeoRefresh — the hourly scheduler tick (daily/weekly re-scrape per entity),
+// plus the handoff follow-up, digest and retention ticks that ride the same cron.
+//
+// The due calculation (LEO-077). `isDueNow` used to be a bare equality on the
+// UTC hour, and its only caller is one `cron.schedule('0 * * * *')` fire. Miss
+// that single fire — a container restart spanning the hour, and Railway
+// redeploys on every merge — and a `daily` entity waited another 24 hours, a
+// `weekly` one another 7 days, with nothing logged and nothing emitted. So the
+// predicate now has a catch-up arm, the same shape as `digestDue` in
+// unansweredDigest.js: due when the scheduled hour matches, OR when
+// leoRefreshLastRun is older than a catch-up window, and never inside an
+// elapsed-gap guard that makes a second run in the same period impossible.
+//
+// Consequence, deliberately accepted: a caught-up refresh starts OUTSIDE the
+// entity's chosen hour, once, and a run of back-to-back misses drifts by the
+// difference between the catch-up window and the period (2h/day) until the
+// scheduled hour comes back within reach. Roughly-on-time beats silently
+// skipped; double-crawling an entity is the one thing the guard will not allow.
+//
+// An entity that has NEVER refreshed is not caught up — it has missed nothing,
+// and a crawl the instant LeoRefresh is switched on is not what the hour
+// setting means. It waits for its scheduled hour.
+//
+// `isDueNow` / `refreshDecision` are pure (no DB, no clock of their own) so the
+// whole matrix is unit-testable directly — see backend/test/leo-refresh-due.test.js.
+//
+// Debug tiers — LEO_REFRESH_LOG_LEVEL = off | light | normal | verbose:
+//   light (default) one line per entity decision, naming the REASON it was
+//                   taken or held — hour match, catch-up after N hours, gap
+//                   guard, disabled — and every re-entrancy skip
+//   normal          adds the tick-level counts (enabled vs due)
+//   verbose         adds the raw schedule + last-run stamp each decision read
+// This runs away from a human, so the light tier always says the SOURCE of a
+// refresh, not just that one started.
+
 const cron = require('node-cron');
 const Entity = require('../models/Entity');
 const ScrapedPage = require('../models/ScrapedPage');
@@ -11,7 +46,36 @@ const { runUnansweredDigestTick } = require('./unansweredDigest');
 const { runWeeklyDigestTick } = require('./weeklyDigest');
 const { runRetentionSweepTick } = require('./retention');
 
-const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+// Mirrors the Entity model default, used when leoRefreshHour is absent or junk.
+const DEFAULT_HOUR_UTC = 3;
+
+// Elapsed-time guards, deliberately under the nominal period so a tick landing
+// a little early (clock skew) still refreshes, while a replayed fire inside the
+// same scheduled hour — or a catch-up immediately after a real run — is always
+// inside the guard and can never double-crawl. The schedule is UTC throughout.
+const DAILY_MIN_GAP_MS = 20 * HOUR_MS;
+const WEEKLY_MIN_GAP_MS = 6 * DAY_MS;
+
+// How stale leoRefreshLastRun must be before a tick in ANY hour takes the
+// refresh, because the scheduled hour was evidently missed. Set past the period
+// (26h / 8d) so a healthy entity is always claimed by its own hour first and
+// the catch-up arm only ever fires after something actually went wrong.
+const DAILY_CATCHUP_MS = 26 * HOUR_MS;
+const WEEKLY_CATCHUP_MS = 8 * DAY_MS;
+
+const TIERS = { off: 0, light: 1, normal: 2, verbose: 3 };
+
+function logTier() {
+  const name = String(process.env.LEO_REFRESH_LOG_LEVEL || 'light').toLowerCase();
+  return TIERS[name] ?? TIERS.light;
+}
+
+function debug(tier, message) {
+  if (logTier() >= TIERS[tier]) console.log(`[LeoRefresh] ${message}`);
+}
 
 function formatDuration(ms) {
   const s = Math.round(ms / 1000);
@@ -19,13 +83,74 @@ function formatDuration(ms) {
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
-function isDueNow(entity, nowUtcHour) {
-  if (entity.leoRefreshHour !== nowUtcHour) return false;
-  if (entity.leoRefreshFrequency === 'weekly') {
-    if (!entity.leoRefreshLastRun) return true;
-    return Date.now() - entity.leoRefreshLastRun.getTime() >= SIX_DAYS_MS;
+// Gaps in this file are hours-to-days, so one rounded unit is the readable form.
+function formatGap(ms) {
+  const hours = ms / HOUR_MS;
+  if (hours < 48) return `${Math.round(hours * 10) / 10}h`;
+  return `${Math.round((hours / 24) * 10) / 10}d`;
+}
+
+function formatHour(hour) {
+  return `${String(hour).padStart(2, '0')}:00 UTC`;
+}
+
+// null means "never refreshed" — which includes an unreadable stamp: a decision
+// made from a NaN would compare false against every window and wedge the entity
+// out of the schedule entirely, the exact failure this item exists to fix.
+function lastRunMs(entity) {
+  const raw = entity?.leoRefreshLastRun;
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * Why this entity is (or is not) due right now: `{ due, reason, detail }`.
+ * Pure — `now` is injected, nothing is read from the DB. `reason` is a stable
+ * slug for logs and tests; `detail` is the human half of the light-tier line.
+ */
+function refreshDecision(entity, now = Date.now()) {
+  const e = entity || {};
+  if (!e.leoRefreshEnabled) {
+    return { due: false, reason: 'disabled', detail: 'LeoRefresh is off for this entity' };
   }
-  return true; // daily
+
+  const hour = Number.isInteger(e.leoRefreshHour) && e.leoRefreshHour >= 0 && e.leoRefreshHour <= 23
+    ? e.leoRefreshHour
+    : DEFAULT_HOUR_UTC;
+  const weekly = e.leoRefreshFrequency === 'weekly';
+  const gapMs = weekly ? WEEKLY_MIN_GAP_MS : DAILY_MIN_GAP_MS;
+  const catchUpMs = weekly ? WEEKLY_CATCHUP_MS : DAILY_CATCHUP_MS;
+
+  const nowHour = new Date(now).getUTCHours();
+  const onSchedule = nowHour === hour;
+  const last = lastRunMs(e);
+
+  if (last === null) {
+    return onSchedule
+      ? { due: true, reason: 'first-run', detail: `never refreshed, and ${formatHour(nowHour)} is its scheduled hour` }
+      : { due: false, reason: 'awaiting-first-slot', detail: `never refreshed; holding for ${formatHour(hour)} (now ${formatHour(nowHour)})` };
+  }
+
+  const elapsed = now - last;
+  if (elapsed < 0) {
+    return { due: false, reason: 'future-stamp', detail: `last run is stamped ${formatGap(-elapsed)} in the future (clock skew) — holding off rather than risk a double crawl` };
+  }
+  if (elapsed < gapMs) {
+    return { due: false, reason: 'gap-guard', detail: `last run ${formatGap(elapsed)} ago, inside the ${formatGap(gapMs)} ${weekly ? 'weekly' : 'daily'} gap guard` };
+  }
+  if (onSchedule) {
+    return { due: true, reason: 'hour-match', detail: `${formatHour(nowHour)} is its scheduled hour; last run ${formatGap(elapsed)} ago` };
+  }
+  if (elapsed >= catchUpMs) {
+    return { due: true, reason: 'catch-up', detail: `catch-up after ${formatGap(elapsed)} — its ${formatHour(hour)} slot was missed and the ${formatGap(catchUpMs)} window has passed` };
+  }
+  return { due: false, reason: 'off-schedule', detail: `${formatHour(nowHour)} is not its ${formatHour(hour)} slot, and last run ${formatGap(elapsed)} ago is inside the ${formatGap(catchUpMs)} catch-up window` };
+}
+
+/** Boolean half of refreshDecision. `now` is injected so this stays testable. */
+function isDueNow(entity, now = Date.now()) {
+  return refreshDecision(entity, now).due;
 }
 
 async function runRefreshForEntity(entity, io) {
@@ -78,21 +203,48 @@ async function runRefreshForEntity(entity, io) {
   }
 }
 
-async function runHourlyTick(io) {
-  const nowUtcHour = new Date().getUTCHours();
-  const entities = await Entity.find({ leoRefreshEnabled: true });
-  const due = entities.filter((e) => isDueNow(e, nowUtcHour));
+// In-process re-entrancy flag. The cron fires on the hour and a crawl can
+// outlast one: the sequential loop below only prevents parallel runs WITHIN a
+// tick, so without this the next fire would start a second Puppeteer +
+// embedding pass over the same entity while the first was still mid-flight.
+// One process, one tick — a second container would need a DB lock, which is
+// out of scope here (Railway runs one).
+let tickInFlight = false;
 
-  if (due.length === 0) return;
-
-  console.log(`[LeoRefresh] ${due.length} entities due at UTC hour ${nowUtcHour}`);
-
-  // Sequential — Puppeteer + embedding is resource-intensive; no parallel runs
-  for (const entity of due) {
-    await runRefreshForEntity(entity, io);
+async function runHourlyTick(io, now = Date.now()) {
+  if (tickInFlight) {
+    debug('light', 'tick skipped — re-entrancy: the previous tick is still running');
+    return { ran: false, reason: 'in-flight', due: 0 };
   }
 
-  console.log('[LeoRefresh] Tick complete');
+  tickInFlight = true;
+  try {
+    const nowUtcHour = new Date(now).getUTCHours();
+    const entities = await Entity.find({ leoRefreshEnabled: true });
+
+    const due = [];
+    for (const entity of entities) {
+      const decision = refreshDecision(entity, now);
+      debug('light', `${entity.domain}: ${decision.due ? 'due' : 'not due'} — ${decision.reason}: ${decision.detail}`);
+      debug('verbose', `${entity.domain}: frequency=${entity.leoRefreshFrequency || 'daily'} hour=${entity.leoRefreshHour ?? DEFAULT_HOUR_UTC} lastRun=${entity.leoRefreshLastRun ? new Date(entity.leoRefreshLastRun).toISOString() : 'never'}`);
+      if (decision.due) due.push(entity);
+    }
+
+    debug('normal', `${entities.length} enabled, ${due.length} due at UTC hour ${nowUtcHour}`);
+    if (due.length === 0) return { ran: true, reason: 'none-due', due: 0 };
+
+    console.log(`[LeoRefresh] ${due.length} entities due at UTC hour ${nowUtcHour}`);
+
+    // Sequential — Puppeteer + embedding is resource-intensive; no parallel runs
+    for (const entity of due) {
+      await runRefreshForEntity(entity, io);
+    }
+
+    console.log('[LeoRefresh] Tick complete');
+    return { ran: true, reason: 'refreshed', due: due.length };
+  } finally {
+    tickInFlight = false;
+  }
 }
 
 async function runHandoffFollowUpTick() {
@@ -155,4 +307,13 @@ function startLeoRefreshScheduler(io) {
   console.log('[LeoRefresh] Scheduler started — checks every hour for entities due to refresh');
 }
 
-module.exports = { startLeoRefreshScheduler };
+module.exports = {
+  startLeoRefreshScheduler,
+  runHourlyTick,
+  isDueNow,
+  refreshDecision,
+  DAILY_MIN_GAP_MS,
+  WEEKLY_MIN_GAP_MS,
+  DAILY_CATCHUP_MS,
+  WEEKLY_CATCHUP_MS,
+};
