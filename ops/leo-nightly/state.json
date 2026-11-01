@@ -72,7 +72,7 @@
     "LEO-078": {
       "order": 5,
       "title": "A LeoRefresh rescrape is invisible to `GET /scrape/active`",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-078",

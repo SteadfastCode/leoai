@@ -143,38 +143,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`**
-  `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
-  file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
-  `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
-  site, ~7 for a 534-page shop — `GET /scrape/active` (scrape.js:29) answers `[]`. Two things ride on
-  that endpoint. The dashboard shows no crawl in flight. And the routine's own merge gate does not
-  either: `deferIf: GET /scrape/active non-empty` in the orchestrator's leoai config, documented under
-  "Blackout" in `ops/leo-nightly/RUNBOOK.md`, is what stops a merge from triggering a Railway redeploy
-  mid-crawl — and it is blind to the one crawl that runs unattended. Progressive per-URL saves mean
-  chunks are never absent, but the run dies with a partial snapshot, no `scrape_complete`, and a
-  `lastScrapedAt` that was never written.
-  Build `backend/src/services/scrapeRegistry.js` over one module-level Map: `begin(domain, info)`,
-  `end(domain)`, `list()`, `isActive(domain)`, with `source: 'manual' | 'leorefresh'` alongside the
-  existing `{ url, name, startedAt, mode }`. `routes/scrape.js` uses it in place of its local Map —
-  **the `router.get('/active', …)` line must not be rewritten** (the no-route-removed gate greps for
-  exactly that), and the response gains `source` while keeping every existing field. `leoRefresh.js`
-  wraps `runRefreshForEntity` in `begin`/`end` inside `try`/`finally`, so a thrown rescrape always
-  clears the entry rather than wedging the gate shut. Light-tier log line on each begin and end naming
-  the domain and the source of the change.
-  Files: new `backend/src/services/scrapeRegistry.js`, `backend/src/routes/scrape.js`,
-  `backend/src/services/leoRefresh.js`, new `backend/test/scrape-registry.test.js`.
-  *Verify:* `node --test` on the registry — `begin` then `list` shows the entry with its source, `end`
-  removes it, a second `begin` for a live domain does not duplicate it, `end` on an unknown domain is a
-  no-op, and a body that throws still clears via `finally`. Plus the real scrape router over http (the
-  `backend/test/kb-search.test.js` harness shape): `GET /scrape/active` still 403s a non-superadmin JWT,
-  200s for the admin key, returns `[]` when idle, and returns the entry while one is registered.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: cross-process state (Railway runs one instance; a Mongo-backed registry is a separate
-  decision with its own staleness problem); refusing to start a second scrape for a domain already
-  active; any change to `services/scraper.js` (restricted) or to the `scrape_page_saved` /
-  `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
-  automated run may not touch its own gate, and this item only makes that gate see more.
 
 - [ ] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate**
   `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
@@ -1357,6 +1325,38 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`** (routine 2026-11-01, 279d4df)
+  `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
+  file's manual scrape and rescrape handlers (lines 133, 163, 230, 235) and never exported.
+  `services/leoRefresh.js` does not import it, so throughout a nightly rescrape — minutes for a small
+  site, ~7 for a 534-page shop — `GET /scrape/active` (scrape.js:29) answers `[]`. Two things ride on
+  that endpoint. The dashboard shows no crawl in flight. And the routine's own merge gate does not
+  either: `deferIf: GET /scrape/active non-empty` in the orchestrator's leoai config, documented under
+  "Blackout" in `ops/leo-nightly/RUNBOOK.md`, is what stops a merge from triggering a Railway redeploy
+  mid-crawl — and it is blind to the one crawl that runs unattended. Progressive per-URL saves mean
+  chunks are never absent, but the run dies with a partial snapshot, no `scrape_complete`, and a
+  `lastScrapedAt` that was never written.
+  Build `backend/src/services/scrapeRegistry.js` over one module-level Map: `begin(domain, info)`,
+  `end(domain)`, `list()`, `isActive(domain)`, with `source: 'manual' | 'leorefresh'` alongside the
+  existing `{ url, name, startedAt, mode }`. `routes/scrape.js` uses it in place of its local Map —
+  **the `router.get('/active', …)` line must not be rewritten** (the no-route-removed gate greps for
+  exactly that), and the response gains `source` while keeping every existing field. `leoRefresh.js`
+  wraps `runRefreshForEntity` in `begin`/`end` inside `try`/`finally`, so a thrown rescrape always
+  clears the entry rather than wedging the gate shut. Light-tier log line on each begin and end naming
+  the domain and the source of the change.
+  Files: new `backend/src/services/scrapeRegistry.js`, `backend/src/routes/scrape.js`,
+  `backend/src/services/leoRefresh.js`, new `backend/test/scrape-registry.test.js`.
+  *Verify:* `node --test` on the registry — `begin` then `list` shows the entry with its source, `end`
+  removes it, a second `begin` for a live domain does not duplicate it, `end` on an unknown domain is a
+  no-op, and a body that throws still clears via `finally`. Plus the real scrape router over http (the
+  `backend/test/kb-search.test.js` harness shape): `GET /scrape/active` still 403s a non-superadmin JWT,
+  200s for the admin key, returns `[]` when idle, and returns the entry while one is registered.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: cross-process state (Railway runs one instance; a Mongo-backed registry is a separate
+  decision with its own staleness problem); refusing to start a second scrape for a domain already
+  active; any change to `services/scraper.js` (restricted) or to the `scrape_page_saved` /
+  `scrape_complete` socket contract; and editing the orchestrator config or `RUNBOOK.md` — an
+  automated run may not touch its own gate, and this item only makes that gate see more.
 - [x] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed** (routine 2026-11-01, 57ae9db)
   `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
   `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
