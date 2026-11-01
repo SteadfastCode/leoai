@@ -145,38 +145,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test**
-  Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
-  (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
-  inside a `## Proposed` body, which is where an implementer takes their test expectations from.
-  (1) LEO-067 says "an *array* value casts fine, an object does not". In the installed mongoose 8.23 the
-  guard in `lib/cast/string.js` reads `value.toString && value.toString !== Object.prototype.toString &&
-  !Array.isArray(value)` — an array throws `CastError` too. So `?domain=a&domain=b` is a *second*
-  unauthenticated crash vector the item describes as harmless, and anyone encoding "array casts fine"
-  as an assertion gets a red test. (2) LEO-067 attributes the crash to "Node 24's default" while the
-  deployed runtime is pinned to `nodejs_20` in the root `nixpacks.toml`; the conclusion still holds —
-  throw-on-unhandled-rejection has been the default since Node 15 — but a reader who checks the pin
-  could wrongly dismiss the whole item. (3) LEO-064 opens its verify gate with "every banner names a
-  file that exists", yet none of the three banner forms it mandates has a file slot: the pre-routine
-  form carries only a commit, so a run following the forms literally fails its own gate. The file
-  evidence actually lives in the item's PR-body clause ("one `grep -n` hit proving the feature is in the
-  tree") and the gate should say so. (4) LEO-071 scopes `crawlSettings.honorRobots` as a flag "Daniel
-  turns on for one entity" but names no path that can set it: `dashboard/src/views/Settings.vue:42-47`
-  rebuilds `crawlSettings` from a 4-key literal and `backend/src/routes/dashboard.js:310` `$set`s the
-  subdocument wholesale, so a flag set out of band is wiped by the next settings save — either add the
-  switch to LEO-071's file list or make it depend on LEO-076.
-  Build: correct those four passages in place, and nothing else. Do not restate the items, do not
-  renumber anything, do not move a block between sections, do not change any scope beyond the
-  correction, and leave every `[needs-human]` tag exactly as it is.
-  Files: `FEATURES.md`.
-  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
-  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and
-  after in the PR body, with the one-line evidence for each (the mongoose guard, the nixpacks pin, the
-  three banner forms, the Settings.vue literal). No code changes, so the four code gates are unaffected
-  — run and report them anyway.
-  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs; anything
-  under `ops/leo-nightly/` (`README.md` is denylisted and LEO-059 already owns its stale half); and
-  re-grading either review.
 
 - [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions**
   One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
@@ -1305,6 +1273,38 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test** (routine 2026-11-01, 2df3c15)
+  Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
+  (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement
+  inside a `## Proposed` body, which is where an implementer takes their test expectations from.
+  (1) LEO-067 says "an *array* value casts fine, an object does not". In the installed mongoose 8.23 the
+  guard in `lib/cast/string.js` reads `value.toString && value.toString !== Object.prototype.toString &&
+  !Array.isArray(value)` — an array throws `CastError` too. So `?domain=a&domain=b` is a *second*
+  unauthenticated crash vector the item describes as harmless, and anyone encoding "array casts fine"
+  as an assertion gets a red test. (2) LEO-067 attributes the crash to "Node 24's default" while the
+  deployed runtime is pinned to `nodejs_20` in the root `nixpacks.toml`; the conclusion still holds —
+  throw-on-unhandled-rejection has been the default since Node 15 — but a reader who checks the pin
+  could wrongly dismiss the whole item. (3) LEO-064 opens its verify gate with "every banner names a
+  file that exists", yet none of the three banner forms it mandates has a file slot: the pre-routine
+  form carries only a commit, so a run following the forms literally fails its own gate. The file
+  evidence actually lives in the item's PR-body clause ("one `grep -n` hit proving the feature is in the
+  tree") and the gate should say so. (4) LEO-071 scopes `crawlSettings.honorRobots` as a flag "Daniel
+  turns on for one entity" but names no path that can set it: `dashboard/src/views/Settings.vue:42-47`
+  rebuilds `crawlSettings` from a 4-key literal and `backend/src/routes/dashboard.js:310` `$set`s the
+  subdocument wholesale, so a flag set out of band is wiped by the next settings save — either add the
+  switch to LEO-071's file list or make it depend on LEO-076.
+  Build: correct those four passages in place, and nothing else. Do not restate the items, do not
+  renumber anything, do not move a block between sections, do not change any scope beyond the
+  correction, and leave every `[needs-human]` tag exactly as it is.
+  Files: `FEATURES.md`.
+  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
+  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and
+  after in the PR body, with the one-line evidence for each (the mongoose guard, the nixpacks pin, the
+  three banner forms, the Settings.vue literal). No code changes, so the four code gates are unaffected
+  — run and report them anyway.
+  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs; anything
+  under `ops/leo-nightly/` (`README.md` is denylisted and LEO-059 already owns its stale half); and
+  re-grading either review.
 - [x] **(LEO-079) `selectModel` is unexported and untested — the cost lever has no gate** (routine 2026-11-01, 3b32b7e)
   `selectModel` (`backend/src/services/claude.js:120-127`) picks the model for every visitor message
   from four rules: Church Mode → Sonnet, message over 500 characters → Sonnet, classifier result not

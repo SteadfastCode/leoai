@@ -72,7 +72,7 @@
     "LEO-080": {
       "order": 5,
       "title": "Three filed specs carry factual errors an implementer would encode as a test",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-080",
