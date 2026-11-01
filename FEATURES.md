@@ -142,42 +142,6 @@ It sits above "## Block L — Backlog upkeep" on purpose: returned work should g
 standing audit, which is last so it runs only when nothing else is claimable.
 
 
-- [x] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed**
-  `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
-  `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
-  (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
-  every merge, several a night — and a `daily` entity waits another 24 hours, a `weekly` one another 7
-  days, with nothing logged, nothing emitted and nothing on the dashboard to say a refresh was dropped.
-  `leoRefreshLastRun` is already written on every run (line 48) but is only consulted for `weekly`. The
-  sibling scheduler solved exactly this: `digestDue` in `services/unansweredDigest.js:30-41` carries a
-  `DAILY_MIN_GAP_MS` elapsed-time guard "so a tick landing a little early still sends, while a
-  DST-length day can never double-send", is exported, and is unit-tested in
-  `backend/test/unanswered-digest.test.js`. `isDueNow` is neither exported nor tested — no file under
-  `backend/test` references it.
-  Build: (1) a catch-up arm mirroring `digestDue` — due when the scheduled hour matches, **or** when
-  `leoRefreshLastRun` is older than a catch-up window (daily 26h, weekly 8d), with an elapsed-gap guard
-  (daily 20h, weekly 6d) that still makes a second run inside the same period impossible; (2) export
-  `isDueNow` so it can be tested directly; (3) an in-process re-entrancy flag around `runHourlyTick`, so
-  the next hour's fire cannot re-enter a tick that is still running — the "Sequential … no parallel runs"
-  comment at line 80 is otherwise only true *within* one tick, and two concurrent Puppeteer crawls is
-  what it exists to prevent; (4) tiered debug logging (off/light/normal/verbose) behind one env var, the
-  light tier emitting one line per decision naming the *reason* — hour match, catch-up after N hours, gap
-  guard, disabled — not just the outcome.
-  Deliberate consequence to state in the PR body: a caught-up refresh starts outside the entity's chosen
-  hour, once, and may therefore run during the routine's own merge blackout; the protection against that
-  is `GET /scrape/active`, which LEO-078 makes able to see a LeoRefresh crawl at all.
-  Files: `backend/src/services/leoRefresh.js`, new `backend/test/leo-refresh-due.test.js`,
-  `backend/.env.example` (the log-tier variable, so the env-example gate stays green).
-  *Verify:* `node --test` on `isDueNow` with an injected `now` — exact hour due; wrong hour not due;
-  wrong hour with last run 30h ago due (catch-up); exact hour with last run 1h ago not due (gap guard);
-  weekly at 3d not due and at 8d due; no `leoRefreshLastRun` at the scheduled hour due. Plus a test that
-  two overlapping `runHourlyTick` calls invoke the inner refresh once, with the second logging the
-  re-entrancy reason. Break the gap guard in a scratch copy and confirm the suite goes red.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: the cron expression itself and anything about moving off `node-cron`; per-entity
-  timezones (`leoRefreshHour` is UTC by definition); making refreshes parallel; any change to
-  `rescrapeSite` (`services/scraper.js` is restricted) or `persistRescrapeResult`; surfacing dropped
-  runs in the dashboard; and the handoff follow-up and digest ticks sharing the same cron callback.
 
 - [ ] **(LEO-078) A LeoRefresh rescrape is invisible to `GET /scrape/active`**
   `activeScrapes` is a module-private `Map` in `backend/src/routes/scrape.js:20`, written only by that
@@ -1393,6 +1357,42 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-077) LeoRefresh silently skips a whole period when its scheduled hour is missed** (routine 2026-11-01, 57ae9db)
+  `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
+  `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
+  (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
+  every merge, several a night — and a `daily` entity waits another 24 hours, a `weekly` one another 7
+  days, with nothing logged, nothing emitted and nothing on the dashboard to say a refresh was dropped.
+  `leoRefreshLastRun` is already written on every run (line 48) but is only consulted for `weekly`. The
+  sibling scheduler solved exactly this: `digestDue` in `services/unansweredDigest.js:30-41` carries a
+  `DAILY_MIN_GAP_MS` elapsed-time guard "so a tick landing a little early still sends, while a
+  DST-length day can never double-send", is exported, and is unit-tested in
+  `backend/test/unanswered-digest.test.js`. `isDueNow` is neither exported nor tested — no file under
+  `backend/test` references it.
+  Build: (1) a catch-up arm mirroring `digestDue` — due when the scheduled hour matches, **or** when
+  `leoRefreshLastRun` is older than a catch-up window (daily 26h, weekly 8d), with an elapsed-gap guard
+  (daily 20h, weekly 6d) that still makes a second run inside the same period impossible; (2) export
+  `isDueNow` so it can be tested directly; (3) an in-process re-entrancy flag around `runHourlyTick`, so
+  the next hour's fire cannot re-enter a tick that is still running — the "Sequential … no parallel runs"
+  comment at line 80 is otherwise only true *within* one tick, and two concurrent Puppeteer crawls is
+  what it exists to prevent; (4) tiered debug logging (off/light/normal/verbose) behind one env var, the
+  light tier emitting one line per decision naming the *reason* — hour match, catch-up after N hours, gap
+  guard, disabled — not just the outcome.
+  Deliberate consequence to state in the PR body: a caught-up refresh starts outside the entity's chosen
+  hour, once, and may therefore run during the routine's own merge blackout; the protection against that
+  is `GET /scrape/active`, which LEO-078 makes able to see a LeoRefresh crawl at all.
+  Files: `backend/src/services/leoRefresh.js`, new `backend/test/leo-refresh-due.test.js`,
+  `backend/.env.example` (the log-tier variable, so the env-example gate stays green).
+  *Verify:* `node --test` on `isDueNow` with an injected `now` — exact hour due; wrong hour not due;
+  wrong hour with last run 30h ago due (catch-up); exact hour with last run 1h ago not due (gap guard);
+  weekly at 3d not due and at 8d due; no `leoRefreshLastRun` at the scheduled hour due. Plus a test that
+  two overlapping `runHourlyTick` calls invoke the inner refresh once, with the second logging the
+  re-entrancy reason. Break the gap guard in a scratch copy and confirm the suite goes red.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: the cron expression itself and anything about moving off `node-cron`; per-entity
+  timezones (`leoRefreshHour` is UTC by definition); making refreshes parallel; any change to
+  `rescrapeSite` (`services/scraper.js` is restricted) or `persistRescrapeResult`; surfacing dropped
+  runs in the dashboard; and the handoff follow-up and digest ticks sharing the same cron callback.
 - [x] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging** (routine 2026-10-31, a91a9c0)
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
   `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
