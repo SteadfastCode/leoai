@@ -141,7 +141,7 @@ This section has no gate of its own, which is the only honest place to put it ba
 It sits above "## Block L — Backlog upkeep" on purpose: returned work should go before the
 standing audit, which is last so it runs only when nothing else is claimable.
 
-- [ ] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging**
+- [x] **(LEO-076) `PATCH` replaces nested settings subdocuments wholesale instead of merging**
   `PATCH /api/dashboard/entities/:domain` (`backend/src/routes/dashboard.js:300-310`) allowlists
   `crawlSettings`, `handoffFollowUp` and `unansweredDigest` (plus superadmin `churchConfig`) as
   top-level keys and hands them to `Entity.findOneAndUpdate({ domain }, updates)`, which `$set`s each
