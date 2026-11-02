@@ -1,0 +1,89 @@
+{
+  "item": "LEO-078",
+  "repo": "leoai",
+  "mergeSha": "279d4df89b6b6a287b82c6aad2ab68602dc740b7",
+  "completedAtUtc": "2026-11-01T12:35:08.738Z",
+  "completeRunId": "2026-11-01T12:14:43.156Z",
+  "reviewRunId": "2026-11-02T08:01:35.670Z",
+  "reviewedAtUtc": "2026-11-02T08:16:59.573Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 21524,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/scrape.js",
+        "backend/src/services/leoRefresh.js",
+        "backend/src/services/scrapeRegistry.js"
+      ],
+      "part": null,
+      "bytes": 11527,
+      "contextBytes": 0,
+      "promptTokens": 4331,
+      "completionTokens": 74,
+      "latencyMs": 16121,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/scrape-registry.test.js"
+      ],
+      "part": null,
+      "bytes": 9997,
+      "contextBytes": 0,
+      "promptTokens": 3972,
+      "completionTokens": 102,
+      "latencyMs": 13733,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/test/scrape-registry.test.js:135"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, additional context is needed to ensure that the `runRefreshForEntity` function behaves as expected. · No real defects found in the provided diff. However, additional information is needed to verify the behavior of `requireAuth` and `isSuperAdmin` functions.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 16344,
+    "completionTokens": 441
+  },
+  "latencyMs": 63905
+}

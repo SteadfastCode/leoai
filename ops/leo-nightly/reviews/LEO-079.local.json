@@ -1,0 +1,69 @@
+{
+  "item": "LEO-079",
+  "repo": "leoai",
+  "mergeSha": "3b32b7e574a58cf9c3166c2382d54374f5b978c9",
+  "completedAtUtc": "2026-11-01T12:51:57.152Z",
+  "completeRunId": "2026-11-01T12:14:43.156Z",
+  "reviewRunId": "2026-11-02T08:01:35.670Z",
+  "reviewedAtUtc": "2026-11-02T08:17:26.736Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 4429,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/services/claude.js",
+        "backend/test/model-routing.test.js"
+      ],
+      "part": null,
+      "bytes": 4429,
+      "contextBytes": 3032,
+      "promptTokens": 2908,
+      "completionTokens": 95,
+      "latencyMs": 12800,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/src/services/claude.js:120"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff adds a test file for `selectModel` but does not provide the implementation of `selectModel`. The needs list includes the symbol `selectModel` from the file `backend/src/services/claude.js` to verify its correctness.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 5685,
+    "completionTokens": 233
+  },
+  "latencyMs": 27108
+}

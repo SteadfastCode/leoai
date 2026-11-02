@@ -1,0 +1,68 @@
+{
+  "item": "LEO-080",
+  "repo": "leoai",
+  "mergeSha": "2df3c157",
+  "completedAtUtc": "2026-11-01T13:10:36.347Z",
+  "completeRunId": "2026-11-01T12:14:43.156Z",
+  "reviewRunId": "2026-11-02T08:01:35.670Z",
+  "reviewedAtUtc": "2026-11-02T08:17:55.451Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 5996,
+  "contextFiles": 0,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "FEATURES.md"
+      ],
+      "part": null,
+      "bytes": 5996,
+      "contextBytes": 0,
+      "promptTokens": 2921,
+      "completionTokens": 143,
+      "latencyMs": 14862,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to fully verify the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 5711,
+    "completionTokens": 269
+  },
+  "latencyMs": 28659
+}

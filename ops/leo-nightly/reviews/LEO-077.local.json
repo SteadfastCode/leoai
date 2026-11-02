@@ -1,0 +1,113 @@
+{
+  "item": "LEO-077",
+  "repo": "leoai",
+  "mergeSha": "57ae9dbda63e320482578167996827d75213810f",
+  "completedAtUtc": "2026-11-01T12:24:46.367Z",
+  "completeRunId": "2026-11-01T12:14:43.156Z",
+  "reviewRunId": "2026-11-02T08:01:35.670Z",
+  "reviewedAtUtc": "2026-11-02T08:15:55.570Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 24648,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/leoRefresh.js"
+      ],
+      "part": null,
+      "bytes": 11640,
+      "contextBytes": 0,
+      "promptTokens": 4590,
+      "completionTokens": 76,
+      "latencyMs": 17136,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/leo-refresh-due.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 12137,
+      "contextBytes": 0,
+      "promptTokens": 4820,
+      "completionTokens": 112,
+      "latencyMs": 17209,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/leo-refresh-due.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1079,
+      "contextBytes": 2864,
+      "promptTokens": 2433,
+      "completionTokens": 120,
+      "latencyMs": 9835,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:53"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": true,
+      "evidence": "backend/test/leo-refresh-due.test.js:304"
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to fully verify the behavior of `runHourlyTick`. · The diff introduces a new test file for `isDueNow` and related functions, but it does not include the implementation of `runHourlyTick`. The test for re-entrancy depends on the actual implementation of `runHourlyTick`, so we need to read that code to ensure the test is complete. · The diff introduces a new test file for `isDueNow` and adds tests to ensure that the catch-up arm works correctly. The context provides additional tests for re-entrancy handling. No real defects are identified in the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 23293,
+    "completionTokens": 708
+  },
+  "latencyMs": 94636
+}
