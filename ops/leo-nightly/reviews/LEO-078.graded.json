@@ -1,0 +1,79 @@
+{
+  "item": "LEO-078",
+  "repo": "leoai",
+  "mergeSha": "279d4df89b6b6a287b82c6aad2ab68602dc740b7",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-04T00:47:53.773Z",
+  "gradedAtUtc": "2026-11-04T01:30:43.425Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scrapeRegistry.js",
+      "line": 78,
+      "severity": "low",
+      "summary": "`begin` folds a duplicate domain into the existing entry but `end` is an unconditional single delete with no refcount, so when a manual scrape and the nightly LeoRefresh overlap on one domain the first finisher clears the shared entry while the other crawl is still running — `/active` goes empty mid-crawl and the merge gate is blind again; the header comment claims the fold prevents exactly this, which it does not."
+    },
+    {
+      "file": "backend/test/scrape-registry.test.js",
+      "line": 192,
+      "severity": "low",
+      "summary": "The test named \"GET /scrape/active rejects an unauthenticated request\" exercises only the file's own stubbed `requireAuth` (which returns 401 when `x-test-user` is absent); no production auth code runs, so it asserts the stub rather than the claimed behaviour."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "No authentication or authorization logic is added or modified — `requireAuth()`/`isSuperAdmin` on `/active` are untouched; the cited line is a stubbed test helper, not an auth change."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only a non-secret log-level env var is documented in .env.example; no credentials or key handling."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota, or pricing code is in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The only deletions are in-memory Map entries; the chunk/page deletion paths in scrape.js are unchanged."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external calls added — scraper.js, embeddings, and the socket contract are untouched, and the scraper is stubbed in the test."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, nixpacks, CI, orchestrator-config, or RUNBOOK files are changed; the added env var is optional with a built-in default."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model found nothing in a clean, faithful refactor and was essentially right on substance, but it missed the two minor issues (no refcount on overlapping crawls, a test asserting its own auth stub) and mislabelled auth as touched on the strength of a stub line in the test file.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 0.9355835,
+  "numTurns": 9,
+  "durationMs": 103467,
+  "sessionId": "11f2c8d0-797b-44f4-9397-45571be94180"
+}

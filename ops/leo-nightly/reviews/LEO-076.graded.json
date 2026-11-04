@@ -1,0 +1,72 @@
+{
+  "item": "LEO-076",
+  "repo": "leoai",
+  "mergeSha": "a91a9c08246977e98cbeda05915eb1a833276a0b",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-04T00:47:53.773Z",
+  "gradedAtUtc": "2026-11-04T01:38:28.363Z",
+  "independent": [
+    {
+      "file": "backend/src/services/entityUpdates.js",
+      "line": 107,
+      "severity": "low",
+      "summary": "The module documents itself as safe on a raw body (`line 78`) and claims \"no dotted or `$`-prefixed path injection is possible\", but that only holds for NESTED keys: every top-level key the rules table does not describe is copied verbatim into the update (`flat[field] = value`), so a raw body is passed through as-is. Harmless on today's only call site (the route validates and allowlists first), but a future caller taking the JSDoc at its word — the item itself names the MCP server and a guided-setup write as callers of this endpoint — would hand `{plan:'lifetime'}` or `{$set:{messageCount:0}}` straight to `findOneAndUpdate` and write unsettable billing fields; `flat['__proto__'] = …` also silently sets the result's prototype instead of a key. The test suite pins the pass-through behaviour ('a field the table does not describe passes through whole') but tests injection only at the nested level."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The only route change is the argument handed to `findOneAndUpdate`; `requireAuth`, the `router.param` domain floor and the superadmin split are all untouched, and the test's auth stub is test-only scaffolding."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The diff does add an env var block to `backend/.env.example` at exactly line 47 (`ENTITY_UPDATES_LOG_LEVEL`), so the env/config surface is touched and the evidence is precise, even though the variable is a log level rather than a credential."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota-cost or pricing code is in the diff; `plan`/`messageCount` appear only as test assertions that an owner still cannot set them."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Consistent with the LEO-062 precedent (destructive = deletions/migrations): this change adds no delete, drop or migration — it only stops an existing overwrite from resetting sibling settings, and explicitly skips `undefined` so no dot-path becomes an `$unset`."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "Nothing in the diff touches an outbound call: `flattenEntityUpdates` is pure and the route makes no external request — the cited line 290 is a local `Entity.updateOne` helper inside a test, and the test's stubs exist precisely to guarantee no Claude/Voyage/Twilio/Resend call can fire."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No package.json, nixpacks, deploy config or schema change; the new env var defaults to `light` so no deploy-time action is required."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "Reporting no findings was close to right for a careful, well-tested change (the fix genuinely produces true dot-paths and the integration tests would go red on main), but the local model missed the one latent pass-through hazard and wrongly flagged externalApi off a test-only line.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 2.2624405000000007,
+  "numTurns": 24,
+  "durationMs": 296107,
+  "sessionId": "e3b3e032-13e9-43fc-93bf-dd02cebf51a5"
+}

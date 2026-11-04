@@ -1,0 +1,63 @@
+{
+  "item": "LEO-079",
+  "repo": "leoai",
+  "mergeSha": "3b32b7e574a58cf9c3166c2382d54374f5b978c9",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-04T00:47:53.773Z",
+  "gradedAtUtc": "2026-11-04T01:28:59.923Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only adds an export line and a pure unit test; no auth, session, or role logic is involved."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No keys, tokens, or env-var handling appear in the diff, and the test makes no live calls."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Right category and right anchor — `selectModel` is the Haiku/Sonnet cost lever, and this change is the gate over the API-spend decision."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Nothing is deleted, migrated, or overwritten; the only new file is a test."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Although the file wraps the Anthropic SDK, the diff adds no call and changes no request behaviour — the test is pure and exercises `selectModel` in-memory."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, version, or config files are touched; `node --test` already globs the new test file with no script change."
+    }
+  ],
+  "missed": [],
+  "summary": "Nothing to find here — the change is a one-line export plus a self-contained test matrix that matches the item's spec and the real model ids, so the local model's empty finding list and its all-correct triage are the right outcome, albeit for an unusually easy diff.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.584473,
+  "numTurns": 9,
+  "durationMs": 47246,
+  "sessionId": "07964dfd-4df2-408b-837c-ef5357ee3277"
+}

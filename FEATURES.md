@@ -251,6 +251,24 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-125) Correction (1) replaces a true statement with a false one: in query casting mongoose does not han…**
+  Found by the grader of LEO-080 (high, FEATURES.md:423). Correction (1) replaces a true statement
+  with a false one: in query casting mongoose does not hand an array to `castString` at all —
+  `lib/cast.js:376` rewrites an array value for a non-Buffer/non-Array path to `{ $in: [...] }`
+  and casts each element, so `Entity.findOne({ domain: ['a','b'] })` (from `?domain=a&domain=b`)
+  casts cleanly and is NOT a second unauthenticated crash vector; the quoted
+  `!Array.isArray(value)` guard in `lib/cast/string.js` is only reached on document casting, and
+  the original "an array value casts fine, an object does not" was correct for
+  `backend/src/routes/chat.js:27`. An implementer encoding the new claim as an assertion gets the
+  red test the item exists to prevent.
+- [ ] **(LEO-126) The catch-up arm keys off leoRefreshLastRun, which runRefreshForEntity only stamps on success (li…**
+  Found by the grader of LEO-077 (medium, backend/src/services/leoRefresh.js:146). The catch-up
+  arm keys off `leoRefreshLastRun`, which `runRefreshForEntity` only stamps on success (line 184;
+  the failure path at line 208 just logs), so an entity whose rescrape throws — Puppeteer launch
+  failure, site down hard, a Mongo error in `persistRescrapeResult` — becomes due again every
+  single hour once the stale stamp passes the 26h window (26h, 27h, 28h…), turning one failed
+  daily refresh into an indefinite hourly re-crawl with full Puppeteer + embedding cost; before
+  this change a failed run simply waited for the next day's scheduled hour.
 - [ ] **(LEO-121) checkApp reports status: asset.status (0) when only the hashed-bundle probe transport-fails, even…** [needs-human]
   Found by the grader of LEO-095 (medium, ops/leo-nightly/smoke.mjs:106). checkApp reports
   `status: asset.status` (0) when only the hashed-bundle probe transport-fails, even though the

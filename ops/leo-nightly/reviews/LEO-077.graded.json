@@ -1,0 +1,79 @@
+{
+  "item": "LEO-077",
+  "repo": "leoai",
+  "mergeSha": "57ae9dbda63e320482578167996827d75213810f",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-04T00:47:53.773Z",
+  "gradedAtUtc": "2026-11-04T01:33:32.224Z",
+  "independent": [
+    {
+      "file": "backend/src/services/leoRefresh.js",
+      "line": 146,
+      "severity": "medium",
+      "summary": "The catch-up arm keys off `leoRefreshLastRun`, which `runRefreshForEntity` only stamps on success (line 184; the failure path at line 208 just logs), so an entity whose rescrape throws — Puppeteer launch failure, site down hard, a Mongo error in `persistRescrapeResult` — becomes due again every single hour once the stale stamp passes the 26h window (26h, 27h, 28h…), turning one failed daily refresh into an indefinite hourly re-crawl with full Puppeteer + embedding cost; before this change a failed run simply waited for the next day's scheduled hour."
+    },
+    {
+      "file": "backend/test/leo-refresh-due.test.js",
+      "line": 271,
+      "severity": "low",
+      "summary": "In the re-entrancy test the second tick is fired at `AT_SLOT + HOUR` (04:00) against an entity with `leoRefreshLastRun: null` and hour 3, so that entity is `awaiting-first-slot` and would not crawl at that time even with the guard removed — the `rescrapeCalls === 1` assertion that the comment presents as proving \"two overlapping calls put exactly ONE crawl in flight\" is vacuous (only the `second.ran/reason` assertions actually exercise the flag)."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff touches only the scheduler predicate, its tick and a log-level env example — no authentication, session, role or permission code."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The only .env.example addition is `LEO_REFRESH_LOG_LEVEL`, a log-verbosity knob; no credential, key or secret handling is introduced or changed."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota or Stripe code is touched by the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff adds no delete/overwrite logic — `rescrapeSite` and `persistRescrapeResult` are untouched and only invoked as before."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API call site is added or modified in the diff; it only decides when the existing refresh path runs."
+    },
+    {
+      "key": "release",
+      "correct": false,
+      "reason": "Nothing release-related changes — no CI, deploy config, version bump or migration — and a new unit-test file is not release surface."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review found nothing at all, missing both the hourly-retry consequence of keying catch-up off a success-only timestamp and the vacuous crawl-count assertion in the re-entrancy test, and two of its six triage calls (secrets, release) are wrong with misread evidence.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 1.2417565,
+  "numTurns": 12,
+  "durationMs": 168767,
+  "sessionId": "2d962056-05e6-49fb-8067-8f035b9595b2"
+}

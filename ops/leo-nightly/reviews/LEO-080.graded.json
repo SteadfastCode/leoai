@@ -1,0 +1,72 @@
+{
+  "item": "LEO-080",
+  "repo": "leoai",
+  "mergeSha": "2df3c157",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-04T00:47:53.773Z",
+  "gradedAtUtc": "2026-11-04T01:28:12.645Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 423,
+      "severity": "high",
+      "summary": "Correction (1) replaces a true statement with a false one: in query casting mongoose does not hand an array to `castString` at all — `lib/cast.js:376` rewrites an array value for a non-Buffer/non-Array path to `{ $in: [...] }` and casts each element, so `Entity.findOne({ domain: ['a','b'] })` (from `?domain=a&domain=b`) casts cleanly and is NOT a second unauthenticated crash vector; the quoted `!Array.isArray(value)` guard in `lib/cast/string.js` is only reached on document casting, and the original \"an array value casts fine, an object does not\" was correct for `backend/src/routes/chat.js:27`. An implementer encoding the new claim as an assertion gets the red test the item exists to prevent."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Doc-only edit to FEATURES.md prose; no auth code or middleware is changed even though the text discusses an unauthenticated endpoint."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, env vars or key handling appear in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code or values touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations or data-mutating code; only spec text edited."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No API client, endpoint or third-party call changed — mongoose/nixpacks are only cited as evidence in prose."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "The nixpacks pin is merely quoted in prose; no build, deploy or release configuration is modified."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model reported nothing and its triage was trivially right for a docs-only diff, but it missed that the headline \"correction\" introduces a new factual error (mongoose rewrites array query values to $in, so the array crash vector does not exist), which is precisely the defect class this item was filed to remove.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.400113,
+  "numTurns": 27,
+  "durationMs": 172341,
+  "sessionId": "5ceac454-3b26-47cf-89b7-b86d4de5cef6"
+}
