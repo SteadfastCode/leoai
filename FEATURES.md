@@ -146,7 +146,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions**
+- [x] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions**
   One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
   beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
   (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
