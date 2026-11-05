@@ -147,7 +147,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed**
+- [x] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed**
   `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
   stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
   this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
