@@ -12,6 +12,11 @@
 //   3. The pure retention predicate: off/disabled, exactly-N-days, and the
 //      boundary either side of it, plus the real sweep over the DB — including
 //      the exemption for a handoff the owner has not answered yet.
+//   4. The sweep's own schedule (LEO-084). The sweep used to gate on an exact
+//      `getUTCHours() === 5` with no stamp anywhere, so one missed cron fire —
+//      a Railway redeploy spanning the hour — silently cost an owner a whole
+//      day of deletions. Quietly NOT deleting is the failure that matters for
+//      a privacy feature, so a missed hour must be recoverable.
 //
 // Claude/Voyage/Twilio/Resend are stubbed via require.cache before the routers
 // load, so no external call — and in particular no notification — can fire.
@@ -75,8 +80,13 @@ const {
   forgetFilter,
   sweepFilter,
   lastActivityAt,
+  sweepDue,
+  sweepDecision,
   runRetentionSweepTick,
   SWEEP_HOUR_UTC,
+  SWEEP_MIN_GAP_MS,
+  SWEEP_CATCHUP_MS,
+  HOUR_MS,
   DAY_MS,
 } = require('../src/services/retention');
 
@@ -227,6 +237,81 @@ test('a document predating lastActiveAt falls back to createdAt', () => {
 // ---------------------------------------------------------------------------
 // The real POST /chat/forget over HTTP, and the real sweep, against Mongo
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Pure: the sweep's own schedule (LEO-084). Each assertion is either "a missed
+// 05:00 UTC fire is recovered" or "a second sweep in the same day is refused".
+// ---------------------------------------------------------------------------
+
+const SWEEP_SLOT = Date.parse('2026-10-12T05:00:00Z'); // the sweep's UTC hour
+const KEEPS_30 = { domain: 'a.example.com', conversationRetentionDays: 30 };
+
+test('sweep schedule: the catch-up window sits past a day, the gap guard under it', () => {
+  assert.ok(SWEEP_CATCHUP_MS > 24 * HOUR_MS, 'a window inside the day would pre-empt the sweep hour');
+  assert.ok(SWEEP_MIN_GAP_MS < 24 * HOUR_MS, 'a guard over the day would skip every sweep');
+});
+
+test('sweep schedule: never swept at the sweep hour is due; off-hour it waits', () => {
+  const first = sweepDecision(KEEPS_30, SWEEP_SLOT);
+  assert.equal(first.due, true);
+  assert.equal(first.reason, 'first-run');
+  // Switching retention on must not delete anything in the same minute.
+  const held = sweepDecision(KEEPS_30, SWEEP_SLOT + 3 * HOUR_MS);
+  assert.equal(held.due, false);
+  assert.equal(held.reason, 'awaiting-first-slot');
+});
+
+test('sweep schedule: a missed 05:00 fire is taken at 06:00 rather than lost for a day', () => {
+  // Swept at 05:00 yesterday, and today's 05:00 tick never fired.
+  const e = { ...KEEPS_30, retentionLastSweepAt: new Date(SWEEP_SLOT - DAY_MS) };
+  assert.equal(sweepDue(e, SWEEP_SLOT), true, 'the 05:00 tick itself is an hour match');
+  const caught = sweepDecision(e, SWEEP_SLOT + 2 * HOUR_MS); // 07:00, 26h after the last sweep
+  assert.equal(caught.due, true);
+  assert.equal(caught.reason, 'catch-up');
+  assert.match(caught.detail, /05:00 UTC sweep was missed/);
+});
+
+test('sweep schedule: the sweep hour with a stamp 1h old is NOT due — the gap guard holds', () => {
+  const e = { ...KEEPS_30, retentionLastSweepAt: new Date(SWEEP_SLOT - HOUR_MS) };
+  const d = sweepDecision(e, SWEEP_SLOT);
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'gap-guard');
+});
+
+test('sweep schedule: a day of hourly ticks after a sweep yields exactly one more', () => {
+  let stamp = new Date(SWEEP_SLOT);
+  let sweeps = 0;
+  for (let h = 1; h <= 30; h++) {
+    const at = SWEEP_SLOT + h * HOUR_MS;
+    if (sweepDue({ ...KEEPS_30, retentionLastSweepAt: stamp }, at)) {
+      sweeps++;
+      stamp = new Date(at);
+    }
+  }
+  assert.equal(sweeps, 1, '30 hours of ticks must yield the next 05:00 sweep and nothing else');
+});
+
+test('sweep schedule: retention off is never due, however stale the stamp', () => {
+  const off = { domain: 'a.example.com', conversationRetentionDays: 0, retentionLastSweepAt: new Date(SWEEP_SLOT - 400 * DAY_MS) };
+  assert.equal(sweepDue(off, SWEEP_SLOT), false);
+  assert.equal(sweepDecision(off, SWEEP_SLOT).reason, 'disabled');
+  // Junk and negative values are keep-forever too — the setting may never fail
+  // open into deleting something.
+  for (const raw of [undefined, -1, 'soon', NaN]) {
+    assert.equal(sweepDue({ domain: 'a.example.com', conversationRetentionDays: raw }, SWEEP_SLOT), false, String(raw));
+  }
+});
+
+test('sweep schedule: an unreadable or future stamp never wedges the sweep shut forever', () => {
+  // Unreadable reads as never swept, so the next sweep hour takes it.
+  const junk = { ...KEEPS_30, retentionLastSweepAt: 'not a date' };
+  assert.equal(sweepDecision(junk, SWEEP_SLOT).reason, 'first-run');
+  assert.equal(sweepDue(junk, SWEEP_SLOT), true);
+  // A future stamp holds for now, and is recovered once real time passes it.
+  const ahead = { ...KEEPS_30, retentionLastSweepAt: new Date(SWEEP_SLOT + 2 * DAY_MS) };
+  assert.equal(sweepDecision(ahead, SWEEP_SLOT).reason, 'future-stamp');
+  assert.equal(sweepDue(ahead, SWEEP_SLOT + 3 * DAY_MS), true);
+});
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
@@ -386,11 +471,70 @@ test('the sweep deletes past-threshold conversations only for entities that opte
   ]);
 });
 
-test('the sweep is a daily job — it is a no-op in every other UTC hour', async () => {
+test('the sweep is a daily job — an off-hour tick on a never-swept entity does nothing', async () => {
   await seedForSweep();
   assert.equal(await runRetentionSweepTick(OFF_HOUR_NOW), 0);
   assert.equal((await survivors()).length, 5, 'nothing deleted outside the sweep hour');
   assert.equal(new Date(SWEEP_NOW).getUTCHours(), SWEEP_HOUR_UTC);
+  const stored = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(stored.retentionLastSweepAt ?? null, null, 'a tick that swept nothing must not stamp');
+});
+
+test('a sweep stamps retentionLastSweepAt, and a second call in the same hour is a no-op', async () => {
+  await seedForSweep();
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW), 1);
+  const stamped = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(new Date(stamped.retentionLastSweepAt).getTime(), SWEEP_NOW, 'the sweep must record when it ran');
+
+  // Re-seed the conversations only: the stamp stays, so the replayed fire must
+  // be refused by the gap guard even though there is again something to delete.
+  await Conversation.create({
+    domain: DOMAIN, sessionToken: 'leo_stale2', lastActiveAt: new Date(SWEEP_NOW - 99 * DAY_MS), messages: [],
+  });
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW + 30 * 60 * 1000), 0, 'a replayed fire must not sweep twice');
+  assert.ok((await survivors()).includes(`${DOMAIN}/leo_stale2`));
+  const unchanged = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(new Date(unchanged.retentionLastSweepAt).getTime(), SWEEP_NOW, 'the stamp must not move on a refused tick');
+});
+
+test('a missed sweep hour is recovered by a later tick, not lost for a day', async () => {
+  await seedForSweep();
+  // Yesterday's sweep landed; today's 05:00 fire was lost to a redeploy.
+  await Entity.updateOne({ domain: DOMAIN }, { retentionLastSweepAt: new Date(SWEEP_NOW - DAY_MS) });
+
+  // 06:00 is 25h on and still inside the catch-up window: deliberately not yet.
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW + HOUR_MS), 0);
+  assert.equal((await survivors()).length, 5);
+
+  // 07:00 is 26h on — the window has passed, so the sweep runs off-hour. Two
+  // conversations go, not one: the cutoff is measured from the tick that runs,
+  // so leo_edge — exactly 30 days old at 05:00 — has crossed the window during
+  // the two hours of delay. The late sweep deletes what is expired when it
+  // runs, which is the whole point of running it at all.
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW + 2 * HOUR_MS), 2);
+  assert.deepEqual(await survivors(), [
+    `${DOMAIN}/leo_fresh`,
+    `${DOMAIN}/leo_unanswered`,
+    `${OTHER_DOMAIN}/leo_ancient`,
+  ]);
+  const stamped = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(new Date(stamped.retentionLastSweepAt).getTime(), SWEEP_NOW + 2 * HOUR_MS);
+});
+
+test('retentionLastSweepAt is server-written — the owner PATCH cannot set it', async () => {
+  await Entity.deleteMany({ domain: DOMAIN });
+  await Entity.create({ domain: DOMAIN, name: 'A Bakery', conversationRetentionDays: 30 });
+  const res = await fetch(`${baseUrl}/api/dashboard/entities/${DOMAIN}`, {
+    method: 'PATCH',
+    headers: {
+      'content-type': 'application/json',
+      'x-test-user': JSON.stringify({ memberships: [{ entityDomain: DOMAIN, role: 'owner' }] }),
+    },
+    body: JSON.stringify({ retentionLastSweepAt: new Date(0) }),
+  });
+  assert.equal(res.status, 200);
+  const stored = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(stored.retentionLastSweepAt ?? null, null, 'a forged stamp would let a caller suppress a day of deletions');
 });
 
 test('the sweep does nothing when no entity has retention enabled', async () => {

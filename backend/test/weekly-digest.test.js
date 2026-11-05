@@ -11,9 +11,11 @@ const assert = require('node:assert/strict');
 
 const {
   weeklyDigestDue,
+  weeklyDigestDecision,
   summarizeWeek,
   renderWeeklyDigestBody,
   MIN_GAP_MS,
+  CATCHUP_MS,
   WEEK_MS,
 } = require('../src/services/weeklyDigest');
 
@@ -119,6 +121,110 @@ test('DST fall-back week: the 25-hour local day does not produce a second send',
   // The local-time hour of the stamped send shifts by one across the boundary,
   // but the UTC schedule does not: 168 UTC hours apart either way.
   assert.equal(after - before, 7 * DAY);
+});
+
+// --- weeklyDigestDue: the catch-up arm (LEO-084) ----------------------------
+// One `cron.schedule('0 * * * *')` fire drives this, and Railway redeploys on
+// every merge, so losing the single top-of-the-hour tick that matches an
+// entity's slot is ordinary. Every assertion below is one of two kinds: "a
+// missed slot is recovered" or "a second send inside the same week is
+// impossible". The second kind is the one that must never regress — a duplicate
+// digest is an owner unsubscribing.
+
+test('the catch-up window sits past a nominal week, so a healthy entity is always claimed by its own slot first', () => {
+  assert.ok(CATCHUP_MS > WEEK_MS, 'a catch-up window inside the week would pre-empt the slot');
+  assert.ok(MIN_GAP_MS < WEEK_MS, 'a gap guard over the week would skip every send');
+});
+
+test('missed slot: wrong hour, stamp 8 days old — due as catch-up', () => {
+  const e = entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 8 * DAY) });
+  // Thursday 21:00 UTC — neither the configured day nor the configured hour.
+  const offSlot = Date.parse('2026-08-13T21:00:00Z');
+  const d = weeklyDigestDecision(e, offSlot);
+  assert.equal(d.due, true);
+  assert.equal(d.reason, 'catch-up');
+  assert.match(d.detail, /Monday 13:00 UTC slot was missed/);
+});
+
+test('missed slot: wrong hour, stamp 7 days old — NOT due, the slot is still within reach', () => {
+  const e = entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 7 * DAY) });
+  const d = weeklyDigestDecision(e, MONDAY_13 + 3 * 60 * 60 * 1000); // Monday 16:00
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'off-schedule');
+});
+
+test('the scheduled hour with a stamp 1h old: NOT due — the gap guard holds', () => {
+  const e = entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 60 * 60 * 1000) });
+  const d = weeklyDigestDecision(e, MONDAY_13);
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'gap-guard');
+});
+
+test('catch-up can never fire inside the gap guard, at any hour of the week', () => {
+  // Stamped one hour before each probe: no hour of any day may produce a send.
+  for (let h = 0; h < 24 * 7; h++) {
+    const at = MONDAY_13 + h * 60 * 60 * 1000;
+    const e = entity({ lastWeeklyDigestAt: new Date(at - 60 * 60 * 1000) });
+    assert.equal(weeklyDigestDue(e, at), false, `a send fired ${h}h in, one hour after the last one`);
+  }
+});
+
+test('one week of hourly ticks after a real send produces exactly one more send', () => {
+  // The whole point of the catch-up arm: it recovers a miss without ever
+  // turning the hourly tick into a second digest.
+  let stamp = new Date(MONDAY_13);
+  let sends = 0;
+  for (let h = 1; h <= 24 * 8; h++) {
+    const at = MONDAY_13 + h * 60 * 60 * 1000;
+    if (weeklyDigestDue(entity({ lastWeeklyDigestAt: stamp }), at)) {
+      sends++;
+      stamp = new Date(at);
+    }
+  }
+  assert.equal(sends, 1, 'eight days of ticks must yield the next Monday send and nothing else');
+});
+
+test('no stamp at the scheduled slot is due; no stamp off-slot waits for it', () => {
+  const first = weeklyDigestDecision(entity(), MONDAY_13);
+  assert.equal(first.due, true);
+  assert.equal(first.reason, 'first-run');
+  // Never sent means nothing was missed — flipping the toggle on must not mail
+  // the owner in the same minute.
+  const held = weeklyDigestDecision(entity(), MONDAY_13 + 9 * DAY);
+  assert.equal(held.due, false);
+  assert.equal(held.reason, 'awaiting-first-slot');
+});
+
+test('a disabled entity is never due, however stale its stamp', () => {
+  const e = entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 400 * DAY) }, { enabled: false });
+  assert.equal(weeklyDigestDue(e, MONDAY_13), false);
+  assert.equal(weeklyDigestDecision(e, MONDAY_13).reason, 'disabled');
+  // Same for an entity with nowhere to send.
+  const noEmail = entity({ ownerEmail: '', lastWeeklyDigestAt: new Date(MONDAY_13 - 400 * DAY) });
+  assert.equal(weeklyDigestDue(noEmail, MONDAY_13), false);
+  assert.equal(weeklyDigestDecision(noEmail, MONDAY_13).reason, 'no-recipient');
+});
+
+test('a stamp in the future holds rather than sending', () => {
+  const e = entity({ lastWeeklyDigestAt: new Date(MONDAY_13 + 2 * DAY) });
+  const d = weeklyDigestDecision(e, MONDAY_13);
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'future-stamp');
+});
+
+test('every decision carries a reason and a detail naming the slot', () => {
+  const cases = [
+    entity(),
+    entity({}, { enabled: false }),
+    entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 8 * DAY) }),
+    entity({ lastWeeklyDigestAt: new Date(MONDAY_13 - 60 * 1000) }),
+  ];
+  for (const e of cases) {
+    const d = weeklyDigestDecision(e, MONDAY_13 + 5 * 60 * 60 * 1000);
+    assert.equal(typeof d.reason, 'string');
+    assert.ok(d.reason.length, 'a decision with no reason is a silent drop in the log');
+    assert.ok(d.detail.length, 'the light tier prints detail, so it may never be empty');
+  }
 });
 
 // --- summarizeWeek ----------------------------------------------------------

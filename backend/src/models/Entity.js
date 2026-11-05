@@ -53,6 +53,11 @@ const entitySchema = new mongoose.Schema(
     // a conversation is swept. 0 = keep forever (the default) — existing
     // entities are unaffected and nothing is ever deleted until an owner opts in.
     conversationRetentionDays: { type: Number, default: 0, min: 0 },
+    // When the retention sweep last ran for this entity (LEO-084). Optional and
+    // server-written — never in the dashboard PATCH allowlist. Without it the
+    // sweep could not tell a missed 05:00 UTC tick from a completed one, so a
+    // dropped fire cost a whole day of deletions in silence.
+    retentionLastSweepAt: { type: Date },
     ministryPlanRequested: { type: Boolean, default: false },
     ministryPlanRequestedAt: { type: Date },
     ministryPlanRequestedBy: { type: String },

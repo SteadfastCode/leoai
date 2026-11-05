@@ -11,10 +11,28 @@
 // suppression and the ordering of the body are unit-testable directly.
 // runWeeklyDigestTick owns the queries and the one send.
 //
+// The due calculation has a CATCH-UP arm (LEO-084). One
+// `cron.schedule('0 * * * *')` fire is the only thing that ever calls this, and
+// the predicate used to require an exact UTC day+hour match. Miss that single
+// fire — a container restart spanning the hour, and Railway redeploys on every
+// merge — and a weekly sender lost a WHOLE WEEK of digest, silently. So the
+// predicate is now due when the scheduled day+hour match, OR when
+// lastWeeklyDigestAt is older than a catch-up window, and never inside the
+// MIN_GAP_MS guard that makes a second send in the same week impossible.
+// Same shape as digestDue in unansweredDigest.js and refreshDecision in
+// leoRefresh.js.
+//
+// An entity that has NEVER sent is not caught up — it has missed nothing, and
+// a digest the instant the toggle flips is not what the day+hour setting
+// means. It waits for its scheduled slot.
+//
 // Debug tiers — WEEKLY_DIGEST_LOG_LEVEL = off | light | normal | verbose:
-//   light (default) one line per actual send, naming what scheduled it
-//   normal          adds the ticks that sent nothing (why they skipped)
-//   verbose         adds every enabled entity considered, due or not
+//   light (default) one line per entity decision, naming the REASON it was
+//                   taken or held — slot match, catch-up after N days, gap
+//                   guard, disabled — plus every post-due outcome (the send,
+//                   zero activity, a stamp that moved under us)
+//   normal          adds the tick-level counts
+//   verbose         adds the raw schedule + last-send stamp each decision read
 // This runs away from a human (an hourly cron tick), so the light tier always
 // says the SOURCE of a send — the entity's own schedule and the window it
 // covered — not just that mail went out.
@@ -34,6 +52,17 @@ const WEEK_MS = 7 * DAY_MS;
 // schedule is UTC throughout, so a 23- or 25-hour local day never shifts it.
 const MIN_GAP_MS = 6 * DAY_MS;
 
+// How stale lastWeeklyDigestAt must be before a tick in ANY hour takes the
+// send, because the scheduled slot was evidently missed. Set past the nominal
+// week (8d) so a healthy entity is always claimed by its own slot first and the
+// catch-up arm only ever fires after something actually went wrong.
+//
+// Consequence, deliberately accepted: a caught-up digest goes out OUTSIDE the
+// owner's chosen day+hour, once, and covers the seven days ending at that tick
+// rather than at the slot. Roughly-on-time beats silently skipped; sending the
+// same week twice is the one thing MIN_GAP_MS will not allow.
+const CATCHUP_MS = 8 * DAY_MS;
+
 // How many "most asked" questions the body lists.
 const TOP_QUESTION_LIMIT = 5;
 
@@ -48,29 +77,82 @@ function debug(tier, message) {
   if (logTier() >= TIERS[tier]) console.log(`[WeeklyDigest] ${message}`);
 }
 
+// Gaps here are days, so one rounded unit is the readable form.
+function formatGap(ms) {
+  const hours = ms / (60 * 60 * 1000);
+  if (hours < 48) return `${Math.round(hours * 10) / 10}h`;
+  return `${Math.round((hours / 24) * 10) / 10}d`;
+}
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function formatSlot(dayOfWeek, hour) {
+  const day = DAY_NAMES[dayOfWeek] || `day ${dayOfWeek}`;
+  return `${day} ${String(hour).padStart(2, '0')}:00 UTC`;
+}
+
+// null means "never sent" — which includes an unreadable stamp: a decision made
+// from a NaN compares false against every window and would wedge the entity out
+// of the schedule entirely, the exact failure this catch-up arm exists to fix.
+function lastSentMs(entity) {
+  const raw = entity?.lastWeeklyDigestAt;
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
 /**
- * Is this entity's weekly digest due right now? Same shape as digestDue in
- * unansweredDigest.js: schedule match on UTC weekday and UTC hour, plus an
- * elapsed-time guard against the last send.
+ * Why this entity's weekly digest is (or is not) due right now:
+ * `{ due, reason, detail }`. Pure — `now` is injected, nothing is read from the
+ * DB. `reason` is a stable slug for logs and tests; `detail` is the human half
+ * of the light-tier line.
  *
  * `entity` needs weeklyDigest ({ enabled, dayOfWeek, hour }),
  * lastWeeklyDigestAt, and ownerEmail — with no address there is nowhere to
  * send, so it is never due.
  */
-function weeklyDigestDue(entity, now = Date.now()) {
+function weeklyDigestDecision(entity, now = Date.now()) {
   const cfg = entity?.weeklyDigest || {};
-  if (!cfg.enabled) return false;
-  if (!entity?.ownerEmail) return false;
+  if (!cfg.enabled) {
+    return { due: false, reason: 'disabled', detail: 'the weekly digest is off for this entity' };
+  }
+  if (!entity?.ownerEmail) {
+    return { due: false, reason: 'no-recipient', detail: 'no ownerEmail on the entity — nowhere to send' };
+  }
+
+  const hour = cfg.hour ?? 13;
+  const dayOfWeek = cfg.dayOfWeek ?? 1;
+  const slot = formatSlot(dayOfWeek, hour);
 
   const at = new Date(now);
-  if (at.getUTCHours() !== (cfg.hour ?? 13)) return false;
-  if (at.getUTCDay() !== (cfg.dayOfWeek ?? 1)) return false;
+  const onSchedule = at.getUTCHours() === hour && at.getUTCDay() === dayOfWeek;
+  const last = lastSentMs(entity);
 
-  const last = entity.lastWeeklyDigestAt;
-  if (!last) return true;
-  const t = new Date(last).getTime();
-  if (!Number.isFinite(t)) return true; // unreadable stamp: treat as never sent
-  return now - t >= MIN_GAP_MS;
+  if (last === null) {
+    return onSchedule
+      ? { due: true, reason: 'first-run', detail: `never sent, and now is its ${slot} slot` }
+      : { due: false, reason: 'awaiting-first-slot', detail: `never sent; holding for its ${slot} slot` };
+  }
+
+  const elapsed = now - last;
+  if (elapsed < 0) {
+    return { due: false, reason: 'future-stamp', detail: `last send is stamped ${formatGap(-elapsed)} in the future (clock skew) — holding off rather than risk a double send` };
+  }
+  if (elapsed < MIN_GAP_MS) {
+    return { due: false, reason: 'gap-guard', detail: `last sent ${formatGap(elapsed)} ago, inside the ${formatGap(MIN_GAP_MS)} gap guard` };
+  }
+  if (onSchedule) {
+    return { due: true, reason: 'slot-match', detail: `now is its ${slot} slot; last sent ${formatGap(elapsed)} ago` };
+  }
+  if (elapsed >= CATCHUP_MS) {
+    return { due: true, reason: 'catch-up', detail: `catch-up after ${formatGap(elapsed)} — its ${slot} slot was missed and the ${formatGap(CATCHUP_MS)} window has passed` };
+  }
+  return { due: false, reason: 'off-schedule', detail: `now is not its ${slot} slot, and last sent ${formatGap(elapsed)} ago is inside the ${formatGap(CATCHUP_MS)} catch-up window` };
+}
+
+/** Boolean half of weeklyDigestDecision. `now` is injected so this stays testable. */
+function weeklyDigestDue(entity, now = Date.now()) {
+  return weeklyDigestDecision(entity, now).due;
 }
 
 // Half-open [since, until): the instant a window ends is the next window's
@@ -260,13 +342,18 @@ async function runWeeklyDigestTick(now = Date.now()) {
   const until = new Date(now);
   const since = new Date(now - WEEK_MS);
   let sent = 0;
+  let due = 0;
 
   for (const entity of entities) {
     const cfg = entity.weeklyDigest || {};
-    if (!weeklyDigestDue(entity, now)) {
-      debug('verbose', `not due: ${entity.domain} — source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), last sent ${entity.lastWeeklyDigestAt ? new Date(entity.lastWeeklyDigestAt).toISOString() : 'never'}`);
+    const decision = weeklyDigestDecision(entity, now);
+    debug('verbose', `${entity.domain} read entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), lastWeeklyDigestAt ${entity.lastWeeklyDigestAt ? new Date(entity.lastWeeklyDigestAt).toISOString() : 'never'}`);
+    if (!decision.due) {
+      debug('light', `holding ${entity.domain} — reason: ${decision.reason} (${decision.detail})`);
       continue;
     }
+    due++;
+    debug('light', `due ${entity.domain} — reason: ${decision.reason} (${decision.detail})`);
 
     let stats;
     try {
@@ -279,8 +366,13 @@ async function runWeeklyDigestTick(now = Date.now()) {
     const body = renderWeeklyDigestBody(entity.name, stats, { since, until });
     if (!body) {
       // No email AND no stamp: nothing happened, so next week's tick is the
-      // first one that can report anything.
-      debug('normal', `skipped ${entity.domain} — source: zero activity between ${since.toISOString()} and ${until.toISOString()}`);
+      // first one that can report anything. Consequence of the catch-up arm,
+      // deliberately accepted: an entity that has been quiet since its last
+      // send re-arms catch-up every hour once the window has passed, so it
+      // logs this pair hourly and sends the moment real activity appears —
+      // at that hour, not at the slot. A week with nothing in it is the one
+      // case where "no stamp" cannot mean "the period was handled".
+      debug('light', `skipped ${entity.domain} — reason: zero-activity (nothing between ${since.toISOString()} and ${until.toISOString()})`);
       continue;
     }
 
@@ -289,11 +381,11 @@ async function runWeeklyDigestTick(now = Date.now()) {
       { $set: { lastWeeklyDigestAt: new Date(now) } }
     );
     if (!updated) {
-      debug('normal', `skipped ${entity.domain} — source: lastWeeklyDigestAt moved under us, another tick is sending this week`);
+      debug('light', `skipped ${entity.domain} — reason: stamp-race (lastWeeklyDigestAt moved under us, another tick is sending this week)`);
       continue;
     }
 
-    debug('light', `sending to ${entity.ownerEmail} for ${entity.domain} — source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), window ${since.toISOString()} to ${until.toISOString()}, ${stats.visitorMessages} visitor message(s), ${stats.handoffs} handoff(s) from conversation.handoffLog (${stats.handoffsFromLegacyPending} of them only in pendingQuestions, pre-handoffLog conversations)`);
+    debug('light', `sending to ${entity.ownerEmail} for ${entity.domain} — reason: ${decision.reason}, source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), window ${since.toISOString()} to ${until.toISOString()}, ${stats.visitorMessages} visitor message(s), ${stats.handoffs} handoff(s) from conversation.handoffLog (${stats.handoffsFromLegacyPending} of them only in pendingQuestions, pre-handoffLog conversations)`);
     try {
       await sendEmailRaw(entity.ownerEmail, `What Leo did for ${entity.name} this week`, body);
       sent++;
@@ -302,6 +394,7 @@ async function runWeeklyDigestTick(now = Date.now()) {
     }
   }
 
+  debug('normal', `tick at ${new Date(now).toISOString()}: ${entities.length} enabled, ${due} due, ${sent} sent`);
   return sent;
 }
 
@@ -310,11 +403,13 @@ module.exports = {
   collectWeekStats,
   // pure, exported for the tests
   weeklyDigestDue,
+  weeklyDigestDecision,
   summarizeWeek,
   renderWeeklyDigestBody,
   inWindow,
   handoffKey,
   MIN_GAP_MS,
+  CATCHUP_MS,
   WEEK_MS,
   TOP_QUESTION_LIMIT,
 };
