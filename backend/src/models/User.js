@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema(
     passkeys:          [passkeySchema],
     refreshTokens:     [refreshTokenSchema],
     currentChallenge:       { type: String }, // ephemeral WebAuthn challenge
-    passwordResetToken:     { type: String },
+    passwordResetToken:     { type: String }, // SHA-256 digest, never the raw token — services/resetToken.js (LEO-098)
     passwordResetExpiresAt: { type: Date },
   },
   { timestamps: true }
