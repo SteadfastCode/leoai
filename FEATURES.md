@@ -147,36 +147,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed**
-  `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
-  stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
-  this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
-  SHA-256 digest of a key shown exactly once (`routes/admin.js:290`). So anyone with read access to the
-  `users` collection — an Atlas backup, a leaked connection string, a superadmin browsing data, any future
-  read-only report — can take over any account with a live reset request by pasting the token into the reset
-  URL, with no password and no access to the owner's inbox. The window is an hour per request, and the token
-  is the entire credential. LEO-085 named this defect and put it out of its own scope.
-  Build: hash the token the way `ApiKey` already does. `crypto.randomBytes(32)` still produces the value that
-  goes in the email; only its SHA-256 digest is stored, and `/reset-password` looks up the digest of the token
-  it was handed. Put both halves behind one pure `hashResetToken(raw)` in a new
-  `backend/src/services/resetToken.js` so the write site and the read site can never disagree. Tokens already
-  stored in plaintext stop resolving the moment this deploys — correct, since they expire within the hour
-  anyway, but it must be said in the PR body rather than discovered by whoever clicks a stale link.
-  Files: new `backend/src/services/resetToken.js`, `backend/src/routes/auth.js`, `backend/src/models/User.js`
-  (**a comment only — no `required`, no `unique`, no type change**, so the schema-tightening gate stays green),
-  new `backend/test/reset-token.test.js`.
-  *Verify:* `node --test` on `hashResetToken` — a known input yields a known 64-character hex digest, the same
-  input twice is stable, a one-character change differs, and `null`/`undefined`/a non-string returns `null`
-  rather than throwing. Plus the real auth router over `mongodb-memory-server` (the
-  `backend/test/onboard-entity.test.js` harness shape, mailer stubbed and the token captured from the stub):
-  after `POST /auth/forgot-password` the stored `passwordResetToken` is **not** the token in the email;
-  `POST /auth/reset-password` with the emailed token still succeeds and still clears `refreshTokens`; the same
-  call with the *stored* value fails. Confirm the first assertion goes red against unmodified `main`.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: any other token's storage (the `Invite` flow is its own question — look, report in the PR
-  body, change nothing); sending a real email; the one-hour expiry; rate-limiting `/forgot-password`
-  (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
-  adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
 
 - [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`**
   The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
@@ -1254,6 +1224,36 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** (routine 2026-11-05, 1dda695)
+  `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
+  stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in
+  this backend is hashed before it is stored — `hashedPassword` is bcrypt cost 12, and `ApiKey.keyHash` is a
+  SHA-256 digest of a key shown exactly once (`routes/admin.js:290`). So anyone with read access to the
+  `users` collection — an Atlas backup, a leaked connection string, a superadmin browsing data, any future
+  read-only report — can take over any account with a live reset request by pasting the token into the reset
+  URL, with no password and no access to the owner's inbox. The window is an hour per request, and the token
+  is the entire credential. LEO-085 named this defect and put it out of its own scope.
+  Build: hash the token the way `ApiKey` already does. `crypto.randomBytes(32)` still produces the value that
+  goes in the email; only its SHA-256 digest is stored, and `/reset-password` looks up the digest of the token
+  it was handed. Put both halves behind one pure `hashResetToken(raw)` in a new
+  `backend/src/services/resetToken.js` so the write site and the read site can never disagree. Tokens already
+  stored in plaintext stop resolving the moment this deploys — correct, since they expire within the hour
+  anyway, but it must be said in the PR body rather than discovered by whoever clicks a stale link.
+  Files: new `backend/src/services/resetToken.js`, `backend/src/routes/auth.js`, `backend/src/models/User.js`
+  (**a comment only — no `required`, no `unique`, no type change**, so the schema-tightening gate stays green),
+  new `backend/test/reset-token.test.js`.
+  *Verify:* `node --test` on `hashResetToken` — a known input yields a known 64-character hex digest, the same
+  input twice is stable, a one-character change differs, and `null`/`undefined`/a non-string returns `null`
+  rather than throwing. Plus the real auth router over `mongodb-memory-server` (the
+  `backend/test/onboard-entity.test.js` harness shape, mailer stubbed and the token captured from the stub):
+  after `POST /auth/forgot-password` the stored `passwordResetToken` is **not** the token in the email;
+  `POST /auth/reset-password` with the emailed token still succeeds and still clears `refreshTokens`; the same
+  call with the *stored* value fails. Confirm the first assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: any other token's storage (the `Invite` flow is its own question — look, report in the PR
+  body, change nothing); sending a real email; the one-hour expiry; rate-limiting `/forgot-password`
+  (LEO-052); `JWT_SECRET` (LEO-085); the operator-injection shape of the same lookup (LEO-097 — the two touch
+  adjacent lines and whichever lands second keeps the other's check); and migrating tokens already stored.
 - [x] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** (routine 2026-11-05, c6aaa5d)
   One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
   beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`

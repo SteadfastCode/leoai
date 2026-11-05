@@ -76,7 +76,7 @@
     "LEO-098": {
       "order": 5,
       "title": "`passwordResetToken` is stored in plaintext while every other credential here is hashed",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-098",
