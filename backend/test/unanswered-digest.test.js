@@ -1,11 +1,20 @@
 // Unanswered-digest contracts (LEO-026): the pure due-date calculation
-// (weekly and daily, DST-adjacent), the body renderer's empty-list
-// suppression, and the shared grouping the digest reuses from questions.js.
+// (weekly and daily, DST-adjacent, and the LEO-084 catch-up arm for a missed
+// cron fire), the body renderer's empty-list suppression, and the shared
+// grouping the digest reuses from questions.js.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { digestDue, renderDigestBody } = require('../src/services/unansweredDigest');
+const {
+  digestDue,
+  digestDecision,
+  renderDigestBody,
+  DAILY_MIN_GAP_MS,
+  WEEKLY_MIN_GAP_MS,
+  DAILY_CATCHUP_MS,
+  WEEKLY_CATCHUP_MS,
+} = require('../src/services/unansweredDigest');
 const { groupQuestions } = require('../src/services/questions');
 
 const HOUR = 60 * 60 * 1000;
@@ -101,6 +110,107 @@ test('DST fall-back week: weekly digest due exactly at the next UTC weekday matc
   assert.equal(digestDue(e, after), true);
   // The 25-hour local day in between never lines up: wrong weekday.
   assert.equal(digestDue(e, Date.parse('2026-11-01T13:00:00Z')), false);
+});
+
+// --- digestDue: the catch-up arm (LEO-084) ----------------------------------
+// One `cron.schedule('0 * * * *')` fire drives this, and Railway redeploys on
+// every merge, so losing the single tick that matches an entity's slot is
+// ordinary — and cost a daily sender a day and a weekly one a week, silently.
+// Each assertion below is either "a missed slot is recovered" or "a second send
+// inside the same period is impossible".
+
+test('each catch-up window sits past its own period, so a healthy entity is claimed by its slot first', () => {
+  assert.ok(DAILY_CATCHUP_MS > DAY);
+  assert.ok(WEEKLY_CATCHUP_MS > 7 * DAY);
+  assert.ok(DAILY_MIN_GAP_MS < DAY);
+  assert.ok(WEEKLY_MIN_GAP_MS < 7 * DAY);
+});
+
+test('daily: wrong hour, stamp 30h old — due as catch-up', () => {
+  const e = entity({ unansweredDigestLastSentAt: new Date(MONDAY_13 - 30 * HOUR) }, { frequency: 'daily' });
+  const d = digestDecision(e, MONDAY_13 + 4 * HOUR); // 17:00, not the 13:00 slot
+  assert.equal(d.due, true);
+  assert.equal(d.reason, 'catch-up');
+  assert.match(d.detail, /daily 13:00 UTC slot was missed/);
+});
+
+test('daily: wrong hour, stamp 25h old — NOT due, still inside the catch-up window', () => {
+  const at = MONDAY_13 + 4 * HOUR; // 17:00, not the 13:00 slot
+  const e = entity({ unansweredDigestLastSentAt: new Date(at - 25 * HOUR) }, { frequency: 'daily' });
+  const d = digestDecision(e, at);
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'off-schedule');
+});
+
+test('weekly: wrong hour and wrong weekday, stamp 8 days old — due as catch-up', () => {
+  const e = entity({ unansweredDigestLastSentAt: new Date(MONDAY_13 - 8 * DAY) });
+  const d = digestDecision(e, Date.parse('2026-08-13T21:00:00Z')); // Thursday 21:00
+  assert.equal(d.due, true);
+  assert.equal(d.reason, 'catch-up');
+  assert.match(d.detail, /Monday 13:00 UTC slot was missed/);
+});
+
+test('the scheduled hour with a stamp 1h old: NOT due — the gap guard holds', () => {
+  for (const frequency of ['daily', 'weekly']) {
+    const e = entity({ unansweredDigestLastSentAt: new Date(MONDAY_13 - HOUR) }, { frequency });
+    const d = digestDecision(e, MONDAY_13);
+    assert.equal(d.due, false, frequency);
+    assert.equal(d.reason, 'gap-guard', frequency);
+  }
+});
+
+test('daily: a day of hourly ticks after a real send produces exactly one more send', () => {
+  let stamp = new Date(MONDAY_13);
+  let sends = 0;
+  for (let h = 1; h <= 30; h++) {
+    const at = MONDAY_13 + h * HOUR;
+    if (digestDue(entity({ unansweredDigestLastSentAt: stamp }, { frequency: 'daily' }), at)) {
+      sends++;
+      stamp = new Date(at);
+    }
+  }
+  assert.equal(sends, 1, '30 hours of ticks must yield the next 13:00 send and nothing else');
+});
+
+test('daily: a missed 13:00 fire is recovered two hours later, not deferred a whole day', () => {
+  // Last sent 13:00 the previous day, and the 13:00 tick never fired.
+  const e = entity({ unansweredDigestLastSentAt: new Date(MONDAY_13 - DAY) }, { frequency: 'daily' });
+  // 14:00 is 25h after the last send: inside the catch-up window, so still not
+  // due. 15:00 is 26h and recovers it. The window is deliberately past the
+  // period so a healthy entity is never pre-empted.
+  assert.equal(digestDue(e, MONDAY_13 + HOUR), false);
+  assert.equal(digestDue(e, MONDAY_13 + 2 * HOUR), true);
+});
+
+test('no stamp at the scheduled slot is due; no stamp off-slot waits for it', () => {
+  const first = digestDecision(entity(), MONDAY_13);
+  assert.equal(first.due, true);
+  assert.equal(first.reason, 'first-run');
+  const held = digestDecision(entity(), MONDAY_13 + 9 * DAY);
+  assert.equal(held.due, false);
+  assert.equal(held.reason, 'awaiting-first-slot');
+});
+
+test('a disabled entity is never due, however stale its stamp', () => {
+  const stale = { unansweredDigestLastSentAt: new Date(MONDAY_13 - 400 * DAY) };
+  assert.equal(digestDue(entity(stale, { enabled: false }), MONDAY_13), false);
+  assert.equal(digestDecision(entity(stale, { enabled: false }), MONDAY_13).reason, 'disabled');
+  const noEmail = entity({ ...stale, ownerEmail: '' });
+  assert.equal(digestDue(noEmail, MONDAY_13), false);
+  assert.equal(digestDecision(noEmail, MONDAY_13).reason, 'no-recipient');
+});
+
+test('an unreadable stamp is treated as never sent, not as a permanent block', () => {
+  const e = entity({ unansweredDigestLastSentAt: 'not a date' });
+  const d = digestDecision(e, MONDAY_13);
+  assert.equal(d.due, true);
+  assert.equal(d.reason, 'first-run');
+});
+
+test('a stamp in the future holds rather than sending', () => {
+  const d = digestDecision(entity({ unansweredDigestLastSentAt: new Date(MONDAY_13 + 2 * DAY) }), MONDAY_13);
+  assert.equal(d.due, false);
+  assert.equal(d.reason, 'future-stamp');
 });
 
 // --- renderDigestBody -------------------------------------------------------

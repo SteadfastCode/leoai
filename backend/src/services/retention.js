@@ -9,7 +9,26 @@
 //      and then scoped to that one entity's domain, and never touching a
 //      conversation whose handoff the owner has not answered yet.
 //
-// retentionCutoff / conversationExpired / forgetFilter / sweepFilter are pure
+// The sweep's own schedule has a CATCH-UP arm (LEO-084). It used to open with
+// a bare `getUTCHours() !== SWEEP_HOUR_UTC` return and kept no last-run stamp
+// anywhere, so it could not tell a missed hour from a completed one. One
+// `cron.schedule('0 * * * *')` fire is the only thing that ever calls it, and
+// Railway redeploys on every merge — so losing the 05:00 fire was ordinary,
+// and the cost was a WHOLE DAY of deletions never happening for an owner who
+// had opted into a retention window. For a privacy feature, quietly not
+// deleting is the failure that matters. The hour gate is therefore per-entity
+// now, through `sweepDue`: due at SWEEP_HOUR_UTC, or when
+// entity.retentionLastSweepAt is older than a catch-up window, and never
+// inside the elapsed-gap guard that makes a second sweep in the same day
+// pointless work. The window is deliberately past the period, so a missed
+// 05:00 sweep is recovered by the 07:00 tick — two hours late, rather than a
+// whole day of deletions never happening.
+//
+// An entity that has NEVER been swept is not caught up — it has missed
+// nothing. It waits for the sweep hour, so switching retention on never
+// deletes anything in the same minute.
+//
+// retentionCutoff / conversationExpired / forgetFilter / sweepFilter / sweepDue are pure
 // (no DB, no clock of their own) so the age arithmetic and — the part that
 // actually matters — the shape of the delete filters can be asserted without a
 // database. A widened filter here is a data-loss bug, so the filter builders
@@ -17,21 +36,40 @@
 // `{}` filter passed to deleteMany wipes the collection.
 //
 // Debug tiers — RETENTION_LOG_LEVEL = off | light | normal | verbose:
-//   light (default) one line per actual deletion, naming what caused it
+//   light (default) one line per actual deletion, naming what caused it, plus
+//                   one line per sweep decision naming the REASON it was taken
+//                   or held — hour match, catch-up after N hours, gap guard,
+//                   retention disabled
 //   normal          adds the decisions that deleted nothing (why it skipped)
-//   verbose         adds per-conversation ages, session tokens truncated
+//                   and the tick-level counts
+//   verbose         adds per-conversation ages, session tokens truncated, and
+//                   the raw last-sweep stamp each decision read
 // Both paths run away from a human (a cron tick, a widget menu tap), so the
 // light tier always says the SOURCE of a deletion, not just the count.
 
 const Conversation = require('../models/Conversation');
 const Entity = require('../models/Entity');
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// The sweep rides the hourly LeoRefresh tick but is a DAILY job: it acts in
-// this UTC hour only. Deliberately clear of 3 AM UTC (the default LeoRefresh
-// hour) so a long rescrape and a delete pass never contend.
+// The sweep rides the hourly LeoRefresh tick but is a DAILY job: it aims at
+// this UTC hour. Deliberately clear of 3 AM UTC (the default LeoRefresh hour)
+// so a long rescrape and a delete pass never contend.
 const SWEEP_HOUR_UTC = 5;
+
+// Elapsed-time guard, deliberately under the nominal day so a tick landing a
+// little early (clock skew) still sweeps, while a replayed fire inside the same
+// hour — or a catch-up immediately after a real sweep — is always inside the
+// guard. A second sweep in one day deletes nothing new; it is wasted work and a
+// misleading log line, not a data risk.
+const SWEEP_MIN_GAP_MS = 20 * HOUR_MS;
+
+// How stale retentionLastSweepAt must be before a tick in ANY hour takes the
+// sweep, because the 05:00 slot was evidently missed. Set past the period (26h)
+// so a healthy entity is always claimed by its own hour first and the catch-up
+// arm only ever fires after something actually went wrong.
+const SWEEP_CATCHUP_MS = 26 * HOUR_MS;
 
 const TIERS = { off: 0, light: 1, normal: 2, verbose: 3 };
 
@@ -133,6 +171,73 @@ function sweepFilter(domain, cutoff) {
   };
 }
 
+// Gaps here are hours-to-days, so one rounded unit is the readable form.
+function formatGap(ms) {
+  const hours = ms / HOUR_MS;
+  if (hours < 48) return `${Math.round(hours * 10) / 10}h`;
+  return `${Math.round((hours / 24) * 10) / 10}d`;
+}
+
+function formatHour(hour) {
+  return `${String(hour).padStart(2, '0')}:00 UTC`;
+}
+
+// null means "never swept" — which includes an unreadable stamp: a decision
+// made from a NaN compares false against every window and would wedge the
+// entity out of the schedule entirely, which for a retention setting means
+// never deleting anything again.
+function lastSweepMs(entity) {
+  const raw = entity?.retentionLastSweepAt;
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * Why this entity's retention sweep is (or is not) due right now:
+ * `{ due, reason, detail }`. Pure — `now` is injected, nothing is read from the
+ * DB. `reason` is a stable slug for logs and tests; `detail` is the human half
+ * of the light-tier line.
+ *
+ * `entity` needs conversationRetentionDays and retentionLastSweepAt. Retention
+ * off means never due: the setting may not fail open into deleting something.
+ */
+function sweepDecision(entity, now = Date.now()) {
+  const days = retentionDays(entity);
+  if (!days) {
+    return { due: false, reason: 'disabled', detail: 'conversationRetentionDays is 0 — conversations are kept forever' };
+  }
+
+  const onSchedule = new Date(now).getUTCHours() === SWEEP_HOUR_UTC;
+  const last = lastSweepMs(entity);
+
+  if (last === null) {
+    return onSchedule
+      ? { due: true, reason: 'first-run', detail: `never swept, and ${formatHour(SWEEP_HOUR_UTC)} is the sweep hour` }
+      : { due: false, reason: 'awaiting-first-slot', detail: `never swept; holding for ${formatHour(SWEEP_HOUR_UTC)}` };
+  }
+
+  const elapsed = now - last;
+  if (elapsed < 0) {
+    return { due: false, reason: 'future-stamp', detail: `last sweep is stamped ${formatGap(-elapsed)} in the future (clock skew) — holding off` };
+  }
+  if (elapsed < SWEEP_MIN_GAP_MS) {
+    return { due: false, reason: 'gap-guard', detail: `last swept ${formatGap(elapsed)} ago, inside the ${formatGap(SWEEP_MIN_GAP_MS)} gap guard` };
+  }
+  if (onSchedule) {
+    return { due: true, reason: 'hour-match', detail: `${formatHour(SWEEP_HOUR_UTC)} is the sweep hour; last swept ${formatGap(elapsed)} ago` };
+  }
+  if (elapsed >= SWEEP_CATCHUP_MS) {
+    return { due: true, reason: 'catch-up', detail: `catch-up after ${formatGap(elapsed)} — the ${formatHour(SWEEP_HOUR_UTC)} sweep was missed and the ${formatGap(SWEEP_CATCHUP_MS)} window has passed` };
+  }
+  return { due: false, reason: 'off-schedule', detail: `now is not ${formatHour(SWEEP_HOUR_UTC)}, and last swept ${formatGap(elapsed)} ago is inside the ${formatGap(SWEEP_CATCHUP_MS)} catch-up window` };
+}
+
+/** Boolean half of sweepDecision. `now` is injected so this stays testable. */
+function sweepDue(entity, now = Date.now()) {
+  return sweepDecision(entity, now).due;
+}
+
 /**
  * Erase the caller's own conversation. Returns the number deleted (0 or 1 —
  * sessionToken+domain is unique). Never throws for a bad argument; an
@@ -155,16 +260,19 @@ async function forgetConversation({ domain, sessionToken } = {}) {
 }
 
 /**
- * One daily pass over entities with retention enabled. No-op in every UTC hour
- * but SWEEP_HOUR_UTC, so it can sit beside the hourly LeoRefresh ticks.
+ * One daily pass over entities with retention enabled. The hour gate is
+ * per-entity (`sweepDue`) rather than a single early return, so a tick that
+ * missed 05:00 UTC can still take the sweep later the same morning — see the
+ * catch-up note at the top of this file. The cost of moving the gate inward is
+ * one indexed `find` per hour instead of one per day, which at this scale is
+ * nothing.
+ *
  * Returns the total deleted. Per-entity failures are logged and skipped — one
  * bad domain must not stop the rest.
  */
 async function runRetentionSweepTick(now = Date.now()) {
-  if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;
-
   const entities = await Entity.find({ conversationRetentionDays: { $gt: 0 } })
-    .select('domain conversationRetentionDays')
+    .select('domain conversationRetentionDays retentionLastSweepAt')
     .lean();
 
   if (!entities.length) {
@@ -173,14 +281,40 @@ async function runRetentionSweepTick(now = Date.now()) {
   }
 
   let total = 0;
+  let swept = 0;
   for (const entity of entities) {
     const days = retentionDays(entity);
+    const decision = sweepDecision(entity, now);
+    debug('verbose', `sweep: ${entity.domain} read conversationRetentionDays=${entity.conversationRetentionDays}, retentionLastSweepAt ${entity.retentionLastSweepAt ? new Date(entity.retentionLastSweepAt).toISOString() : 'never'}`);
+    if (!decision.due) {
+      debug('light', `sweep: holding ${entity.domain} — reason: ${decision.reason} (${decision.detail})`);
+      continue;
+    }
+
     const cutoff = retentionCutoff(entity, now);
     const filter = sweepFilter(entity.domain, cutoff);
     if (!filter) {
       debug('normal', `sweep: skipped ${entity.domain} — source: unusable domain or cutoff (conversationRetentionDays=${entity.conversationRetentionDays})`);
       continue;
     }
+
+    // Claim the day before deleting, matched on the stamp this decision read —
+    // the same atomic test-and-set the two digests use. Two overlapping ticks
+    // therefore produce exactly one sweep, and a second call in the same hour
+    // lands in the gap guard above. Claiming first means a sweep whose
+    // deleteMany then fails is retried at the next day's hour rather than
+    // immediately; the conversations are still past the cutoff, so nothing is
+    // lost, which is the same thing that happened before this stamp existed.
+    const claimed = await Entity.findOneAndUpdate(
+      { domain: entity.domain, retentionLastSweepAt: entity.retentionLastSweepAt ?? null },
+      { $set: { retentionLastSweepAt: new Date(now) } }
+    );
+    if (!claimed) {
+      debug('light', `sweep: skipped ${entity.domain} — reason: stamp-race (retentionLastSweepAt moved under us, another tick is sweeping)`);
+      continue;
+    }
+    swept++;
+    debug('light', `sweep: running ${entity.domain} — reason: ${decision.reason} (${decision.detail})`);
 
     try {
       if (logTier() >= TIERS.verbose) {
@@ -201,6 +335,7 @@ async function runRetentionSweepTick(now = Date.now()) {
       console.error(`[Retention] sweep failed for ${entity.domain}:`, err.message);
     }
   }
+  debug('normal', `sweep: tick at ${new Date(now).toISOString()} — ${entities.length} entity/entities with retention on, ${swept} swept, ${total} conversation(s) deleted`);
   return total;
 }
 
@@ -213,7 +348,12 @@ module.exports = {
   conversationExpired,
   forgetFilter,
   sweepFilter,
+  sweepDue,
+  sweepDecision,
   lastActivityAt,
   SWEEP_HOUR_UTC,
+  SWEEP_MIN_GAP_MS,
+  SWEEP_CATCHUP_MS,
+  HOUR_MS,
   DAY_MS,
 };
