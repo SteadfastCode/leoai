@@ -17,6 +17,7 @@ const Invite = require('../models/Invite');
 const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin } = require('../middleware/auth');
 const { ROLE_PRESETS } = require('../models/Permission');
 const { sendEmailRaw } = require('../services/notifications');
+const { hashResetToken } = require('../services/resetToken');
 
 const RP_NAME = 'LeoAI Dashboard';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -387,8 +388,9 @@ router.post('/forgot-password', async (req, res) => {
     // Always respond 200 to avoid leaking whether email is registered
     if (!user || !user.hashedPassword) return res.json({ ok: true });
 
+    // Only the digest is stored; the raw token exists in the email and nowhere else (LEO-098)
     const token = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = token;
+    user.passwordResetToken = hashResetToken(token);
     user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
@@ -413,9 +415,12 @@ router.post('/reset-password', async (req, res) => {
   if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
+  const tokenHash = hashResetToken(token);
+  if (!tokenHash) return res.status(400).json({ error: 'Reset link is invalid or has expired' });
+
   try {
     const user = await User.findOne({
-      passwordResetToken: token,
+      passwordResetToken: tokenHash,
       passwordResetExpiresAt: { $gt: new Date() },
     });
     if (!user) return res.status(400).json({ error: 'Reset link is invalid or has expired' });
