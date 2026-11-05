@@ -146,43 +146,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions**
-  One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
-  beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
-  (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
-  `digestDue` (`services/unansweredDigest.js:28-41`) requires the hour, plus the day when weekly; and
-  `runRetentionSweepTick` (`services/retention.js:163-164`) opens with
-  `if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;` and keeps no last-run stamp anywhere, so
-  it cannot tell a missed hour from a completed one. Their `MIN_GAP_MS` guards stop a *double* send;
-  nothing makes a *missed* fire recoverable. Railway redeploys on every merge — several a night — so
-  losing one top-of-the-hour tick is ordinary, and the cost is a whole week of digest for a weekly sender
-  and a whole day of deletion for an owner who has opted into a retention window. For a privacy feature,
-  quietly not deleting is the failure that matters.
-  This is the same defect LEO-077 describes in `isDueNow`, which is scoped to `leoRefresh.js` and names
-  these three nowhere; the file lists are disjoint and the two land in either order.
-  Build, mirroring the gap-guard shape already in `digestDue`: (1) a catch-up arm on `weeklyDigestDue` and
-  `digestDue` — due when the scheduled day+hour match, **or** when the last-sent stamp is older than a
-  catch-up window (daily 26h, weekly 8d), with the existing `MIN_GAP_MS` still making a second send inside
-  the same period impossible; (2) a `retentionLastSweepAt` optional Date on `Entity` (no `required`, no
-  `unique`) plus an exported `sweepDue(entity, now)` with the same two arms, so a missed 4 AM sweep runs at
-  5; (3) tiered debug logging (off/light/normal/verbose) through each service's existing `debug()` helper,
-  the light tier emitting one line per decision naming the **reason** — day+hour match, catch-up after N
-  hours, gap guard, disabled — not just the outcome.
-  Files: `backend/src/services/weeklyDigest.js`, `backend/src/services/unansweredDigest.js`,
-  `backend/src/services/retention.js`, `backend/src/models/Entity.js` (one new optional Date),
-  `backend/test/weekly-digest.test.js`, `backend/test/unanswered-digest.test.js`,
-  `backend/test/retention.test.js`. `backend/src/services/leoRefresh.js` must have a **zero-line diff** —
-  LEO-077 owns that file.
-  *Verify:* `node --test` with an injected `now` against each of the three — exact day+hour due; wrong hour
-  not due; wrong hour with the last stamp 30h (daily) or 8d (weekly) old due as catch-up; the scheduled
-  hour with the stamp 1h old not due (gap guard holds); no stamp at the scheduled hour due; a disabled
-  entity never due. For the sweep, that a catch-up run writes `retentionLastSweepAt` and a second call in
-  the same hour is a no-op. Break one gap guard in a scratch copy and confirm the suite goes red.
-  `cd backend && yarn verify && yarn test`.
-  Out of scope: `services/leoRefresh.js` including the cron expression, the re-entrancy flag and the
-  handoff follow-up tick (LEO-077 owns the first three; the follow-up tick is already idempotent through
-  its atomic `findOneAndUpdate`); moving off `node-cron`; per-entity timezones; making the ticks parallel;
-  sending any real email or SMS to check one; and surfacing dropped runs in the dashboard.
 
 - [ ] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed**
   `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
@@ -1291,6 +1254,43 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-084) A missed hourly tick silently drops a digest or a day of privacy deletions** (routine 2026-11-05, c6aaa5d)
+  One `cron.schedule('0 * * * *')` (`services/leoRefresh.js:136`) drives five ticks, and three of them
+  beyond LeoRefresh gate on an exact hour match with no catch-up arm. `weeklyDigestDue`
+  (`services/weeklyDigest.js:60-73`) requires `getUTCHours() === hour` **and** `getUTCDay() === dayOfWeek`;
+  `digestDue` (`services/unansweredDigest.js:28-41`) requires the hour, plus the day when weekly; and
+  `runRetentionSweepTick` (`services/retention.js:163-164`) opens with
+  `if (new Date(now).getUTCHours() !== SWEEP_HOUR_UTC) return 0;` and keeps no last-run stamp anywhere, so
+  it cannot tell a missed hour from a completed one. Their `MIN_GAP_MS` guards stop a *double* send;
+  nothing makes a *missed* fire recoverable. Railway redeploys on every merge — several a night — so
+  losing one top-of-the-hour tick is ordinary, and the cost is a whole week of digest for a weekly sender
+  and a whole day of deletion for an owner who has opted into a retention window. For a privacy feature,
+  quietly not deleting is the failure that matters.
+  This is the same defect LEO-077 describes in `isDueNow`, which is scoped to `leoRefresh.js` and names
+  these three nowhere; the file lists are disjoint and the two land in either order.
+  Build, mirroring the gap-guard shape already in `digestDue`: (1) a catch-up arm on `weeklyDigestDue` and
+  `digestDue` — due when the scheduled day+hour match, **or** when the last-sent stamp is older than a
+  catch-up window (daily 26h, weekly 8d), with the existing `MIN_GAP_MS` still making a second send inside
+  the same period impossible; (2) a `retentionLastSweepAt` optional Date on `Entity` (no `required`, no
+  `unique`) plus an exported `sweepDue(entity, now)` with the same two arms, so a missed 4 AM sweep runs at
+  5; (3) tiered debug logging (off/light/normal/verbose) through each service's existing `debug()` helper,
+  the light tier emitting one line per decision naming the **reason** — day+hour match, catch-up after N
+  hours, gap guard, disabled — not just the outcome.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/src/services/unansweredDigest.js`,
+  `backend/src/services/retention.js`, `backend/src/models/Entity.js` (one new optional Date),
+  `backend/test/weekly-digest.test.js`, `backend/test/unanswered-digest.test.js`,
+  `backend/test/retention.test.js`. `backend/src/services/leoRefresh.js` must have a **zero-line diff** —
+  LEO-077 owns that file.
+  *Verify:* `node --test` with an injected `now` against each of the three — exact day+hour due; wrong hour
+  not due; wrong hour with the last stamp 30h (daily) or 8d (weekly) old due as catch-up; the scheduled
+  hour with the stamp 1h old not due (gap guard holds); no stamp at the scheduled hour due; a disabled
+  entity never due. For the sweep, that a catch-up run writes `retentionLastSweepAt` and a second call in
+  the same hour is a no-op. Break one gap guard in a scratch copy and confirm the suite goes red.
+  `cd backend && yarn verify && yarn test`.
+  Out of scope: `services/leoRefresh.js` including the cron expression, the re-entrancy flag and the
+  handoff follow-up tick (LEO-077 owns the first three; the follow-up tick is already idempotent through
+  its atomic `findOneAndUpdate`); moving off `node-cron`; per-entity timezones; making the ticks parallel;
+  sending any real email or SMS to check one; and surfacing dropped runs in the dashboard.
 - [x] **(LEO-080) Three filed specs carry factual errors an implementer would encode as a test** (routine 2026-11-01, 2df3c15)
   Four independent findings from the graders of LEO-065 and LEO-066 were recorded and never filed
   (`ops/leo-nightly/reviews/LEO-065.graded.json`, `LEO-066.graded.json`). Each is a wrong statement

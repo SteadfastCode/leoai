@@ -76,7 +76,7 @@
     "LEO-084": {
       "order": 5,
       "title": "A missed hourly tick silently drops a digest or a day of privacy deletions",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-084",
