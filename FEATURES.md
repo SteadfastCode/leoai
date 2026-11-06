@@ -182,6 +182,109 @@ standing audit, which is last so it runs only when nothing else is claimable.
   the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
   makes true as written.
 
+- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends**
+  Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
+  (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
+  (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
+  matching text from owner-facing handoff SMS and email, and LEO-047's whole point is that an owner can name
+  topics they never want relayed — yet the "Most asked" block (lines 205-207) emails the raw visitor question
+  text, so a topic on the list reaches the owner verbatim once a week.
+  (2) The headline line (line 197) is pushed unconditionally while every line after it is zero-guarded, and
+  `hasActivity` is true when `unanswered` alone is non-zero — reachable whenever `conversationRetentionDays`
+  is set below 7 and the sweep removed the conversations whose `UnansweredQuestion` rows remain. The owner is
+  then emailed "0 visitor messages answered across 0 conversations". The existing test at
+  `backend/test/weekly-digest.test.js:417` ("zero-valued lines are omitted rather than printed as 0") uses a
+  fixture with non-zero headline counts, so it never exercises the one line that cannot be omitted.
+  (3) `lastWeeklyDigestAt` is stamped by an atomic `findOneAndUpdate` (lines 287-290) **before**
+  `sendEmailRaw` (line 298). A transient Resend failure is caught and `console.error`'d, and the day+hour
+  match plus `MIN_GAP_MS` then make a retry impossible until the next scheduled tick — one flaky send costs
+  the owner the entire week.
+  Build: pass the entity's list into `renderWeeklyDigestBody` and filter "Most asked" through the existing
+  `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
+  headline line when both of its counts are zero; and on a send failure roll the stamp back with a
+  compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
+  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
+  stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
+  retried once.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
+  *Verify:* `node --test` — a question matching a `doNotRelay` phrase is absent from the rendered body while
+  the rest of the list survives, and an empty or absent list changes the output not at all; a stats object
+  with zero visitor messages, zero conversations and non-zero unanswered renders a body with no
+  "0 visitor messages" line that still reports the unanswered count; the stamp is restored when the injected
+  mailer throws and left in place when it resolves, with a second tick in the same hour still refusing to
+  double-send. Confirm each goes red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: `weeklyDigestDue`'s missing catch-up arm — LEO-084 owns it, the two touch different functions
+  in this file and whichever lands second rebases; the digest's schedule, opt-in default or line order;
+  `services/notifications.js` and `services/unansweredDigest.js`; sending a real email to check one; and any
+  `Entity` schema change.
+
+- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading**
+  `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
+  section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
+  The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
+  `label` and `sectionAnchor` (`models/Chunk.js:10-13`), and the absorbed section's anchor is written nowhere
+  at all. `services/rag.js:47` builds the source Leo cites as `url#sectionAnchor` (LEO-031, LEO-032), so a
+  retrieval hit on the appended text deep-links the visitor to the *preceding* section, and the absorbed
+  heading's own anchor vanishes from the corpus so nothing can ever link to it. Site navigation and deep
+  linking are named in `CLAUDE.md` as a differentiator, which is exactly what a confidently wrong anchor
+  undoes. The `appendToLast` inside `splitOversizedSection` (line 632) is **not** affected — both halves there
+  belong to one section and share its anchor.
+  Build: carry the absorbed anchor alongside rather than overwriting — an optional `extraAnchors: [String]` on
+  the chunk shape and on the `Chunk` and `ArchivedChunk` models (**no `required`, no `unique`, default
+  `[]`**) — and have the citation builder in `rag.js` prefer the anchor whose heading text actually appears in
+  the matched chunk, falling back to `sectionAnchor` exactly as today whenever there is no second anchor. No
+  chunk is split differently and no chunk is added: the boundaries and the content this produces must be
+  byte-identical to today's.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines: the trailing `appendToLast` call
+  site and the shape it pushes**), `backend/src/services/rag.js` (**restricted — ≤30 changed lines: the
+  `sources.push` citation only, never the `$vectorSearch` stage**), `backend/src/models/Chunk.js`,
+  `backend/src/models/ArchivedChunk.js`, `backend/test/chunk-trailing-merge.test.js`.
+  *Verify:* `node --test` over the existing offline harness in `backend/test/chunk-trailing-merge.test.js`
+  (no DB, no network): a page whose last section is under `TINY_BUF_THRESHOLD` produces the same number of
+  chunks with the same text as `main` and the final chunk now carries the absorbed heading's anchor; a page
+  with no merge is byte-identical including an empty `extraAnchors`; and the citation builder picks the
+  absorbed anchor when the matched text sits under that heading and the original otherwise. Confirm the anchor
+  assertions go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: changing `CHUNK_TARGET`, `CHUNK_MAX`, `CHUNK_OVERLAP` or `TINY_BUF_THRESHOLD`; semantic
+  chunking (the `rag.js:88` TODO) and the two-phase sibling retrieval around it; the `$vectorSearch` stage and
+  `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
+  the dashboard's chunk viewer.
+
+- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind**
+  The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
+  — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
+  pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
+  the same file (line 20) and is not in the list. It is keyed on `entityDomain`, not `domain`, which is
+  almost certainly why a `{ domain }` sweep missed it, and every row holds a **verbatim visitor question**
+  plus its `sessionToken` and `conversationId` (`backend/src/models/UnansweredQuestion.js:5-9`). So after a
+  delete the conversation the question came from is gone, the entity is gone, and the visitor's own words
+  stay in the database indefinitely — pointing at a `conversationId` that no longer resolves. Because the
+  key is a domain string and nothing else, recreating the same domain (how Daniel re-tests an entity)
+  re-attaches every ghost row to the new entity's `/unanswered` page. The confirm dialog
+  (`dashboard/src/views/AdminEntities.vue:249-251`) promises "all associated data — chunks, scraped pages,
+  conversations, snapshots, and team memberships", so the UI states something untrue rather than merely
+  incomplete.
+  Build: add `UnansweredQuestion.deleteMany({ entityDomain: domain })` to the existing `Promise.all`, return
+  its count beside the others, record it in the `recordAudit` details, and add unanswered questions to the
+  dialog's sentence. Also delete archived chunks by `{ domain }` rather than only by the collected
+  `snapshotIds`: `ArchivedChunk` carries its own required `domain` (`models/ArchivedChunk.js:9`), and while no
+  current path is known to orphan one (`services/scrapePersist.js:48-49` prunes chunks and snapshot together),
+  a by-domain sweep cannot miss one that is.
+  Files: `backend/src/routes/dashboard.js`, `dashboard/src/views/AdminEntities.vue`,
+  `backend/test/entity-delete-cascade.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` in the shape `backend/test/kb-search.test.js` uses —
+  seed **two** entities, each with chunks, pages, a conversation, two `UnansweredQuestion` rows and an
+  archived chunk whose snapshot row has been removed by hand; delete the first as a superadmin; assert every
+  one of those collections is empty for that domain, that nothing belonging to the second entity changed,
+  that the response and the `AuditLog` row both carry the unanswered count, and that re-creating the same
+  domain yields an empty `/unanswered`. Confirm the unanswered assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: `AuditLog` and `Log` retention (deliberate — an append-only trail, and a 30-day TTL at
+  `models/Log.js:12`); what `POST /chat/forget` deletes (LEO-099 owns the visitor-initiated path, and the two
+  touch adjacent concerns, not adjacent lines); a soft-delete or undo; cancelling anything Stripe-side
+  (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
+  memberships at all.
+
 ## Proposed
 
 - [ ] **(LEO-125) Correction (1) replaces a true statement with a false one: in query casting mongoose does not han…**
@@ -692,42 +795,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   is denylisted); the authenticated dashboard and admin routes; rate-limiting any of these endpoints
   (LEO-052 and LEO-101); and `routes/billing.js`/`routes/webhooks.js` (denylisted).
 
-- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** [proposed]
-  Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
-  (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
-  (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
-  matching text from owner-facing handoff SMS and email, and LEO-047's whole point is that an owner can name
-  topics they never want relayed — yet the "Most asked" block (lines 205-207) emails the raw visitor question
-  text, so a topic on the list reaches the owner verbatim once a week.
-  (2) The headline line (line 197) is pushed unconditionally while every line after it is zero-guarded, and
-  `hasActivity` is true when `unanswered` alone is non-zero — reachable whenever `conversationRetentionDays`
-  is set below 7 and the sweep removed the conversations whose `UnansweredQuestion` rows remain. The owner is
-  then emailed "0 visitor messages answered across 0 conversations". The existing test at
-  `backend/test/weekly-digest.test.js:417` ("zero-valued lines are omitted rather than printed as 0") uses a
-  fixture with non-zero headline counts, so it never exercises the one line that cannot be omitted.
-  (3) `lastWeeklyDigestAt` is stamped by an atomic `findOneAndUpdate` (lines 287-290) **before**
-  `sendEmailRaw` (line 298). A transient Resend failure is caught and `console.error`'d, and the day+hour
-  match plus `MIN_GAP_MS` then make a retry impossible until the next scheduled tick — one flaky send costs
-  the owner the entire week.
-  Build: pass the entity's list into `renderWeeklyDigestBody` and filter "Most asked" through the existing
-  `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
-  headline line when both of its counts are zero; and on a send failure roll the stamp back with a
-  compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
-  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
-  stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
-  retried once.
-  Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
-  *Verify:* `node --test` — a question matching a `doNotRelay` phrase is absent from the rendered body while
-  the rest of the list survives, and an empty or absent list changes the output not at all; a stats object
-  with zero visitor messages, zero conversations and non-zero unanswered renders a body with no
-  "0 visitor messages" line that still reports the unanswered count; the stamp is restored when the injected
-  mailer throws and left in place when it resolves, with a second tick in the same hour still refusing to
-  double-send. Confirm each goes red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: `weeklyDigestDue`'s missing catch-up arm — LEO-084 owns it, the two touch different functions
-  in this file and whichever lands second rebases; the digest's schedule, opt-in default or line order;
-  `services/notifications.js` and `services/unansweredDigest.js`; sending a real email to check one; and any
-  `Entity` schema change.
-
 - [ ] **(LEO-101) `POST /chat/forget` is public, unmetered, and never checks the domain exists** [needs-human]
   `routes/chat.js:288-301` is the one unauthenticated destructive endpoint in the backend. `POST /chat` above
   it goes through LEO-034's limiter (`checkRateLimit({ sessionToken, ip: clientIp(req), domain })`, line 51)
@@ -755,73 +822,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Out of scope: `POST /chat`'s own limiter windows and LEO-034's presets for it; the auth endpoints (LEO-052);
   a captcha; what `/forget` deletes (LEO-099 owns that, and the two touch adjacent lines — whichever lands
   second keeps the other's change); making the limiter shared across processes; and `backend/index.js`.
-
-- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** [proposed]
-  `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
-  section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
-  The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
-  `label` and `sectionAnchor` (`models/Chunk.js:10-13`), and the absorbed section's anchor is written nowhere
-  at all. `services/rag.js:47` builds the source Leo cites as `url#sectionAnchor` (LEO-031, LEO-032), so a
-  retrieval hit on the appended text deep-links the visitor to the *preceding* section, and the absorbed
-  heading's own anchor vanishes from the corpus so nothing can ever link to it. Site navigation and deep
-  linking are named in `CLAUDE.md` as a differentiator, which is exactly what a confidently wrong anchor
-  undoes. The `appendToLast` inside `splitOversizedSection` (line 632) is **not** affected — both halves there
-  belong to one section and share its anchor.
-  Build: carry the absorbed anchor alongside rather than overwriting — an optional `extraAnchors: [String]` on
-  the chunk shape and on the `Chunk` and `ArchivedChunk` models (**no `required`, no `unique`, default
-  `[]`**) — and have the citation builder in `rag.js` prefer the anchor whose heading text actually appears in
-  the matched chunk, falling back to `sectionAnchor` exactly as today whenever there is no second anchor. No
-  chunk is split differently and no chunk is added: the boundaries and the content this produces must be
-  byte-identical to today's.
-  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines: the trailing `appendToLast` call
-  site and the shape it pushes**), `backend/src/services/rag.js` (**restricted — ≤30 changed lines: the
-  `sources.push` citation only, never the `$vectorSearch` stage**), `backend/src/models/Chunk.js`,
-  `backend/src/models/ArchivedChunk.js`, `backend/test/chunk-trailing-merge.test.js`.
-  *Verify:* `node --test` over the existing offline harness in `backend/test/chunk-trailing-merge.test.js`
-  (no DB, no network): a page whose last section is under `TINY_BUF_THRESHOLD` produces the same number of
-  chunks with the same text as `main` and the final chunk now carries the absorbed heading's anchor; a page
-  with no merge is byte-identical including an empty `extraAnchors`; and the citation builder picks the
-  absorbed anchor when the matched text sits under that heading and the original otherwise. Confirm the anchor
-  assertions go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: changing `CHUNK_TARGET`, `CHUNK_MAX`, `CHUNK_OVERLAP` or `TINY_BUF_THRESHOLD`; semantic
-  chunking (the `rag.js:88` TODO) and the two-phase sibling retrieval around it; the `$vectorSearch` stage and
-  `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
-  the dashboard's chunk viewer.
-
-- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** [proposed]
-  The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
-  — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
-  pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
-  the same file (line 20) and is not in the list. It is keyed on `entityDomain`, not `domain`, which is
-  almost certainly why a `{ domain }` sweep missed it, and every row holds a **verbatim visitor question**
-  plus its `sessionToken` and `conversationId` (`backend/src/models/UnansweredQuestion.js:5-9`). So after a
-  delete the conversation the question came from is gone, the entity is gone, and the visitor's own words
-  stay in the database indefinitely — pointing at a `conversationId` that no longer resolves. Because the
-  key is a domain string and nothing else, recreating the same domain (how Daniel re-tests an entity)
-  re-attaches every ghost row to the new entity's `/unanswered` page. The confirm dialog
-  (`dashboard/src/views/AdminEntities.vue:249-251`) promises "all associated data — chunks, scraped pages,
-  conversations, snapshots, and team memberships", so the UI states something untrue rather than merely
-  incomplete.
-  Build: add `UnansweredQuestion.deleteMany({ entityDomain: domain })` to the existing `Promise.all`, return
-  its count beside the others, record it in the `recordAudit` details, and add unanswered questions to the
-  dialog's sentence. Also delete archived chunks by `{ domain }` rather than only by the collected
-  `snapshotIds`: `ArchivedChunk` carries its own required `domain` (`models/ArchivedChunk.js:9`), and while no
-  current path is known to orphan one (`services/scrapePersist.js:48-49` prunes chunks and snapshot together),
-  a by-domain sweep cannot miss one that is.
-  Files: `backend/src/routes/dashboard.js`, `dashboard/src/views/AdminEntities.vue`,
-  `backend/test/entity-delete-cascade.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` in the shape `backend/test/kb-search.test.js` uses —
-  seed **two** entities, each with chunks, pages, a conversation, two `UnansweredQuestion` rows and an
-  archived chunk whose snapshot row has been removed by hand; delete the first as a superadmin; assert every
-  one of those collections is empty for that domain, that nothing belonging to the second entity changed,
-  that the response and the `AuditLog` row both carry the unanswered count, and that re-creating the same
-  domain yields an empty `/unanswered`. Confirm the unanswered assertion goes red against unmodified `main`.
-  `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: `AuditLog` and `Log` retention (deliberate — an append-only trail, and a 30-day TTL at
-  `models/Log.js:12`); what `POST /chat/forget` deletes (LEO-099 owns the visitor-initiated path, and the two
-  touch adjacent concerns, not adjacent lines); a soft-delete or undo; cancelling anything Stripe-side
-  (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
-  memberships at all.
 
 - [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** [proposed]
   `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
