@@ -285,6 +285,185 @@ standing audit, which is last so it runs only when nothing else is claimable.
   (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
   memberships at all.
 
+- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to**
+  `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
+  straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
+  `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
+  membership: `memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] })`.
+  `User.memberships[].roles` is `[{ type: String }]` with no enum (`models/User.js:29`), and
+  `isSuperAdmin(user)` is true when **any** membership for **any** domain contains the string `superadmin`
+  (`middleware/auth.js:12-14`). The `owner` preset includes `USERS_MANAGE` (`models/Permission.js:52`), so a
+  customer who owns one entity reaches global superadmin in two requests: invite `role: 'superadmin'` to an
+  address they control on their own domain, then accept it. That is the admin console, every other entity's
+  conversations and billing, entity hard-delete, API-key minting and the impersonation endpoint. The proof
+  this was meant to be guarded is 50 lines further down: `PATCH /entities/:domain/team/:userId`
+  (`dashboard.js:591-596`) rejects any role not in `ROLE_PRESETS` **and then rejects `superadmin` by name** —
+  two guards, because `superadmin` is itself a `ROLE_PRESETS` key (`models/Permission.js:41`) and the
+  membership check alone would let it through. Two doors to the same privilege; one of them has both locks
+  and the other has neither.
+  Build: put the rule in one place and call it from both routes so they cannot drift again — export
+  `assertAssignableRole(role)` from `backend/src/services/team.js` (which already holds `isLastOwner`)
+  returning `{ ok, error }`: `undefined`/empty accepted as today's `'agent'` default, any other value required
+  to be a `ROLE_PRESETS` key, `superadmin` always refused. Call it in the invite route (400, no `Invite`
+  written) and in the existing `PATCH` route in place of its two inline checks. Then apply it again at
+  acceptance as a second line of defence — an invite minted before this ships, or written straight into
+  Mongo, must not be honoured: answer 403, leave `acceptedAt` null and the user's `memberships` untouched.
+  Files: `backend/src/services/team.js`, `backend/src/routes/dashboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/invite-role.test.js`.
+  *Verify:* `node --test` on `assertAssignableRole` with no DB — every `ROLE_PRESETS` key except `superadmin`
+  accepted, `superadmin` refused, an unknown string refused, `undefined` and `''` accepted; then the real
+  routers over `mongodb-memory-server`: `POST .../invites` with `role: 'superadmin'` returns 400 and
+  `Invite.countDocuments()` is unchanged, with `role: 'agent'` still returns 201 exactly as today, the
+  existing `PATCH` behaviour is byte-identical, and accepting a hand-seeded `superadmin` invite returns 403
+  with `isSuperAdmin(user)` still false afterwards. All three new assertions must go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: whether `isSuperAdmin` should be domain-scoped at all rather than matching any membership —
+  a much larger change, and this item only stops the role being handed out; the `entityDomain: '*'` shape of
+  the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
+  rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
+
+- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`**
+  The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
+  caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
+  next path segment belongs to that domain, and three handlers never check. (1) `GET
+  /entities/:domain/conversations/:id` reads `Conversation.findById(req.params.id)` (line 126) and returns the
+  whole document — every visitor message, `pendingQuestions`, `handoffPending` and the `sessionToken`, which
+  `GET /chat/history` accepts as a credential. (2) `POST .../conversations/:id/reply` loads the conversation
+  the same way (line 201) while taking the entity from the path (line 202), so a member of entity A can push
+  an `owner_reply` into entity B's conversation — delivered to B's visitor on their next widget open, since it
+  is stored `seenByVisitor: false` (line 208) — while the unanswered-question resolution (line 227) and the
+  `owner_reply` chunk (line 253) land on A. One request, two entities, each holding half the result.
+  (3) `DELETE .../invites/:inviteId` deletes by id alone (line 578), cancelling any other entity's pending
+  invite. The correct pattern is already in the same file three times: `Conversation.findOne({ _id:
+  req.params.id, domain: req.params.domain })` at line 179, and `UnansweredQuestion.findOne({ _id: id,
+  entityDomain: domain })` at 719 and 755. Pre-alpha every entity is Daniel's, so nothing is exposed today —
+  Block H is empty and this is the cheapest thing that belongs in it.
+  Build: scope all three lookups by domain, keeping each handler's existing 404 and message. For the invite,
+  `Invite.deleteOne({ _id: req.params.inviteId, domain })` and answer `{ ok: true }` only on
+  `deletedCount === 1`, else 404. No route is renamed, no response field removed.
+  Files: `backend/src/routes/dashboard.js`, `backend/test/entity-scoping.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` with two entities and a user holding a membership for
+  only the first: each of the three calls, made with the user's own domain in the path and the **second**
+  entity's object id, returns 404 and leaves that object byte-identical (conversation `messages.length`
+  unchanged, invite still present); each of the three for their own entity behaves exactly as today; a
+  superadmin is unaffected. All three must go red against unmodified `main` — the GET currently returns 200
+  with the foreign transcript. `cd backend && yarn verify && yarn test`.
+  Out of scope: adding `PERMISSIONS` arguments to the routes that carry none — the floor covers membership and
+  the finer-grained read split is a separate decision; socket rooms (LEO-068); `GET /chat/history`'s public
+  session-token read; auditing or repairing any historical cross-entity write; and the by-id handlers outside
+  this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
+  `routes/codes.js` is superadmin-only and global by design).
+
+- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone**
+  `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
+  then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
+  `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
+  { upsert: true })` (lines 104-110). Nothing anywhere checks whether that domain already has an `Entity` or
+  an owner. So anyone holding a valid alpha code can sign up naming an existing entity's domain, receive
+  `roles: ['owner']` on it — the full dashboard, its conversations, its settings, its billing page — and the
+  `$set` **rewrites the live `ownerEmail`**, which is the address every handoff SMS/email and quota warning is
+  sent to (`services/notifications.js`). The comment at lines 94-97 reasons carefully about the *scrape's*
+  later upsert not clobbering this one; the reverse direction, this upsert landing on a populated document, is
+  not considered. Second defect in the same block: the single-use cap is read at line 77
+  (`code.useCount >= code.maxUses`) and written at lines 118-120, after the user, the entity and the tokens.
+  Two signups in the same tick on a `maxUses: 1` code both pass the check, and any throw in between consumes
+  no use while possibly leaving a `User` behind. That counter is the whole boundary between pre-alpha and open
+  signup.
+  Build: before anything is created, reject a claimed domain — an existing `Entity`, or any `User` holding a
+  membership for it, answers 409 pointing at the invite flow, which is how a second person is supposed to join
+  an entity. Keep the rules pure and testable in a new `backend/src/services/onboard.js`:
+  `normalizeDomain(raw)` (trim, lowercase, strip scheme, `www.`, port and path, reject anything that is not a
+  plausible hostname) and `claimCheck({ entityExists, memberExists })` → `{ ok, status, error }`. Then make
+  the code consumption atomic and **first**: one `Code.findOneAndUpdate` whose filter carries the type, the
+  `active` flag, the cap and the expiry (an `$and` of two `$or` branches, since `maxUses` and `expiresAt` are
+  both nullable) and whose update is `$inc: { useCount: 1 }` plus the `usedBy` `$push` — no match means no
+  slot, so the check and the consume cannot be split. Release the use (`$inc: -1` and `$pull`) if a later step
+  fails, so a crashed signup does not burn a slot.
+  Files: new `backend/src/services/onboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/onboard-claim.test.js`.
+  *Verify:* `node --test` on the two pure helpers with no DB — `HTTPS://WWW.Example.com/path:8080` →
+  `example.com`, a bare hostname unchanged, `''`/`'  '`/`'not a domain'`/`null` rejected without throwing, a
+  claimed domain → 409, an unclaimed one → ok; then the real auth router over `mongodb-memory-server`:
+  onboarding a fresh domain still returns 201 with tokens and creates the `Entity` and membership exactly as
+  today; onboarding a domain that already has an `Entity` returns 409, creates no `User`, and leaves the
+  stored `ownerEmail` untouched; the same for a domain whose `Entity` is absent but some user holds a
+  membership for it; and two onboards awaited together on a `maxUses: 1` code yield exactly one 201, one 403
+  and `useCount === 1`. Every one of those must go red against unmodified `main`. `cd backend && yarn verify
+  && yarn test`.
+  Out of scope: proving the signer actually controls the domain (DNS or meta-tag verification is a feature of
+  its own, and the alpha code is the current answer); `CLAUDE.md`'s stale claim that the gate reads an
+  `ALPHA_CODES` env var — it reads the `Code` collection, and LEO-086 owns that wording; brute-forcing the
+  code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
+  `routes/webhooks.js` (denylisted).
+
+- [ ] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s**
+  `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
+  `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
+  (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
+  `parseFloat` yields `NaN`, so an owner who clears either box to mean "off" posts the empty string.
+  `validateEntityUpdates` checks `typeof raw !== 'number'` (`backend/src/services/entitySettings.js:170`)
+  and rejects it as `(received text)`, and the route then refuses the entire PATCH
+  (`routes/dashboard.js:316-320` — "Nothing is written when anything is out of range"). So one emptied box
+  silently discards every other edit on the page, and the only clue is the LEO-062 rejection toast naming
+  the field the owner deliberately cleared. Before LEO-062 the empty string reached mongoose, was cast to
+  `null`, and the save succeeded — so this is a regression that arrived with the validator, found by its
+  own grader (`ops/leo-nightly/reviews/LEO-062.graded.json`). `save()` (line 255) already normalises
+  `quotaWarningThresholds` for the server's ascending rule; this is the same class of fix, one field over.
+  Build: extract the payload shaping out of `save()` into a pure `settingsPayload(form)` in a new
+  `dashboard/src/lib/settingsPayload.js` — the `src/lib` + `test/*.spec.js` pattern `notLearned.js` and
+  `pageFilters.js` already use — keeping the threshold sort byte-identical and coercing a blank numeric to
+  `0`, which is the documented "disabled" value for both fields and what both already fall back to when the
+  entity is loaded (lines 50 and 66). Have `save()` call it and change nothing else.
+  Files: new `dashboard/src/lib/settingsPayload.js`, `dashboard/src/views/Settings.vue`, new
+  `dashboard/test/settingsPayload.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — a form with `crawlSettings.staleDays: ''` and
+  `conversationRetentionDays: ''` yields `0` for both; a real `0` and a real `7` pass through untouched;
+  `quotaWarningThresholds: [90, 50, 75]` still comes out `[50, 75, 90]`; every other key is copied through
+  unchanged, including the nested `crawlSettings` booleans. Confirm the blank-numeric spec goes red against
+  the current inline builder. Then `yarn build`, and `cd backend && yarn verify && yarn test` to show the
+  validator itself is untouched.
+  Out of scope: the validator's bounds and its "received text" wording — `entitySettings.js` is right, the
+  empty string genuinely is not a number; LEO-076's nested-subdocument replacement; adding `v-model.number`
+  anywhere else or replacing it with a watcher; the sliders and every non-numeric control on the page; and
+  any change to `backend/src/routes/dashboard.js`.
+
+- [ ] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape**
+  LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
+  are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
+  (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
+  to archive (line 32). So a first-ever full scrape — the signup path, where knowing which pages were not
+  learned matters most — and a rescrape in which nothing changed both persist nothing;
+  `recordRobotsDisallowed` (line 127) carries the same guard. Found by the grader of LEO-056
+  (`ops/leo-nightly/reviews/LEO-056.graded.json`). The other half is worse: nothing reads the persisted
+  copy. `grep -rn failedUrls backend/src dashboard/src` finds one writer and no reader, and
+  `KnowledgeBase.vue:22` computes its "Not learned" panel from `scrapeResult`, which is only ever the live
+  `scrape_complete` socket payload. An owner who closes the tab, or whose rescrape ran under LeoRefresh at
+  3am, cannot see the list at all — `GET /scrape/snapshots` would return it but is superadmin-only and no
+  view calls it.
+  Build: write the run's own summary on the `Entity` as a new optional `lastScrape` subdocument carrying
+  `at` plus the same keys the `scrape_complete` summary already has (`mode`, `pagesScraped`/`pagesChanged`,
+  `skippedUrls`, `failedUrls`, `robotsDisallowed`, `durationMs`) — a new field with no `required` and no
+  `unique`, so an entity that has never scraped simply has none and the schema gate stays green. Write it
+  unconditionally at the end of `persistRescrapeResult` and beside the existing
+  `Entity.findOneAndUpdate` on the full-scrape path (`backend/src/routes/scrape.js:229-233`), from the
+  already-shaped arrays, and leave the snapshot writes exactly as they are. `KnowledgeBase.vue` already
+  receives the entity as a prop, so seed `scrapeResult` from `props.entity.lastScrape` on mount and let
+  `notLearnedFromSummary` consume it unchanged. Light-tier log one line per run naming the counts and
+  where they were stored.
+  Files: `backend/src/models/Entity.js`, `backend/src/services/scrapePersist.js`,
+  `backend/src/routes/scrape.js`, `dashboard/src/views/KnowledgeBase.vue`,
+  `backend/test/failed-urls.test.js`, `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` — a rescrape whose result carries two failed URLs
+  and **no** changed chunks stores both on `entity.lastScrape` (today it stores nothing); a full scrape of
+  an entity with no prior chunks does the same; a run with no failures stores an empty list rather than
+  leaving the previous run's; the existing snapshot assertions still pass unchanged. Then
+  `cd dashboard && yarn test` for `notLearnedFromSummary` over the stored shape, and `yarn build`. The
+  first two must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: a `ScrapeRun` collection or any history beyond the latest run; exposing
+  `ScrapeSnapshot.failedUrls` to non-superadmins; retrying a failed URL (LEO-019 owns the embedding
+  retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
+  (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
+
 ## Proposed
 
 - [ ] **(LEO-125) Correction (1) replaces a true statement with a false one: in query casting mongoose does not han…**
@@ -823,117 +1002,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   a captcha; what `/forget` deletes (LEO-099 owns that, and the two touch adjacent lines — whichever lands
   second keeps the other's change); making the limiter shared across processes; and `backend/index.js`.
 
-- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** [proposed]
-  `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
-  straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
-  `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
-  membership: `memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] })`.
-  `User.memberships[].roles` is `[{ type: String }]` with no enum (`models/User.js:29`), and
-  `isSuperAdmin(user)` is true when **any** membership for **any** domain contains the string `superadmin`
-  (`middleware/auth.js:12-14`). The `owner` preset includes `USERS_MANAGE` (`models/Permission.js:52`), so a
-  customer who owns one entity reaches global superadmin in two requests: invite `role: 'superadmin'` to an
-  address they control on their own domain, then accept it. That is the admin console, every other entity's
-  conversations and billing, entity hard-delete, API-key minting and the impersonation endpoint. The proof
-  this was meant to be guarded is 50 lines further down: `PATCH /entities/:domain/team/:userId`
-  (`dashboard.js:591-596`) rejects any role not in `ROLE_PRESETS` **and then rejects `superadmin` by name** —
-  two guards, because `superadmin` is itself a `ROLE_PRESETS` key (`models/Permission.js:41`) and the
-  membership check alone would let it through. Two doors to the same privilege; one of them has both locks
-  and the other has neither.
-  Build: put the rule in one place and call it from both routes so they cannot drift again — export
-  `assertAssignableRole(role)` from `backend/src/services/team.js` (which already holds `isLastOwner`)
-  returning `{ ok, error }`: `undefined`/empty accepted as today's `'agent'` default, any other value required
-  to be a `ROLE_PRESETS` key, `superadmin` always refused. Call it in the invite route (400, no `Invite`
-  written) and in the existing `PATCH` route in place of its two inline checks. Then apply it again at
-  acceptance as a second line of defence — an invite minted before this ships, or written straight into
-  Mongo, must not be honoured: answer 403, leave `acceptedAt` null and the user's `memberships` untouched.
-  Files: `backend/src/services/team.js`, `backend/src/routes/dashboard.js`, `backend/src/routes/auth.js`,
-  `backend/test/invite-role.test.js`.
-  *Verify:* `node --test` on `assertAssignableRole` with no DB — every `ROLE_PRESETS` key except `superadmin`
-  accepted, `superadmin` refused, an unknown string refused, `undefined` and `''` accepted; then the real
-  routers over `mongodb-memory-server`: `POST .../invites` with `role: 'superadmin'` returns 400 and
-  `Invite.countDocuments()` is unchanged, with `role: 'agent'` still returns 201 exactly as today, the
-  existing `PATCH` behaviour is byte-identical, and accepting a hand-seeded `superadmin` invite returns 403
-  with `isSuperAdmin(user)` still false afterwards. All three new assertions must go red against unmodified
-  `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: whether `isSuperAdmin` should be domain-scoped at all rather than matching any membership —
-  a much larger change, and this item only stops the role being handed out; the `entityDomain: '*'` shape of
-  the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
-  rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
-
-- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** [proposed]
-  The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
-  caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
-  next path segment belongs to that domain, and three handlers never check. (1) `GET
-  /entities/:domain/conversations/:id` reads `Conversation.findById(req.params.id)` (line 126) and returns the
-  whole document — every visitor message, `pendingQuestions`, `handoffPending` and the `sessionToken`, which
-  `GET /chat/history` accepts as a credential. (2) `POST .../conversations/:id/reply` loads the conversation
-  the same way (line 201) while taking the entity from the path (line 202), so a member of entity A can push
-  an `owner_reply` into entity B's conversation — delivered to B's visitor on their next widget open, since it
-  is stored `seenByVisitor: false` (line 208) — while the unanswered-question resolution (line 227) and the
-  `owner_reply` chunk (line 253) land on A. One request, two entities, each holding half the result.
-  (3) `DELETE .../invites/:inviteId` deletes by id alone (line 578), cancelling any other entity's pending
-  invite. The correct pattern is already in the same file three times: `Conversation.findOne({ _id:
-  req.params.id, domain: req.params.domain })` at line 179, and `UnansweredQuestion.findOne({ _id: id,
-  entityDomain: domain })` at 719 and 755. Pre-alpha every entity is Daniel's, so nothing is exposed today —
-  Block H is empty and this is the cheapest thing that belongs in it.
-  Build: scope all three lookups by domain, keeping each handler's existing 404 and message. For the invite,
-  `Invite.deleteOne({ _id: req.params.inviteId, domain })` and answer `{ ok: true }` only on
-  `deletedCount === 1`, else 404. No route is renamed, no response field removed.
-  Files: `backend/src/routes/dashboard.js`, `backend/test/entity-scoping.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` with two entities and a user holding a membership for
-  only the first: each of the three calls, made with the user's own domain in the path and the **second**
-  entity's object id, returns 404 and leaves that object byte-identical (conversation `messages.length`
-  unchanged, invite still present); each of the three for their own entity behaves exactly as today; a
-  superadmin is unaffected. All three must go red against unmodified `main` — the GET currently returns 200
-  with the foreign transcript. `cd backend && yarn verify && yarn test`.
-  Out of scope: adding `PERMISSIONS` arguments to the routes that carry none — the floor covers membership and
-  the finer-grained read split is a separate decision; socket rooms (LEO-068); `GET /chat/history`'s public
-  session-token read; auditing or repairing any historical cross-entity write; and the by-id handlers outside
-  this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
-  `routes/codes.js` is superadmin-only and global by design).
-
-- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone** [proposed]
-  `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
-  then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
-  `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
-  { upsert: true })` (lines 104-110). Nothing anywhere checks whether that domain already has an `Entity` or
-  an owner. So anyone holding a valid alpha code can sign up naming an existing entity's domain, receive
-  `roles: ['owner']` on it — the full dashboard, its conversations, its settings, its billing page — and the
-  `$set` **rewrites the live `ownerEmail`**, which is the address every handoff SMS/email and quota warning is
-  sent to (`services/notifications.js`). The comment at lines 94-97 reasons carefully about the *scrape's*
-  later upsert not clobbering this one; the reverse direction, this upsert landing on a populated document, is
-  not considered. Second defect in the same block: the single-use cap is read at line 77
-  (`code.useCount >= code.maxUses`) and written at lines 118-120, after the user, the entity and the tokens.
-  Two signups in the same tick on a `maxUses: 1` code both pass the check, and any throw in between consumes
-  no use while possibly leaving a `User` behind. That counter is the whole boundary between pre-alpha and open
-  signup.
-  Build: before anything is created, reject a claimed domain — an existing `Entity`, or any `User` holding a
-  membership for it, answers 409 pointing at the invite flow, which is how a second person is supposed to join
-  an entity. Keep the rules pure and testable in a new `backend/src/services/onboard.js`:
-  `normalizeDomain(raw)` (trim, lowercase, strip scheme, `www.`, port and path, reject anything that is not a
-  plausible hostname) and `claimCheck({ entityExists, memberExists })` → `{ ok, status, error }`. Then make
-  the code consumption atomic and **first**: one `Code.findOneAndUpdate` whose filter carries the type, the
-  `active` flag, the cap and the expiry (an `$and` of two `$or` branches, since `maxUses` and `expiresAt` are
-  both nullable) and whose update is `$inc: { useCount: 1 }` plus the `usedBy` `$push` — no match means no
-  slot, so the check and the consume cannot be split. Release the use (`$inc: -1` and `$pull`) if a later step
-  fails, so a crashed signup does not burn a slot.
-  Files: new `backend/src/services/onboard.js`, `backend/src/routes/auth.js`,
-  `backend/test/onboard-claim.test.js`.
-  *Verify:* `node --test` on the two pure helpers with no DB — `HTTPS://WWW.Example.com/path:8080` →
-  `example.com`, a bare hostname unchanged, `''`/`'  '`/`'not a domain'`/`null` rejected without throwing, a
-  claimed domain → 409, an unclaimed one → ok; then the real auth router over `mongodb-memory-server`:
-  onboarding a fresh domain still returns 201 with tokens and creates the `Entity` and membership exactly as
-  today; onboarding a domain that already has an `Entity` returns 409, creates no `User`, and leaves the
-  stored `ownerEmail` untouched; the same for a domain whose `Entity` is absent but some user holds a
-  membership for it; and two onboards awaited together on a `maxUses: 1` code yield exactly one 201, one 403
-  and `useCount === 1`. Every one of those must go red against unmodified `main`. `cd backend && yarn verify
-  && yarn test`.
-  Out of scope: proving the signer actually controls the domain (DNS or meta-tag verification is a feature of
-  its own, and the alpha code is the current answer); `CLAUDE.md`'s stale claim that the gate reads an
-  `ALPHA_CODES` env var — it reads the `Code` collection, and LEO-086 owns that wording; brute-forcing the
-  code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
-  `routes/webhooks.js` (denylisted).
-
 - [ ] **(LEO-109) Every widget open loads the visitor's whole conversation to show twenty messages** [proposed]
   `GET /chat/history` (`backend/src/routes/chat.js:303-350`) fetches `Conversation.findOne({ sessionToken,
   domain })` with no projection (line 312) and then filters and slices in Node: `hasMore =
@@ -970,74 +1038,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
-
-- [ ] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s** [proposed]
-  `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
-  `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
-  (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
-  `parseFloat` yields `NaN`, so an owner who clears either box to mean "off" posts the empty string.
-  `validateEntityUpdates` checks `typeof raw !== 'number'` (`backend/src/services/entitySettings.js:170`)
-  and rejects it as `(received text)`, and the route then refuses the entire PATCH
-  (`routes/dashboard.js:316-320` — "Nothing is written when anything is out of range"). So one emptied box
-  silently discards every other edit on the page, and the only clue is the LEO-062 rejection toast naming
-  the field the owner deliberately cleared. Before LEO-062 the empty string reached mongoose, was cast to
-  `null`, and the save succeeded — so this is a regression that arrived with the validator, found by its
-  own grader (`ops/leo-nightly/reviews/LEO-062.graded.json`). `save()` (line 255) already normalises
-  `quotaWarningThresholds` for the server's ascending rule; this is the same class of fix, one field over.
-  Build: extract the payload shaping out of `save()` into a pure `settingsPayload(form)` in a new
-  `dashboard/src/lib/settingsPayload.js` — the `src/lib` + `test/*.spec.js` pattern `notLearned.js` and
-  `pageFilters.js` already use — keeping the threshold sort byte-identical and coercing a blank numeric to
-  `0`, which is the documented "disabled" value for both fields and what both already fall back to when the
-  entity is loaded (lines 50 and 66). Have `save()` call it and change nothing else.
-  Files: new `dashboard/src/lib/settingsPayload.js`, `dashboard/src/views/Settings.vue`, new
-  `dashboard/test/settingsPayload.spec.js`.
-  *Verify:* `cd dashboard && yarn test` — a form with `crawlSettings.staleDays: ''` and
-  `conversationRetentionDays: ''` yields `0` for both; a real `0` and a real `7` pass through untouched;
-  `quotaWarningThresholds: [90, 50, 75]` still comes out `[50, 75, 90]`; every other key is copied through
-  unchanged, including the nested `crawlSettings` booleans. Confirm the blank-numeric spec goes red against
-  the current inline builder. Then `yarn build`, and `cd backend && yarn verify && yarn test` to show the
-  validator itself is untouched.
-  Out of scope: the validator's bounds and its "received text" wording — `entitySettings.js` is right, the
-  empty string genuinely is not a number; LEO-076's nested-subdocument replacement; adding `v-model.number`
-  anywhere else or replacing it with a watcher; the sliders and every non-numeric control on the page; and
-  any change to `backend/src/routes/dashboard.js`.
-
-- [ ] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape** [proposed]
-  LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
-  are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
-  (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
-  to archive (line 32). So a first-ever full scrape — the signup path, where knowing which pages were not
-  learned matters most — and a rescrape in which nothing changed both persist nothing;
-  `recordRobotsDisallowed` (line 127) carries the same guard. Found by the grader of LEO-056
-  (`ops/leo-nightly/reviews/LEO-056.graded.json`). The other half is worse: nothing reads the persisted
-  copy. `grep -rn failedUrls backend/src dashboard/src` finds one writer and no reader, and
-  `KnowledgeBase.vue:22` computes its "Not learned" panel from `scrapeResult`, which is only ever the live
-  `scrape_complete` socket payload. An owner who closes the tab, or whose rescrape ran under LeoRefresh at
-  3am, cannot see the list at all — `GET /scrape/snapshots` would return it but is superadmin-only and no
-  view calls it.
-  Build: write the run's own summary on the `Entity` as a new optional `lastScrape` subdocument carrying
-  `at` plus the same keys the `scrape_complete` summary already has (`mode`, `pagesScraped`/`pagesChanged`,
-  `skippedUrls`, `failedUrls`, `robotsDisallowed`, `durationMs`) — a new field with no `required` and no
-  `unique`, so an entity that has never scraped simply has none and the schema gate stays green. Write it
-  unconditionally at the end of `persistRescrapeResult` and beside the existing
-  `Entity.findOneAndUpdate` on the full-scrape path (`backend/src/routes/scrape.js:229-233`), from the
-  already-shaped arrays, and leave the snapshot writes exactly as they are. `KnowledgeBase.vue` already
-  receives the entity as a prop, so seed `scrapeResult` from `props.entity.lastScrape` on mount and let
-  `notLearnedFromSummary` consume it unchanged. Light-tier log one line per run naming the counts and
-  where they were stored.
-  Files: `backend/src/models/Entity.js`, `backend/src/services/scrapePersist.js`,
-  `backend/src/routes/scrape.js`, `dashboard/src/views/KnowledgeBase.vue`,
-  `backend/test/failed-urls.test.js`, `backend/test/scrape-persist.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` — a rescrape whose result carries two failed URLs
-  and **no** changed chunks stores both on `entity.lastScrape` (today it stores nothing); a full scrape of
-  an entity with no prior chunks does the same; a run with no failures stores an empty list rather than
-  leaving the previous run's; the existing snapshot assertions still pass unchanged. Then
-  `cd dashboard && yarn test` for `notLearnedFromSummary` over the stored shape, and `yarn build`. The
-  first two must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: a `ScrapeRun` collection or any history beyond the latest run; exposing
-  `ScrapeSnapshot.failedUrls` to non-superadmins; retrying a failed URL (LEO-019 owns the embedding
-  retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
-  (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
 
 - [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules** [proposed]
   Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
