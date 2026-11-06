@@ -1,0 +1,160 @@
+{
+  "item": "LEO-084",
+  "repo": "leoai",
+  "mergeSha": "c6aaa5d8ac080318b4434ddb273c6e52dd505c81",
+  "completedAtUtc": "2026-11-05T15:19:26.179Z",
+  "completeRunId": "2026-11-05T15:04:43.262Z",
+  "reviewRunId": "2026-11-06T08:01:50.638Z",
+  "reviewedAtUtc": "2026-11-06T08:05:25.947Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 58338,
+  "contextFiles": 8,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/Entity.js"
+      ],
+      "part": null,
+      "bytes": 1954,
+      "contextBytes": 10103,
+      "promptTokens": 4605,
+      "completionTokens": 148,
+      "latencyMs": 39023,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/retention.js"
+      ],
+      "part": null,
+      "bytes": 11668,
+      "contextBytes": 0,
+      "promptTokens": 4541,
+      "completionTokens": 74,
+      "latencyMs": 13041,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/unansweredDigest.js"
+      ],
+      "part": null,
+      "bytes": 11631,
+      "contextBytes": 0,
+      "promptTokens": 4585,
+      "completionTokens": 93,
+      "latencyMs": 14172,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/weeklyDigest.js"
+      ],
+      "part": null,
+      "bytes": 11600,
+      "contextBytes": 0,
+      "promptTokens": 4526,
+      "completionTokens": 73,
+      "latencyMs": 13448,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/retention.test.js"
+      ],
+      "part": null,
+      "bytes": 9499,
+      "contextBytes": 0,
+      "promptTokens": 4073,
+      "completionTokens": 129,
+      "latencyMs": 15060,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/unanswered-digest.test.js",
+        "backend/test/weekly-digest.test.js"
+      ],
+      "part": null,
+      "bytes": 11986,
+      "contextBytes": 0,
+      "promptTokens": 5059,
+      "completionTokens": 144,
+      "latencyMs": 19221,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/services/retention.js:163"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional information is needed to verify the implementation of the catch-up arms and the tiered debug logging. · No real defects found in the provided diff. However, additional information about the `debug` function is needed to fully understand and verify the changes. · No real defects found in the provided diff. However, additional information is needed to fully understand and verify the changes. · No real defects found in the provided diff. However, additional context is needed to verify the behavior of `sendEmailRaw`. · The diff introduces new tests for the retention sweep schedule, but does not include the implementation of `sweepDecision` and `sweepDue`. These functions are required to determine if a missed sweep hour is recovered or if a second call in the same hour is a no-op. · The diff adds tests for the catch-up arm in `digestDue` and `weeklyDigestDue`, but does not show the implementation of these functions. The findings list is empty because there are no real defects visible in the provided diff, but additional information about the implementation of `digestDecision` and `weeklyDigestDecision` is needed to fully verify the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 53992,
+    "completionTokens": 1465
+  },
+  "latencyMs": 214043
+}

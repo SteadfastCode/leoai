@@ -1,0 +1,71 @@
+{
+  "item": "LEO-098",
+  "repo": "leoai",
+  "mergeSha": "1dda695e9dd0f5f9ae7cfb9b4f71ebc1e041d931",
+  "completedAtUtc": "2026-11-05T15:27:59.059Z",
+  "completeRunId": "2026-11-05T15:04:43.262Z",
+  "reviewRunId": "2026-11-06T08:01:50.638Z",
+  "reviewedAtUtc": "2026-11-06T08:06:02.650Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 11775,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/User.js",
+        "backend/src/routes/auth.js",
+        "backend/src/services/resetToken.js",
+        "backend/test/reset-token.test.js"
+      ],
+      "part": null,
+      "bytes": 11775,
+      "contextBytes": 0,
+      "promptTokens": 4404,
+      "completionTokens": 75,
+      "latencyMs": 16693,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:391"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional verification is needed to ensure that the `hashResetToken` function behaves as expected.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 8677,
+    "completionTokens": 211
+  },
+  "latencyMs": 36568
+}
