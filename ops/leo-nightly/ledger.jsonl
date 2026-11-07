@@ -453,3 +453,4 @@
 {"event":"review-grade","item":"LEO-084","grader":"claude-opus-5","grades":{"findings":0,"confirmed":0,"falsePositive":0,"duplicate":0,"unverifiable":0,"missed":2,"independent":2,"triageChecked":6,"triageCorrect":5},"localPromptVersion":"v6","localModel":"qwen2.5-coder:14b","mergeSha":"c6aaa5d8ac080318b4434ddb273c6e52dd505c81","runId":"2026-11-07T05:29:50.427Z","costUsd":1.86717,"atUtc":"2026-11-07T05:35:03.045Z"}
 {"event":"claim","runId":"2026-11-07T15:09:43.126Z","item":"LEO-099","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-07T15:10:38.364Z"}
 {"event":"complete","runId":"2026-11-07T15:09:43.126Z","item":"LEO-099","mergeSha":"3d56e39f3b9ef038054d4b215b5f06421ff29a36","durationMin":9,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-11-07T15:19:34.752Z"}
+{"event":"claim","runId":"2026-11-07T15:09:43.126Z","item":"LEO-100","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-07T15:30:41.529Z"}

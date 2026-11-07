@@ -149,7 +149,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends**
+- [x] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends**
   Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
   (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
   (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
