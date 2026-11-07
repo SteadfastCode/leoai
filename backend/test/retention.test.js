@@ -79,6 +79,8 @@ const {
   conversationExpired,
   forgetFilter,
   sweepFilter,
+  unansweredForgetFilter,
+  unansweredSweepFilter,
   lastActivityAt,
   sweepDue,
   sweepDecision,
@@ -144,6 +146,80 @@ test('sweepFilter returns null for a missing domain or an unusable cutoff', () =
   assert.equal(sweepFilter('a.example.com', null), null);
   assert.equal(sweepFilter('a.example.com', new Date('nonsense')), null);
   assert.equal(sweepFilter('a.example.com', Date.now()), null, 'a number is not a Date');
+});
+
+// ---------------------------------------------------------------------------
+// Pure: the UnansweredQuestion delete filters (LEO-099). Same rule as above —
+// unusable input yields null, never a filter that matches more than it was
+// asked to. This collection holds the visitor's words VERBATIM, so a widened
+// filter here deletes another visitor's questions, and an absent one leaves
+// the ones we promised to erase.
+// ---------------------------------------------------------------------------
+
+const HEX_ID_A = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+const HEX_ID_B = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+
+test('unansweredForgetFilter builds an exact entityDomain+sessionToken pair', () => {
+  assert.deepEqual(
+    unansweredForgetFilter({ domain: 'a.example.com', sessionToken: 'leo_abc' }),
+    { entityDomain: 'a.example.com', sessionToken: 'leo_abc' },
+    'the log calls the domain entityDomain — a filter on `domain` would match nothing and silently keep every row'
+  );
+  assert.deepEqual(
+    unansweredForgetFilter({ domain: ' a.example.com ', sessionToken: ' leo_abc\n' }),
+    { entityDomain: 'a.example.com', sessionToken: 'leo_abc' }
+  );
+});
+
+test('unansweredForgetFilter returns null — never {} — for anything unusable', () => {
+  for (const bad of [
+    undefined,
+    {},
+    { domain: 'a.example.com' },
+    { sessionToken: 'leo_abc' },
+    { domain: '', sessionToken: 'leo_abc' },
+    { domain: 'a.example.com', sessionToken: '  ' },
+    { domain: 'a.example.com', sessionToken: { $ne: null } },
+    { domain: { $ne: null }, sessionToken: 'leo_abc' },
+    { domain: 'a.example.com', sessionToken: 7 },
+  ]) {
+    assert.equal(unansweredForgetFilter(bad), null, `must refuse ${JSON.stringify(bad)}`);
+  }
+});
+
+test('unansweredSweepFilter is keyed only on the ids it was handed', () => {
+  assert.deepEqual(
+    unansweredSweepFilter([HEX_ID_A, HEX_ID_B]),
+    { conversationId: { $in: [HEX_ID_A, HEX_ID_B] } }
+  );
+  // Real ObjectIds — what the sweep actually collects — pass through as-is.
+  const { Types } = require('mongoose');
+  const oid = new Types.ObjectId();
+  assert.deepEqual(unansweredSweepFilter([oid]), { conversationId: { $in: [oid] } });
+});
+
+test('unansweredSweepFilter returns null for an empty, non-array or junk id list', () => {
+  for (const bad of [
+    undefined,
+    null,
+    [],
+    'not an array',
+    HEX_ID_A,                   // a bare id is not a list
+    {},
+    { $ne: null },
+    [null, undefined, ''],
+    [{ $ne: null }],
+    ['a.example.co'],           // 12 chars: mongoose's own isValid() accepts this
+    [12345],
+    [{}],
+  ]) {
+    assert.equal(unansweredSweepFilter(bad), null, `must refuse ${JSON.stringify(bad)}`);
+  }
+});
+
+test('unansweredSweepFilter drops unusable ids rather than widening around them', () => {
+  const f = unansweredSweepFilter([HEX_ID_A, null, 'a.example.co', { $ne: null }, HEX_ID_B]);
+  assert.deepEqual(f, { conversationId: { $in: [HEX_ID_A, HEX_ID_B] } });
 });
 
 // ---------------------------------------------------------------------------
@@ -321,6 +397,7 @@ const chatRouter = require('../src/routes/chat');
 const dashboardRouter = require('../src/routes/dashboard');
 const Conversation = require('../src/models/Conversation');
 const Entity = require('../src/models/Entity');
+const UnansweredQuestion = require('../src/models/UnansweredQuestion');
 
 let mongod;
 let server;
@@ -349,17 +426,29 @@ test.after(async () => {
   if (server) await new Promise((r) => server.close(r));
   await Conversation.deleteMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } });
   await Entity.deleteMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } });
+  await UnansweredQuestion.deleteMany({ entityDomain: { $in: [DOMAIN, OTHER_DOMAIN] } });
   await mongoose.disconnect();
   if (mongod) await mongod.stop();
 });
 
 async function seedConversations() {
   await Conversation.deleteMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } });
-  await Conversation.create([
+  await UnansweredQuestion.deleteMany({ entityDomain: { $in: [DOMAIN, OTHER_DOMAIN] } });
+  const [mine, theirs, elsewhere] = await Conversation.create([
     { domain: DOMAIN, sessionToken: MINE, messages: [{ role: 'user', content: 'mine' }] },
     { domain: DOMAIN, sessionToken: THEIRS, messages: [{ role: 'user', content: 'theirs' }] },
     // Same token, different site — a token is only ever meaningful per domain.
     { domain: OTHER_DOMAIN, sessionToken: MINE, messages: [{ role: 'user', content: 'other site' }] },
+  ]);
+  // The Unanswered log keeps each question VERBATIM against the session that
+  // asked it (LEO-099): two for the caller — the second already triaged into
+  // the owner's KB — one for the other visitor here, one for the same token on
+  // another site.
+  await UnansweredQuestion.create([
+    { entityDomain: DOMAIN, sessionToken: MINE, conversationId: mine._id, question: 'mine: do you cater weddings?' },
+    { entityDomain: DOMAIN, sessionToken: MINE, conversationId: mine._id, question: 'mine: is 14 Acorn Lane in your delivery zone?', addedToKb: true, addedAt: new Date() },
+    { entityDomain: DOMAIN, sessionToken: THEIRS, conversationId: theirs._id, question: 'theirs: are you open on Sundays?' },
+    { entityDomain: OTHER_DOMAIN, sessionToken: MINE, conversationId: elsewhere._id, question: 'other site: where do I park?' },
   ]);
 }
 
@@ -375,6 +464,11 @@ async function postForget(body) {
 const survivors = async () =>
   (await Conversation.find({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } }).lean())
     .map((c) => `${c.domain}/${c.sessionToken}`)
+    .sort();
+
+const questionSurvivors = async () =>
+  (await UnansweredQuestion.find({ entityDomain: { $in: [DOMAIN, OTHER_DOMAIN] } }).lean())
+    .map((q) => `${q.entityDomain}/${q.sessionToken}/${q.question}`)
     .sort();
 
 test.beforeEach(seedConversations);
@@ -430,6 +524,62 @@ test('a missing half is a 400 and deletes nothing', async () => {
   assert.equal((await survivors()).length, 3, 'no rejected request deleted anything');
 });
 
+test('"delete it everywhere" takes the visitor\'s own words out of the Unanswered log', async () => {
+  // The consent screen promises the business's copy goes too. Before LEO-099
+  // the transcript went and these rows — the visitor's questions, verbatim,
+  // beside their session token — stayed on the owner's Unanswered page and in
+  // the weekly digest's "most asked" list with no expiry of any kind.
+  const { status, body } = await postForget({ domain: DOMAIN, sessionToken: MINE });
+  assert.equal(status, 200);
+  assert.equal(body.deleted, 1, 'the conversation count the widget has always read');
+  assert.equal(body.forgotten, true);
+  assert.equal(body.questionsDeleted, 2,
+    'both rows, including the one the owner had already triaged into the KB');
+
+  assert.deepEqual(await questionSurvivors(), [
+    `${DOMAIN}/${THEIRS}/theirs: are you open on Sundays?`,
+    `${OTHER_DOMAIN}/${MINE}/other site: where do I park?`,
+  ], 'the other visitor on this site, and the same token on another site, keep theirs');
+});
+
+test('a mismatched or foreign token deletes nobody\'s questions', async () => {
+  const before = await questionSurvivors();
+
+  const wrongToken = await postForget({ domain: DOMAIN, sessionToken: 'leo_not_a_real_token' });
+  assert.equal(wrongToken.body.questionsDeleted, 0);
+
+  // THEIRS is a real token — on the other domain it must match nothing.
+  const wrongDomain = await postForget({ domain: OTHER_DOMAIN, sessionToken: THEIRS });
+  assert.equal(wrongDomain.body.questionsDeleted, 0);
+
+  // An operator-shaped token is refused by the filter builder, not passed to
+  // Mongo, where { $ne: null } would match every row in the collection.
+  const operator = await postForget({ domain: DOMAIN, sessionToken: { $ne: null } });
+  assert.equal(operator.status, 200);
+  assert.equal(operator.body.questionsDeleted, 0);
+
+  assert.deepEqual(await questionSurvivors(), before, 'all four rows untouched');
+});
+
+test('forget is idempotent across both collections', async () => {
+  await postForget({ domain: DOMAIN, sessionToken: MINE });
+  const { status, body } = await postForget({ domain: DOMAIN, sessionToken: MINE });
+  assert.equal(status, 200);
+  assert.equal(body.deleted, 0);
+  assert.equal(body.questionsDeleted, 0);
+  assert.equal((await questionSurvivors()).length, 2);
+});
+
+test('a visitor with a transcript but no logged questions still gets a clean 200', async () => {
+  // questionsDeleted is a count, not a promise that there was anything to take.
+  await UnansweredQuestion.deleteMany({ entityDomain: DOMAIN, sessionToken: MINE });
+  const { status, body } = await postForget({ domain: DOMAIN, sessionToken: MINE });
+  assert.equal(status, 200);
+  assert.equal(body.deleted, 1);
+  assert.equal(body.forgotten, true, 'the transcript still went — this is not a failure');
+  assert.equal(body.questionsDeleted, 0);
+});
+
 test('an operator-shaped session token cannot widen the delete', async () => {
   // Mongo would happily match every document for { $ne: null }; the filter
   // builder refuses the request instead.
@@ -446,16 +596,28 @@ const OFF_HOUR_NOW = Date.parse('2026-10-12T06:00:00Z');
 async function seedForSweep() {
   await Conversation.deleteMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } });
   await Entity.deleteMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } });
+  await UnansweredQuestion.deleteMany({ entityDomain: { $in: [DOMAIN, OTHER_DOMAIN] } });
   await Entity.create([
     { domain: DOMAIN, name: 'A Bakery', conversationRetentionDays: 30 },
     { domain: OTHER_DOMAIN, name: 'B Church', conversationRetentionDays: 0 }, // retention off
   ]);
-  await Conversation.create([
+  const [fresh, edge, stale, unanswered, ancient] = await Conversation.create([
     { domain: DOMAIN, sessionToken: 'leo_fresh', lastActiveAt: new Date(SWEEP_NOW - 2 * DAY_MS), messages: [] },
     { domain: DOMAIN, sessionToken: 'leo_edge', lastActiveAt: new Date(SWEEP_NOW - 30 * DAY_MS), messages: [] },
     { domain: DOMAIN, sessionToken: 'leo_stale', lastActiveAt: new Date(SWEEP_NOW - 31 * DAY_MS), messages: [] },
     { domain: DOMAIN, sessionToken: 'leo_unanswered', lastActiveAt: new Date(SWEEP_NOW - 400 * DAY_MS), handoffPending: true, messages: [] },
     { domain: OTHER_DOMAIN, sessionToken: 'leo_ancient', lastActiveAt: new Date(SWEEP_NOW - 900 * DAY_MS), messages: [] },
+  ]);
+  // One row per conversation, two for the one the sweep will take — plus an
+  // orphan with no conversationId at all, which the $in must not match.
+  await UnansweredQuestion.create([
+    { entityDomain: DOMAIN, sessionToken: 'leo_fresh', conversationId: fresh._id, question: 'fresh: do you do gluten free?' },
+    { entityDomain: DOMAIN, sessionToken: 'leo_edge', conversationId: edge._id, question: 'edge: can I order a day ahead?' },
+    { entityDomain: DOMAIN, sessionToken: 'leo_stale', conversationId: stale._id, question: 'stale: do you deliver to Lititz?' },
+    { entityDomain: DOMAIN, sessionToken: 'leo_stale', conversationId: stale._id, question: 'stale: what time do you close?' },
+    { entityDomain: DOMAIN, sessionToken: 'leo_unanswered', conversationId: unanswered._id, question: 'unanswered: is anyone there?' },
+    { entityDomain: DOMAIN, sessionToken: 'leo_orphan', question: 'orphan: logged with no conversationId' },
+    { entityDomain: OTHER_DOMAIN, sessionToken: 'leo_ancient', conversationId: ancient._id, question: 'ancient: who founded the church?' },
   ]);
 }
 
@@ -469,6 +631,30 @@ test('the sweep deletes past-threshold conversations only for entities that opte
     `${DOMAIN}/leo_unanswered`,    // handoff the owner never answered: exempt
     `${OTHER_DOMAIN}/leo_ancient`, // retention off: never swept, at any age
   ]);
+});
+
+test('the sweep takes the Unanswered rows of the conversations it deleted, and only those', async () => {
+  await seedForSweep();
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW), 1, 'leo_stale only');
+
+  assert.deepEqual(await questionSurvivors(), [
+    `${DOMAIN}/leo_edge/edge: can I order a day ahead?`,
+    `${DOMAIN}/leo_fresh/fresh: do you do gluten free?`,
+    `${DOMAIN}/leo_orphan/orphan: logged with no conversationId`,
+    `${DOMAIN}/leo_unanswered/unanswered: is anyone there?`,
+    `${OTHER_DOMAIN}/leo_ancient/ancient: who founded the church?`,
+  ], 'both of leo_stale\'s rows go; every row whose conversation outlived the cutoff stays, '
+   + 'including the orphan with no conversationId — an $in that matched a missing field '
+   + 'would sweep rows belonging to no deleted conversation at all');
+});
+
+test('a sweep that deletes nothing deletes no Unanswered rows either', async () => {
+  await seedForSweep();
+  // Retention off everywhere: the filter builder is handed an empty id list and
+  // must return null rather than a filter the collection matches.
+  await Entity.updateMany({ domain: { $in: [DOMAIN, OTHER_DOMAIN] } }, { conversationRetentionDays: 0 });
+  assert.equal(await runRetentionSweepTick(SWEEP_NOW), 0);
+  assert.equal((await questionSurvivors()).length, 7, 'all seven rows survive');
 });
 
 test('the sweep is a daily job — an off-hour tick on a never-swept entity does nothing', async () => {

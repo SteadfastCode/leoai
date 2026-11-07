@@ -9,6 +9,22 @@
 //      and then scoped to that one entity's domain, and never touching a
 //      conversation whose handoff the owner has not answered yet.
 //
+// BOTH paths delete from TWO collections (LEO-099). An UnansweredQuestion row
+// stores `question` — the visitor's message VERBATIM — beside their
+// sessionToken and conversationId, and it has no expiry of its own. Deleting
+// only the Conversation left those words on the owner's Unanswered page and in
+// the weekly digest's "most asked" list forever, while the widget's consent
+// screen promised "Delete it everywhere". The promise is the specification, so
+// the deletes follow it:
+//   * forget — every row matching entityDomain + sessionToken, whatever its
+//     age and whether or not the owner has already triaged it.
+//   * sweep — only rows belonging to the conversation ids this tick actually
+//     deleted, collected BEFORE the delete. A row whose conversation outlived
+//     the cutoff is never taken as collateral.
+// One thing deliberately survives both: the `unanswered_qa` Chunk an owner has
+// already added to their knowledge base. That text is the business's own KB
+// content now, answering future visitors, and is not keyed to a session.
+//
 // The sweep's own schedule has a CATCH-UP arm (LEO-084). It used to open with
 // a bare `getUTCHours() !== SWEEP_HOUR_UTC` return and kept no last-run stamp
 // anywhere, so it could not tell a missed hour from a completed one. One
@@ -28,18 +44,19 @@
 // nothing. It waits for the sweep hour, so switching retention on never
 // deletes anything in the same minute.
 //
-// retentionCutoff / conversationExpired / forgetFilter / sweepFilter / sweepDue are pure
-// (no DB, no clock of their own) so the age arithmetic and — the part that
-// actually matters — the shape of the delete filters can be asserted without a
+// retentionCutoff / conversationExpired / forgetFilter / sweepFilter /
+// unansweredForgetFilter / unansweredSweepFilter / sweepDue are pure (no DB, no
+// clock of their own) so the age arithmetic and — the part that actually
+// matters — the shape of the delete filters can be asserted without a
 // database. A widened filter here is a data-loss bug, so the filter builders
 // return null rather than an empty object whenever an input is unusable: a
 // `{}` filter passed to deleteMany wipes the collection.
 //
 // Debug tiers — RETENTION_LOG_LEVEL = off | light | normal | verbose:
-//   light (default) one line per actual deletion, naming what caused it, plus
-//                   one line per sweep decision naming the REASON it was taken
-//                   or held — hour match, catch-up after N hours, gap guard,
-//                   retention disabled
+//   light (default) one line per actual deletion, naming the COLLECTION it came
+//                   from and what caused it, plus one line per sweep decision
+//                   naming the REASON it was taken or held — hour match,
+//                   catch-up after N hours, gap guard, retention disabled
 //   normal          adds the decisions that deleted nothing (why it skipped)
 //                   and the tick-level counts
 //   verbose         adds per-conversation ages, session tokens truncated, and
@@ -49,6 +66,7 @@
 
 const Conversation = require('../models/Conversation');
 const Entity = require('../models/Entity');
+const UnansweredQuestion = require('../models/UnansweredQuestion');
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -171,6 +189,54 @@ function sweepFilter(domain, cutoff) {
   };
 }
 
+/**
+ * Delete filter for the UnansweredQuestion rows belonging to one visitor on one
+ * site. Same discipline as forgetFilter — null, never `{}`, for anything
+ * unusable — against a different field name: the log calls the domain
+ * `entityDomain`.
+ *
+ * Deliberately NOT narrowed any further than the pair. An already-triaged row
+ * (addedToKb, resolvedByReply) still holds the visitor's own words, and the
+ * consent screen's promise does not have an exception for one the owner has
+ * read. What the owner keeps is the KB chunk, which is not in this collection.
+ */
+function unansweredForgetFilter({ domain, sessionToken } = {}) {
+  if (typeof domain !== 'string' || typeof sessionToken !== 'string') return null;
+  const d = domain.trim();
+  const t = sessionToken.trim();
+  if (!d || !t) return null;
+  return { entityDomain: d, sessionToken: t };
+}
+
+// An id is usable only as a real ObjectId or a 24-hex string. Note that
+// mongoose's own isValid() is NOT the test to use here: it accepts ANY 12-char
+// string, so a domain like 'a.example.co' passes it and would be cast into a
+// filter matching a document nobody asked about.
+function usableConversationId(id) {
+  if (id && typeof id.toHexString === 'function') return id;
+  if (typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id.trim())) return id.trim();
+  return null;
+}
+
+/**
+ * Delete filter for the UnansweredQuestion rows of conversations the age sweep
+ * has just deleted. Keyed ONLY on conversationId — those are globally unique,
+ * so the ids are already the whole scope — and built from ids collected before
+ * the delete, so a conversation that aged past the cutoff mid-tick cannot drag
+ * a surviving visitor's rows out with it.
+ *
+ * Returns null for an empty list, a non-array, or a list with no usable id in
+ * it. `{ conversationId: { $in: [] } }` matches nothing rather than
+ * everything, but null is what the caller can actually assert on, and it keeps
+ * every builder in this file to the one rule: unusable input, no filter.
+ */
+function unansweredSweepFilter(conversationIds) {
+  if (!Array.isArray(conversationIds) || !conversationIds.length) return null;
+  const ids = conversationIds.map(usableConversationId).filter(Boolean);
+  if (!ids.length) return null;
+  return { conversationId: { $in: ids } };
+}
+
 // Gaps here are hours-to-days, so one rounded unit is the readable form.
 function formatGap(ms) {
   const hours = ms / HOUR_MS;
@@ -239,24 +305,42 @@ function sweepDue(entity, now = Date.now()) {
 }
 
 /**
- * Erase the caller's own conversation. Returns the number deleted (0 or 1 —
- * sessionToken+domain is unique). Never throws for a bad argument; an
- * unusable pair simply deletes nothing.
+ * Erase everything this caller's session left on the server: their transcript
+ * and the UnansweredQuestion rows holding their questions verbatim. Returns
+ * the two counts separately — `{ conversations, questions }` — because they are
+ * different collections and a caller reporting "nothing was deleted" should
+ * only say so when both are 0. Never throws for a bad argument; an unusable
+ * pair simply deletes nothing.
+ *
+ * The two deletes are independent: there is no transaction, and the question
+ * rows go second. A failure between them leaves the transcript gone and the
+ * rows behind, which the visitor can retry — the endpoint is idempotent — and
+ * which is strictly better than the reverse order, where a visitor whose
+ * transcript survived would be told their history was cleared.
  */
 async function forgetConversation({ domain, sessionToken } = {}) {
   const filter = forgetFilter({ domain, sessionToken });
-  if (!filter) {
+  const questionFilter = unansweredForgetFilter({ domain, sessionToken });
+  if (!filter || !questionFilter) {
     debug('normal', 'forget: refused an unusable domain/sessionToken pair — source: POST /chat/forget');
-    return 0;
+    return { conversations: 0, questions: 0 };
   }
 
   const { deletedCount } = await Conversation.deleteMany(filter);
   if (deletedCount) {
-    debug('light', `forget: deleted ${deletedCount} conversation for ${filter.domain} — source: POST /chat/forget by visitor session ${shortToken(filter.sessionToken)}`);
+    debug('light', `forget: deleted ${deletedCount} from conversations for ${filter.domain} — source: POST /chat/forget by visitor session ${shortToken(filter.sessionToken)}`);
   } else {
-    debug('normal', `forget: nothing matched ${filter.domain} / ${shortToken(filter.sessionToken)} — source: POST /chat/forget (already cleared, or a token from another device)`);
+    debug('normal', `forget: nothing matched ${filter.domain} / ${shortToken(filter.sessionToken)} in conversations — source: POST /chat/forget (already cleared, or a token from another device)`);
   }
-  return deletedCount;
+
+  const { deletedCount: questions } = await UnansweredQuestion.deleteMany(questionFilter);
+  if (questions) {
+    debug('light', `forget: deleted ${questions} from unansweredquestions for ${questionFilter.entityDomain} — source: POST /chat/forget by visitor session ${shortToken(questionFilter.sessionToken)} (their questions, stored verbatim)`);
+  } else {
+    debug('normal', `forget: nothing matched ${questionFilter.entityDomain} / ${shortToken(questionFilter.sessionToken)} in unansweredquestions — source: POST /chat/forget (Leo answered everything they asked, or the rows are already gone)`);
+  }
+
+  return { conversations: deletedCount, questions };
 }
 
 /**
@@ -317,8 +401,12 @@ async function runRetentionSweepTick(now = Date.now()) {
     debug('light', `sweep: running ${entity.domain} — reason: ${decision.reason} (${decision.detail})`);
 
     try {
+      // Read the doomed set BEFORE deleting it: once the conversations are
+      // gone there is no way back from an UnansweredQuestion row to the
+      // cutoff that condemned it, and matching those rows on anything broader
+      // than "the ids this tick took" would reach a live visitor's questions.
+      const doomed = await Conversation.find(filter).select('sessionToken lastActiveAt createdAt').lean();
       if (logTier() >= TIERS.verbose) {
-        const doomed = await Conversation.find(filter).select('sessionToken lastActiveAt createdAt').lean();
         for (const c of doomed) {
           debug('verbose', `sweep: ${entity.domain} / ${shortToken(c.sessionToken)} last active ${new Date(lastActivityAt(c)).toISOString()} — older than cutoff ${cutoff.toISOString()}`);
         }
@@ -327,9 +415,19 @@ async function runRetentionSweepTick(now = Date.now()) {
       const { deletedCount } = await Conversation.deleteMany(filter);
       total += deletedCount;
       if (deletedCount) {
-        debug('light', `sweep: deleted ${deletedCount} conversation(s) for ${entity.domain} — source: entity.conversationRetentionDays=${days}, cutoff ${cutoff.toISOString()} (unanswered handoffs exempt)`);
+        debug('light', `sweep: deleted ${deletedCount} from conversations for ${entity.domain} — source: entity.conversationRetentionDays=${days}, cutoff ${cutoff.toISOString()} (unanswered handoffs exempt)`);
       } else {
         debug('normal', `sweep: nothing older than ${cutoff.toISOString()} for ${entity.domain} — source: entity.conversationRetentionDays=${days}`);
+      }
+
+      const questionFilter = unansweredSweepFilter(doomed.map((c) => c._id));
+      if (questionFilter) {
+        const { deletedCount: questions } = await UnansweredQuestion.deleteMany(questionFilter);
+        if (questions) {
+          debug('light', `sweep: deleted ${questions} from unansweredquestions for ${entity.domain} — source: ${doomed.length} swept conversation id(s), cutoff ${cutoff.toISOString()}`);
+        } else {
+          debug('normal', `sweep: no unansweredquestions rows belonged to the ${doomed.length} conversation(s) swept for ${entity.domain}`);
+        }
       }
     } catch (err) {
       console.error(`[Retention] sweep failed for ${entity.domain}:`, err.message);
@@ -348,6 +446,8 @@ module.exports = {
   conversationExpired,
   forgetFilter,
   sweepFilter,
+  unansweredForgetFilter,
+  unansweredSweepFilter,
   sweepDue,
   sweepDecision,
   lastActivityAt,
