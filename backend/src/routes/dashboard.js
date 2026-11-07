@@ -662,15 +662,21 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
     const entity = await Entity.findOne({ domain });
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
 
-    // Collect snapshot IDs first so we can cascade-delete their archived chunks
-    const snapshotIds = await ScrapeSnapshot.distinct('_id', { domain });
-
-    const [chunks, pages, conversations, snapshots, archived] = await Promise.all([
+    const [chunks, pages, conversations, snapshots, archived, unanswered] = await Promise.all([
       Chunk.deleteMany({ domain }),
       ScrapedPage.deleteMany({ domain }),
       Conversation.deleteMany({ domain }),
       ScrapeSnapshot.deleteMany({ domain }),
-      ArchivedChunk.deleteMany({ snapshotId: { $in: snapshotIds } }),
+      // By domain, not by the snapshot ids: ArchivedChunk carries its own
+      // required `domain`, so a by-domain sweep cannot miss a row whose
+      // snapshot row has already gone.
+      ArchivedChunk.deleteMany({ domain }),
+      // Keyed on entityDomain, which is why a { domain } sweep missed it for
+      // so long. Every row holds a visitor's question verbatim plus their
+      // sessionToken, so leaving them behind keeps personal data pointing at
+      // a conversation that no longer exists — and re-creating the same domain
+      // re-attaches every one of them to the new entity's /unanswered page.
+      UnansweredQuestion.deleteMany({ entityDomain: domain }),
       Invite.deleteMany({ domain }),
       User.updateMany(
         { 'memberships.entityDomain': domain },
@@ -688,6 +694,8 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
         pages: pages.deletedCount,
         conversations: conversations.deletedCount,
         snapshots: snapshots.deletedCount,
+        archivedChunks: archived.deletedCount,
+        unansweredQuestions: unanswered.deletedCount,
       },
     });
 
@@ -699,6 +707,7 @@ router.delete('/entities/:domain', requireAuth(), async (req, res) => {
         conversations: conversations.deletedCount,
         snapshots: snapshots.deletedCount,
         archivedChunks: archived.deletedCount,
+        unansweredQuestions: unanswered.deletedCount,
       },
     });
   } catch (err) {
