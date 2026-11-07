@@ -151,7 +151,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind**
+- [x] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind**
   The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
   — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
   pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
