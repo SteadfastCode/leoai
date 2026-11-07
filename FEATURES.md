@@ -148,39 +148,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`**
-  The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
-  conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
-  "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
-  (`backend/src/services/retention.js:141-148`) issues a single `Conversation.deleteMany`, and the owner's age
-  sweep (line 193) does the same. `UnansweredQuestion` rows are touched by neither — and each row stores
-  `question`, the visitor's message **verbatim**, beside `sessionToken` and `conversationId`
-  (`backend/src/models/UnansweredQuestion.js:5-8`), with no expiry of any kind. They stay on the owner's
-  Unanswered page (`routes/dashboard.js:705`) and in the weekly digest's "Most asked" list indefinitely. For a
-  feature filed under privacy, the gap between the promise and the delete is the defect.
-  Build: extend both paths to delete the matching rows, keeping the filter discipline `retention.js` already
-  enforces — pure `unansweredForgetFilter({ domain, sessionToken })` and
-  `unansweredSweepFilter(conversationIds)` that return `null` rather than `{}` for any unusable input, so a
-  malformed call can never widen into a collection wipe. The forget path matches `entityDomain` +
-  `sessionToken`; the sweep path matches only the `conversationId`s it just deleted, collected before the
-  delete, so a row whose conversation outlived the cutoff is never taken. `forgetConversation` returns the two
-  counts separately (`{ conversations, questions }`) and `POST /chat/forget` **adds** a field rather than
-  changing `deleted`/`forgotten`. Light-tier log line naming which collection each deletion came from.
-  Files: `backend/src/services/retention.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed lines;
-  about 3, and not the quota block, the handoff atomic test-and-set or `conversation.save()`**),
-  `backend/test/retention.test.js`.
-  *Verify:* `node --test` on the two filter builders — a good pair yields the exact filter, a missing or
-  non-string half yields `null`, an empty or non-array id list yields `null` and never a filter matching
-  everything; plus the existing `retention.test.js` DB harness extended: a visitor with one conversation and
-  two unanswered rows loses both, a second visitor on the same domain loses neither, and the sweep removes
-  only the rows belonging to conversations it deleted. Confirm the new assertions go red against unmodified
-  `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs` stays green.
-  Out of scope: anything else keyed to a session (`handoffLog` lives inside the conversation document and goes
-  with it; `AuditLog` and the console buffer are not visitor data); a retention window for
-  `UnansweredQuestion` independent of conversations; the `unanswered_qa` chunk an owner has already added to
-  the knowledge base from a question — that is the business's own KB content now, so **report the residue in
-  the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
-  makes true as written.
 
 - [ ] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends**
   Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
@@ -1224,6 +1191,39 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** (routine 2026-11-07, 3d56e39)
+  The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
+  conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
+  "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
+  (`backend/src/services/retention.js:141-148`) issues a single `Conversation.deleteMany`, and the owner's age
+  sweep (line 193) does the same. `UnansweredQuestion` rows are touched by neither — and each row stores
+  `question`, the visitor's message **verbatim**, beside `sessionToken` and `conversationId`
+  (`backend/src/models/UnansweredQuestion.js:5-8`), with no expiry of any kind. They stay on the owner's
+  Unanswered page (`routes/dashboard.js:705`) and in the weekly digest's "Most asked" list indefinitely. For a
+  feature filed under privacy, the gap between the promise and the delete is the defect.
+  Build: extend both paths to delete the matching rows, keeping the filter discipline `retention.js` already
+  enforces — pure `unansweredForgetFilter({ domain, sessionToken })` and
+  `unansweredSweepFilter(conversationIds)` that return `null` rather than `{}` for any unusable input, so a
+  malformed call can never widen into a collection wipe. The forget path matches `entityDomain` +
+  `sessionToken`; the sweep path matches only the `conversationId`s it just deleted, collected before the
+  delete, so a row whose conversation outlived the cutoff is never taken. `forgetConversation` returns the two
+  counts separately (`{ conversations, questions }`) and `POST /chat/forget` **adds** a field rather than
+  changing `deleted`/`forgotten`. Light-tier log line naming which collection each deletion came from.
+  Files: `backend/src/services/retention.js`, `backend/src/routes/chat.js` (**restricted — ≤30 changed lines;
+  about 3, and not the quota block, the handoff atomic test-and-set or `conversation.save()`**),
+  `backend/test/retention.test.js`.
+  *Verify:* `node --test` on the two filter builders — a good pair yields the exact filter, a missing or
+  non-string half yields `null`, an empty or non-array id list yields `null` and never a filter matching
+  everything; plus the existing `retention.test.js` DB harness extended: a visitor with one conversation and
+  two unanswered rows loses both, a second visitor on the same domain loses neither, and the sweep removes
+  only the rows belonging to conversations it deleted. Confirm the new assertions go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`; `node widget/smoke.mjs` stays green.
+  Out of scope: anything else keyed to a session (`handoffLog` lives inside the conversation document and goes
+  with it; `AuditLog` and the console buffer are not visitor data); a retention window for
+  `UnansweredQuestion` independent of conversations; the `unanswered_qa` chunk an owner has already added to
+  the knowledge base from a question — that is the business's own KB content now, so **report the residue in
+  the PR body and delete nothing**; any dashboard change; and rewording the consent screen, which this change
+  makes true as written.
 - [x] **(LEO-098) `passwordResetToken` is stored in plaintext while every other credential here is hashed** (routine 2026-11-05, 1dda695)
   `routes/auth.js:391` writes the raw 32-byte reset token onto the user document and `models/User.js:38`
   stores it as a bare `String`; `routes/auth.js:417` then looks the raw value up. Every other credential in

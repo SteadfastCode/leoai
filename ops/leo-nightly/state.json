@@ -76,7 +76,7 @@
     "LEO-099": {
       "order": 5,
       "title": "\"Delete it everywhere\" leaves the visitor's own words in `UnansweredQuestion`",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-099",
