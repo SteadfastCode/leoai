@@ -76,7 +76,7 @@
     "LEO-105": {
       "order": 5,
       "title": "Deleting an entity leaves its visitors' unanswered questions behind",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-105",

@@ -151,40 +151,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind**
-  The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
-  — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
-  pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
-  the same file (line 20) and is not in the list. It is keyed on `entityDomain`, not `domain`, which is
-  almost certainly why a `{ domain }` sweep missed it, and every row holds a **verbatim visitor question**
-  plus its `sessionToken` and `conversationId` (`backend/src/models/UnansweredQuestion.js:5-9`). So after a
-  delete the conversation the question came from is gone, the entity is gone, and the visitor's own words
-  stay in the database indefinitely — pointing at a `conversationId` that no longer resolves. Because the
-  key is a domain string and nothing else, recreating the same domain (how Daniel re-tests an entity)
-  re-attaches every ghost row to the new entity's `/unanswered` page. The confirm dialog
-  (`dashboard/src/views/AdminEntities.vue:249-251`) promises "all associated data — chunks, scraped pages,
-  conversations, snapshots, and team memberships", so the UI states something untrue rather than merely
-  incomplete.
-  Build: add `UnansweredQuestion.deleteMany({ entityDomain: domain })` to the existing `Promise.all`, return
-  its count beside the others, record it in the `recordAudit` details, and add unanswered questions to the
-  dialog's sentence. Also delete archived chunks by `{ domain }` rather than only by the collected
-  `snapshotIds`: `ArchivedChunk` carries its own required `domain` (`models/ArchivedChunk.js:9`), and while no
-  current path is known to orphan one (`services/scrapePersist.js:48-49` prunes chunks and snapshot together),
-  a by-domain sweep cannot miss one that is.
-  Files: `backend/src/routes/dashboard.js`, `dashboard/src/views/AdminEntities.vue`,
-  `backend/test/entity-delete-cascade.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` in the shape `backend/test/kb-search.test.js` uses —
-  seed **two** entities, each with chunks, pages, a conversation, two `UnansweredQuestion` rows and an
-  archived chunk whose snapshot row has been removed by hand; delete the first as a superadmin; assert every
-  one of those collections is empty for that domain, that nothing belonging to the second entity changed,
-  that the response and the `AuditLog` row both carry the unanswered count, and that re-creating the same
-  domain yields an empty `/unanswered`. Confirm the unanswered assertion goes red against unmodified `main`.
-  `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
-  Out of scope: `AuditLog` and `Log` retention (deliberate — an append-only trail, and a 30-day TTL at
-  `models/Log.js:12`); what `POST /chat/forget` deletes (LEO-099 owns the visitor-initiated path, and the two
-  touch adjacent concerns, not adjacent lines); a soft-delete or undo; cancelling anything Stripe-side
-  (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
-  memberships at all.
 
 - [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to**
   `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
@@ -1125,6 +1091,40 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** (routine 2026-11-07, 37fa193)
+  The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
+  — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
+  pulls the membership out of every `User`, and deletes the `Entity`. `UnansweredQuestion` is imported into
+  the same file (line 20) and is not in the list. It is keyed on `entityDomain`, not `domain`, which is
+  almost certainly why a `{ domain }` sweep missed it, and every row holds a **verbatim visitor question**
+  plus its `sessionToken` and `conversationId` (`backend/src/models/UnansweredQuestion.js:5-9`). So after a
+  delete the conversation the question came from is gone, the entity is gone, and the visitor's own words
+  stay in the database indefinitely — pointing at a `conversationId` that no longer resolves. Because the
+  key is a domain string and nothing else, recreating the same domain (how Daniel re-tests an entity)
+  re-attaches every ghost row to the new entity's `/unanswered` page. The confirm dialog
+  (`dashboard/src/views/AdminEntities.vue:249-251`) promises "all associated data — chunks, scraped pages,
+  conversations, snapshots, and team memberships", so the UI states something untrue rather than merely
+  incomplete.
+  Build: add `UnansweredQuestion.deleteMany({ entityDomain: domain })` to the existing `Promise.all`, return
+  its count beside the others, record it in the `recordAudit` details, and add unanswered questions to the
+  dialog's sentence. Also delete archived chunks by `{ domain }` rather than only by the collected
+  `snapshotIds`: `ArchivedChunk` carries its own required `domain` (`models/ArchivedChunk.js:9`), and while no
+  current path is known to orphan one (`services/scrapePersist.js:48-49` prunes chunks and snapshot together),
+  a by-domain sweep cannot miss one that is.
+  Files: `backend/src/routes/dashboard.js`, `dashboard/src/views/AdminEntities.vue`,
+  `backend/test/entity-delete-cascade.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` in the shape `backend/test/kb-search.test.js` uses —
+  seed **two** entities, each with chunks, pages, a conversation, two `UnansweredQuestion` rows and an
+  archived chunk whose snapshot row has been removed by hand; delete the first as a superadmin; assert every
+  one of those collections is empty for that domain, that nothing belonging to the second entity changed,
+  that the response and the `AuditLog` row both carry the unanswered count, and that re-creating the same
+  domain yields an empty `/unanswered`. Confirm the unanswered assertion goes red against unmodified `main`.
+  `cd backend && yarn verify && yarn test`; `cd dashboard && yarn build && yarn test`.
+  Out of scope: `AuditLog` and `Log` retention (deliberate — an append-only trail, and a 30-day TTL at
+  `models/Log.js:12`); what `POST /chat/forget` deletes (LEO-099 owns the visitor-initiated path, and the two
+  touch adjacent concerns, not adjacent lines); a soft-delete or undo; cancelling anything Stripe-side
+  (`routes/billing.js` and `routes/webhooks.js` are denylisted); and deleting a `User` left with no
+  memberships at all.
 - [x] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** (routine 2026-11-07, 05e77cc)
   `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
   section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
