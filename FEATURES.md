@@ -148,7 +148,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`**
+- [x] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`**
   The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
   conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads
   "⚠ Delete it everywhere". What is actually deleted is one `Conversation` document: `forgetConversation`
