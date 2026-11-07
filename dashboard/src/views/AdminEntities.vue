@@ -247,7 +247,7 @@ function formatDate(d) {
         <v-card-text class="pb-2">
           <p class="text-body-2 mb-3">
             This will permanently delete <strong>{{ deleteTarget?.name }}</strong> and all associated data —
-            chunks, scraped pages, conversations, snapshots, and team memberships.
+            chunks, scraped pages, conversations, snapshots, unanswered questions, and team memberships.
             This cannot be undone.
           </p>
           <p class="text-body-2 mb-2 text-medium-emphasis">
