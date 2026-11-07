@@ -150,7 +150,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading**
+- [x] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading**
   `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
   section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
   The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
