@@ -11,6 +11,7 @@ const chunkSchema = new mongoose.Schema(
     pageH1:   { type: String }, // page-level H1 heading (same for all chunks on a page)
     sectionH2:{ type: String }, // primary H2 section this chunk belongs to (null for intro/pre-H2 content)
     sectionAnchor: { type: String }, // DOM id of that H2, for deep-linking url#anchor (null when the heading had no id)
+    extraAnchors: { type: [String], default: [] }, // anchors of sections folded into this chunk by the trailing merge (LEO-102) — their [H2] text travels with the body, so without this their DOM ids leave the corpus entirely
     chunkIndex: { type: Number }, // position within page — used for sibling-range narrowing in tree retrieval
     sourceUrls: { type: [String], default: [] }, // contributing page URLs — single-URL chunks have [url]; group chunks list all member pages
   },

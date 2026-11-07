@@ -18,8 +18,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 
 const { chunkText } = require('../src/services/scraper');
+
+// Requiring rag.js (for packContext, the citation builder) pulls the embeddings service;
+// stub it so no Voyage key is needed — packContext itself never touches it.
+const srcDir = path.join(__dirname, '..', 'src');
+require.cache[require.resolve(path.join(srcDir, 'services', 'embeddings.js'))] = {
+  id: 'stub', filename: 'stub', loaded: true,
+  exports: { embedQuery: async () => [0], embedTexts: async () => [[0]] },
+};
+const { packContext } = require('../src/services/rag');
 
 const TINY_BUF_THRESHOLD = 200; // mirrors the scraper constant (not exported)
 
@@ -101,4 +111,99 @@ test('C — the final flushMergeBuf merges a short trailing section, keeping its
   assert.ok(all.includes(H2_B), 'the merged section keeps its [H2] heading text');
   assert.ok(all.includes(SEC_A.slice(0, 60)), 'the preceding section survives the merge');
   assertContiguous(chunks);
+});
+
+// ── Absorbed anchors (LEO-102) ────────────────────────────────────────────────────────
+//
+// The trailing merge above folds a too-small final section into the chunk before it. The
+// text and the [H2] line travel; the metadata does not — the receiving chunk keeps its own
+// sectionH2/label/sectionAnchor, and the absorbed section's anchor used to be written
+// nowhere at all. rag.js builds Leo's cited link as `url#sectionAnchor`, so the absorbed
+// heading became unlinkable and a hit on the appended text deep-linked to the heading
+// BEFORE it. `extraAnchors` carries the absorbed anchor alongside.
+//
+// Boundaries and content must not move: every case below asserts the chunk text
+// byte-for-byte against what main produces, so a change in chunk shape fails here first.
+
+const VISIT_URL = 'https://example.com/visit';
+const header = (...lines) => ['[Source: ' + VISIT_URL + ']', ...lines].join('\n');
+
+test('D — a merged trailing section records its anchor without moving any boundary', () => {
+  const text = ['[H1] Visiting Us', `[H2#welcome] ${H2_A}`, SEC_A, `[H2#office] ${H2_B}`, SEC_B].join('\n\n');
+  const chunks = chunkText(text, VISIT_URL);
+
+  // Byte-identical to main: one chunk, section A's header, A's body, then the absorbed
+  // section's [H2] line and body appended.
+  assert.equal(chunks.length, 1);
+  assert.equal(
+    chunks[0].content,
+    `${header('[H1] Visiting Us', `[H2] ${H2_A}`)}\n\n${SEC_A}\n\n[H2] ${H2_B}\n\n${SEC_B}`,
+  );
+
+  // The chunk still belongs to section A — that is what its header says and what the bulk
+  // of its text is — so its own metadata is untouched.
+  assert.equal(chunks[0].sectionH2, H2_A);
+  assert.equal(chunks[0].sectionAnchor, 'welcome');
+  assert.equal(chunks[0].label, H2_A);
+  // ...and the absorbed heading's anchor is no longer lost.
+  assert.deepEqual(chunks[0].extraAnchors, ['office']);
+  assertContiguous(chunks);
+});
+
+test('D2 — a page with no trailing merge is unchanged, with an empty extraAnchors', () => {
+  const text = ['[H1] Visiting Us', `[H2#welcome] ${H2_A}`, SEC_A].join('\n\n');
+  const chunks = chunkText(text, VISIT_URL);
+
+  assert.equal(chunks.length, 1);
+  assert.equal(chunks[0].content, `${header('[H1] Visiting Us', `[H2] ${H2_A}`)}\n\n${SEC_A}`);
+  assert.equal(chunks[0].sectionAnchor, 'welcome');
+  assert.deepEqual(chunks[0].extraAnchors, []);
+});
+
+// An intro section (no heading of its own, so no anchor of its own) that absorbs a trailing
+// anchored section. Here the absorbed heading is the ONLY heading in the chunk, so it is the
+// heading the chunk's trailing text sits under — and before LEO-102 this page offered the
+// visitor no anchor at all.
+const INTRO = SEC_A.replace(
+  'has let us use its spaces for thirty years.',
+  'has let us use its spaces for thirty years, and nobody there has ever once complained about it to us.',
+);
+const introText = ['[H1] Visiting Us', INTRO, `[H2#office] ${H2_B}`, SEC_B].join('\n\n');
+
+test('E — an anchorless receiving chunk records the absorbed anchor', () => {
+  const chunks = chunkText(introText, VISIT_URL);
+
+  assert.equal(chunks.length, 1);
+  assert.equal(
+    chunks[0].content,
+    `${header('[H1] Visiting Us')}\n\n${INTRO}\n\n[H2] ${H2_B}\n\n${SEC_B}`,
+  );
+  assert.equal(chunks[0].sectionH2, null);
+  assert.equal(chunks[0].sectionAnchor, null);
+  assert.deepEqual(chunks[0].extraAnchors, ['office']);
+});
+
+test('F — the citation builder prefers the heading this chunk actually sits under', () => {
+  // Receiving chunk heads its own section: the original anchor still wins, because the
+  // chunk is section A with a tail of B, not the other way round.
+  const merged = chunkText(
+    ['[H1] Visiting Us', `[H2#welcome] ${H2_A}`, SEC_A, `[H2#office] ${H2_B}`, SEC_B].join('\n\n'),
+    VISIT_URL,
+  );
+  assert.equal(packContext(merged, 6000).sources[0].url, `${VISIT_URL}#welcome`);
+
+  // Receiving chunk has no heading of its own: the absorbed heading is the one the matched
+  // text sits under, so that anchor is cited instead of a bare URL.
+  const absorbed = chunkText(introText, VISIT_URL);
+  assert.equal(packContext(absorbed, 6000).sources[0].url, `${VISIT_URL}#office`);
+
+  // No second anchor: unchanged from today, including the no-anchor-at-all case.
+  assert.equal(
+    packContext([{ content: 'a', url: VISIT_URL, label: 'P', sectionAnchor: 'one', extraAnchors: [] }], 6000).sources[0].url,
+    `${VISIT_URL}#one`,
+  );
+  assert.equal(
+    packContext([{ content: 'a', url: VISIT_URL, label: 'P', sectionAnchor: null }], 6000).sources[0].url,
+    VISIT_URL,
+  );
 });

@@ -27,6 +27,19 @@ function pageName(chunk) {
   return slug.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim() || 'this page';
 }
 
+// Anchor to deep-link for a chunk (LEO-102). A section too small to stand alone is folded
+// into the chunk before it by the scraper's trailing merge: its [H2] line travels with the
+// body, its metadata does not, and its anchor rides along in `extraAnchors`. Prefer the
+// heading whose text actually heads this chunk — the one in the header block, which
+// `sectionAnchor` describes. Only when the receiving chunk had no heading of its own is the
+// absorbed heading the one this text sits under, so only then is its anchor the right link.
+function citeAnchor(chunk) {
+  const extras = (chunk.extraAnchors || []).filter(Boolean);
+  if (extras.length === 0) return chunk.sectionAnchor || null;
+  const header = (chunk.content || '').split('\n\n')[0];
+  return /^\[H2\] /m.test(header) ? (chunk.sectionAnchor || null) : extras[0];
+}
+
 // Pack chunks into a context string up to maxChars. An oversized chunk is
 // SKIPPED rather than aborting the loop (LEO-020) — small high-scoring
 // siblings later in the list still fit. Chunk order is score order, so the
@@ -43,8 +56,9 @@ function packContext(chunks, maxChars) {
     // sections still yields a single source entry (LEO-032).
     if (seenUrls.has(chunk.url)) continue;
     seenUrls.add(chunk.url);
+    const anchor = citeAnchor(chunk);
     sources.push({
-      url: chunk.sectionAnchor ? `${chunk.url}#${chunk.sectionAnchor}` : chunk.url,
+      url: anchor ? `${chunk.url}#${anchor}` : chunk.url,
       name: pageName(chunk),
     });
   }
@@ -75,7 +89,7 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       },
     },
     {
-      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, pageH1: 1, label: 1, sectionAnchor: 1, score: { $meta: 'vectorSearchScore' } },
+      $project: { content: 1, url: 1, source: 1, chunkIndex: 1, pageH1: 1, label: 1, sectionAnchor: 1, extraAnchors: 1, score: { $meta: 'vectorSearchScore' } },
     },
   ]);
 
@@ -96,13 +110,13 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
       domain,
       url: { $in: matchedUrls },
       source: { $nin: ['owner_reply'] },
-    }).select('content url source chunkIndex pageH1 label sectionAnchor embedding').lean();
+    }).select('content url source chunkIndex pageH1 label sectionAnchor extraAnchors embedding').lean();
 
     for (const c of candidates) {
       if (primaryIds.has(c._id.toString())) continue;
       const score = dotProduct(queryEmbedding, c.embedding);
       if (score >= siblingThreshold) {
-        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, sectionAnchor: c.sectionAnchor, score });
+        siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, sectionAnchor: c.sectionAnchor, extraAnchors: c.extraAnchors, score });
       }
     }
     siblings.sort((a, b) => b.score - a.score);

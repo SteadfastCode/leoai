@@ -517,7 +517,7 @@ function toSentences(text) {
 //   3. Oversized sections (> CHUNK_MAX) are paragraph-split with the usual sentence/word fallbacks.
 //   4. Every chunk is prefixed with [Source], [H1], and the H2(s) it contains.
 //
-// Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label, sourceUrls.
+// Each chunk carries: content, url, chunkIndex, pageH1, sectionH2, label, sourceUrls, extraAnchors.
 function chunkText(text, url, cs = {}) {
   const chunks = [];
 
@@ -586,6 +586,7 @@ function chunkText(text, url, cs = {}) {
       pageH1:    pageH1 || null,
       sectionH2: primaryH2 || null,
       sectionAnchor: primaryAnchor || null,
+      extraAnchors: [], // anchors of sections later folded in by the trailing merge (LEO-102)
       label:     h2s.length > 0 ? h2s.join(' / ') : (pageH1 || 'Intro'),
       sourceUrls: [url],
     });
@@ -594,7 +595,16 @@ function chunkText(text, url, cs = {}) {
   // LEO-048: append a trailing flush's NEW text (past the header and any carried overlap)
   // to the previous chunk instead of pushing a sub-TINY_BUF_THRESHOLD micro-chunk. Empty
   // text means the flush was pure overlap — already that chunk's tail — so it is dropped.
-  const appendToLast = (novel) => { if (novel) chunks[chunks.length - 1].content += `\n\n${novel}`; };
+  // LEO-102: an absorbed section's [H2] line travels with the text but its metadata does
+  // not — the receiving chunk keeps its own sectionH2/label/sectionAnchor. Carry the
+  // absorbed anchor alongside in extraAnchors so the heading stays addressable.
+  const appendToLast = (novel, anchors = []) => {
+    if (!novel) return;
+    const last = chunks[chunks.length - 1];
+    last.content += `\n\n${novel}`;
+    if (!last.extraAnchors) last.extraAnchors = [];
+    for (const a of anchors) if (a && !last.extraAnchors.includes(a)) last.extraAnchors.push(a);
+  };
 
   // Paragraph-split fallback for a single section that exceeds CHUNK_MAX
   function splitOversizedSection(section) {
@@ -646,7 +656,8 @@ function chunkText(text, url, cs = {}) {
     // Merge path: same guard. The [H2] line travels with the body text so the heading is
     // not lost from the corpus along with the chunk it would have had to itself.
     if (trailing && chunks.length > 0 && paras.join('\n\n').length < TINY_BUF_THRESHOLD) {
-      appendToLast([...h2s.map(h => `[H2] ${h}`), ...paras].join('\n\n'));
+      appendToLast([...h2s.map(h => `[H2] ${h}`), ...paras].join('\n\n'),
+        mergeBuf.filter(s => s.h2).map(s => s.anchor));
       mergeBuf = []; mergeBufLen = 0;
       return;
     }
