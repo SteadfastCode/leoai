@@ -124,7 +124,12 @@ router.get('/entities/:domain/conversations', async (req, res) => {
 // GET /api/dashboard/entities/:domain/conversations/:id — single conversation
 router.get('/entities/:domain/conversations/:id', async (req, res) => {
   try {
-    const conversation = await Conversation.findById(req.params.id);
+    // Scoped by domain, not just by id (LEO-107). The router.param floor above proves
+    // the caller holds a membership for the domain in the PATH; it cannot prove the id
+    // in the next segment belongs to that domain. This response is the whole document —
+    // every visitor message, pendingQuestions, and the sessionToken, which
+    // GET /chat/history accepts as a credential.
+    const conversation = await Conversation.findOne({ _id: req.params.id, domain: req.params.domain });
     if (!conversation) return res.status(404).json({ error: 'Not found' });
     res.json(conversation); // includes pendingQuestions and handoffPending
   } catch (err) {
@@ -198,8 +203,12 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
   if (!replyText?.trim()) return res.status(400).json({ error: 'replyText is required' });
 
   try {
+    // Both halves of this handler must name the same entity (LEO-107). The reply lands
+    // on the conversation and the unanswered-question resolution plus the owner_reply
+    // chunk land on the path domain, so an unscoped lookup here let one request write
+    // into two entities at once — the reply delivered to another entity's visitor.
     const [conversation, entity] = await Promise.all([
-      Conversation.findById(req.params.id),
+      Conversation.findOne({ _id: req.params.id, domain: req.params.domain }),
       Entity.findOne({ domain: req.params.domain }),
     ]);
     if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
@@ -595,7 +604,11 @@ router.post('/entities/:domain/invites', requireAuth(PERMISSIONS.USERS_MANAGE), 
 // DELETE /api/dashboard/entities/:domain/invites/:inviteId — cancel a pending invite
 router.delete('/entities/:domain/invites/:inviteId', requireAuth(PERMISSIONS.USERS_MANAGE), async (req, res) => {
   try {
-    await Invite.findByIdAndDelete(req.params.inviteId);
+    // Scoped by domain (LEO-107) — deleting by id alone cancelled any other entity's
+    // pending invite. deletedCount tells us the row was actually ours; 0 means it
+    // either never existed or belongs to someone else, and both are a 404 here.
+    const { deletedCount } = await Invite.deleteOne({ _id: req.params.inviteId, domain: req.params.domain });
+    if (deletedCount !== 1) return res.status(404).json({ error: 'Invite not found' });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
