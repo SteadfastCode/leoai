@@ -150,37 +150,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading**
-  `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
-  section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
-  The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
-  `label` and `sectionAnchor` (`models/Chunk.js:10-13`), and the absorbed section's anchor is written nowhere
-  at all. `services/rag.js:47` builds the source Leo cites as `url#sectionAnchor` (LEO-031, LEO-032), so a
-  retrieval hit on the appended text deep-links the visitor to the *preceding* section, and the absorbed
-  heading's own anchor vanishes from the corpus so nothing can ever link to it. Site navigation and deep
-  linking are named in `CLAUDE.md` as a differentiator, which is exactly what a confidently wrong anchor
-  undoes. The `appendToLast` inside `splitOversizedSection` (line 632) is **not** affected — both halves there
-  belong to one section and share its anchor.
-  Build: carry the absorbed anchor alongside rather than overwriting — an optional `extraAnchors: [String]` on
-  the chunk shape and on the `Chunk` and `ArchivedChunk` models (**no `required`, no `unique`, default
-  `[]`**) — and have the citation builder in `rag.js` prefer the anchor whose heading text actually appears in
-  the matched chunk, falling back to `sectionAnchor` exactly as today whenever there is no second anchor. No
-  chunk is split differently and no chunk is added: the boundaries and the content this produces must be
-  byte-identical to today's.
-  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines: the trailing `appendToLast` call
-  site and the shape it pushes**), `backend/src/services/rag.js` (**restricted — ≤30 changed lines: the
-  `sources.push` citation only, never the `$vectorSearch` stage**), `backend/src/models/Chunk.js`,
-  `backend/src/models/ArchivedChunk.js`, `backend/test/chunk-trailing-merge.test.js`.
-  *Verify:* `node --test` over the existing offline harness in `backend/test/chunk-trailing-merge.test.js`
-  (no DB, no network): a page whose last section is under `TINY_BUF_THRESHOLD` produces the same number of
-  chunks with the same text as `main` and the final chunk now carries the absorbed heading's anchor; a page
-  with no merge is byte-identical including an empty `extraAnchors`; and the citation builder picks the
-  absorbed anchor when the matched text sits under that heading and the original otherwise. Confirm the anchor
-  assertions go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: changing `CHUNK_TARGET`, `CHUNK_MAX`, `CHUNK_OVERLAP` or `TINY_BUF_THRESHOLD`; semantic
-  chunking (the `rag.js:88` TODO) and the two-phase sibling retrieval around it; the `$vectorSearch` stage and
-  `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
-  the dashboard's chunk viewer.
 
 - [ ] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind**
   The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
@@ -1156,6 +1125,37 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading** (routine 2026-11-07, 05e77cc)
+  `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
+  section into the previous chunk with `appendToLast([...h2s.map(h => '[H2] ' + h), ...paras].join('\n\n'))`.
+  The text and the `[H2]` line travel; the metadata does not. The receiving chunk keeps its own `sectionH2`,
+  `label` and `sectionAnchor` (`models/Chunk.js:10-13`), and the absorbed section's anchor is written nowhere
+  at all. `services/rag.js:47` builds the source Leo cites as `url#sectionAnchor` (LEO-031, LEO-032), so a
+  retrieval hit on the appended text deep-links the visitor to the *preceding* section, and the absorbed
+  heading's own anchor vanishes from the corpus so nothing can ever link to it. Site navigation and deep
+  linking are named in `CLAUDE.md` as a differentiator, which is exactly what a confidently wrong anchor
+  undoes. The `appendToLast` inside `splitOversizedSection` (line 632) is **not** affected — both halves there
+  belong to one section and share its anchor.
+  Build: carry the absorbed anchor alongside rather than overwriting — an optional `extraAnchors: [String]` on
+  the chunk shape and on the `Chunk` and `ArchivedChunk` models (**no `required`, no `unique`, default
+  `[]`**) — and have the citation builder in `rag.js` prefer the anchor whose heading text actually appears in
+  the matched chunk, falling back to `sectionAnchor` exactly as today whenever there is no second anchor. No
+  chunk is split differently and no chunk is added: the boundaries and the content this produces must be
+  byte-identical to today's.
+  Files: `backend/src/services/scraper.js` (**restricted — ≤30 changed lines: the trailing `appendToLast` call
+  site and the shape it pushes**), `backend/src/services/rag.js` (**restricted — ≤30 changed lines: the
+  `sources.push` citation only, never the `$vectorSearch` stage**), `backend/src/models/Chunk.js`,
+  `backend/src/models/ArchivedChunk.js`, `backend/test/chunk-trailing-merge.test.js`.
+  *Verify:* `node --test` over the existing offline harness in `backend/test/chunk-trailing-merge.test.js`
+  (no DB, no network): a page whose last section is under `TINY_BUF_THRESHOLD` produces the same number of
+  chunks with the same text as `main` and the final chunk now carries the absorbed heading's anchor; a page
+  with no merge is byte-identical including an empty `extraAnchors`; and the citation builder picks the
+  absorbed anchor when the matched text sits under that heading and the original otherwise. Confirm the anchor
+  assertions go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: changing `CHUNK_TARGET`, `CHUNK_MAX`, `CHUNK_OVERLAP` or `TINY_BUF_THRESHOLD`; semantic
+  chunking (the `rag.js:88` TODO) and the two-phase sibling retrieval around it; the `$vectorSearch` stage and
+  `services/embeddings.js` (denylisted); re-embedding or rescraping any real entity to backfill the field; and
+  the dashboard's chunk viewer.
 - [x] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** (routine 2026-11-07, c4b744d)
   Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
   (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.

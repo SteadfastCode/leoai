@@ -76,7 +76,7 @@
     "LEO-102": {
       "order": 5,
       "title": "A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-102",
