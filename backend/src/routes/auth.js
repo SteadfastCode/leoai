@@ -18,6 +18,7 @@ const { requireAuth, signAccessToken, signRefreshToken, JWT_SECRET, isSuperAdmin
 const { ROLE_PRESETS } = require('../models/Permission');
 const { sendEmailRaw } = require('../services/notifications');
 const { hashResetToken } = require('../services/resetToken');
+const { assertAssignableRole } = require('../services/team');
 
 const RP_NAME = 'LeoAI Dashboard';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -479,13 +480,22 @@ router.post('/invite/:token/accept', async (req, res) => {
     });
     if (!invite) return res.status(404).json({ error: 'Invite not found or expired' });
 
+    // Second line of defence (LEO-106). The invite route refuses an
+    // unassignable role now, but a row written before that shipped — or one
+    // dropped straight into Mongo — must not be honoured either: this is the
+    // request that turns a role string into a membership, and `superadmin` in
+    // any membership for any domain makes isSuperAdmin() true everywhere.
+    // Refuse without touching the invite or the user, so nothing is half-done.
+    const roleCheck = assertAssignableRole(invite.role, `invite accept ${invite.domain}`);
+    if (!roleCheck.ok) return res.status(403).json({ error: roleCheck.error });
+
     let user = await User.findOne({ email: invite.email });
 
     if (user) {
       // Existing user — just add membership if not already present
       const alreadyMember = user.memberships.some((m) => m.entityDomain === invite.domain);
       if (!alreadyMember) {
-        user.memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] });
+        user.memberships.push({ entityDomain: invite.domain, roles: [roleCheck.role], permissions: [] });
         await user.save();
       }
     } else {
@@ -498,7 +508,7 @@ router.post('/invite/:token/accept', async (req, res) => {
         name,
         email: invite.email,
         hashedPassword: await bcrypt.hash(password, 12),
-        memberships: [{ entityDomain: invite.domain, roles: [invite.role], permissions: [] }],
+        memberships: [{ entityDomain: invite.domain, roles: [roleCheck.role], permissions: [] }],
       });
     }
 
