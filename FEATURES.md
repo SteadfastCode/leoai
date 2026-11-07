@@ -152,7 +152,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to**
+- [x] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to**
   `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
   straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
   `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
