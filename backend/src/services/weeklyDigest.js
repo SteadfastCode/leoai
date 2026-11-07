@@ -26,21 +26,38 @@
 // a digest the instant the toggle flips is not what the day+hour setting
 // means. It waits for its scheduled slot.
 //
+// The "Most asked" list is filtered through the entity's own do-not-relay list
+// (LEO-047) — see renderWeeklyDigestBody. It is the only place this body prints
+// visitor text verbatim, and an owner who said they never want a topic
+// forwarded must not receive it once a week instead.
+//
+// The stamp is CLAIMED before the send and ROLLED BACK when the send throws.
+// The claim has to come first — it is what makes a double-send impossible — but
+// stamping and then losing the mail cost the owner the whole week: the day+hour
+// match plus MIN_GAP_MS made a retry impossible until the next scheduled tick.
+// The rollback is a compare-and-set matched on the value THIS tick wrote, so a
+// concurrent tick's stamp is never clobbered. Accepted trade: a send that
+// succeeded but reported an error is retried once.
+//
 // Debug tiers — WEEKLY_DIGEST_LOG_LEVEL = off | light | normal | verbose:
 //   light (default) one line per entity decision, naming the REASON it was
 //                   taken or held — slot match, catch-up after N days, gap
 //                   guard, disabled — plus every post-due outcome (the send,
-//                   zero activity, a stamp that moved under us)
+//                   zero activity, a stamp that moved under us, questions the
+//                   do-not-relay list withheld, a stamp rolled back)
 //   normal          adds the tick-level counts
 //   verbose         adds the raw schedule + last-send stamp each decision read
 // This runs away from a human (an hourly cron tick), so the light tier always
 // says the SOURCE of a send — the entity's own schedule and the window it
-// covered — not just that mail went out.
+// covered — not just that mail went out. Withheld questions are reported as a
+// COUNT and never as text: the admin log viewer would put them back on a
+// screen, the same discipline notifications.js keeps.
 
 const Entity = require('../models/Entity');
 const Conversation = require('../models/Conversation');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
 const { shapeTopQuestions, dayKey } = require('./analytics');
+const { matchesDoNotRelay } = require('./doNotRelay');
 const { sendEmailRaw } = require('./email');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -258,6 +275,20 @@ function plural(n, noun) {
 }
 
 /**
+ * The most-asked rows this body may print: everything the entity's own
+ * do-not-relay list does not match. Pure, and shared with the tick so the
+ * light-tier log line counts exactly what the renderer dropped.
+ *
+ * Only the rendered representative text is tested, because only it is printed —
+ * a grouped sibling's wording never reaches the owner.
+ */
+function relayableQuestions(topQuestions, doNotRelay) {
+  const rows = (topQuestions || []).filter(Boolean);
+  if (!Array.isArray(doNotRelay) || !doNotRelay.length) return rows;
+  return rows.filter((q) => !matchesDoNotRelay(q.question, doNotRelay));
+}
+
+/**
  * Plain-text digest body, or null when the entity had no activity at all —
  * zero activity suppresses the email entirely rather than sending an empty
  * report.
@@ -266,8 +297,20 @@ function plural(n, noun) {
  * a weekly reader's eye lands in the same place), then the most-asked list in
  * the order shapeTopQuestions returns — count descending, most recent first on
  * a tie.
+ *
+ * The headline was the one line pushed unconditionally while every line after
+ * it is zero-guarded — and zero IS reachable: conversationRetentionDays under
+ * seven days sweeps the conversations whose UnansweredQuestion rows remain, so
+ * a week can be real activity (unanswered > 0) with nothing left to count.
+ * It is dropped when BOTH of its counts are zero rather than emailing an owner
+ * "0 visitor messages answered across 0 conversations". One of the two still
+ * being non-zero is a real number and still prints.
+ *
+ * `doNotRelay` is the entity's never-relay list (LEO-047), filtered through the
+ * same matchesDoNotRelay the handoff alerts use. The counts are aggregates, not
+ * text, so they are left alone; the most-asked list is not.
  */
-function renderWeeklyDigestBody(entityName, stats, { since, until } = {}) {
+function renderWeeklyDigestBody(entityName, stats, { since, until, doNotRelay = [] } = {}) {
   if (!stats || !stats.hasActivity) return null;
 
   const name = entityName || 'your site';
@@ -276,17 +319,20 @@ function renderWeeklyDigestBody(entityName, stats, { since, until } = {}) {
   const lines = [
     `Here's what Leo did for ${name} this week${span}:`,
     '',
-    `  ${plural(stats.visitorMessages, 'visitor message')} answered across ${plural(stats.activeConversations, 'conversation')}`,
   ];
+  if (stats.visitorMessages || stats.activeConversations) {
+    lines.push(`  ${plural(stats.visitorMessages, 'visitor message')} answered across ${plural(stats.activeConversations, 'conversation')}`);
+  }
   if (stats.newConversations) lines.push(`  ${plural(stats.newConversations, 'new conversation')} started`);
   if (stats.handoffs) lines.push(`  ${plural(stats.handoffs, 'question')} passed to you`);
   if (stats.stillWaiting) lines.push(`  ${plural(stats.stillWaiting, 'conversation')} still waiting on your reply`);
   if (stats.ownerReplies) lines.push(`  ${plural(stats.ownerReplies, 'reply')} you sent back`);
   if (stats.unanswered) lines.push(`  ${plural(stats.unanswered, 'question')} Leo couldn't answer`);
 
-  if (stats.topQuestions.length) {
+  const topQuestions = relayableQuestions(stats.topQuestions, doNotRelay);
+  if (topQuestions.length) {
     lines.push('', 'Most asked:');
-    for (const q of stats.topQuestions) lines.push(`  ${q.count}×  ${q.question}`);
+    for (const q of topQuestions) lines.push(`  ${q.count}×  ${q.question}`);
   }
 
   lines.push(
@@ -327,13 +373,25 @@ async function collectWeekStats(domain, since, until) {
 
 /**
  * One pass over digest-enabled entities. Runs beside the LeoRefresh hourly
- * tick. Skips silently when an entity had zero activity, and stamps
+ * tick. Skips silently when an entity had zero activity, and claims
  * lastWeeklyDigestAt atomically (matched on its previous value, the same
  * pattern the unanswered digest and the handoff follow-up use) so concurrent
- * ticks can never double-send. Returns the number of emails sent.
+ * ticks can never double-send. A send that throws rolls that claim back so the
+ * next hourly tick retries inside the same week. Returns the number of emails
+ * sent.
+ *
+ * `deps` injects the three collaborators that reach outside this process —
+ * `{ Entity, collectStats, send }`, each defaulting to the real one. This is
+ * the only path in the file that can email an owner, which makes it both the
+ * one that most needs testing and the one that must never be tested against
+ * the real mailer.
  */
-async function runWeeklyDigestTick(now = Date.now()) {
-  const entities = await Entity.find({ 'weeklyDigest.enabled': true }).lean();
+async function runWeeklyDigestTick(now = Date.now(), deps = {}) {
+  const entityModel = deps.Entity || Entity;
+  const collectStats = deps.collectStats || collectWeekStats;
+  const send = deps.send || sendEmailRaw;
+
+  const entities = await entityModel.find({ 'weeklyDigest.enabled': true }).lean();
   if (!entities.length) {
     debug('normal', 'no entity has weeklyDigest.enabled — nothing to do');
     return 0;
@@ -357,13 +415,14 @@ async function runWeeklyDigestTick(now = Date.now()) {
 
     let stats;
     try {
-      stats = await collectWeekStats(entity.domain, since, until);
+      stats = await collectStats(entity.domain, since, until);
     } catch (err) {
       console.error(`[WeeklyDigest] Stats failed for ${entity.domain}:`, err.message);
       continue;
     }
 
-    const body = renderWeeklyDigestBody(entity.name, stats, { since, until });
+    const doNotRelay = Array.isArray(entity.doNotRelay) ? entity.doNotRelay : [];
+    const body = renderWeeklyDigestBody(entity.name, stats, { since, until, doNotRelay });
     if (!body) {
       // No email AND no stamp: nothing happened, so next week's tick is the
       // first one that can report anything. Consequence of the catch-up arm,
@@ -376,9 +435,16 @@ async function runWeeklyDigestTick(now = Date.now()) {
       continue;
     }
 
-    const updated = await Entity.findOneAndUpdate(
-      { domain: entity.domain, lastWeeklyDigestAt: entity.lastWeeklyDigestAt ?? null },
-      { $set: { lastWeeklyDigestAt: new Date(now) } }
+    const withheld = (stats.topQuestions || []).length - relayableQuestions(stats.topQuestions, doNotRelay).length;
+    if (withheld) {
+      debug('light', `withheld ${withheld} most-asked question${withheld === 1 ? '' : 's'} from ${entity.domain}'s digest — source: entity.doNotRelay (${doNotRelay.length} phrase${doNotRelay.length === 1 ? '' : 's'})`);
+    }
+
+    const previousStamp = entity.lastWeeklyDigestAt ?? null;
+    const claimedAt = new Date(now);
+    const updated = await entityModel.findOneAndUpdate(
+      { domain: entity.domain, lastWeeklyDigestAt: previousStamp },
+      { $set: { lastWeeklyDigestAt: claimedAt } }
     );
     if (!updated) {
       debug('light', `skipped ${entity.domain} — reason: stamp-race (lastWeeklyDigestAt moved under us, another tick is sending this week)`);
@@ -387,10 +453,21 @@ async function runWeeklyDigestTick(now = Date.now()) {
 
     debug('light', `sending to ${entity.ownerEmail} for ${entity.domain} — reason: ${decision.reason}, source: entity.weeklyDigest (dayOfWeek ${cfg.dayOfWeek ?? 1}, hour ${cfg.hour ?? 13} UTC), window ${since.toISOString()} to ${until.toISOString()}, ${stats.visitorMessages} visitor message(s), ${stats.handoffs} handoff(s) from conversation.handoffLog (${stats.handoffsFromLegacyPending} of them only in pendingQuestions, pre-handoffLog conversations)`);
     try {
-      await sendEmailRaw(entity.ownerEmail, `What Leo did for ${entity.name} this week`, body);
+      await send(entity.ownerEmail, `What Leo did for ${entity.name} this week`, body);
       sent++;
     } catch (err) {
       console.error(`[WeeklyDigest] Send failed for ${entity.domain}:`, err.message);
+      // Release the claim so the next hourly tick can retry inside the same
+      // week — stamped-then-lost used to cost the owner the whole week. Matched
+      // on the value THIS tick wrote: if a concurrent tick has already stamped
+      // its own send, the filter misses and its stamp stands.
+      const released = await entityModel.findOneAndUpdate(
+        { domain: entity.domain, lastWeeklyDigestAt: claimedAt },
+        { $set: { lastWeeklyDigestAt: previousStamp } }
+      );
+      debug('light', released
+        ? `restored ${entity.domain} lastWeeklyDigestAt to ${previousStamp ? new Date(previousStamp).toISOString() : 'never'} — source: this tick's own claim ${claimedAt.toISOString()}, released because the send threw; the next hourly tick retries this week`
+        : `left ${entity.domain} lastWeeklyDigestAt as it stands — reason: stamp-race (it no longer holds this tick's claim ${claimedAt.toISOString()}, another tick owns this week)`);
     }
   }
 
