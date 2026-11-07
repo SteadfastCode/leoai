@@ -2,9 +2,10 @@
 // calculation (DST-adjacent), the week summariser's activity detection, and
 // the body renderer's zero-activity suppression and line ordering.
 //
-// Nothing here touches the DB or the mailer — the tick's send path is the one
-// thing these tests deliberately do not exercise, because triggering a real
-// send is the failure mode that matters most.
+// Nothing here touches the DB or a real mailer. The tick IS exercised (LEO-100
+// — the claim/send/rollback sequence is the whole point of that item), but only
+// with the Entity model, the stats collector and the mailer injected, so no
+// send can leave the process and no query can reach Mongo.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -14,6 +15,7 @@ const {
   weeklyDigestDecision,
   summarizeWeek,
   renderWeeklyDigestBody,
+  runWeeklyDigestTick,
   MIN_GAP_MS,
   CATCHUP_MS,
   WEEK_MS,
@@ -567,4 +569,282 @@ test('a missing window still renders a usable body', () => {
   });
   const body = renderWeeklyDigestBody('Example Bakery', stats);
   assert.match(body, /Example Bakery this week:/);
+});
+
+// --- renderWeeklyDigestBody: the do-not-relay list (LEO-100) ----------------
+// "Most asked" is the only place this body prints visitor text verbatim, so it
+// is the only place the owner's own never-relay list (LEO-047) has to be
+// honoured. notifications.js withholds the same text from handoff SMS/email;
+// without this the owner who said "never forward salary questions" received
+// them anyway, once a week.
+
+function mixedAsk() {
+  return summarizeWeek({
+    conversations: [{
+      messages: [
+        msg('user', 'What do you pay your staff?', 1),
+        msg('assistant', 'I will pass that on.', 1),
+        msg('user', 'What time do you open?', 2),
+        msg('assistant', 'At 7.', 2),
+      ],
+    }],
+    since: SINCE,
+    until: UNTIL,
+  });
+}
+
+test('a question on the do-not-relay list is absent from the body, the rest survive', () => {
+  const body = renderWeeklyDigestBody('Example Bakery', mixedAsk(), {
+    since: SINCE, until: UNTIL, doNotRelay: ['what do you pay'],
+  });
+  assert.doesNotMatch(body, /pay your staff/);
+  assert.match(body, /Most asked:/);
+  assert.match(body, /What time do you open\?/);
+});
+
+test('matching ignores case and whitespace, and the counts are left alone', () => {
+  const stats = summarizeWeek({
+    conversations: [{ messages: [msg('user', 'What do you   PAY your staff?', 1), msg('assistant', 'Passing it on.', 1)] }],
+    since: SINCE,
+    until: UNTIL,
+  });
+  const body = renderWeeklyDigestBody('Example Bakery', stats, {
+    since: SINCE, until: UNTIL, doNotRelay: ['What Do You Pay'],
+  });
+  // Every most-asked row withheld: the block goes entirely, the digest still sends.
+  assert.doesNotMatch(body, /Most asked/);
+  assert.doesNotMatch(body, /staff/);
+  // The aggregate is a number, not text, and is still reported.
+  assert.match(body, /1 visitor message answered across 1 conversation/);
+});
+
+test('an empty, absent or non-matching do-not-relay list changes the body not at all', () => {
+  const stats = mixedAsk();
+  const plain = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.match(plain, /pay your staff/);
+  for (const list of [[], null, undefined, ['nothing like this'], ['']]) {
+    assert.equal(
+      renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL, doNotRelay: list }),
+      plain
+    );
+  }
+});
+
+// --- renderWeeklyDigestBody: the headline's own zero (LEO-100) --------------
+// Every line after the headline is zero-guarded; the headline was pushed
+// unconditionally. Zero is reachable: conversationRetentionDays under seven
+// days sweeps the conversations whose UnansweredQuestion rows remain, so a week
+// can be real activity (unanswered > 0) with nothing left to count.
+
+test('a week of nothing but unanswered questions never says "0 visitor messages"', () => {
+  const stats = summarizeWeek({ conversations: [], unansweredCount: 3, since: SINCE, until: UNTIL });
+  assert.equal(stats.visitorMessages, 0);
+  assert.equal(stats.activeConversations, 0);
+  assert.equal(stats.hasActivity, true);
+
+  const body = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.ok(body, 'a week with unanswered questions is still worth an email');
+  assert.doesNotMatch(body, /visitor message/);
+  assert.doesNotMatch(body, /0 /);
+  assert.match(body, /3 questions Leo couldn't answer/);
+  assert.match(body, /#\/unanswered/);
+});
+
+test('one non-zero headline count still prints the headline', () => {
+  // An owner reply touched a conversation but no visitor wrote: both numbers
+  // are real, so the line reads, and only BOTH-zero drops it.
+  const stats = summarizeWeek({
+    conversations: [{ messages: [msg('owner_reply', 'Hi, yes we ship.', 1)] }],
+    unansweredCount: 1,
+    since: SINCE,
+    until: UNTIL,
+  });
+  assert.equal(stats.visitorMessages, 0);
+  assert.equal(stats.activeConversations, 1);
+  const body = renderWeeklyDigestBody('Example Bakery', stats, { since: SINCE, until: UNTIL });
+  assert.match(body, /0 visitor messages answered across 1 conversation/);
+});
+
+// --- runWeeklyDigestTick: claim, send, rollback (LEO-100) -------------------
+// lastWeeklyDigestAt was stamped before the send and never put back, so one
+// transient Resend failure cost the owner the whole week: the day+hour match
+// plus MIN_GAP_MS makes a retry impossible until the next scheduled tick. The
+// claim still comes FIRST — it is what stops a double-send — so what has to
+// hold is that it is released when the send throws, kept when it does not, and
+// released only by the tick that wrote it.
+//
+// The real send path is never reached: Entity, the stats collector and the
+// mailer are all injected.
+
+// Enough of the model that the tick's REAL filters decide every outcome.
+// lastWeeklyDigestAt compares by time value, and null matches null-or-absent
+// the way Mongo does — that equivalence is what the claim and the release ride
+// on. find().lean() hands back copies, so the tick can never observe a
+// mutation made after it read.
+function fakeEntityModel(docs) {
+  const sameStamp = (a, b) => {
+    const at = a == null ? null : new Date(a).getTime();
+    const bt = b == null ? null : new Date(b).getTime();
+    return at === bt;
+  };
+  return {
+    docs,
+    filters: [],
+    find(filter) {
+      const want = filter && filter['weeklyDigest.enabled'];
+      return {
+        lean: async () => docs
+          .filter((d) => want === undefined || ((d.weeklyDigest && d.weeklyDigest.enabled) || false) === want)
+          .map((d) => ({ ...d })),
+      };
+    },
+    async findOneAndUpdate(filter, update) {
+      this.filters.push(filter);
+      const doc = docs.find((d) => d.domain === filter.domain && sameStamp(d.lastWeeklyDigestAt, filter.lastWeeklyDigestAt));
+      if (!doc) return null;
+      const before = { ...doc };
+      Object.assign(doc, update.$set);
+      return before; // mongoose returns the pre-update doc by default
+    },
+  };
+}
+
+function digestDoc(overrides = {}) {
+  return {
+    domain: 'example.com',
+    name: 'Example Bakery',
+    ownerEmail: 'owner@example.com',
+    weeklyDigest: { enabled: true, dayOfWeek: 1, hour: 13 },
+    lastWeeklyDigestAt: new Date(MONDAY_13 - 7 * DAY),
+    ...overrides,
+  };
+}
+
+function activeWeek() {
+  return summarizeWeek({
+    conversations: [{ messages: [msg('user', 'Do you ship?', 1), msg('assistant', 'We do.', 1)] }],
+    since: SINCE,
+    until: UNTIL,
+  });
+}
+
+// The failed-send path console.errors by design — keep that out of the test log
+// while leaving the tiered debug lines running, so a broken log template still
+// fails the test.
+async function quietly(fn) {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.error = original;
+  }
+}
+
+function stampMs(doc) {
+  return doc.lastWeeklyDigestAt == null ? null : new Date(doc.lastWeeklyDigestAt).getTime();
+}
+
+test('a sent digest keeps its claim, and a second tick in the same hour refuses to double-send', async () => {
+  const model = fakeEntityModel([digestDoc()]);
+  const sends = [];
+  const deps = {
+    Entity: model,
+    collectStats: async () => activeWeek(),
+    send: async (to, subject, body) => { sends.push({ to, subject, body }); },
+  };
+
+  assert.equal(await runWeeklyDigestTick(MONDAY_13, deps), 1);
+  assert.equal(sends.length, 1);
+  assert.equal(sends[0].to, 'owner@example.com');
+  assert.match(sends[0].body, /1 visitor message answered/);
+  assert.equal(stampMs(model.docs[0]), MONDAY_13);
+
+  assert.equal(await runWeeklyDigestTick(MONDAY_13 + 60 * 1000, deps), 0);
+  assert.equal(sends.length, 1);
+  assert.equal(stampMs(model.docs[0]), MONDAY_13);
+});
+
+test('a failed send releases the claim, and the next tick retries inside the same week', async () => {
+  const model = fakeEntityModel([digestDoc()]);
+  const before = stampMs(model.docs[0]);
+  let attempts = 0;
+  const deps = {
+    Entity: model,
+    collectStats: async () => activeWeek(),
+    send: async () => {
+      attempts++;
+      if (attempts === 1) throw new Error('Resend 503');
+    },
+  };
+
+  assert.equal(await quietly(() => runWeeklyDigestTick(MONDAY_13, deps)), 0);
+  assert.equal(attempts, 1);
+  assert.equal(stampMs(model.docs[0]), before, 'the stamp this tick wrote is rolled back');
+
+  // An hourly tick an hour later, still inside the owner's own week.
+  assert.equal(await runWeeklyDigestTick(MONDAY_13 + 60 * 1000, deps), 1);
+  assert.equal(attempts, 2);
+  assert.equal(stampMs(model.docs[0]), MONDAY_13 + 60 * 1000);
+});
+
+test('an entity that never sent is released back to never, not to this tick', async () => {
+  const model = fakeEntityModel([digestDoc({ lastWeeklyDigestAt: null })]);
+  const deps = {
+    Entity: model,
+    collectStats: async () => activeWeek(),
+    send: async () => { throw new Error('Resend 503'); },
+  };
+
+  assert.equal(await quietly(() => runWeeklyDigestTick(MONDAY_13, deps)), 0);
+  assert.equal(stampMs(model.docs[0]), null);
+  // ...so the first-run arm, not the gap guard, is what the retry meets.
+  assert.equal(weeklyDigestDue(model.docs[0], MONDAY_13 + 60 * 1000), true);
+});
+
+test('the release is matched on this tick\'s own claim, so a concurrent stamp survives', async () => {
+  const model = fakeEntityModel([digestDoc()]);
+  const other = new Date(MONDAY_13 + 5 * 60 * 1000);
+  const deps = {
+    Entity: model,
+    collectStats: async () => activeWeek(),
+    // A second process claims and stamps its own send while this one is in the
+    // mailer; the rollback must not put the week back for it.
+    send: async () => {
+      model.docs[0].lastWeeklyDigestAt = other;
+      throw new Error('Resend 503');
+    },
+  };
+
+  assert.equal(await quietly(() => runWeeklyDigestTick(MONDAY_13, deps)), 0);
+  assert.equal(stampMs(model.docs[0]), other.getTime());
+});
+
+test('the tick filters the digest it sends through the entity\'s own do-not-relay list', async () => {
+  const model = fakeEntityModel([digestDoc({ doNotRelay: ['what do you pay'] })]);
+  const bodies = [];
+  const deps = {
+    Entity: model,
+    collectStats: async () => mixedAsk(),
+    send: async (to, subject, body) => { bodies.push(body); },
+  };
+
+  assert.equal(await runWeeklyDigestTick(MONDAY_13, deps), 1);
+  assert.doesNotMatch(bodies[0], /pay your staff/);
+  assert.match(bodies[0], /What time do you open\?/);
+});
+
+test('a quiet week neither emails nor claims the stamp', async () => {
+  const model = fakeEntityModel([digestDoc()]);
+  const before = stampMs(model.docs[0]);
+  let sends = 0;
+  const deps = {
+    Entity: model,
+    collectStats: async () => summarizeWeek({ conversations: [], since: SINCE, until: UNTIL }),
+    send: async () => { sends++; },
+  };
+
+  assert.equal(await runWeeklyDigestTick(MONDAY_13, deps), 0);
+  assert.equal(sends, 0);
+  assert.equal(stampMs(model.docs[0]), before);
 });
