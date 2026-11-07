@@ -149,41 +149,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends**
-  Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
-  (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
-  (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
-  matching text from owner-facing handoff SMS and email, and LEO-047's whole point is that an owner can name
-  topics they never want relayed — yet the "Most asked" block (lines 205-207) emails the raw visitor question
-  text, so a topic on the list reaches the owner verbatim once a week.
-  (2) The headline line (line 197) is pushed unconditionally while every line after it is zero-guarded, and
-  `hasActivity` is true when `unanswered` alone is non-zero — reachable whenever `conversationRetentionDays`
-  is set below 7 and the sweep removed the conversations whose `UnansweredQuestion` rows remain. The owner is
-  then emailed "0 visitor messages answered across 0 conversations". The existing test at
-  `backend/test/weekly-digest.test.js:417` ("zero-valued lines are omitted rather than printed as 0") uses a
-  fixture with non-zero headline counts, so it never exercises the one line that cannot be omitted.
-  (3) `lastWeeklyDigestAt` is stamped by an atomic `findOneAndUpdate` (lines 287-290) **before**
-  `sendEmailRaw` (line 298). A transient Resend failure is caught and `console.error`'d, and the day+hour
-  match plus `MIN_GAP_MS` then make a retry impossible until the next scheduled tick — one flaky send costs
-  the owner the entire week.
-  Build: pass the entity's list into `renderWeeklyDigestBody` and filter "Most asked" through the existing
-  `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
-  headline line when both of its counts are zero; and on a send failure roll the stamp back with a
-  compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
-  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
-  stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
-  retried once.
-  Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
-  *Verify:* `node --test` — a question matching a `doNotRelay` phrase is absent from the rendered body while
-  the rest of the list survives, and an empty or absent list changes the output not at all; a stats object
-  with zero visitor messages, zero conversations and non-zero unanswered renders a body with no
-  "0 visitor messages" line that still reports the unanswered count; the stamp is restored when the injected
-  mailer throws and left in place when it resolves, with a second tick in the same hour still refusing to
-  double-send. Confirm each goes red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: `weeklyDigestDue`'s missing catch-up arm — LEO-084 owns it, the two touch different functions
-  in this file and whichever lands second rebases; the digest's schedule, opt-in default or line order;
-  `services/notifications.js` and `services/unansweredDigest.js`; sending a real email to check one; and any
-  `Entity` schema change.
 
 - [ ] **(LEO-102) A merged trailing section loses its anchor, so Leo's cited link lands on the wrong heading**
   `flushMergeBuf`'s trailing branch (`backend/src/services/scraper.js:646-648`) folds a too-small final
@@ -1191,6 +1156,41 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-100) The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends** (routine 2026-11-07, c4b744d)
+  Three defects in `backend/src/services/weeklyDigest.js`, all recorded by the grader of LEO-042
+  (`ops/leo-nightly/reviews/LEO-042.graded.json`) and never filed.
+  (1) `doNotRelay` appears nowhere in the file (grepped). `services/notifications.js` deliberately withholds
+  matching text from owner-facing handoff SMS and email, and LEO-047's whole point is that an owner can name
+  topics they never want relayed — yet the "Most asked" block (lines 205-207) emails the raw visitor question
+  text, so a topic on the list reaches the owner verbatim once a week.
+  (2) The headline line (line 197) is pushed unconditionally while every line after it is zero-guarded, and
+  `hasActivity` is true when `unanswered` alone is non-zero — reachable whenever `conversationRetentionDays`
+  is set below 7 and the sweep removed the conversations whose `UnansweredQuestion` rows remain. The owner is
+  then emailed "0 visitor messages answered across 0 conversations". The existing test at
+  `backend/test/weekly-digest.test.js:417` ("zero-valued lines are omitted rather than printed as 0") uses a
+  fixture with non-zero headline counts, so it never exercises the one line that cannot be omitted.
+  (3) `lastWeeklyDigestAt` is stamped by an atomic `findOneAndUpdate` (lines 287-290) **before**
+  `sendEmailRaw` (line 298). A transient Resend failure is caught and `console.error`'d, and the day+hour
+  match plus `MIN_GAP_MS` then make a retry impossible until the next scheduled tick — one flaky send costs
+  the owner the entire week.
+  Build: pass the entity's list into `renderWeeklyDigestBody` and filter "Most asked" through the existing
+  `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
+  headline line when both of its counts are zero; and on a send failure roll the stamp back with a
+  compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
+  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
+  stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
+  retried once.
+  Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
+  *Verify:* `node --test` — a question matching a `doNotRelay` phrase is absent from the rendered body while
+  the rest of the list survives, and an empty or absent list changes the output not at all; a stats object
+  with zero visitor messages, zero conversations and non-zero unanswered renders a body with no
+  "0 visitor messages" line that still reports the unanswered count; the stamp is restored when the injected
+  mailer throws and left in place when it resolves, with a second tick in the same hour still refusing to
+  double-send. Confirm each goes red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: `weeklyDigestDue`'s missing catch-up arm — LEO-084 owns it, the two touch different functions
+  in this file and whichever lands second rebases; the digest's schedule, opt-in default or line order;
+  `services/notifications.js` and `services/unansweredDigest.js`; sending a real email to check one; and any
+  `Entity` schema change.
 - [x] **(LEO-099) "Delete it everywhere" leaves the visitor's own words in `UnansweredQuestion`** (routine 2026-11-07, 3d56e39)
   The widget's consent screen tells the visitor that "Clear my history from the server" deletes "your
   conversation — including the business's copy" (`widget/chatbot.js:125`), and the arm-to-confirm label reads

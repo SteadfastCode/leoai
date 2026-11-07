@@ -76,7 +76,7 @@
     "LEO-100": {
       "order": 5,
       "title": "The weekly digest ignores `doNotRelay`, can headline a week with zeroes, and stamps before it sends",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-100",
