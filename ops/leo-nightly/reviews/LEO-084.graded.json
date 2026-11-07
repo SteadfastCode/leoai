@@ -1,0 +1,79 @@
+{
+  "item": "LEO-084",
+  "repo": "leoai",
+  "mergeSha": "c6aaa5d8ac080318b4434ddb273c6e52dd505c81",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-07T05:29:50.427Z",
+  "gradedAtUtc": "2026-11-07T05:35:02.829Z",
+  "independent": [
+    {
+      "file": "backend/src/services/retention.js",
+      "line": 308,
+      "severity": "low",
+      "summary": "The new stamp-claiming `findOneAndUpdate` sits outside the per-entity `try`, so a transient Mongo write error on one domain throws out of the whole loop and silently drops every later entity's sweep for that tick — contradicting the function's own documented contract that \"per-entity failures are logged and skipped\". (Recovery only comes 26h later via the catch-up arm; before this change nothing in the loop could throw.)"
+    },
+    {
+      "file": "backend/src/services/unansweredDigest.js",
+      "line": 219,
+      "severity": "low",
+      "summary": "Because the empty-list path deliberately writes no stamp, a low-volume entity's stamp ages past the catch-up window and the catch-up arm re-arms every hour; the first unanswered question that appears then mails the owner at that arbitrary hour instead of the configured hourUtc slot, so the owner's chosen send hour is bypassed once per quiet period (self-corrects the following period). Documented in the comment as accepted, but it does degrade a user-facing setting for the common low-traffic case."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth or authorization logic changes; the new field is simply absent from the dashboard PATCH allowlist, which the test asserts rather than modifies."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "Only a log-level env var (UNANSWERED_DIGEST_LOG_LEVEL) is documented in .env.example — no credentials touched."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, quota, or pricing."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Correct — the diff rewrites the gate on `Conversation.deleteMany` in the retention sweep, adding an off-hour catch-up path that deletes data."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "Wrong — the diff rewrites the due-gating that decides when `sendEmailRaw` (Resend) fires for both digests, including a new catch-up arm that can send outside the owner's configured slot, so the outbound third-party send path is touched even though the call site text is unchanged."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version, CI, deploy, or build configuration changes; the .env.example line is documentation for a code-defaulted knob."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model found nothing and its triage was right on four of six categories, missing that the change re-gates outbound digest email as well as the two low-severity error-handling/scheduling consequences in the new code.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.86717,
+  "numTurns": 18,
+  "durationMs": 224481,
+  "sessionId": "5c06935a-8b1e-4b84-848a-1878446d0c78"
+}

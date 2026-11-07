@@ -1,0 +1,63 @@
+{
+  "item": "LEO-098",
+  "repo": "leoai",
+  "mergeSha": "1dda695e9dd0f5f9ae7cfb9b4f71ebc1e041d931",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-07T05:29:50.427Z",
+  "gradedAtUtc": "2026-11-07T05:31:18.308Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff rewrites the password-reset storage and lookup in backend/src/routes/auth.js, squarely an authentication flow, and the cited line is accurate."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The entire change is about how a credential — the reset token, the whole account-takeover secret — is persisted and compared (plaintext → SHA-256 digest via a new resetToken service), so secret/credential handling is plainly touched."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, pricing, or quota accounting."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletions, drops, or bulk writes; the only data effect is the pre-existing per-user unset of the consumed token and refreshTokens clearing, unchanged by this diff."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The sendEmailRaw call site is untouched (only the token value it embeds comes from the same crypto.randomBytes), and the test stubs the mailer rather than adding any outbound call."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy config, migration, env var, or version artifact changes — the stale-token invalidation is a PR-body note, not a release-surface change."
+    }
+  ],
+  "missed": [],
+  "summary": "A clean sheet was the right call here — the change is correct, complete (write site, read site, null-guard, and both halves behind one pure function), and the test's known digest and harness shape check out — but the local triage wrongly marked secrets as untouched when storing a credential safely is the whole point of the item.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 0.873728,
+  "numTurns": 12,
+  "durationMs": 83417,
+  "sessionId": "494e141f-1e1d-42bb-bc31-91f0aa891c00"
+}
