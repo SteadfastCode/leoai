@@ -291,8 +291,11 @@ router.post('/forget', async (req, res) => {
     return res.status(400).json({ error: 'domain and sessionToken are required' });
   }
   try {
-    const deleted = await forgetConversation({ domain, sessionToken });
-    res.json({ deleted, forgotten: deleted > 0 });
+    // Two collections go (LEO-099): the transcript, and the questions the
+    // Unanswered log stored verbatim. `deleted` stays the conversation count
+    // the widget has always read; the question count is an added field.
+    const { conversations, questions } = await forgetConversation({ domain, sessionToken });
+    res.json({ deleted: conversations, forgotten: conversations > 0, questionsDeleted: questions });
   } catch (err) {
     logger.error('chat', `forget failed: ${err.message}`, { stack: err.stack }, domain);
     res.status(500).json({ error: 'Could not clear your history. Please try again.' });
