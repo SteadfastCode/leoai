@@ -153,37 +153,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`**
-  The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
-  caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
-  next path segment belongs to that domain, and three handlers never check. (1) `GET
-  /entities/:domain/conversations/:id` reads `Conversation.findById(req.params.id)` (line 126) and returns the
-  whole document — every visitor message, `pendingQuestions`, `handoffPending` and the `sessionToken`, which
-  `GET /chat/history` accepts as a credential. (2) `POST .../conversations/:id/reply` loads the conversation
-  the same way (line 201) while taking the entity from the path (line 202), so a member of entity A can push
-  an `owner_reply` into entity B's conversation — delivered to B's visitor on their next widget open, since it
-  is stored `seenByVisitor: false` (line 208) — while the unanswered-question resolution (line 227) and the
-  `owner_reply` chunk (line 253) land on A. One request, two entities, each holding half the result.
-  (3) `DELETE .../invites/:inviteId` deletes by id alone (line 578), cancelling any other entity's pending
-  invite. The correct pattern is already in the same file three times: `Conversation.findOne({ _id:
-  req.params.id, domain: req.params.domain })` at line 179, and `UnansweredQuestion.findOne({ _id: id,
-  entityDomain: domain })` at 719 and 755. Pre-alpha every entity is Daniel's, so nothing is exposed today —
-  Block H is empty and this is the cheapest thing that belongs in it.
-  Build: scope all three lookups by domain, keeping each handler's existing 404 and message. For the invite,
-  `Invite.deleteOne({ _id: req.params.inviteId, domain })` and answer `{ ok: true }` only on
-  `deletedCount === 1`, else 404. No route is renamed, no response field removed.
-  Files: `backend/src/routes/dashboard.js`, `backend/test/entity-scoping.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` with two entities and a user holding a membership for
-  only the first: each of the three calls, made with the user's own domain in the path and the **second**
-  entity's object id, returns 404 and leaves that object byte-identical (conversation `messages.length`
-  unchanged, invite still present); each of the three for their own entity behaves exactly as today; a
-  superadmin is unaffected. All three must go red against unmodified `main` — the GET currently returns 200
-  with the foreign transcript. `cd backend && yarn verify && yarn test`.
-  Out of scope: adding `PERMISSIONS` arguments to the routes that carry none — the floor covers membership and
-  the finer-grained read split is a separate decision; socket rooms (LEO-068); `GET /chat/history`'s public
-  session-token read; auditing or repairing any historical cross-entity write; and the by-id handlers outside
-  this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
-  `routes/codes.js` is superadmin-only and global by design).
 
 - [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone**
   `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
@@ -1055,6 +1024,37 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** (routine 2026-11-07, ab5b488)
+  The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
+  caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
+  next path segment belongs to that domain, and three handlers never check. (1) `GET
+  /entities/:domain/conversations/:id` reads `Conversation.findById(req.params.id)` (line 126) and returns the
+  whole document — every visitor message, `pendingQuestions`, `handoffPending` and the `sessionToken`, which
+  `GET /chat/history` accepts as a credential. (2) `POST .../conversations/:id/reply` loads the conversation
+  the same way (line 201) while taking the entity from the path (line 202), so a member of entity A can push
+  an `owner_reply` into entity B's conversation — delivered to B's visitor on their next widget open, since it
+  is stored `seenByVisitor: false` (line 208) — while the unanswered-question resolution (line 227) and the
+  `owner_reply` chunk (line 253) land on A. One request, two entities, each holding half the result.
+  (3) `DELETE .../invites/:inviteId` deletes by id alone (line 578), cancelling any other entity's pending
+  invite. The correct pattern is already in the same file three times: `Conversation.findOne({ _id:
+  req.params.id, domain: req.params.domain })` at line 179, and `UnansweredQuestion.findOne({ _id: id,
+  entityDomain: domain })` at 719 and 755. Pre-alpha every entity is Daniel's, so nothing is exposed today —
+  Block H is empty and this is the cheapest thing that belongs in it.
+  Build: scope all three lookups by domain, keeping each handler's existing 404 and message. For the invite,
+  `Invite.deleteOne({ _id: req.params.inviteId, domain })` and answer `{ ok: true }` only on
+  `deletedCount === 1`, else 404. No route is renamed, no response field removed.
+  Files: `backend/src/routes/dashboard.js`, `backend/test/entity-scoping.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` with two entities and a user holding a membership for
+  only the first: each of the three calls, made with the user's own domain in the path and the **second**
+  entity's object id, returns 404 and leaves that object byte-identical (conversation `messages.length`
+  unchanged, invite still present); each of the three for their own entity behaves exactly as today; a
+  superadmin is unaffected. All three must go red against unmodified `main` — the GET currently returns 200
+  with the foreign transcript. `cd backend && yarn verify && yarn test`.
+  Out of scope: adding `PERMISSIONS` arguments to the routes that carry none — the floor covers membership and
+  the finer-grained read split is a separate decision; socket rooms (LEO-068); `GET /chat/history`'s public
+  session-token read; auditing or repairing any historical cross-entity write; and the by-id handlers outside
+  this router (`routes/scrape.js:81` derives the domain from the snapshot and is superadmin-only;
+  `routes/codes.js` is superadmin-only and global by design).
 - [x] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** (routine 2026-11-07, b45ced3)
   `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
   straight from the request body and stores `role: role || 'agent'` with no validation of any kind.

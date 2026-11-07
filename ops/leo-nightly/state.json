@@ -76,7 +76,7 @@
     "LEO-107": {
       "order": 5,
       "title": "Three dashboard routes act on an object by id without checking it belongs to `:domain`",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-107",
