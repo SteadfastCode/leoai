@@ -153,7 +153,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`**
+- [x] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`**
   The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
   caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the
   next path segment belongs to that domain, and three handlers never check. (1) `GET
