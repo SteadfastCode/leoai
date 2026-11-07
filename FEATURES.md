@@ -152,42 +152,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to**
-  `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
-  straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
-  `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
-  membership: `memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] })`.
-  `User.memberships[].roles` is `[{ type: String }]` with no enum (`models/User.js:29`), and
-  `isSuperAdmin(user)` is true when **any** membership for **any** domain contains the string `superadmin`
-  (`middleware/auth.js:12-14`). The `owner` preset includes `USERS_MANAGE` (`models/Permission.js:52`), so a
-  customer who owns one entity reaches global superadmin in two requests: invite `role: 'superadmin'` to an
-  address they control on their own domain, then accept it. That is the admin console, every other entity's
-  conversations and billing, entity hard-delete, API-key minting and the impersonation endpoint. The proof
-  this was meant to be guarded is 50 lines further down: `PATCH /entities/:domain/team/:userId`
-  (`dashboard.js:591-596`) rejects any role not in `ROLE_PRESETS` **and then rejects `superadmin` by name** —
-  two guards, because `superadmin` is itself a `ROLE_PRESETS` key (`models/Permission.js:41`) and the
-  membership check alone would let it through. Two doors to the same privilege; one of them has both locks
-  and the other has neither.
-  Build: put the rule in one place and call it from both routes so they cannot drift again — export
-  `assertAssignableRole(role)` from `backend/src/services/team.js` (which already holds `isLastOwner`)
-  returning `{ ok, error }`: `undefined`/empty accepted as today's `'agent'` default, any other value required
-  to be a `ROLE_PRESETS` key, `superadmin` always refused. Call it in the invite route (400, no `Invite`
-  written) and in the existing `PATCH` route in place of its two inline checks. Then apply it again at
-  acceptance as a second line of defence — an invite minted before this ships, or written straight into
-  Mongo, must not be honoured: answer 403, leave `acceptedAt` null and the user's `memberships` untouched.
-  Files: `backend/src/services/team.js`, `backend/src/routes/dashboard.js`, `backend/src/routes/auth.js`,
-  `backend/test/invite-role.test.js`.
-  *Verify:* `node --test` on `assertAssignableRole` with no DB — every `ROLE_PRESETS` key except `superadmin`
-  accepted, `superadmin` refused, an unknown string refused, `undefined` and `''` accepted; then the real
-  routers over `mongodb-memory-server`: `POST .../invites` with `role: 'superadmin'` returns 400 and
-  `Invite.countDocuments()` is unchanged, with `role: 'agent'` still returns 201 exactly as today, the
-  existing `PATCH` behaviour is byte-identical, and accepting a hand-seeded `superadmin` invite returns 403
-  with `isSuperAdmin(user)` still false afterwards. All three new assertions must go red against unmodified
-  `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: whether `isSuperAdmin` should be domain-scoped at all rather than matching any membership —
-  a much larger change, and this item only stops the role being handed out; the `entityDomain: '*'` shape of
-  the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
-  rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
 
 - [ ] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`**
   The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
@@ -1091,6 +1055,42 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-106) An invite can hand out `superadmin`; the role change route 50 lines down refuses to** (routine 2026-11-07, b45ced3)
+  `POST /api/dashboard/entities/:domain/invites` (`backend/src/routes/dashboard.js:537-558`) takes `role`
+  straight from the request body and stores `role: role || 'agent'` with no validation of any kind.
+  `POST /auth/invite/:token/accept` (`backend/src/routes/auth.js:465-497`) then writes it verbatim into the
+  membership: `memberships.push({ entityDomain: invite.domain, roles: [invite.role], permissions: [] })`.
+  `User.memberships[].roles` is `[{ type: String }]` with no enum (`models/User.js:29`), and
+  `isSuperAdmin(user)` is true when **any** membership for **any** domain contains the string `superadmin`
+  (`middleware/auth.js:12-14`). The `owner` preset includes `USERS_MANAGE` (`models/Permission.js:52`), so a
+  customer who owns one entity reaches global superadmin in two requests: invite `role: 'superadmin'` to an
+  address they control on their own domain, then accept it. That is the admin console, every other entity's
+  conversations and billing, entity hard-delete, API-key minting and the impersonation endpoint. The proof
+  this was meant to be guarded is 50 lines further down: `PATCH /entities/:domain/team/:userId`
+  (`dashboard.js:591-596`) rejects any role not in `ROLE_PRESETS` **and then rejects `superadmin` by name** —
+  two guards, because `superadmin` is itself a `ROLE_PRESETS` key (`models/Permission.js:41`) and the
+  membership check alone would let it through. Two doors to the same privilege; one of them has both locks
+  and the other has neither.
+  Build: put the rule in one place and call it from both routes so they cannot drift again — export
+  `assertAssignableRole(role)` from `backend/src/services/team.js` (which already holds `isLastOwner`)
+  returning `{ ok, error }`: `undefined`/empty accepted as today's `'agent'` default, any other value required
+  to be a `ROLE_PRESETS` key, `superadmin` always refused. Call it in the invite route (400, no `Invite`
+  written) and in the existing `PATCH` route in place of its two inline checks. Then apply it again at
+  acceptance as a second line of defence — an invite minted before this ships, or written straight into
+  Mongo, must not be honoured: answer 403, leave `acceptedAt` null and the user's `memberships` untouched.
+  Files: `backend/src/services/team.js`, `backend/src/routes/dashboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/invite-role.test.js`.
+  *Verify:* `node --test` on `assertAssignableRole` with no DB — every `ROLE_PRESETS` key except `superadmin`
+  accepted, `superadmin` refused, an unknown string refused, `undefined` and `''` accepted; then the real
+  routers over `mongodb-memory-server`: `POST .../invites` with `role: 'superadmin'` returns 400 and
+  `Invite.countDocuments()` is unchanged, with `role: 'agent'` still returns 201 exactly as today, the
+  existing `PATCH` behaviour is byte-identical, and accepting a hand-seeded `superadmin` invite returns 403
+  with `isSuperAdmin(user)` still false afterwards. All three new assertions must go red against unmodified
+  `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: whether `isSuperAdmin` should be domain-scoped at all rather than matching any membership —
+  a much larger change, and this item only stops the role being handed out; the `entityDomain: '*'` shape of
+  the API-key principal; hashing the invite token (same class as LEO-098, which owns the pattern);
+  rate-limiting the invite endpoint (LEO-052); custom per-entity roles; and `routes/billing.js` (denylisted).
 - [x] **(LEO-105) Deleting an entity leaves its visitors' unanswered questions behind** (routine 2026-11-07, 37fa193)
   The cascade delete in `backend/src/routes/dashboard.js:644-664` sweeps six collections by `{ domain }`
   — `Chunk`, `ScrapedPage`, `Conversation`, `ScrapeSnapshot`, `ArchivedChunk` (by `snapshotId`), `Invite` —
