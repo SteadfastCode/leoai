@@ -13,8 +13,8 @@ const { embedTexts } = require('../services/embeddings');
 const { retrieveContext } = require('../services/rag');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
-const { PERMISSIONS, ROLE_PRESETS } = require('../models/Permission');
-const { isLastOwner } = require('../services/team');
+const { PERMISSIONS } = require('../models/Permission');
+const { isLastOwner, assertAssignableRole } = require('../services/team');
 const { conversationFilterQuery } = require('../services/conversations');
 const { sendEmailRaw, sendMinistryPlanRequest } = require('../services/notifications');
 const UnansweredQuestion = require('../models/UnansweredQuestion');
@@ -552,6 +552,13 @@ router.post('/entities/:domain/invites', requireAuth(PERMISSIONS.USERS_MANAGE), 
   const { email, role } = req.body;
   if (!email) return res.status(400).json({ error: 'email is required' });
 
+  // An invite is the other door to a role, and until LEO-106 it had no lock at
+  // all: `role` went to Mongo verbatim and the accept route wrote it straight
+  // into memberships. Checked here, before the Invite row exists, so a refused
+  // role leaves nothing behind to accept later.
+  const roleCheck = assertAssignableRole(role, `invite ${domain}`);
+  if (!roleCheck.ok) return res.status(400).json({ error: roleCheck.error });
+
   try {
     const alreadyMember = await User.findOne({ email, 'memberships.entityDomain': domain });
     if (alreadyMember) return res.status(409).json({ error: 'This person is already a team member' });
@@ -565,7 +572,7 @@ router.post('/entities/:domain/invites', requireAuth(PERMISSIONS.USERS_MANAGE), 
       token,
       domain,
       email,
-      role: role || 'agent',
+      role: roleCheck.role,
       invitedBy: req.user._id,
       expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
     });
@@ -576,7 +583,7 @@ router.post('/entities/:domain/invites', requireAuth(PERMISSIONS.USERS_MANAGE), 
     await sendEmailRaw(
       email,
       `You've been invited to join ${entity.name} on LeoAI`,
-      `Hi!\n\n${req.user.name} has invited you to join ${entity.name}'s LeoAI dashboard as ${role || 'agent'}.\n\nAccept your invitation here:\n${inviteUrl}\n\nThis link expires in 48 hours.\n\n— LeoAI by Steadfast Code`
+      `Hi!\n\n${req.user.name} has invited you to join ${entity.name}'s LeoAI dashboard as ${roleCheck.role}.\n\nAccept your invitation here:\n${inviteUrl}\n\nThis link expires in 48 hours.\n\n— LeoAI by Steadfast Code`
     );
 
     res.status(201).json(invite);
@@ -601,12 +608,14 @@ router.patch('/entities/:domain/team/:userId', requireAuth(PERMISSIONS.USERS_MAN
     const { domain, userId } = req.params;
     const { role } = req.body;
 
-    if (!role || !Object.prototype.hasOwnProperty.call(ROLE_PRESETS, role)) {
-      return res.status(400).json({ error: 'Unknown role' });
-    }
-    if (role === 'superadmin') {
-      return res.status(400).json({ error: 'superadmin cannot be assigned' });
-    }
+    // `role` is required on a PATCH — there is no default to fall back to when
+    // the point of the call is to change one. Whether the named role may be
+    // assigned at all is the service's call, shared with the invite route so
+    // the two cannot drift (LEO-106); the answers are the ones this route has
+    // always given.
+    if (!role) return res.status(400).json({ error: 'Unknown role' });
+    const roleCheck = assertAssignableRole(role, `role change ${domain}`);
+    if (!roleCheck.ok) return res.status(400).json({ error: roleCheck.error });
     if (req.user._id.toString() === userId) {
       return res.status(400).json({ error: 'You cannot change your own role' });
     }
