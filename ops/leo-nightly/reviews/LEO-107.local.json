@@ -1,0 +1,112 @@
+{
+  "item": "LEO-107",
+  "repo": "leoai",
+  "mergeSha": "ab5b4883490399e32e4ebbb6f7c1b179a552ce43",
+  "completedAtUtc": "2026-11-07T22:07:23.308Z",
+  "completeRunId": "2026-11-07T21:09:16.462Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:45:26.909Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 18754,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/routes/dashboard.js"
+      ],
+      "part": null,
+      "bytes": 2990,
+      "contextBytes": 9168,
+      "promptTokens": 4286,
+      "completionTokens": 150,
+      "latencyMs": 20066,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-scoping.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 12404,
+      "contextBytes": 0,
+      "promptTokens": 4396,
+      "completionTokens": 110,
+      "latencyMs": 15669,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-scoping.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3565,
+      "contextBytes": 6462,
+      "promptTokens": 3776,
+      "completionTokens": 141,
+      "latencyMs": 15080,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:40"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:578"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes ensure that all three dashboard routes act on an object by id while checking if it belongs to the specified domain. · The diff adds a new test file to verify that the three dashboard routes act on an object by id without checking if it belongs to the specified domain. The tests cover scenarios where a user tries to access or modify objects belonging to another entity, ensuring that such actions return 404 and leave the objects unchanged. · The diff adds tests for entity scoping in the dashboard routes. It includes tests for POSTing a reply to a conversation and DELETEing an invite, ensuring that foreign entities cannot be modified by members of other entities. The tests cover scenarios where the entity ID does not belong to the domain specified in the path, as well as cases where the user is a superadmin.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 24523,
+    "completionTokens": 818
+  },
+  "latencyMs": 104263
+}

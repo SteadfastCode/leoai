@@ -1,0 +1,130 @@
+{
+  "item": "LEO-099",
+  "repo": "leoai",
+  "mergeSha": "3d56e39f3b9ef038054d4b215b5f06421ff29a36",
+  "completedAtUtc": "2026-11-07T15:19:34.752Z",
+  "completeRunId": "2026-11-07T15:09:43.126Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:37:46.765Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 27173,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/routes/chat.js"
+      ],
+      "part": null,
+      "bytes": 1078,
+      "contextBytes": 4912,
+      "promptTokens": 2673,
+      "completionTokens": 146,
+      "latencyMs": 14340,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/retention.js"
+      ],
+      "part": null,
+      "bytes": 12032,
+      "contextBytes": 0,
+      "promptTokens": 4138,
+      "completionTokens": 75,
+      "latencyMs": 12796,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/retention.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 9907,
+      "contextBytes": 0,
+      "promptTokens": 3829,
+      "completionTokens": 144,
+      "latencyMs": 15442,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/retention.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 4336,
+      "contextBytes": 7926,
+      "promptTokens": 4502,
+      "completionTokens": 142,
+      "latencyMs": 17560,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/chat.js:295"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff updates the `forgetConversation` function to delete matching rows from the `UnansweredQuestion` collection. The changes include adding a new field `questionsDeleted` to the response and ensuring that the filter discipline is maintained. · No real defects found in the provided diff. However, additional context is needed to fully understand and verify the implementation of `shortToken` function. · The diff adds tests for the new `unansweredForgetFilter` and `unansweredSweepFilter` functions, but does not show changes to the actual implementation of these filters or how they are used in the code. To verify the correctness of the change, we need to see the implementation details of these functions and how they are integrated into the existing code. · The diff adds tests for the retention sweep and unanswered question deletion logic. It does not include the actual implementation changes, so further review is needed to ensure that the new filters and deletion logic are correctly implemented.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 29760,
+    "completionTokens": 1057
+  },
+  "latencyMs": 122380
+}

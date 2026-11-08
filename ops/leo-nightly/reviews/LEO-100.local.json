@@ -1,0 +1,112 @@
+{
+  "item": "LEO-100",
+  "repo": "leoai",
+  "mergeSha": "c4b744dedb5202d88614b1073ca71917d76a8a83",
+  "completedAtUtc": "2026-11-07T15:41:16.575Z",
+  "completeRunId": "2026-11-07T15:09:43.126Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:39:11.641Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 23963,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/services/weeklyDigest.js"
+      ],
+      "part": null,
+      "bytes": 11545,
+      "contextBytes": 0,
+      "promptTokens": 4199,
+      "completionTokens": 78,
+      "latencyMs": 16152,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/weekly-digest.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1119,
+      "contextBytes": 2820,
+      "promptTokens": 2409,
+      "completionTokens": 78,
+      "latencyMs": 7720,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/weekly-digest.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 11495,
+      "contextBytes": 0,
+      "promptTokens": 4561,
+      "completionTokens": 96,
+      "latencyMs": 15056,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/services/weeklyDigest.js:387"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional information is needed to verify the implementation of `matchesDoNotRelay`. · No real defects found in the provided diff. However, additional information about `runWeeklyDigestTick` is needed to fully understand and verify the changes. · No real defects found in the provided diff. However, additional context is needed to fully verify the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 21945,
+    "completionTokens": 655
+  },
+  "latencyMs": 84805
+}

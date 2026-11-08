@@ -1,0 +1,115 @@
+{
+  "item": "LEO-106",
+  "repo": "leoai",
+  "mergeSha": "b45ced347e89305283efc8052edc4e14910e1e21",
+  "completedAtUtc": "2026-11-07T21:57:25.843Z",
+  "completeRunId": "2026-11-07T21:09:16.462Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:43:42.574Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 27847,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/auth.js",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/team.js"
+      ],
+      "part": null,
+      "bytes": 10575,
+      "contextBytes": 0,
+      "promptTokens": 4250,
+      "completionTokens": 103,
+      "latencyMs": 17293,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/invite-role.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 11891,
+      "contextBytes": 0,
+      "promptTokens": 4398,
+      "completionTokens": 68,
+      "latencyMs": 13252,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/invite-role.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 5578,
+      "contextBytes": 6346,
+      "promptTokens": 4442,
+      "completionTokens": 91,
+      "latencyMs": 14612,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:480"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:537"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The change introduces a new function `assertAssignableRole` to validate roles before they are assigned, ensuring that the role 'superadmin' cannot be assigned through the team routes. This function is called in both the invite route and the existing PATCH route to enforce consistent role validation. · No real defects found in the provided diff. However, additional information is needed to fully understand and verify the changes. · No real defects found. The diff introduces new tests and a function `assertAssignableRole` that needs to be defined in `backend/src/services/team.js`. The tests cover various scenarios to ensure the role assignment logic is correctly implemented.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 25787,
+    "completionTokens": 690
+  },
+  "latencyMs": 98278
+}

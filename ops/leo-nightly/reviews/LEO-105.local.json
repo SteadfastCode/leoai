@@ -1,0 +1,130 @@
+{
+  "item": "LEO-105",
+  "repo": "leoai",
+  "mergeSha": "37fa193a51fe20da89e0e4740764135ed85d082f",
+  "completedAtUtc": "2026-11-07T21:36:09.372Z",
+  "completeRunId": "2026-11-07T21:09:16.462Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:42:04.183Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 16615,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/routes/dashboard.js"
+      ],
+      "part": null,
+      "bytes": 2476,
+      "contextBytes": 6764,
+      "promptTokens": 3433,
+      "completionTokens": 72,
+      "latencyMs": 13481,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-delete-cascade.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 12259,
+      "contextBytes": 0,
+      "promptTokens": 4420,
+      "completionTokens": 90,
+      "latencyMs": 14662,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-delete-cascade.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1364,
+      "contextBytes": 3804,
+      "promptTokens": 2571,
+      "completionTokens": 175,
+      "latencyMs": 12912,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/AdminEntities.vue"
+      ],
+      "part": null,
+      "bytes": 742,
+      "contextBytes": 4086,
+      "promptTokens": 2329,
+      "completionTokens": 113,
+      "latencyMs": 8995,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:644"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:670"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to verify the implementation of `isSuperAdmin` function. · The diff adds a new test file for entity delete cascade functionality. It includes tests for authorization, deletion of associated data, and auditing. The changes are focused on ensuring that all associated data is deleted correctly when an entity is deleted. · The diff adds a new test file `entity-delete-cascade.test.js` with tests for the entity deletion cascade, including checks for unanswered questions and archived chunks. The context provides additional tests that are not part of the change but are related to the same functionality. · The change updates the UI to include unanswered questions in the deletion confirmation dialog and adds a new requirement to delete unanswered questions by domain. The actual implementation of these changes is not included in the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 24982,
+    "completionTokens": 1005
+  },
+  "latencyMs": 106738
+}

@@ -1,0 +1,89 @@
+{
+  "item": "LEO-102",
+  "repo": "leoai",
+  "mergeSha": "05e77cc066e5841c18543ac16f20dfec89218ded",
+  "completedAtUtc": "2026-11-07T21:18:50.290Z",
+  "completeRunId": "2026-11-07T21:09:16.462Z",
+  "reviewRunId": "2026-11-08T08:01:10.793Z",
+  "reviewedAtUtc": "2026-11-08T08:40:17.362Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 13602,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/ArchivedChunk.js",
+        "backend/src/models/Chunk.js",
+        "backend/src/services/rag.js",
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 7657,
+      "contextBytes": 0,
+      "promptTokens": 3462,
+      "completionTokens": 133,
+      "latencyMs": 16545,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/chunk-trailing-merge.test.js"
+      ],
+      "part": null,
+      "bytes": 5945,
+      "contextBytes": 6499,
+      "promptTokens": 4817,
+      "completionTokens": 89,
+      "latencyMs": 15730,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The change introduces a new field `extraAnchors` to handle the merging of small sections into larger ones, ensuring that anchors are preserved. The diff includes updates to models, services, and tests to support this functionality. However, further verification is needed to ensure that the changes do not introduce any unintended behavior. · No real defects found in the provided diff. The changes appear to be correctly implemented and tested.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 16296,
+    "completionTokens": 474
+  },
+  "latencyMs": 65617
+}
