@@ -1,0 +1,79 @@
+{
+  "item": "LEO-100",
+  "repo": "leoai",
+  "mergeSha": "c4b744dedb5202d88614b1073ca71917d76a8a83",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-13T03:21:22.421Z",
+  "gradedAtUtc": "2026-11-13T04:30:19.180Z",
+  "independent": [
+    {
+      "file": "backend/src/services/weeklyDigest.js",
+      "line": 464,
+      "severity": "medium",
+      "summary": "The rollback cannot be retried by \"the next hourly tick\" as the code comment and item claim: the only caller is cron.schedule('0 * * * *') (leoRefresh.js:306), one tick per hour, and weeklyDigestDecision requires an exact UTC day+hour slot match — so an hour after a rolled-back slot-match send, elapsed (~7d+1h) is off-schedule and still inside CATCHUP_MS (8d), giving no retry until ~23h later via the catch-up arm; worse, for a never-sent entity (previousStamp null) the first-run arm returns early for last===null and the catch-up arm can never apply, so the released claim buys nothing and the first digest is still lost for the whole week — the exact failure the item set out to fix."
+    },
+    {
+      "file": "backend/test/weekly-digest.test.js",
+      "line": 785,
+      "severity": "medium",
+      "summary": "Both retry tests only pass because they stay inside the same cron hour while claiming otherwise: line 785 is commented \"An hourly tick an hour later\" but uses MONDAY_13 + 60 * 1000 (one minute), and the never-sent test at 791 asserts weeklyDigestDue(...) === true at MONDAY_13 + 60 * 1000 with the comment \"the first-run arm, not the gap guard, is what the retry meets\" — with a real hourly offset (MONDAY_13 + HOUR) the first returns 0 sends and the second returns false, so neither test exercises the retry the production scheduler would actually produce."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, authorization or session code is touched anywhere in the diff."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens or env-var handling appear in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, quotas or pricing."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The change adds a second persisted overwrite of lastWeeklyDigestAt (the compare-and-set rollback at 464-467), which is a data-mutation/overwrite path even though the cited line 387 is only a jsdoc comment."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "Wrong — the diff reworks the Resend send path itself: it injects `send` (defaulting to sendEmailRaw), changes what happens in the catch around that outbound call, and the accepted trade is a duplicate outbound email."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, config, version or dependency changes are present."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model found nothing and left the change's two real weaknesses — the rollback's retry that the hourly cron can never deliver, and the two tests that hide it behind a 60-second \"hour\" — unreported, and it also mislabelled the email-send rework as not touching an external API.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.5145745,
+  "numTurns": 15,
+  "durationMs": 160511,
+  "sessionId": "2483fdd7-a015-4001-986f-f33225025716"
+}

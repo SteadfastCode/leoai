@@ -1,0 +1,63 @@
+{
+  "item": "LEO-107",
+  "repo": "leoai",
+  "mergeSha": "ab5b4883490399e32e4ebbb6f7c1b179a552ce43",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-13T03:21:22.421Z",
+  "gradedAtUtc": "2026-11-13T04:20:07.625Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The whole change is authorization scoping of by-id lookups on top of the router.param membership floor at dashboard.js:41-46."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credential, key, or secret handling is added or altered; the test's fake password hash and the sessionToken in a response body are not secret-management changes."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, quota, or pricing paths."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The invite handler's delete is rewritten (findByIdAndDelete → deleteOne with a domain filter plus a 404 on deletedCount !== 1), so a row-deleting path is touched."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No outbound call is added or changed — Resend/Voyage/Claude paths are untouched and only stubbed inside the new test."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, package.json, deploy, or version config changes; only a route file and a new test file."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no findings, which matches my own cold read — the three lookups are correctly domain-scoped with existing 404s and messages preserved, the tests exercise the real auth/permission stack and would go red on main — and all six triage answers are right.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.6544815000000004,
+  "numTurns": 23,
+  "durationMs": 152327,
+  "sessionId": "22a2feb5-c559-434b-98aa-3c953f453d3a"
+}

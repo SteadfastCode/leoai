@@ -1,0 +1,72 @@
+{
+  "item": "LEO-106",
+  "repo": "leoai",
+  "mergeSha": "b45ced347e89305283efc8052edc4e14910e1e21",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-13T03:21:22.421Z",
+  "gradedAtUtc": "2026-11-13T04:22:45.426Z",
+  "independent": [
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 33,
+      "severity": "high",
+      "summary": "The same escalation remains open through a third, unauthenticated door: `POST /auth/register` (public, mounted at backend/index.js:40) takes `role` straight off the body (`const assignedRole = role || 'owner'`) and writes `roles: [assignedRole]` into memberships, so anyone can self-register with `role: 'superadmin'` in ONE request — stronger than the two-request owner path this item closes. `assertAssignableRole` is not called there, contradicting its own docblock (\"called by every door that writes a role\") and the test header's \"three doors\" framing; the new suite's end-to-end test only asserts nobody became superadmin via the invite path."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change is entirely about role assignment/privilege escalation in the invite, role-change and invite-accept routes, so auth is plainly touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens or key handling are changed; the only new env var is a log-level knob."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code is in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": false,
+      "reason": "Nothing in the diff deletes, overwrites or migrates data — it only adds validation that refuses writes before they happen; the cited line is the invite POST, which is not destructive."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external integration is added or changed; the existing Resend send is only reached with a validated role string, which is not an API-surface change."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, CI or version config is modified — only a documented, defaulted env var added to .env.example."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local review reported nothing at all and so missed the remaining unauthenticated superadmin door in /auth/register, and it also wrongly marked the change as destructive; its other five triage calls were right.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.4176615000000001,
+  "numTurns": 17,
+  "durationMs": 157759,
+  "sessionId": "e11eff59-5d9d-4638-9c97-ed9b2cd0a7ca"
+}

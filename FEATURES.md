@@ -266,6 +266,42 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
+  Found by the grader of LEO-106 (high, backend/src/routes/auth.js:33). The same escalation
+  remains open through a third, unauthenticated door: `POST /auth/register` (public, mounted at
+  backend/index.js:40) takes `role` straight off the body (`const assignedRole = role || 'owner'`)
+  and writes `roles: [assignedRole]` into memberships, so anyone can self-register with `role:
+  'superadmin'` in ONE request — stronger than the two-request owner path this item closes.
+  `assertAssignableRole` is not called there, contradicting its own docblock ("called by every
+  door that writes a role") and the test header's "three doors" framing; the new suite's
+  end-to-end test only asserts nobody became superadmin via the invite path.
+- [ ] **(LEO-128) citeAnchor never uses the absorbed anchor when the receiving chunk has its own [H2] header, so th…**
+  Found by the grader of LEO-102 (medium, backend/src/services/rag.js:40). citeAnchor never uses
+  the absorbed anchor when the receiving chunk has its own [H2] header, so the headline failure
+  the item describes — a retrieval hit on the appended trailing text deep-linking to the
+  *preceding* section — is unchanged from main. The branch reduces to `sectionAnchor ||
+  extras[0]`: whenever `sectionAnchor` exists (the canonical merged case, test D) `extraAnchors`
+  has zero effect on the citation, despite the item asking the builder to 'prefer the anchor whose
+  heading text actually appears in the matched chunk' (the absorbed [H2] text does appear, in the
+  body).
+- [ ] **(LEO-129) The rollback cannot be retried by "the next hourly tick" as the code comment and item claim: the…**
+  Found by the grader of LEO-100 (medium, backend/src/services/weeklyDigest.js:464). The rollback
+  cannot be retried by "the next hourly tick" as the code comment and item claim: the only caller
+  is cron.schedule('0 * * * *') (leoRefresh.js:306), one tick per hour, and weeklyDigestDecision
+  requires an exact UTC day+hour slot match — so an hour after a rolled-back slot-match send,
+  elapsed (~7d+1h) is off-schedule and still inside CATCHUP_MS (8d), giving no retry until ~23h
+  later via the catch-up arm; worse, for a never-sent entity (previousStamp null) the first-run
+  arm returns early for last===null and the catch-up arm can never apply, so the released claim
+  buys nothing and the first digest is still lost for the whole week — the exact failure the item
+  set out to fix.
+- [ ] **(LEO-130) Both retry tests only pass because they stay inside the same cron hour while claiming otherwise:…**
+  Found by the grader of LEO-100 (medium, backend/test/weekly-digest.test.js:785). Both retry
+  tests only pass because they stay inside the same cron hour while claiming otherwise: line 785
+  is commented "An hourly tick an hour later" but uses MONDAY_13 + 60 * 1000 (one minute), and the
+  never-sent test at 791 asserts weeklyDigestDue(...) === true at MONDAY_13 + 60 * 1000 with the
+  comment "the first-run arm, not the gap guard, is what the retry meets" — with a real hourly
+  offset (MONDAY_13 + HOUR) the first returns 0 sends and the second returns false, so neither
+  test exercises the retry the production scheduler would actually produce.
 - [ ] **(LEO-125) Correction (1) replaces a true statement with a false one: in query casting mongoose does not han…**
   Found by the grader of LEO-080 (high, FEATURES.md:423). Correction (1) replaces a true statement
   with a false one: in query casting mongoose does not hand an array to `castString` at all —

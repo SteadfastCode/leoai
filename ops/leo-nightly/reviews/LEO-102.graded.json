@@ -1,0 +1,79 @@
+{
+  "item": "LEO-102",
+  "repo": "leoai",
+  "mergeSha": "05e77cc066e5841c18543ac16f20dfec89218ded",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-13T03:21:22.421Z",
+  "gradedAtUtc": "2026-11-13T04:27:38.636Z",
+  "independent": [
+    {
+      "file": "backend/src/services/rag.js",
+      "line": 40,
+      "severity": "medium",
+      "summary": "citeAnchor never uses the absorbed anchor when the receiving chunk has its own [H2] header, so the headline failure the item describes — a retrieval hit on the appended trailing text deep-linking to the *preceding* section — is unchanged from main. The branch reduces to `sectionAnchor || extras[0]`: whenever `sectionAnchor` exists (the canonical merged case, test D) `extraAnchors` has zero effect on the citation, despite the item asking the builder to 'prefer the anchor whose heading text actually appears in the matched chunk' (the absorbed [H2] text does appear, in the body)."
+    },
+    {
+      "file": "backend/src/services/rag.js",
+      "line": 40,
+      "severity": "medium",
+      "summary": "In the one case the change does alter — an anchorless receiving chunk — it can introduce a new wrong anchor where main cited none. The absorbed section is by construction under TINY_BUF_THRESHOLD (<200 chars) while the receiving intro body runs toward CHUNK_TARGET (~1200+, see test E: ~1300 vs 136), so most of the chunk's text does *not* sit under the absorbed heading; a hit on the intro now cites `url#office` and jumps the visitor past the matched content, whereas the previous bare URL landed them at the top of the page where that intro actually is."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff touches only chunking, citation-anchor selection, two schema fields and tests — no auth, JWT, RBAC or route guards."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credential or key handling; the test's embeddings stub exists to avoid needing a key, it does not touch secret management."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in Stripe, billing, quota or pricing paths is modified."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Only an optional array field with default [] is added; no deletes, migrations or re-embedding, and chunk boundaries/content are asserted unchanged."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "rag.js is edited but only the $project/select field list and the sources.push anchor — no change to the Voyage embedding call or any outbound request."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, version, nixpacks or CI configuration is touched."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model reported nothing and produced correct but trivially-reasoned triage, missing that the new citeAnchor heuristic leaves the item's headline wrong-anchor case behaving exactly as main while introducing a likely-wrong anchor in the anchorless case.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.9957674999999999,
+  "numTurns": 11,
+  "durationMs": 135232,
+  "sessionId": "311480e3-11d3-49d6-86f4-2bfb47979ae4"
+}

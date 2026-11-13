@@ -1,0 +1,63 @@
+{
+  "item": "LEO-105",
+  "repo": "leoai",
+  "mergeSha": "37fa193a51fe20da89e0e4740764135ed85d082f",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-13T03:21:22.421Z",
+  "gradedAtUtc": "2026-11-13T04:25:23.370Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change lives inside the superadmin-gated `DELETE /entities/:domain` handler and the new test stubs the auth middleware and asserts the 401/403 gates, so authorization is in scope of the change (the cited line number is off, but the verdict is right)."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, keys or env-var handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, plans or quota — `routes/billing.js`/`webhooks.js` are untouched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff is literally a widened cascade `deleteMany` sweep plus a new destructive-path test, so destructive is correctly flagged."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No outbound HTTP/SDK call is added; the test explicitly stubs embeddings, RAG and email so none can fire."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, migration or version config is changed — only a route body, a dialog sentence and a new test file."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read of this change (the cascade is now complete — `UnansweredQuestion` and `ArchivedChunk` are the only entity-scoped collections that were missing, `ArchivedChunk.domain` has been required since the model's first commit so the by-domain sweep loses nothing, and the new test's assertions genuinely go red on main), and its triage is right on all six keys — but it offered no evidence of having verified anything, with one citation pointing at an unrelated line.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.424194,
+  "numTurns": 25,
+  "durationMs": 157908,
+  "sessionId": "d27f4d0c-0eed-4873-846f-748ec32d8152"
+}
