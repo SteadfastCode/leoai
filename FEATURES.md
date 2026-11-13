@@ -264,6 +264,114 @@ standing audit, which is last so it runs only when nothing else is claimable.
   retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
   (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
 
+- [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules**
+  Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
+  (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
+  inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
+  `assert.ok(!logged.includes(SECRET) …)` runs at line 149 the buffer holds only the "clean sweep" line.
+  The light and verbose lines, the only ones that could ever carry a match or a `scanText` preview, were
+  discarded before the assertion. A regression that printed the matched secret at verbose tier passes this
+  suite, and that assertion is the only gate on the module's central promise — "Never includes the matched
+  text" (`services/scanSweep.js:62-63`).
+  (2) On the rescrape path a finding computed for an unchanged thin page is thrown away. `sweepChunks`
+  credits every URL in a chunk's `sourceUrls` (`scanSweep.js:54-56`), so a thin page folded into a group
+  chunk is flagged — but `scanRules` is written only inside the `pageHashUpdates` loop
+  (`services/scrapePersist.js:239-262`), which carries changed pages only. An unchanged group member goes
+  through the `unchangedUrls` `updateMany` (line 284), which sets `lastScrapedAt` and nothing else. A thin
+  page that carries a secret and sits in a group rebuilt because a *sibling* changed is provably flagged
+  this run yet keeps whatever its `ScrapedPage` row already had — nothing, for any page last crawled
+  before LEO-060 — so no chip appears in Page Explorer until a full or forced scrape. The full-scrape path
+  is unaffected: its final `bulkWrite` (`routes/scrape.js:220-226`) writes `scanRules` for every page.
+  Build: (1) accumulate every tier's output into one buffer that is never reset before the leak assertion
+  (keep the per-tier line counts by slicing, not clearing), and add the case the current shape cannot
+  express — verbose tier over a chunk whose match looks like a real secret, asserting that secret's own
+  characters appear in no line. (2) write `scanRules` for every URL the sweep credited rather than only
+  the changed ones, and clear it on an unchanged URL the sweep did *not* credit this run, so the "a page
+  that stops tripping clears itself" promise (line 260) holds on both paths.
+  Files: `backend/test/scan-sweep.test.js`, `backend/src/services/scrapePersist.js`,
+  `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` — the rewritten leak assertion goes red when `logSweep`'s verbose line is made
+  to interpolate the match (do it in a scratch copy, confirm red, restore); over `mongodb-memory-server`,
+  a rescrape in which one thin page is unchanged and its group chunk is rebuilt because a sibling changed
+  leaves `scanRules` set on **both** pages, and a later rescrape where nothing trips clears both. The
+  second must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: the rule set and regexes in `services/leoScan.js`; acting on a finding — the sweep is
+  report-only by design and must stay so; the Page Explorer chip's rendering; `services/scraper.js`
+  (restricted, and it needs no change here); and the full-scrape path, which is already correct.
+
+- [ ] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row**
+  Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
+  (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
+  `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
+  while filling the "top page" column from whether retrieval *at the floor* returned context (lines
+  77-84). `ragThreshold` is valid from 0.50 to 0.95 (`models/Entity.js:65`) but the sweep spans 0.60-0.80
+  (`services/ragEval.js:15-17`). So for an entity below 0.60 a question scoring 0.58 prints hit ✅ with
+  `—` for the page it supposedly hit, and for an entity above 0.80 a question scoring 0.70 prints miss ❌
+  beside a page it will never cite. `printSweep`'s `← entity` marker (line 108) compares the entity's
+  threshold only against the swept levels, so an entity outside 0.60-0.80 gets a sweep table with no row
+  marking where it actually stands — the one thing the table exists to show.
+  (2) `thresholdRange` derives its step count with `Math.round((max - min) / step)`
+  (`services/ragEval.js:29`), so a step that does not divide the range evenly emits a candidate past
+  `max`: `thresholdRange(0.6, 0.8, 0.03)` and `(0.6, 0.8, 0.07)` both end at 0.81.
+  `backend/test/rag-eval-sweep.test.js:139-144` covers only divisible and degenerate steps.
+  Build: (1) retrieve at `Math.min(SWEEP_FLOOR, entityThreshold)` so the page column is computed at or
+  below what the entity actually uses; move the row shaping into a pure
+  `evalRow({ topScore, hadContext, sources, threshold })` in `services/ragEval.js` and derive hit and page
+  from one comparison so the two columns can never disagree; and include the entity's own threshold among
+  the swept levels when it falls outside the default range, so the `← entity` row always exists.
+  (2) switch the step count to `Math.floor((max - min) / step + 1e-9)` so no candidate exceeds `max`,
+  keeping `round()`'s drift fix as it is.
+  Files: `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test`, no DB and no network — `thresholdRange(0.6, 0.8, 0.03)` ends at 0.78 and
+  `(0.6, 0.8, 0.07)` at 0.74, no returned candidate exceeds `max` for any step from 0.01 to 0.11, and
+  every existing case in that file is unchanged; `sweepThresholds` over fixture rows with an entity
+  threshold of 0.55 and of 0.90 contains a level equal to it; `evalRow` never returns a hit with `—` for
+  its page, nor a page for a miss, across scores either side of 0.60, 0.80 and the entity's threshold.
+  Each must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: running the script against a live entity — it needs `MONGODB_URI` and a Voyage key, so
+  not routine work; changing any default (0.60 / 0.80 / 0.01) or the committed question set;
+  `services/rag.js` (restricted) and the `$vectorSearch` stage (denylisted); and LEO-018's "what are your
+  hours?" diagnosis, which this script exists to serve but does not itself answer.
+
+- [ ] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error**
+  Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
+  LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
+  whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
+  charged against the owner's quota and able to fire a handoff notification (`ChatWindow.vue:11-14`,
+  `Playground.vue:15-17`).
+  (1) The gate is `if (!(await ensureFreshAccessToken(...)))` (`Playground.vue:117`,
+  `ChatWindow.vue:132`), but `ensureFreshAccessToken` returns the token **unchanged and truthy** when
+  `accessTokenExpiry` cannot read an `exp` claim (`dashboard/src/lib/api.js:83-88`). That is the right
+  default for the axios interceptor, where the server has the last word — but these two call sites are
+  exactly where it does not, so a malformed or truncated `leo_access_token` sails through the gate and the
+  message is charged as real traffic. The function's own docblock promises "null when no usable token
+  could be proved".
+  (2) It also returns `null` for *any* refresh failure (line 97), a 5xx or a dropped connection included,
+  and both call sites render that as "Your sign-in has expired … Sign out and back in, then press Send
+  again." (`Playground.vue:209`, `ChatWindow.vue:283`). The owner is told to re-authenticate over a
+  transient blip, and doing so will not help.
+  Build: give `ensureFreshAccessToken` an explicit outcome instead of token-or-null —
+  `{ token, proved, reason }`, where `reason` separates `no-token`, `unreadable`, `refresh-rejected` (a
+  401/403 from `/auth/refresh`: the session really is gone) and `refresh-unavailable` (anything else).
+  Keep the request interceptor byte-identical by having it attach `token` whenever one exists, and make
+  only the two chat call sites refuse unless `proved`. Give the banner two texts: today's for a session
+  that is genuinely gone, and "couldn't reach the server to check your sign-in — nothing was sent, try
+  again" for `refresh-unavailable`. Keep every light-tier line naming the reason.
+  Files: `dashboard/src/lib/api.js`, `dashboard/src/views/Playground.vue`,
+  `dashboard/src/components/ChatWindow.vue`, `dashboard/test/accessTokenFreshness.spec.js`,
+  `dashboard/test/Playground.spec.js`, `dashboard/test/ChatWindow.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — an unreadable token yields `proved: false` with reason
+  `unreadable` and both call sites refuse to send (red today: both send); a refresh rejected 401 yields
+  `refresh-rejected` and today's banner; a refresh failing with a network error yields
+  `refresh-unavailable` and the new banner; a healthy token still sends; and the interceptor still
+  attaches a token in every one of those cases. Then `yarn build`, and `cd backend && yarn verify &&
+  yarn test` to show the backend is untouched.
+  Out of scope: making `POST /chat` reject an unproved Bearer token — it must keep answering real
+  visitors, and `routes/chat.js` is restricted; the 15-minute / 7-day token lifetimes and the silent
+  refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
+  `backend/`.
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -874,114 +982,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
-
-- [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules** [proposed]
-  Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
-  (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
-  inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
-  `assert.ok(!logged.includes(SECRET) …)` runs at line 149 the buffer holds only the "clean sweep" line.
-  The light and verbose lines, the only ones that could ever carry a match or a `scanText` preview, were
-  discarded before the assertion. A regression that printed the matched secret at verbose tier passes this
-  suite, and that assertion is the only gate on the module's central promise — "Never includes the matched
-  text" (`services/scanSweep.js:62-63`).
-  (2) On the rescrape path a finding computed for an unchanged thin page is thrown away. `sweepChunks`
-  credits every URL in a chunk's `sourceUrls` (`scanSweep.js:54-56`), so a thin page folded into a group
-  chunk is flagged — but `scanRules` is written only inside the `pageHashUpdates` loop
-  (`services/scrapePersist.js:239-262`), which carries changed pages only. An unchanged group member goes
-  through the `unchangedUrls` `updateMany` (line 284), which sets `lastScrapedAt` and nothing else. A thin
-  page that carries a secret and sits in a group rebuilt because a *sibling* changed is provably flagged
-  this run yet keeps whatever its `ScrapedPage` row already had — nothing, for any page last crawled
-  before LEO-060 — so no chip appears in Page Explorer until a full or forced scrape. The full-scrape path
-  is unaffected: its final `bulkWrite` (`routes/scrape.js:220-226`) writes `scanRules` for every page.
-  Build: (1) accumulate every tier's output into one buffer that is never reset before the leak assertion
-  (keep the per-tier line counts by slicing, not clearing), and add the case the current shape cannot
-  express — verbose tier over a chunk whose match looks like a real secret, asserting that secret's own
-  characters appear in no line. (2) write `scanRules` for every URL the sweep credited rather than only
-  the changed ones, and clear it on an unchanged URL the sweep did *not* credit this run, so the "a page
-  that stops tripping clears itself" promise (line 260) holds on both paths.
-  Files: `backend/test/scan-sweep.test.js`, `backend/src/services/scrapePersist.js`,
-  `backend/test/scrape-persist.test.js`.
-  *Verify:* `node --test` — the rewritten leak assertion goes red when `logSweep`'s verbose line is made
-  to interpolate the match (do it in a scratch copy, confirm red, restore); over `mongodb-memory-server`,
-  a rescrape in which one thin page is unchanged and its group chunk is rebuilt because a sibling changed
-  leaves `scanRules` set on **both** pages, and a later rescrape where nothing trips clears both. The
-  second must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: the rule set and regexes in `services/leoScan.js`; acting on a finding — the sweep is
-  report-only by design and must stay so; the Page Explorer chip's rendering; `services/scraper.js`
-  (restricted, and it needs no change here); and the full-scrape path, which is already correct.
-
-- [ ] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row** [proposed]
-  Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
-  (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
-  `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
-  while filling the "top page" column from whether retrieval *at the floor* returned context (lines
-  77-84). `ragThreshold` is valid from 0.50 to 0.95 (`models/Entity.js:65`) but the sweep spans 0.60-0.80
-  (`services/ragEval.js:15-17`). So for an entity below 0.60 a question scoring 0.58 prints hit ✅ with
-  `—` for the page it supposedly hit, and for an entity above 0.80 a question scoring 0.70 prints miss ❌
-  beside a page it will never cite. `printSweep`'s `← entity` marker (line 108) compares the entity's
-  threshold only against the swept levels, so an entity outside 0.60-0.80 gets a sweep table with no row
-  marking where it actually stands — the one thing the table exists to show.
-  (2) `thresholdRange` derives its step count with `Math.round((max - min) / step)`
-  (`services/ragEval.js:29`), so a step that does not divide the range evenly emits a candidate past
-  `max`: `thresholdRange(0.6, 0.8, 0.03)` and `(0.6, 0.8, 0.07)` both end at 0.81.
-  `backend/test/rag-eval-sweep.test.js:139-144` covers only divisible and degenerate steps.
-  Build: (1) retrieve at `Math.min(SWEEP_FLOOR, entityThreshold)` so the page column is computed at or
-  below what the entity actually uses; move the row shaping into a pure
-  `evalRow({ topScore, hadContext, sources, threshold })` in `services/ragEval.js` and derive hit and page
-  from one comparison so the two columns can never disagree; and include the entity's own threshold among
-  the swept levels when it falls outside the default range, so the `← entity` row always exists.
-  (2) switch the step count to `Math.floor((max - min) / step + 1e-9)` so no candidate exceeds `max`,
-  keeping `round()`'s drift fix as it is.
-  Files: `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
-  `backend/test/rag-eval-sweep.test.js`.
-  *Verify:* `node --test`, no DB and no network — `thresholdRange(0.6, 0.8, 0.03)` ends at 0.78 and
-  `(0.6, 0.8, 0.07)` at 0.74, no returned candidate exceeds `max` for any step from 0.01 to 0.11, and
-  every existing case in that file is unchanged; `sweepThresholds` over fixture rows with an entity
-  threshold of 0.55 and of 0.90 contains a level equal to it; `evalRow` never returns a hit with `—` for
-  its page, nor a page for a miss, across scores either side of 0.60, 0.80 and the entity's threshold.
-  Each must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: running the script against a live entity — it needs `MONGODB_URI` and a Voyage key, so
-  not routine work; changing any default (0.60 / 0.80 / 0.01) or the committed question set;
-  `services/rag.js` (restricted) and the `$vectorSearch` stage (denylisted); and LEO-018's "what are your
-  hours?" diagnosis, which this script exists to serve but does not itself answer.
-
-- [ ] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error** [proposed]
-  Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
-  LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
-  whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
-  charged against the owner's quota and able to fire a handoff notification (`ChatWindow.vue:11-14`,
-  `Playground.vue:15-17`).
-  (1) The gate is `if (!(await ensureFreshAccessToken(...)))` (`Playground.vue:117`,
-  `ChatWindow.vue:132`), but `ensureFreshAccessToken` returns the token **unchanged and truthy** when
-  `accessTokenExpiry` cannot read an `exp` claim (`dashboard/src/lib/api.js:83-88`). That is the right
-  default for the axios interceptor, where the server has the last word — but these two call sites are
-  exactly where it does not, so a malformed or truncated `leo_access_token` sails through the gate and the
-  message is charged as real traffic. The function's own docblock promises "null when no usable token
-  could be proved".
-  (2) It also returns `null` for *any* refresh failure (line 97), a 5xx or a dropped connection included,
-  and both call sites render that as "Your sign-in has expired … Sign out and back in, then press Send
-  again." (`Playground.vue:209`, `ChatWindow.vue:283`). The owner is told to re-authenticate over a
-  transient blip, and doing so will not help.
-  Build: give `ensureFreshAccessToken` an explicit outcome instead of token-or-null —
-  `{ token, proved, reason }`, where `reason` separates `no-token`, `unreadable`, `refresh-rejected` (a
-  401/403 from `/auth/refresh`: the session really is gone) and `refresh-unavailable` (anything else).
-  Keep the request interceptor byte-identical by having it attach `token` whenever one exists, and make
-  only the two chat call sites refuse unless `proved`. Give the banner two texts: today's for a session
-  that is genuinely gone, and "couldn't reach the server to check your sign-in — nothing was sent, try
-  again" for `refresh-unavailable`. Keep every light-tier line naming the reason.
-  Files: `dashboard/src/lib/api.js`, `dashboard/src/views/Playground.vue`,
-  `dashboard/src/components/ChatWindow.vue`, `dashboard/test/accessTokenFreshness.spec.js`,
-  `dashboard/test/Playground.spec.js`, `dashboard/test/ChatWindow.spec.js`.
-  *Verify:* `cd dashboard && yarn test` — an unreadable token yields `proved: false` with reason
-  `unreadable` and both call sites refuse to send (red today: both send); a refresh rejected 401 yields
-  `refresh-rejected` and today's banner; a refresh failing with a network error yields
-  `refresh-unavailable` and the new banner; a healthy token still sends; and the interceptor still
-  attaches a token in every one of those cases. Then `yarn build`, and `cd backend && yarn verify &&
-  yarn test` to show the backend is untouched.
-  Out of scope: making `POST /chat` reject an unproved Bearer token — it must keep answering real
-  visitors, and `routes/chat.js` is restricted; the 15-minute / 7-day token lifetimes and the silent
-  refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
-  `backend/`.
 
 - [ ] **(LEO-119) Four more filed specs carry factual errors an implementer would encode as a test** [proposed]
   Four independent grader findings, from LEO-072, LEO-087 and LEO-103, recorded and never filed

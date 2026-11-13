@@ -127,8 +127,62 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-127": {
+    "LEO-116": {
       "order": 8,
+      "title": "The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-117": {
+      "order": 9,
+      "title": "`rag-eval` prints a hit with no page, a page for a miss, and a sweep with no \"← entity\" row",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-118": {
+      "order": 10,
+      "title": "The playground's \"refuses to send without a proved session\" has a hole, and blames the owner for a network error",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": false,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-127": {
+      "order": 11,
       "title": "The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…",
       "status": "pending",
       "attempts": 0,
@@ -146,7 +200,7 @@
       "lastFail": null
     },
     "LEO-128": {
-      "order": 9,
+      "order": 12,
       "title": "citeAnchor never uses the absorbed anchor when the receiving chunk has its own [H2] header, so th…",
       "status": "pending",
       "attempts": 0,
@@ -164,7 +218,7 @@
       "lastFail": null
     },
     "LEO-129": {
-      "order": 10,
+      "order": 13,
       "title": "The rollback cannot be retried by \"the next hourly tick\" as the code comment and item claim: the…",
       "status": "pending",
       "attempts": 0,
@@ -182,7 +236,7 @@
       "lastFail": null
     },
     "LEO-130": {
-      "order": 11,
+      "order": 14,
       "title": "Both retry tests only pass because they stay inside the same cron hour while claiming otherwise:…",
       "status": "pending",
       "attempts": 0,
@@ -200,7 +254,7 @@
       "lastFail": null
     },
     "LEO-125": {
-      "order": 12,
+      "order": 15,
       "title": "Correction (1) replaces a true statement with a false one: in query casting mongoose does not han…",
       "status": "pending",
       "attempts": 0,
@@ -218,7 +272,7 @@
       "lastFail": null
     },
     "LEO-126": {
-      "order": 13,
+      "order": 16,
       "title": "The catch-up arm keys off leoRefreshLastRun, which runRefreshForEntity only stamps on success (li…",
       "status": "pending",
       "attempts": 0,
@@ -236,7 +290,7 @@
       "lastFail": null
     },
     "LEO-121": {
-      "order": 14,
+      "order": 17,
       "title": "checkApp reports status: asset.status (0) when only the hashed-bundle probe transport-fails, even…",
       "status": "pending",
       "attempts": 0,
@@ -254,7 +308,7 @@
       "lastFail": null
     },
     "LEO-122": {
-      "order": 15,
+      "order": 18,
       "title": "announce(msg.textContent) flattens the rendered markdown DOM with no separator between block elem…",
       "status": "pending",
       "attempts": 0,
@@ -272,7 +326,7 @@
       "lastFail": null
     },
     "LEO-123": {
-      "order": 16,
+      "order": 19,
       "title": "The fix only disarms the document-level hotkey handler while the drawer is hidden; the other half…",
       "status": "pending",
       "attempts": 0,
@@ -290,7 +344,7 @@
       "lastFail": null
     },
     "LEO-124": {
-      "order": 17,
+      "order": 20,
       "title": "honorRobots is unreachable through the API and is silently reverted: it is absent from FIELD_RULE…",
       "status": "pending",
       "attempts": 0,
@@ -308,7 +362,7 @@
       "lastFail": null
     },
     "LEO-096": {
-      "order": 18,
+      "order": 21,
       "title": "Compare mode exits 1 for both a real regression and a blocked/uncollectable baseline (verdict.blo…",
       "status": "pending",
       "attempts": 0,
@@ -326,7 +380,7 @@
       "lastFail": null
     },
     "LEO-059": {
-      "order": 19,
+      "order": 22,
       "title": "The fix missed ops/leo-nightly/README.md, which still documents the superseded script as the way…",
       "status": "pending",
       "attempts": 0,
@@ -344,7 +398,7 @@
       "lastFail": null
     },
     "LEO-052": {
-      "order": 20,
+      "order": 23,
       "title": "Brute-force protection on the auth endpoints",
       "status": "pending",
       "attempts": 0,
@@ -362,7 +416,7 @@
       "lastFail": null
     },
     "LEO-054": {
-      "order": 21,
+      "order": 24,
       "title": "Classify and surface upstream provider failures",
       "status": "pending",
       "attempts": 0,
@@ -380,7 +434,7 @@
       "lastFail": null
     },
     "LEO-061": {
-      "order": 22,
+      "order": 25,
       "title": "Record where a visitor's message actually came from",
       "status": "pending",
       "attempts": 0,
@@ -398,7 +452,7 @@
       "lastFail": null
     },
     "LEO-063": {
-      "order": 23,
+      "order": 26,
       "title": "`CLAUDE.md` \"Known Issues\" is three-quarters stale",
       "status": "pending",
       "attempts": 0,
@@ -416,7 +470,7 @@
       "lastFail": null
     },
     "LEO-067": {
-      "order": 24,
+      "order": 27,
       "title": "Unguarded async route handlers: one unauthenticated GET can take the backend down",
       "status": "pending",
       "attempts": 0,
@@ -434,7 +488,7 @@
       "lastFail": null
     },
     "LEO-068": {
-      "order": 25,
+      "order": 28,
       "title": "Socket.io rooms are unauthenticated — any browser can stream another entity's conversations",
       "status": "pending",
       "attempts": 0,
@@ -452,7 +506,7 @@
       "lastFail": null
     },
     "LEO-070": {
-      "order": 26,
+      "order": 29,
       "title": "Cap and type-check what `/chat` accepts",
       "status": "pending",
       "attempts": 0,
@@ -470,7 +524,7 @@
       "lastFail": null
     },
     "LEO-074": {
-      "order": 27,
+      "order": 30,
       "title": "A zero-token test path through POST /chat, so the smoke keeps its coverage without the spend",
       "status": "pending",
       "attempts": 0,
@@ -488,7 +542,7 @@
       "lastFail": null
     },
     "LEO-075": {
-      "order": 28,
+      "order": 31,
       "title": "Smoke split: a free baseline chat check, and the paid real-model call only after deploy",
       "status": "pending",
       "attempts": 0,
@@ -506,7 +560,7 @@
       "lastFail": null
     },
     "LEO-082": {
-      "order": 29,
+      "order": 32,
       "title": "Every owner notification links to `localhost`: `DASHBOARD_URL` is undeclared",
       "status": "pending",
       "attempts": 0,
@@ -524,7 +578,7 @@
       "lastFail": null
     },
     "LEO-083": {
-      "order": 30,
+      "order": 33,
       "title": "The free-tier billing period skips February: month-end rollover overflows",
       "status": "pending",
       "attempts": 0,
@@ -542,7 +596,7 @@
       "lastFail": null
     },
     "LEO-085": {
-      "order": 31,
+      "order": 34,
       "title": "`JWT_SECRET` silently falls back to a literal committed to this repo",
       "status": "pending",
       "attempts": 0,
@@ -560,7 +614,7 @@
       "lastFail": null
     },
     "LEO-086": {
-      "order": 32,
+      "order": 35,
       "title": "Two grader findings about the docs were recorded and never filed",
       "status": "pending",
       "attempts": 0,
@@ -578,7 +632,7 @@
       "lastFail": null
     },
     "LEO-097": {
-      "order": 33,
+      "order": 36,
       "title": "Query-operator objects reach Mongo from unauthenticated bodies and query strings",
       "status": "pending",
       "attempts": 0,
@@ -596,7 +650,7 @@
       "lastFail": null
     },
     "LEO-101": {
-      "order": 34,
+      "order": 37,
       "title": "`POST /chat/forget` is public, unmetered, and never checks the domain exists",
       "status": "pending",
       "attempts": 0,
@@ -614,62 +668,8 @@
       "lastFail": null
     },
     "LEO-109": {
-      "order": 35,
-      "title": "Every widget open loads the visitor's whole conversation to show twenty messages",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": true,
-      "priority": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
-    "LEO-116": {
-      "order": 36,
-      "title": "The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": true,
-      "priority": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
-    "LEO-117": {
-      "order": 37,
-      "title": "`rag-eval` prints a hit with no page, a page for a miss, and a sweep with no \"← entity\" row",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": true,
-      "priority": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
-    "LEO-118": {
       "order": 38,
-      "title": "The playground's \"refuses to send without a proved session\" has a hole, and blames the owner for a network error",
+      "title": "Every widget open loads the visitor's whole conversation to show twenty messages",
       "status": "pending",
       "attempts": 0,
       "cluster": null,
