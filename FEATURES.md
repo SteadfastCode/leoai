@@ -372,6 +372,45 @@ standing audit, which is last so it runs only when nothing else is claimable.
   refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
   `backend/`.
 
+- [ ] **(LEO-119) Four more filed specs carry factual errors an implementer would encode as a test**
+  Four independent grader findings, from LEO-072, LEO-087 and LEO-103, recorded and never filed
+  (`ops/leo-nightly/reviews/LEO-072.graded.json`, `LEO-087.graded.json`, `LEO-103.graded.json`). Same
+  class as LEO-080: each is a wrong statement inside a `## Proposed` body, which is where an implementer
+  takes their test expectations from.
+  (1) LEO-077 says a missed hour costs "a `daily` entity … another 24 hours, a `weekly` one another 7
+  days". `isDueNow` (`services/leoRefresh.js:22-29`) has no weekday check — only an hour match plus a
+  `SIX_DAYS_MS` gap — so a weekly entity that misses its hour is due again at the same hour the **next
+  day**. The item's case still stands for `daily`; the weekly figure does not, and the item's own verify
+  gate ("weekly at 3d not due and at 8d due") is written against the real behaviour, so its prose and its
+  gate disagree.
+  (2) LEO-100's build says rolling `lastWeeklyDigestAt` back lets "the next hourly tick retry inside the
+  same week". `weeklyDigestDue` requires an exact UTC **hour and weekday** match
+  (`services/weeklyDigest.js:66-67`), and the catch-up arm that would let an off-hour tick through is
+  explicitly LEO-084's and out of LEO-100's scope — so the rollback can only restore next week's send. An
+  implementer following the spec writes a same-week-retry test that cannot pass.
+  (3) LEO-097's out-of-scope says LEO-070 owns "length caps and the Leo-voiced 400 on `POST /chat`'s
+  body", but LEO-070 also says "Apply the same string checks to `GET /chat/history`'s query params"
+  (FEATURES.md:360) — which is exactly where LEO-097's own operator guard lands. Two open items own the
+  same check, and the boundary Daniel would rely on when promoting one understates the overlap.
+  (4) LEO-109 prescribes a `messages: { $slice: -PAGE_SIZE }` projection plus a count while naming "again
+  for every infinite-scroll page" as part of the cost it removes. That projection can only serve the
+  newest page: the `before` cursor path filters by `timestamp < before` (`routes/chat.js:332-335`, driven
+  by `widget/chatbot.js:405-411`) and needs messages before an arbitrary instant. The item's DB-level
+  verify asserts only the first-open case, so building it as written could silently break back-paging.
+  Build: correct those four passages in place and nothing else. Do not restate the items, do not renumber
+  anything, do not move a block between sections, do not change any scope beyond the correction, and
+  leave every `[proposed]` and `[needs-human]` tag exactly as it is.
+  Files: `FEATURES.md`.
+  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
+  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and after
+  in the PR body with its one-line evidence (the missing weekday check, the hour-and-weekday guard,
+  LEO-070's own `/chat/history` sentence, the `before` filter). No code changes, so the four code gates
+  are unaffected — run and report them anyway.
+  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs — in
+  particular, deciding *how* LEO-109 should serve the `before` page: say that it must, and leave the plan
+  to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
+  any review.
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -982,45 +1021,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
-
-- [ ] **(LEO-119) Four more filed specs carry factual errors an implementer would encode as a test** [proposed]
-  Four independent grader findings, from LEO-072, LEO-087 and LEO-103, recorded and never filed
-  (`ops/leo-nightly/reviews/LEO-072.graded.json`, `LEO-087.graded.json`, `LEO-103.graded.json`). Same
-  class as LEO-080: each is a wrong statement inside a `## Proposed` body, which is where an implementer
-  takes their test expectations from.
-  (1) LEO-077 says a missed hour costs "a `daily` entity … another 24 hours, a `weekly` one another 7
-  days". `isDueNow` (`services/leoRefresh.js:22-29`) has no weekday check — only an hour match plus a
-  `SIX_DAYS_MS` gap — so a weekly entity that misses its hour is due again at the same hour the **next
-  day**. The item's case still stands for `daily`; the weekly figure does not, and the item's own verify
-  gate ("weekly at 3d not due and at 8d due") is written against the real behaviour, so its prose and its
-  gate disagree.
-  (2) LEO-100's build says rolling `lastWeeklyDigestAt` back lets "the next hourly tick retry inside the
-  same week". `weeklyDigestDue` requires an exact UTC **hour and weekday** match
-  (`services/weeklyDigest.js:66-67`), and the catch-up arm that would let an off-hour tick through is
-  explicitly LEO-084's and out of LEO-100's scope — so the rollback can only restore next week's send. An
-  implementer following the spec writes a same-week-retry test that cannot pass.
-  (3) LEO-097's out-of-scope says LEO-070 owns "length caps and the Leo-voiced 400 on `POST /chat`'s
-  body", but LEO-070 also says "Apply the same string checks to `GET /chat/history`'s query params"
-  (FEATURES.md:360) — which is exactly where LEO-097's own operator guard lands. Two open items own the
-  same check, and the boundary Daniel would rely on when promoting one understates the overlap.
-  (4) LEO-109 prescribes a `messages: { $slice: -PAGE_SIZE }` projection plus a count while naming "again
-  for every infinite-scroll page" as part of the cost it removes. That projection can only serve the
-  newest page: the `before` cursor path filters by `timestamp < before` (`routes/chat.js:332-335`, driven
-  by `widget/chatbot.js:405-411`) and needs messages before an arbitrary instant. The item's DB-level
-  verify asserts only the first-open case, so building it as written could silently break back-paging.
-  Build: correct those four passages in place and nothing else. Do not restate the items, do not renumber
-  anything, do not move a block between sections, do not change any scope beyond the correction, and
-  leave every `[proposed]` and `[needs-human]` tag exactly as it is.
-  Files: `FEATURES.md`.
-  *Verify:* `node <orchestrator> lint leoai --worktree` exits 0 with an unchanged `items` count;
-  `git diff --stat origin/main` names `FEATURES.md` and nothing else; quote each passage before and after
-  in the PR body with its one-line evidence (the missing weekday check, the hour-and-weekday guard,
-  LEO-070's own `/chat/history` sentence, the `before` filter). No code changes, so the four code gates
-  are unaffected — run and report them anyway.
-  Out of scope: promoting, demoting or reordering any item; the four specs' actual designs — in
-  particular, deciding *how* LEO-109 should serve the `before` page: say that it must, and leave the plan
-  to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
-  any review.
 
 ## Block L — Backlog upkeep
 
