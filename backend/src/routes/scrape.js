@@ -6,7 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
-const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls, recordRobotsDisallowed } = require('../services/scrapePersist');
+const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls, recordRobotsDisallowed, recordLastScrape } = require('../services/scrapePersist');
 const { sweepChunks, mergeSweep, logSweep } = require('../services/scanSweep');
 const scrapeRegistry = require('../services/scrapeRegistry');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
@@ -253,6 +253,12 @@ router.post('/', requireAuth(), async (req, res) => {
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };
+
+      // The run's own summary, on the Entity, whether or not it had a snapshot
+      // to hang the lists off (LEO-115). A first-ever full scrape archives
+      // nothing, so runSnapshot is null and the two record* calls above were
+      // no-ops — this is the copy the dashboard reads back.
+      await recordLastScrape(domain, summary);
 
       scrapeRegistry.end(domain);
       broadcastedIo.to(`domain:${domain}`).emit('scrape_complete', summary);

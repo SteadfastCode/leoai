@@ -1,5 +1,49 @@
 const mongoose = require('mongoose');
 
+// One URL the latest crawl never learned (LEO-115), in the same shape
+// scrapePersist.shapeFailedUrls already produces and ScrapeSnapshot already
+// stores. `reason` is a plain String rather than an enum for the same reason it
+// is there: a future reason, or an older backend reading a newer document, must
+// never make an existing entity fail validation on save.
+const lastScrapeFailedUrlSchema = new mongoose.Schema(
+  {
+    url:    { type: String },
+    reason: { type: String },
+    status: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
+// The latest crawl's own summary (LEO-115).
+//
+// LEO-056 persisted the not-learned URLs only on the run's ScrapeSnapshot, and
+// createSnapshot returns null whenever there was nothing to archive — so a
+// first-ever full scrape (the signup path, where it matters most) and a rescrape
+// in which nothing changed both stored nothing, and no view read the copy
+// anyway. This is the record a dashboard reads back.
+//
+// Latest run only: a ScrapeRun collection or any history beyond it is out of
+// scope. Keys mirror the scrape_complete socket summary so the dashboard renders
+// a stored run through exactly the code path a live one takes.
+const lastScrapeSchema = new mongoose.Schema(
+  {
+    at:               { type: Date },
+    mode:             { type: String }, // 'full' | 'force' | 'rescrape'
+    pagesScraped:     { type: Number }, // full scrape
+    pagesChanged:     { type: Number }, // rescrape
+    chunksStored:     { type: Number }, // full scrape
+    chunksUpdated:    { type: Number }, // rescrape
+    // Both of a run's loss lists: pages that never produced text (LEO-056) and
+    // pages that read fine but failed to embed (LEO-019). Always written, an
+    // empty list included, so a clean run clears the previous run's.
+    failedUrls:       { type: [lastScrapeFailedUrlSchema], default: [] },
+    skippedUrls:      { type: [String], default: [] },
+    robotsDisallowed: { type: [String], default: [] },
+    durationMs:       { type: Number },
+  },
+  { _id: false }
+);
+
 const entitySchema = new mongoose.Schema(
   {
     domain: { type: String, required: true, unique: true },
@@ -62,6 +106,10 @@ const entitySchema = new mongoose.Schema(
     ministryPlanRequestedAt: { type: Date },
     ministryPlanRequestedBy: { type: String },
     lastScrapedAt: { type: Date },
+    // Optional with no `required` and no `unique`: an entity that has never
+    // scraped simply has none. Server-written only — deliberately absent from
+    // the dashboard PATCH allowlist, like retentionLastSweepAt above.
+    lastScrape: { type: lastScrapeSchema, default: undefined },
     // Written by the Stripe webhook for the $10/mo add-on and, since LEO-134, by
     // a superadmin PATCH so an entity can be comped with no Stripe subscription.
     leoRefreshEnabled: { type: Boolean, default: false },

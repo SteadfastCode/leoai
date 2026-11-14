@@ -33,6 +33,35 @@ const robotsDisallowed = computed(() => {
 })
 const robotsEnforced = computed(() => !!props.entity?.crawlSettings?.honorRobots)
 
+// The entity's STORED summary of its most recent crawl (LEO-115). Until this,
+// the panel only ever read the live scrape_complete payload, so an owner who
+// closed the tab — or whose refresh ran at 3am under LeoRefresh — could not see
+// which pages were not learned at all. `at` is the marker that a run was really
+// recorded: a summary with no `at` would render as "Done in — pages updated".
+// Never overwrites a live result or a scrape in flight, and the domain is
+// checked because the entity prop and the domain prop arrive from the parent
+// independently.
+function seedFromEntity() {
+  if (scraping.value || scrapeResult.value) return
+  const stored = props.entity?.lastScrape
+  if (stored?.at && props.entity?.domain === props.domain) scrapeResult.value = stored
+}
+
+// Mirrors the backend's formatDuration: a stored run carries durationMs only,
+// while the socket payload formats its own.
+function formatDuration(ms) {
+  const s = Math.round((Number(ms) || 0) / 1000)
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
+}
+const scrapeDuration = computed(() =>
+  scrapeResult.value?.durationFormatted || formatDuration(scrapeResult.value?.durationMs)
+)
+// Only a stored run has `at` — a live one just finished, so it needs no date.
+const scrapeAt = computed(() => {
+  const at = scrapeResult.value?.at
+  return at ? new Date(at).toLocaleString() : ''
+})
+
 // ── Manual KB entries ──────────────────────────────────────────────────────
 const kbEntries = ref([])
 const kbLoading = ref(false)
@@ -266,9 +295,14 @@ watch(() => props.domain, () => {
   scrapeLog.value = []
   scrapeResult.value = null
   clearKbSearch()
+  seedFromEntity()
   load()
   loadKbEntries()
 }, { immediate: true })
+
+// The entities list loads asynchronously and is reloaded after a full scrape, so
+// the stored summary usually arrives after the watcher above has already run.
+watch(() => props.entity?.lastScrape?.at, seedFromEntity)
 
 // Throttled reload — fires at most once per 4s when scrape_page_saved events arrive.
 // Pages are now saved progressively per-URL so each event means fresh data in the DB.
@@ -598,12 +632,13 @@ function sourceColor(source) {
         <v-icon v-else size="16" color="success">mdi-check-circle</v-icon>
         <span v-if="scraping">Scraping in progress — {{ scrapeLog[0]?.pagesVisited ?? 0 }} pages visited</span>
         <span v-else-if="scrapeResult">
-          Done in {{ scrapeResult.durationFormatted }} &mdash;
+          Done in {{ scrapeDuration }} &mdash;
           {{ scrapeResult.pagesChanged ?? scrapeResult.pagesScraped }} pages updated,
           {{ scrapeResult.chunksUpdated ?? scrapeResult.chunksStored }} chunks
+          <span v-if="scrapeAt" class="text-medium-emphasis font-weight-regular">&mdash; {{ scrapeAt }}</span>
         </span>
       </v-card-title>
-      <div ref="logEl" class="scrape-log pa-3 pt-2">
+      <div v-if="scraping || scrapeLog.length" ref="logEl" class="scrape-log pa-3 pt-2">
         <div
           v-for="entry in scrapeLog"
           :key="entry.key"

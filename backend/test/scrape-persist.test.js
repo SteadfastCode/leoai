@@ -14,6 +14,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 
 const Chunk = require('../src/models/Chunk');
+const Entity = require('../src/models/Entity');
 const ScrapedPage = require('../src/models/ScrapedPage');
 const ScrapeSnapshot = require('../src/models/ScrapeSnapshot');
 const ArchivedChunk = require('../src/models/ArchivedChunk');
@@ -39,6 +40,7 @@ test.after(async () => {
   // Delete the scratch domain, then tear the server down.
   await Promise.all([
     Chunk.deleteMany({ domain: DOMAIN }),
+    Entity.deleteMany({ domain: DOMAIN }),
     ScrapedPage.deleteMany({ domain: DOMAIN }),
     ScrapeSnapshot.deleteMany({ domain: DOMAIN }),
   ]);
@@ -50,10 +52,14 @@ test.after(async () => {
 test.beforeEach(async () => {
   await Promise.all([
     Chunk.deleteMany({ domain: DOMAIN }),
+    Entity.deleteMany({ domain: DOMAIN }),
     ScrapedPage.deleteMany({ domain: DOMAIN }),
     ScrapeSnapshot.deleteMany({ domain: DOMAIN }),
     ArchivedChunk.deleteMany({ domain: DOMAIN }),
   ]);
+  // Every rescrape runs against an existing entity — the row the run's summary
+  // is recorded on (LEO-115).
+  await Entity.create({ domain: DOMAIN, name: 'Scratch' });
 });
 
 // Every source the model preserves, seeded on the very URL being rescraped —
@@ -346,4 +352,122 @@ test('a clean rescrape leaves scanRules empty', async () => {
   await persistRescrapeResult({ domain: DOMAIN, result: RESULT });
   const page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
   assert.deepEqual(page.scanRules, []);
+});
+
+// ── The run's own summary, on the entity, unconditionally (LEO-115) ────────
+//
+// LEO-056's copies hang off the run's ScrapeSnapshot, and createSnapshot returns
+// null whenever there was nothing to archive. So the two runs an owner most
+// wants to read back — a rescrape in which nothing changed, and a first-ever
+// full scrape — persisted nothing at all. Both tests below are red against
+// unmodified main: entity.lastScrape does not exist there.
+
+const LOSSES = [
+  { url: `https://${DOMAIN}/missing`, reason: 'http_error', status: 404 },
+  { url: `https://${DOMAIN}/empty`, reason: 'empty_after_render', status: null },
+];
+
+const noChangeResult = (extra = {}) => ({
+  embeddedChunks: [], thinGroupChunks: [], thinGroupUrls: [],
+  changedUrls: [], unchangedUrls: [UNCHANGED], pageHashUpdates: [],
+  durationMs: 4000,
+  ...extra,
+});
+
+test('a rescrape that changed nothing still records its lost URLs on the entity', async () => {
+  await seed();
+  const out = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: noChangeResult({ failedUrls: LOSSES, skippedUrls: [PAGE] }),
+  });
+
+  // The precondition that used to lose the list: no snapshot, because there was
+  // nothing to archive.
+  assert.equal(out.snapshotId, null, 'a no-change rescrape must still take no snapshot');
+  assert.equal(await ScrapeSnapshot.countDocuments({ domain: DOMAIN }), 0);
+
+  const entity = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.ok(entity.lastScrape, 'the run must be recorded on the entity');
+  assert.equal(entity.lastScrape.mode, 'rescrape');
+  assert.ok(entity.lastScrape.at instanceof Date, 'the record must say when it ran');
+  assert.deepEqual(entity.lastScrape.failedUrls, LOSSES);
+  assert.deepEqual(entity.lastScrape.skippedUrls, [PAGE], 'the embedding skips are recorded too');
+  assert.equal(entity.lastScrape.durationMs, 4000);
+});
+
+test('a rescrape that DID change pages records the same summary beside its snapshot', async () => {
+  await seed();
+  const { snapshotId } = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: { ...RESULT, durationMs: 9000, failedUrls: LOSSES, robotsDisallowed: [`https://${DOMAIN}/private`] },
+  });
+
+  // The snapshot copy is untouched by this item — it is still written, and still
+  // only when there was something to archive.
+  assert.ok(snapshotId, 'a changed rescrape still snapshots');
+  const snapshot = await ScrapeSnapshot.findById(snapshotId).lean();
+  assert.deepEqual(snapshot.failedUrls, LOSSES, 'the snapshot copy must still be written');
+
+  const { lastScrape } = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.deepEqual(lastScrape.failedUrls, LOSSES);
+  assert.deepEqual(lastScrape.robotsDisallowed, [`https://${DOMAIN}/private`]);
+  assert.equal(lastScrape.pagesChanged, 2, 'the changed page and the group URL');
+  assert.equal(lastScrape.chunksUpdated, 3);
+});
+
+test('a clean run stores empty lists rather than leaving the previous run\'s', async () => {
+  await seed();
+  await persistRescrapeResult({ domain: DOMAIN, result: noChangeResult({ failedUrls: LOSSES }) });
+  const first = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(first.lastScrape.failedUrls.length, 2);
+
+  await persistRescrapeResult({ domain: DOMAIN, result: noChangeResult() });
+  const second = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.deepEqual(second.lastScrape.failedUrls, [], 'a clean run must not read as the last broken one');
+  assert.deepEqual(second.lastScrape.skippedUrls, []);
+  assert.deepEqual(second.lastScrape.robotsDisallowed, []);
+  assert.ok(second.lastScrape.at >= first.lastScrape.at, 'and the timestamp advances');
+});
+
+test('a full scrape of an entity with no prior chunks records its summary too', async () => {
+  const { recordLastScrape, MAX_STORED_URLS } = require('../src/services/scrapePersist');
+
+  // The signup path: a brand-new entity, nothing scraped before, so the 'full'
+  // snapshot finds nothing to archive and the LEO-056 copy was never written.
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN }), 0);
+  const stored = await recordLastScrape(DOMAIN, {
+    success: true,
+    mode: 'full',
+    pagesScraped: 12,
+    chunksStored: 40,
+    skippedUrls: [],
+    failedUrls: LOSSES,
+    robotsDisallowed: [],
+    durationMs: 120000,
+    durationFormatted: '2m 0s',
+  });
+
+  assert.ok(stored, 'recordLastScrape must report what it stored');
+  const { lastScrape } = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(lastScrape.mode, 'full');
+  assert.equal(lastScrape.pagesScraped, 12);
+  assert.equal(lastScrape.chunksStored, 40);
+  assert.deepEqual(lastScrape.failedUrls, LOSSES);
+  // Keys outside the stored set are dropped rather than written loose.
+  assert.ok(!('success' in lastScrape), 'only the summary keys the schema declares are stored');
+  assert.ok(!('durationFormatted' in lastScrape), 'the duration label is derived in the dashboard from durationMs');
+
+  // A crawl can lose up to MAX_PAGES URLs and the entities list returns whole
+  // documents, so the stored lists are capped.
+  const many = Array.from({ length: MAX_STORED_URLS + 25 }, (_, i) => ({
+    url: `https://${DOMAIN}/gone/${i}`, reason: 'http_error', status: 404,
+  }));
+  await recordLastScrape(DOMAIN, { mode: 'full', failedUrls: many });
+  const capped = await Entity.findOne({ domain: DOMAIN }).lean();
+  assert.equal(capped.lastScrape.failedUrls.length, MAX_STORED_URLS);
+});
+
+test('an unknown domain is a no-op, not a thrown scrape', async () => {
+  const { recordLastScrape } = require('../src/services/scrapePersist');
+  assert.equal(await recordLastScrape('no-such-entity.leo-nightly.test', { mode: 'full' }), null);
 });

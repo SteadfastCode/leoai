@@ -203,6 +203,37 @@ test('recordFailedUrls persists the shaped list on the run snapshot', async () =
     assert.deepEqual(await recordFailedUrls(snapshot._id, []), []);
     const untouched = await ScrapeSnapshot.findById(snapshot._id).lean();
     assert.equal(untouched.failedUrls.length, 2, 'an empty list must not wipe what was recorded');
+
+    // ...and the no-snapshot no-op just above is exactly why this item exists
+    // (LEO-115). A first-ever full scrape — the signup path — has nothing to
+    // archive, so the snapshot copy was never written and the list died with the
+    // socket feed. The entity now carries the run's own summary, which is what
+    // the dashboard's "Not learned" panel reads back.
+    const Entity = require('../src/models/Entity');
+    const { recordLastScrape } = require('../src/services/scrapePersist');
+    await Entity.create({ domain: DOMAIN, name: 'First Scrape' });
+
+    await recordLastScrape(DOMAIN, {
+      mode: 'full',
+      pagesScraped: 2,
+      chunksStored: 6,
+      skippedUrls: [],
+      failedUrls: [
+        { url: 'https://d.test/missing', reason: 'http_error', status: 404 },
+        { url: 'https://d.test/empty', reason: 'empty_after_render', status: null },
+      ],
+      robotsDisallowed: [],
+      durationMs: 31000,
+    });
+
+    const { lastScrape } = await Entity.findOne({ domain: DOMAIN }).lean();
+    assert.equal(await ScrapeSnapshot.countDocuments({ domain: DOMAIN, mode: 'full' }), 0,
+      'no snapshot was taken — that is the precondition, not an accident');
+    assert.deepEqual(lastScrape.failedUrls, [
+      { url: 'https://d.test/missing', reason: 'http_error', status: 404 },
+      { url: 'https://d.test/empty', reason: 'empty_after_render', status: null },
+    ], 'the not-learned list must outlive a run that had no snapshot to hang it off');
+    await Entity.deleteMany({ domain: DOMAIN });
   } finally {
     await ScrapeSnapshot.deleteMany({ domain: DOMAIN });
     await mongoose.disconnect();
