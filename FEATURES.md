@@ -154,7 +154,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone**
+- [x] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone**
   `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
   then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
   `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
