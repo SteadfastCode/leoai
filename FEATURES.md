@@ -156,7 +156,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape**
+- [x] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape**
   LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
   are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
   (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
