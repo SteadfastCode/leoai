@@ -76,7 +76,7 @@
     "LEO-115": {
       "order": 5,
       "title": "The \"Not learned\" list is dropped on a first scrape and unreadable after every scrape",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-115",

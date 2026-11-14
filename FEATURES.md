@@ -156,42 +156,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape**
-  LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
-  are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
-  (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
-  to archive (line 32). So a first-ever full scrape — the signup path, where knowing which pages were not
-  learned matters most — and a rescrape in which nothing changed both persist nothing;
-  `recordRobotsDisallowed` (line 127) carries the same guard. Found by the grader of LEO-056
-  (`ops/leo-nightly/reviews/LEO-056.graded.json`). The other half is worse: nothing reads the persisted
-  copy. `grep -rn failedUrls backend/src dashboard/src` finds one writer and no reader, and
-  `KnowledgeBase.vue:22` computes its "Not learned" panel from `scrapeResult`, which is only ever the live
-  `scrape_complete` socket payload. An owner who closes the tab, or whose rescrape ran under LeoRefresh at
-  3am, cannot see the list at all — `GET /scrape/snapshots` would return it but is superadmin-only and no
-  view calls it.
-  Build: write the run's own summary on the `Entity` as a new optional `lastScrape` subdocument carrying
-  `at` plus the same keys the `scrape_complete` summary already has (`mode`, `pagesScraped`/`pagesChanged`,
-  `skippedUrls`, `failedUrls`, `robotsDisallowed`, `durationMs`) — a new field with no `required` and no
-  `unique`, so an entity that has never scraped simply has none and the schema gate stays green. Write it
-  unconditionally at the end of `persistRescrapeResult` and beside the existing
-  `Entity.findOneAndUpdate` on the full-scrape path (`backend/src/routes/scrape.js:229-233`), from the
-  already-shaped arrays, and leave the snapshot writes exactly as they are. `KnowledgeBase.vue` already
-  receives the entity as a prop, so seed `scrapeResult` from `props.entity.lastScrape` on mount and let
-  `notLearnedFromSummary` consume it unchanged. Light-tier log one line per run naming the counts and
-  where they were stored.
-  Files: `backend/src/models/Entity.js`, `backend/src/services/scrapePersist.js`,
-  `backend/src/routes/scrape.js`, `dashboard/src/views/KnowledgeBase.vue`,
-  `backend/test/failed-urls.test.js`, `backend/test/scrape-persist.test.js`.
-  *Verify:* `node --test` over `mongodb-memory-server` — a rescrape whose result carries two failed URLs
-  and **no** changed chunks stores both on `entity.lastScrape` (today it stores nothing); a full scrape of
-  an entity with no prior chunks does the same; a run with no failures stores an empty list rather than
-  leaving the previous run's; the existing snapshot assertions still pass unchanged. Then
-  `cd dashboard && yarn test` for `notLearnedFromSummary` over the stored shape, and `yarn build`. The
-  first two must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: a `ScrapeRun` collection or any history beyond the latest run; exposing
-  `ScrapeSnapshot.failedUrls` to non-superadmins; retrying a failed URL (LEO-019 owns the embedding
-  retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
-  (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
 
 - [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules**
   Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
@@ -1168,6 +1132,42 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape** (routine 2026-11-14, ab949b9)
+  LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
+  are conditional on a snapshot: `recordFailedUrls` returns early without a `snapshotId`
+  (`backend/src/services/scrapePersist.js:89-91`) and `createSnapshot` returns `null` when there is nothing
+  to archive (line 32). So a first-ever full scrape — the signup path, where knowing which pages were not
+  learned matters most — and a rescrape in which nothing changed both persist nothing;
+  `recordRobotsDisallowed` (line 127) carries the same guard. Found by the grader of LEO-056
+  (`ops/leo-nightly/reviews/LEO-056.graded.json`). The other half is worse: nothing reads the persisted
+  copy. `grep -rn failedUrls backend/src dashboard/src` finds one writer and no reader, and
+  `KnowledgeBase.vue:22` computes its "Not learned" panel from `scrapeResult`, which is only ever the live
+  `scrape_complete` socket payload. An owner who closes the tab, or whose rescrape ran under LeoRefresh at
+  3am, cannot see the list at all — `GET /scrape/snapshots` would return it but is superadmin-only and no
+  view calls it.
+  Build: write the run's own summary on the `Entity` as a new optional `lastScrape` subdocument carrying
+  `at` plus the same keys the `scrape_complete` summary already has (`mode`, `pagesScraped`/`pagesChanged`,
+  `skippedUrls`, `failedUrls`, `robotsDisallowed`, `durationMs`) — a new field with no `required` and no
+  `unique`, so an entity that has never scraped simply has none and the schema gate stays green. Write it
+  unconditionally at the end of `persistRescrapeResult` and beside the existing
+  `Entity.findOneAndUpdate` on the full-scrape path (`backend/src/routes/scrape.js:229-233`), from the
+  already-shaped arrays, and leave the snapshot writes exactly as they are. `KnowledgeBase.vue` already
+  receives the entity as a prop, so seed `scrapeResult` from `props.entity.lastScrape` on mount and let
+  `notLearnedFromSummary` consume it unchanged. Light-tier log one line per run naming the counts and
+  where they were stored.
+  Files: `backend/src/models/Entity.js`, `backend/src/services/scrapePersist.js`,
+  `backend/src/routes/scrape.js`, `dashboard/src/views/KnowledgeBase.vue`,
+  `backend/test/failed-urls.test.js`, `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` over `mongodb-memory-server` — a rescrape whose result carries two failed URLs
+  and **no** changed chunks stores both on `entity.lastScrape` (today it stores nothing); a full scrape of
+  an entity with no prior chunks does the same; a run with no failures stores an empty list rather than
+  leaving the previous run's; the existing snapshot assertions still pass unchanged. Then
+  `cd dashboard && yarn test` for `notLearnedFromSummary` over the stored shape, and `yarn build`. The
+  first two must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: a `ScrapeRun` collection or any history beyond the latest run; exposing
+  `ScrapeSnapshot.failedUrls` to non-superadmins; retrying a failed URL (LEO-019 owns the embedding
+  retry); robots *enforcement* (LEO-071 deliberately shipped evidence only); `services/scraper.js`
+  (restricted, and the arrays it returns already carry everything needed); and emailing the owner about it.
 - [x] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s** (routine 2026-11-14, 0e3bd18)
   `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
   `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
