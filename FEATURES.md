@@ -386,7 +386,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   proving short chrome lines are still dropped; backend yarn verify + yarn test; then force-rescrape
   campcalvary.com with the key in mcp/.env and put the before/after Men's Retreat chunk in the PR.
 
-- [ ] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)**
+- [ ] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)** [priority]
   Found 2026-11-14: on campcalvary.com/camps/mr/ the dates and prices live in a brochure linked as
   'Download Brochure' -> drive.google.com/file/d/<id>/view. The crawler stays on the entity's
   domain, so Leo never reads it. Same-domain PDFs are already parsed (pdf-parse).
