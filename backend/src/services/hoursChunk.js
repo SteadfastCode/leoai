@@ -30,11 +30,17 @@ const MAX_LINE_LEN = 80;
 // paras: array of plain paragraph strings (post-keepPara, post-stripBlockMarker).
 // Returns a chunk object (without chunkIndex — caller assigns) or null.
 function buildHoursChunk(paras, url) {
+  // LEO-143: a paragraph may now carry a joined run of short lines, one per
+  // line, so a <br>-separated footer ("Monday - Saturday" / "7 am - 2 pm")
+  // arrives as ONE string. Flatten back to lines — the day/time pairing below
+  // and MAX_LINE_LEN were both written against individual lines, and a joined
+  // weekly table would otherwise blow the length gate and yield no chunk.
+  const flat = paras.flatMap((p) => String(p).split('\n'));
   const lines = [];
   let hasTimeRange = false;
 
-  for (let i = 0; i < paras.length; i++) {
-    const p = paras[i];
+  for (let i = 0; i < flat.length; i++) {
+    const p = flat[i];
     if (p.length > MAX_LINE_LEN || /^\[H[123]\] /.test(p)) continue;
     const day = DAY_RE.test(p);
     const time = TIME_RANGE_RE.test(p);
@@ -46,7 +52,7 @@ function buildHoursChunk(paras, url) {
       // Day-only line — pair with an immediately following time-range or
       // "Closed" line (the <br>-split footer pattern: "Monday - Saturday"
       // then "7 am - 2 pm").
-      const next = paras[i + 1];
+      const next = flat[i + 1];
       if (next && next.length <= MAX_LINE_LEN) {
         if (TIME_RANGE_RE.test(next)) {
           lines.push(`${p}: ${next}`);

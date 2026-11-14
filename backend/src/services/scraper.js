@@ -9,6 +9,7 @@ const { isStale } = require('./staleness');
 const { buildHoursChunk } = require('./hoursChunk');
 const { tryEmbed } = require('./embedGuard');
 const { classifyFetchFailure, noteEmptyAfterRender } = require('./fetchFailure');
+const { toParagraphs, isScheduleLine } = require('./scheduleLines');
 const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 
 const MAX_PAGES = 500;
@@ -95,6 +96,7 @@ function keepPara(p, cs = {}) {
     || MONEY_RE.test(bare)
     || TIME_RE.test(bare)
     || ADDRESS_FRAGMENT_RE.test(bare)
+    || isScheduleLine(bare) // LEO-143 — clock time, weekday, date or price, whatever the length
     || (cs.keepSocialHandles && SOCIAL_HANDLE_RE.test(bare))
     || (cs.keepShortUrls    && SHORT_URL_RE.test(bare));
 }
@@ -103,8 +105,7 @@ function keepPara(p, cs = {}) {
 // Applies basic paragraph filtering (length gate + heading/email/phone exemptions) but
 // skips cross-page dedup. Used for thin-page detection where seenParaHashes isn't available.
 function estimateContentLen(text) {
-  return text.split(/\n+/)
-    .map(p => p.trim())
+  return toParagraphs(text)
     .filter(keepPara)
     .map(stripBlockMarker)
     .join('\n\n').length;
@@ -523,8 +524,7 @@ function chunkText(text, url, cs = {}) {
 
   // Parse paragraphs — headings and emails are exempt from the 20-char minimum.
   // [SB] markers (semantic block elements) use a 4-char floor; strip after filtering.
-  const allParas = text.split(/\n+/)
-    .map(p => p.trim())
+  const allParas = toParagraphs(text, url)
     .filter(p => keepPara(p, cs))
     .map(stripBlockMarker);
 
@@ -703,7 +703,7 @@ function buildGroupChunks(groupUrl, pages, cs = {}) {
 
   // Build a card per page with lightweight filtering (no seenParaHashes)
   const cards = pages.map(({ url, text }) => {
-    const paras = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+    const paras = toParagraphs(text);
     const h1Para = paras.find(p => (p.match(H_MARKER_RE) || [])[1] === '1');
     const h1 = h1Para ? h1Para.replace(H_MARKER_RE, '').trim() : null;
     const bodyParas = paras
@@ -802,7 +802,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     // Short paragraphs already seen on a previous page are filtered out.
     // Long paragraphs (>BOILERPLATE_MAX) always pass — they may be real content
     // appearing on both an index page and a detail page.
-    const paras = page.text.split(/\n+/).map(p => p.trim())
+    const paras = toParagraphs(page.text)
       .filter(p => keepPara(p, cs));
 
     const filtered = paras.filter(p => {
