@@ -304,7 +304,19 @@ standing audit, which is last so it runs only when nothing else is claimable.
   to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
   any review.
 
-
+- [ ] **(LEO-131) System log: a copy button on each row**
+  On the dashboard's System log page (dashboard/src/views/Logs.vue), each .log-row shows a
+  timestamp, a level chip and the message, but there is no quick way to copy one entry (Daniel asked
+  2026-11-14 while pasting a Railway warning).
+  Add a small copy icon button to every row, in both Live and History modes: - Copies one line: the
+  formatted timestamp, the level and the full message (e.g. '2026-11-14 10:42:21 WARN <message>'),
+  with multi-line messages kept whole. - Uses navigator.clipboard.writeText. On success, show the
+  existing notify snackbar ('Copied'); on failure, say so instead of failing silently. - Shows on
+  row hover and keyboard focus, and is always visible on touch screens. It has an aria-label ('Copy
+  log entry') and a tooltip, and meets WCAG 2.1 AA in light and dark. - Clicking it must not break
+  auto-scroll or text selection in the stream.
+  Check: a dashboard unit test that the button copies the right string for a row, plus yarn build
+  and yarn test in dashboard/.
 
 ## Proposed
 
@@ -916,20 +928,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
-
-- [ ] **(LEO-131) System log: a copy button on each row** [proposed]
-  On the dashboard's System log page (dashboard/src/views/Logs.vue), each .log-row shows a
-  timestamp, a level chip and the message, but there is no quick way to copy one entry (Daniel asked
-  2026-11-14 while pasting a Railway warning).
-  Add a small copy icon button to every row, in both Live and History modes: - Copies one line: the
-  formatted timestamp, the level and the full message (e.g. '2026-11-14 10:42:21 WARN <message>'),
-  with multi-line messages kept whole. - Uses navigator.clipboard.writeText. On success, show the
-  existing notify snackbar ('Copied'); on failure, say so instead of failing silently. - Shows on
-  row hover and keyboard focus, and is always visible on touch screens. It has an aria-label ('Copy
-  log entry') and a tooltip, and meets WCAG 2.1 AA in light and dark. - Clicking it must not break
-  auto-scroll or text selection in the stream.
-  Check: a dashboard unit test that the button copies the right string for a row, plus yarn build
-  and yarn test in dashboard/.
 
 - [ ] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org** [proposed]
   Found 2026-11-14 while debugging Grace Baptist (gbclancaster.org, a Squarespace site): nearly
