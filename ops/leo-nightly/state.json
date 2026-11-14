@@ -721,8 +721,26 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-132": {
       "order": 41,
+      "title": "Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 42,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -740,7 +758,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 42,
+      "order": 43,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
