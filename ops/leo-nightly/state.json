@@ -184,10 +184,10 @@
     "LEO-143": {
       "order": 11,
       "title": "Scraper: keep short schedule lines (times, dates, prices) instead of dropping lines under 20 chars",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-143",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -195,8 +195,8 @@
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-11-14T21:21:59.524Z",
+      "runId": "2026-11-14T21:21:43.563Z",
       "lastFail": null
     },
     "LEO-144": {

@@ -370,7 +370,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
   any review.
 
-- [ ] **(LEO-143) Scraper: keep short schedule lines (times, dates, prices) instead of dropping lines under 20 chars** [priority]
+- [x] **(LEO-143) Scraper: keep short schedule lines (times, dates, prices) instead of dropping lines under 20 chars** [priority]
   Found 2026-11-14 on campcalvary.com/camps/mr/ (WordPress + Elementor). keepPara (scraper.js:87)
   drops any non-[SB] paragraph under 20 chars. Schedules are made of short lines, each its own
   <span> or <br>-separated line in one text-editor widget, so these were all lost: 'Fri 7:00
