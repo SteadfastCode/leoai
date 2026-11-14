@@ -386,6 +386,23 @@ standing audit, which is last so it runs only when nothing else is claimable.
   proving short chrome lines are still dropped; backend yarn verify + yarn test; then force-rescrape
   campcalvary.com with the key in mcp/.env and put the before/after Men's Retreat chunk in the PR.
 
+- [ ] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)**
+  Found 2026-11-14: on campcalvary.com/camps/mr/ the dates and prices live in a brochure linked as
+  'Download Brochure' -> drive.google.com/file/d/<id>/view. The crawler stays on the entity's
+  domain, so Leo never reads it. Same-domain PDFs are already parsed (pdf-parse).
+  Do, in a new helper module (scraper.js has a small-diff cap): - When a crawled page links to a
+  document, fetch it one hop even off-domain: direct .pdf links, Google Drive file links (download
+  via the drive.usercontent export URL for the file id), and Google Docs (export as text). Nothing
+  else off-domain: no forms (jotform etc.), no HTML pages, no further hops. - Chunk it like a
+  same-domain PDF, labelled with the document title, crediting the linking page (keep the doc URL as
+  the chunk url and the linking page in sourceUrls) so Leo can cite both. - Respect a size cap (e.g.
+  10 MB) and a per-crawl cap (e.g. 20 documents); skip files Drive says need sign-in; log every skip
+  at the debug tier. - Re-fetch only on full scrapes or when the link changes, not on every weekly
+  refresh, unless the document's hash changed.
+  Check: tests with fixture links for each kind; backend yarn verify + yarn test; force-rescrape
+  campcalvary.com and confirm a test-mode /chat 'When is the men's retreat and what does it cost?'
+  answers from the brochure.
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -1173,23 +1190,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   have small-diff caps.
   Check: tests per date source with fixture HTML; rag-eval before/after; backend yarn verify + yarn
   test.
-
-- [ ] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)** [proposed]
-  Found 2026-11-14: on campcalvary.com/camps/mr/ the dates and prices live in a brochure linked as
-  'Download Brochure' -> drive.google.com/file/d/<id>/view. The crawler stays on the entity's
-  domain, so Leo never reads it. Same-domain PDFs are already parsed (pdf-parse).
-  Do, in a new helper module (scraper.js has a small-diff cap): - When a crawled page links to a
-  document, fetch it one hop even off-domain: direct .pdf links, Google Drive file links (download
-  via the drive.usercontent export URL for the file id), and Google Docs (export as text). Nothing
-  else off-domain: no forms (jotform etc.), no HTML pages, no further hops. - Chunk it like a
-  same-domain PDF, labelled with the document title, crediting the linking page (keep the doc URL as
-  the chunk url and the linking page in sourceUrls) so Leo can cite both. - Respect a size cap (e.g.
-  10 MB) and a per-crawl cap (e.g. 20 documents); skip files Drive says need sign-in; log every skip
-  at the debug tier. - Re-fetch only on full scrapes or when the link changes, not on every weekly
-  refresh, unless the document's hash changed.
-  Check: tests with fixture links for each kind; backend yarn verify + yarn test; force-rescrape
-  campcalvary.com and confirm a test-mode /chat 'When is the men's retreat and what does it cost?'
-  answers from the brochure.
 
 ## Block L — Backlog upkeep
 
