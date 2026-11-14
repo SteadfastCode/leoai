@@ -1158,6 +1158,20 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: tests for each case; scrape the same fixture site twice and assert identical chunk hashes;
   backend yarn verify + yarn test.
 
+- [ ] **(LEO-139) RAG: re-measure, then replace the hard cutoff with top-3 above a floor (needs LEO-135, LEO-136, LEO-137, LEO-138)** [proposed]
+  From the 2026-11-14 scrape audit. Retrieval is a hard cutoff: below ragThreshold (0.75) Leo gets
+  no context at all. LEO-037 measured 0/12 natural phrasings passing; gbclancaster.org's 'What are
+  the service times?' scored 0.709 on the chunk with the answer.
+  FIRST, re-evaluate: the needed items change the scores (consistent sibling scale, no junk pages,
+  no URL duplicates). Re-run the LEO-055 threshold sweep on every entity with real data and record
+  it. If the cutoff no longer loses answers, close this item with the numbers and change nothing.
+  Otherwise: - Replace the hard cutoff with: always pass the top 3 chunks scoring above a floor
+  (start ~0.60, set from the sweep), plus anything above ragThreshold. The LEO-038 low-confidence
+  band already makes Leo hedge on weak matches; make sure those top-3 hits land in that band. -
+  ragThreshold stays per entity; the floor is a new constant or entity field.
+  Check: rag-eval before/after in the PR body; tests for the floor and the always-top-3 rule;
+  backend yarn verify + yarn test.
+
 ## Block L — Backlog upkeep
 
 
