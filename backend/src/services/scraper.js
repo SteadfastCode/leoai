@@ -11,6 +11,7 @@ const { tryEmbed } = require('./embedGuard');
 const { classifyFetchFailure, noteEmptyAfterRender } = require('./fetchFailure');
 const { toParagraphs, isScheduleLine } = require('./scheduleLines');
 const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
+const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -869,6 +870,9 @@ async function scrapeSite(baseUrl, opts = {}) {
   const seenChunkHashes = new Set();
   const seenParaHashes  = new Map();
   const baseDomain = new URL(baseUrl).hostname;
+  const docLinks = new Map(); // off-domain documents linked from a crawled page (LEO-144)
+  const docKnown = null;      // a full scrape fetches every document it finds
+  let docResult = { chunks: [], pages: [] };
 
   // Pass 1 — Haiku structural analysis of the home page to identify per-site boilerplate.
   // Selectors are applied as a cheerio pre-filter on every subsequent page before text extraction.
@@ -924,6 +928,7 @@ async function scrapeSite(baseUrl, opts = {}) {
             });
           }
 
+          noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
               const resolved = new URL(link, url).href;
@@ -967,6 +972,10 @@ async function scrapeSite(baseUrl, opts = {}) {
       // No page records — thin group pages' ScrapedPage records are handled by bulkWrite at end
       if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks, []);
     }
+
+    // One hop to the documents those pages linked (LEO-144) — brochures, menus
+    docResult = await embedLinkedDocs(docLinks, { chunkText, cs, known: docKnown });
+    if (docResult.chunks.length > 0 && onChunks) await onChunks(docResult.chunks, docResult.pages);
   } finally {
     await browser.close();
   }
@@ -979,7 +988,7 @@ async function scrapeSite(baseUrl, opts = {}) {
     const { chunks: thinGroupChunks } = await tryEmbed(
       () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
       thinPageData, skippedUrls, { chunks: [] });
-    return { chunks: [...normalChunks, ...thinGroupChunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
+    return { chunks: [...normalChunks, ...thinGroupChunks, ...docResult.chunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
   }
 
   return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
@@ -1008,6 +1017,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const failedUrls = [];  // pages that never produced text — shaped in scrapePersist (LEO-056)
   const robotsDisallowed = []; // URLs robots.txt disallows — shaped in scrapePersist (LEO-071)
   const baseDomain = new URL(baseUrl).hostname;
+  const docLinks = new Map(); // off-domain documents linked from a crawled page (LEO-144)
 
   let pass1Filters = { exclude: [], include: [] };
   try {
@@ -1050,6 +1060,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           const isThin      = estimateContentLen(text) < THIN_PAGE_THRESHOLD;
           const staleRefresh = staleUrlKeys.has(urlKey(url));
           const needsRefresh = hashChanged || staleRefresh;
+          const docKnown     = hashChanged ? null : storedHashMap; // LEO-144 — changed page ⇒ re-read its documents
 
           if (!text.trim()) failedUrls.push(noteEmptyAfterRender(url));
           const pageEntry = { url, text, hash, priority: isPriority ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants, contentChanged: hashChanged, staleRefresh };
@@ -1077,6 +1088,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
             });
           }
 
+          noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
               const resolved = new URL(link, url).href;
@@ -1133,19 +1145,25 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     thinGroupChunks = result.chunks;
   }
 
+  // One hop to the documents the crawl's pages linked (LEO-144). Already-stored
+  // documents were never noted unless their linking page changed; of those, one
+  // whose text still hashes to the stored hash is not re-embedded.
+  const docResult = await embedLinkedDocs(docLinks, { chunkText, cs, known: storedHashMap });
+
   return {
-    embeddedChunks,
+    embeddedChunks: [...embeddedChunks, ...docResult.chunks],
     thinGroupChunks,
     skippedUrls,
     failedUrls,
     robotsDisallowed,
-    changedUrls:    changedPages.map(p => p.url),
+    changedUrls:    [...changedPages.map(p => p.url), ...docResult.pages.map(p => p.url)],
     thinGroupUrls,
     unchangedUrls,
     // pageHashUpdates covers ALL changed pages (normal + thin) for ScrapedPage record updates
     pageHashUpdates: allPageData
       .filter(p => p.contentChanged || p.staleRefresh || (isPriorityUrl(p.url) && p.text.length >= THIN_PAGE_THRESHOLD))
-      .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged })),
+      .map(p => ({ url: p.url, hash: p.hash, priority: p.priority, usedPuppeteer: p.usedPuppeteer, contentChanged: p.contentChanged }))
+      .concat(docResult.pages),
     durationMs: Date.now() - startedAt,
   };
 }
