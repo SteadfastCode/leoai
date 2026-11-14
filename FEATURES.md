@@ -155,7 +155,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s**
+- [x] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s**
   `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
   `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
   (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
