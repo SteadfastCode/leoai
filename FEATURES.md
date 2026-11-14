@@ -411,24 +411,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
   to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
   any review.
 
-- [x] **(LEO-134) LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped** [priority]
-  Daniel, 2026-11-14: refresh every entity, but weekly. They are all test data on sites that never
-  agreed to be crawled, so nothing crawls more often than weekly by default. Today only the Stripe
-  webhook writes leoRefreshEnabled (routes/webhooks.js:47,95), and leoRefreshFrequency defaults to
-  'daily' (models/Entity.js:68).
-  Do: - leoRefreshEnabled becomes a superadmin-only field in services/entitySettings.js FIELD_RULES,
-  settable by PATCH for a superadmin or X-API-Key caller, never an owner. The webhook keeps its
-  behaviour and never touches an entity with no leoRefreshSubscriptionId. - Default
-  leoRefreshFrequency is 'weekly': the model, the billing.js fallback, the leoRefresh.js fallbacks.
-  - Cap: enabled with no leoRefreshSubscriptionId (comped) runs weekly even if it says daily,
-  enforced in isDueNow and logged at the debug tier. The dashboard says it is held to weekly until
-  there is a subscription. - Settings.vue: a superadmin on/off switch by the LeoRefresh chip; owners
-  unchanged. - After deploy: frequency 'weekly' on every entity with no subscription.
-  Check: tests for owner refused / superadmin allowed, the weekly default, and isDueNow holding a
-  comped daily entity to the weekly gap; backend yarn verify + yarn test, dashboard yarn build +
-  yarn test.
-  After deploy, a box session PATCHes leoRefreshEnabled true + weekly on all 8 entities with the key
-  in mcp/.env and reads them back.
 
 ## Proposed
 
@@ -1256,6 +1238,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-134) LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped** [priority] (routine 2026-11-14, ea6c4e5)
+  Daniel, 2026-11-14: refresh every entity, but weekly. They are all test data on sites that never
+  agreed to be crawled, so nothing crawls more often than weekly by default. Today only the Stripe
+  webhook writes leoRefreshEnabled (routes/webhooks.js:47,95), and leoRefreshFrequency defaults to
+  'daily' (models/Entity.js:68).
+  Do: - leoRefreshEnabled becomes a superadmin-only field in services/entitySettings.js FIELD_RULES,
+  settable by PATCH for a superadmin or X-API-Key caller, never an owner. The webhook keeps its
+  behaviour and never touches an entity with no leoRefreshSubscriptionId. - Default
+  leoRefreshFrequency is 'weekly': the model, the billing.js fallback, the leoRefresh.js fallbacks.
+  - Cap: enabled with no leoRefreshSubscriptionId (comped) runs weekly even if it says daily,
+  enforced in isDueNow and logged at the debug tier. The dashboard says it is held to weekly until
+  there is a subscription. - Settings.vue: a superadmin on/off switch by the LeoRefresh chip; owners
+  unchanged. - After deploy: frequency 'weekly' on every entity with no subscription.
+  Check: tests for owner refused / superadmin allowed, the weekly default, and isDueNow holding a
+  comped daily entity to the weekly gap; backend yarn verify + yarn test, dashboard yarn build +
+  yarn test.
+  After deploy, a box session PATCHes leoRefreshEnabled true + weekly on all 8 entities with the key
+  in mcp/.env and reads them back.
 - [x] **(LEO-107) Three dashboard routes act on an object by id without checking it belongs to `:domain`** (routine 2026-11-07, ab5b488)
   The `router.param('domain')` floor (`backend/src/routes/dashboard.js:40-45`, added by LEO-P0-3) proves the
   caller holds a membership for the domain **in the path**. It cannot prove that the object they name in the

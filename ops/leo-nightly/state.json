@@ -202,7 +202,7 @@
     "LEO-134": {
       "order": 12,
       "title": "LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-134",
