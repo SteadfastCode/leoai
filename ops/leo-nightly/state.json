@@ -184,7 +184,7 @@
     "LEO-144": {
       "order": 11,
       "title": "Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-144",
