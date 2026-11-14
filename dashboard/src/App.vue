@@ -51,7 +51,9 @@ const rail          = ref(false)
 const showRail      = computed(() => rail.value && !isMobile.value)
 
 watch(isMobile, (mobile) => { drawer.value = !mobile })
-watch(() => router.currentRoute.value.fullPath, () => { if (isMobile.value) drawer.value = false })
+// On a phone the drawer closes once a page is picked from the menu. Switching between the
+// Entity and Admin layers also navigates, but keeps the drawer open so a page can be picked.
+function closeDrawerOnMobile() { if (isMobile.value) drawer.value = false }
 
 const adminPaths = ['/fleet', '/entities', '/crawls', '/page-explorer', '/chat-preview', '/ministry-requests', '/codes', '/logs', '/api-keys', '/audit-log', '/usage-report']
 const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsWith(p)) ? 'admin' : 'entity')
@@ -245,7 +247,7 @@ async function handleReAuthPasskey() {
         </span>
       </v-app-bar>
 
-      <v-navigation-drawer v-model="drawer" :rail="showRail" :permanent="!isMobile" :temporary="isMobile" width="240">
+      <v-navigation-drawer v-model="drawer" :rail="showRail" :permanent="!isMobile" :temporary="isMobile" disable-route-watcher width="240">
         <div class="pa-3 d-flex align-center sidebar-border-bottom" :class="showRail ? 'justify-center' : 'gap-2'">
           <span style="font-size: 22px; flex-shrink: 0">🦁</span>
           <span v-if="!showRail" class="text-high-emphasis" style="font-weight: 700; font-size: 16px; flex: 1">LeoAI</span>
@@ -291,6 +293,7 @@ async function handleReAuthPasskey() {
               :title="item.title"
               rounded="lg"
               active-color="primary"
+              @click="closeDrawerOnMobile"
             />
           </v-list>
         </template>
@@ -306,6 +309,7 @@ async function handleReAuthPasskey() {
               :title="item.title"
               rounded="lg"
               active-color="primary"
+              @click="closeDrawerOnMobile"
             />
           </v-list>
         </template>

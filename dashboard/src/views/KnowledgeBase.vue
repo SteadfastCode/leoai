@@ -1,9 +1,11 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useDisplay } from 'vuetify'
 import { getPages, triggerScrape, getKbEntries, addKbEntry, uploadKbFile, deleteKbEntry, getChunks, searchKb } from '../lib/api'
 import { isSuperAdmin } from '../lib/auth'
 import { socket } from '../lib/socket'
 import { notLearnedFromSummary } from '../lib/notLearned'
+import { notify } from '../lib/notify'
 
 const props = defineProps(['domain', 'entity'])
 const pages = ref([])
@@ -189,9 +191,29 @@ function snippetParts(r) {
 }
 
 // Open the existing chunk viewer for a result whose URL is a tracked page.
+// Tapping a search result opens the whole chunk; "Show in page list" expands its page below.
+const { smAndDown } = useDisplay()
+const chunkDialog = ref(null)
+
 function openSearchResult(r) {
+  chunkDialog.value = r
+}
+
+async function showInPageList(r) {
+  chunkDialog.value = null
   if (pages.value.some(p => p.url === r.url) && expandedPage.value !== r.url) {
-    togglePageExpand(r.url)
+    await togglePageExpand(r.url)
+  }
+  await nextTick()
+  document.getElementById('kb-scraped-pages')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function copyChunk(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    notify('Chunk copied', 'success')
+  } catch {
+    notify('Could not copy — select the text and copy it instead')
   }
 }
 
@@ -676,7 +698,7 @@ function sourceColor(source) {
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
 
     <!-- Scraped pages with chunk accordion -->
-    <v-card rounded="lg" elevation="0" border>
+    <v-card id="kb-scraped-pages" rounded="lg" elevation="0" border>
       <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-0">Scraped Pages</v-card-title>
 
       <div v-if="!loading && !pages.length" class="text-center text-secondary pa-6 text-body-2">
@@ -775,6 +797,54 @@ function sourceColor(source) {
         </div>
       </div>
     </v-card>
+
+    <!-- Whole-chunk viewer, opened from a search result -->
+    <v-dialog
+      :model-value="!!chunkDialog"
+      :fullscreen="smAndDown"
+      max-width="760"
+      scrollable
+      @update:model-value="(open) => { if (!open) chunkDialog = null }"
+    >
+      <v-card v-if="chunkDialog" rounded="lg">
+        <v-card-title class="d-flex align-center pa-4" style="gap: 8px">
+          <span class="text-body-1 font-weight-bold text-truncate flex-grow-1">
+            {{ chunkDialog.label || chunkDialog.pageH1 || 'Chunk' }}
+          </span>
+          <v-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="chunkDialog = null" />
+        </v-card-title>
+        <div class="d-flex flex-wrap align-center px-4 pb-3" style="gap: 6px">
+          <v-chip v-if="chunkDialog.score != null" size="small" :color="chunkDialog.score >= 0.75 ? 'success' : 'warning'" variant="tonal">
+            score {{ chunkDialog.score.toFixed(3) }}
+          </v-chip>
+          <v-chip size="small" variant="tonal">{{ chunkDialog.source }}</v-chip>
+          <v-chip v-if="chunkDialog.content" size="small" variant="tonal">
+            {{ chunkDialog.content.length.toLocaleString() }} chars
+          </v-chip>
+        </div>
+        <div v-if="chunkDialog.url" class="px-4 pb-3 text-caption" style="overflow-wrap: anywhere">
+          <a :href="chunkDialog.url" target="_blank" rel="noopener">{{ chunkDialog.url }}</a>
+        </div>
+        <v-divider />
+        <v-card-text class="pa-4">
+          <pre class="chunk-text">{{ chunkDialog.content ?? chunkDialog.snippet }}</pre>
+          <div v-if="!chunkDialog.content" class="text-caption text-secondary mt-2">
+            Showing the search snippet; the full text is in the page list below.
+          </div>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-3 flex-wrap" style="gap: 8px">
+          <v-btn
+            v-if="pages.some(p => p.url === chunkDialog.url)"
+            variant="text"
+            prepend-icon="mdi-format-list-bulleted"
+            @click="showInPageList(chunkDialog)"
+          >Show in page list</v-btn>
+          <v-spacer />
+          <v-btn variant="tonal" prepend-icon="mdi-content-copy" @click="copyChunk(chunkDialog.content ?? chunkDialog.snippet)">Copy</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Delete confirm dialog -->
     <v-dialog v-model="deleteDialog" max-width="400">

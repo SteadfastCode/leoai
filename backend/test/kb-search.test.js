@@ -105,6 +105,7 @@ test('text mode finds a literal substring, case-insensitively', async () => {
   assert.equal(body.results[0].label, 'Hours');
   assert.equal(body.results[0].pageH1, 'Visit Us');
   assert.equal(body.results[0].source, 'scraped');
+  assert.equal(body.results[0].content, 'We open at 9am every day (except holidays).', 'the full chunk text rides along with the snippet');
 });
 
 test('domain scoping: a hit on domain B never surfaces for domain A', async () => {

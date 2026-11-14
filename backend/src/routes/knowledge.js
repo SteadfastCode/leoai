@@ -205,6 +205,8 @@ router.get('/search', async (req, res) => {
           label: c.label ?? null,
           pageH1: c.pageH1 ?? null,
           source: c.source,
+          // Full text too, so the dashboard can open the whole chunk from a result
+          content: c.content,
           ...makeSnippet(c.content, q),
         })),
         total: chunks.length,
@@ -243,6 +245,7 @@ router.get('/search', async (req, res) => {
         pageH1: c.pageH1 ?? null,
         source: c.source,
         score: c.score,
+        content: c.content,
         ...makeSnippet(c.content, q),
       })),
       total: chunks.length,
