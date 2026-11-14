@@ -77,6 +77,50 @@ describe('notLearnedFromSummary', () => {
   })
 })
 
+// The stored copy of a run, read off entity.lastScrape (LEO-115). The same
+// function has to consume it unchanged: it is the one the KB panel seeds itself
+// from when the live socket payload is gone — a reload, or a 3am LeoRefresh.
+describe('notLearnedFromSummary over a stored run', () => {
+  // Shaped by the backend and round-tripped through Mongo, so the arrays arrive
+  // as plain objects and `at` as an ISO string.
+  const STORED = {
+    at: '2026-11-14T03:04:05.000Z',
+    mode: 'rescrape',
+    pagesChanged: 3,
+    chunksUpdated: 11,
+    failedUrls: [
+      { url: 'https://d.test/missing', reason: 'http_error', status: 404 },
+      { url: 'https://d.test/empty', reason: 'empty_after_render', status: null },
+    ],
+    skippedUrls: ['https://d.test/about'],
+    robotsDisallowed: [],
+    durationMs: 31000,
+  }
+
+  it('renders the stored run exactly as the live summary', () => {
+    expect(notLearnedFromSummary(STORED)).toEqual(
+      notLearnedFromSummary({ failedUrls: STORED.failedUrls, skippedUrls: STORED.skippedUrls }),
+    )
+  })
+
+  it('names every loss with its reason and status', () => {
+    const rows = notLearnedFromSummary(STORED)
+    expect(rows.map((r) => [r.url, r.reason, r.status])).toEqual([
+      ['https://d.test/missing', 'http_error', 404],
+      ['https://d.test/empty', 'empty_after_render', null],
+      ['https://d.test/about', 'embed_failed', null],
+    ])
+    for (const row of rows) expect(row.label).toBe(REASON_LABELS[row.reason])
+  })
+
+  it('shows nothing for a stored run that lost no page', () => {
+    expect(notLearnedFromSummary({
+      at: STORED.at, mode: 'full', pagesScraped: 9,
+      failedUrls: [], skippedUrls: [], robotsDisallowed: [],
+    })).toEqual([])
+  })
+})
+
 describe('reasonLabel', () => {
   it('falls back for an unknown reason', () => {
     expect(reasonLabel('http_error')).toBe('HTTP error')

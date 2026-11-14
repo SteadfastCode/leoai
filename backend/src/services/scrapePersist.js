@@ -9,6 +9,7 @@
 // rescrapeSite() itself is untouched — this module only consumes its result.
 
 const Chunk = require('../models/Chunk');
+const Entity = require('../models/Entity');
 const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
@@ -17,6 +18,23 @@ const { summariseRobots } = require('./robots');
 const { sweepChunks, mergeSweep, logSweep } = require('./scanSweep');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
+
+// Debug tiers — LAST_SCRAPE_LOG_LEVEL = off | light | normal | verbose:
+//   off             nothing
+//   light (default) one line per run naming the loss counts and where they were
+//                   stored, and one per list that had to be truncated
+//   normal          adds the keys actually copied off the summary
+//   verbose         adds one line per stored not-learned URL
+const TIERS = { off: 0, light: 1, normal: 2, verbose: 3 };
+
+function logTier() {
+  const name = String(process.env.LAST_SCRAPE_LOG_LEVEL || 'light').toLowerCase();
+  return TIERS[name] ?? TIERS.light;
+}
+
+function debug(tier, message) {
+  if (logTier() >= TIERS[tier]) console.log(`[LastScrape] ${message}`);
+}
 
 // Chunk sources a scrape may never delete — defined once on the model, see Chunk.js.
 const { PRESERVED_SOURCES } = Chunk;
@@ -134,6 +152,67 @@ async function recordRobotsDisallowed(snapshotId, urls = [], domain = '') {
     console.warn(`Could not record ${shaped.length} robots-disallowed URL(s) on snapshot ${snapshotId}: ${err.message}`);
   }
   return shaped;
+}
+
+// Keys copied verbatim off a scrape_complete summary onto Entity.lastScrape, so
+// a stored run renders through exactly the dashboard code a live one takes. The
+// two loss lists are handled separately below (they are re-shaped and capped).
+const SUMMARY_KEYS = ['mode', 'pagesScraped', 'pagesChanged', 'chunksStored', 'chunksUpdated', 'durationMs'];
+
+// A crawl can lose up to MAX_PAGES URLs, and GET /api/dashboard/entities returns
+// every entity document in full — so the STORED lists are capped while the
+// socket payload stays whole. An owner acts on the first screenful; the run's
+// snapshot (when it has one) still holds the complete record.
+const MAX_STORED_URLS = 200;
+
+// Store the run's own summary on the Entity (LEO-115).
+//
+// Unconditional, and that is the entire point of the item: LEO-056's copies hang
+// off the run's ScrapeSnapshot, and createSnapshot returns null whenever there
+// was nothing to archive — a first-ever full scrape and a rescrape in which
+// nothing changed both persisted nothing, which is exactly when an owner most
+// wants to know what was missed. The snapshot writes above are unchanged; this
+// is a second, always-written copy that a non-superadmin view can read.
+//
+// Every list is written even when empty, so a clean run clears the previous
+// run's losses rather than leaving them to read as current.
+//
+// Best-effort for the same reason recordFailedUrls is: a failed write here must
+// never fail a scrape that stored real chunks. Returns what was stored, or null.
+async function recordLastScrape(domain, summary = {}) {
+  const cap = (list, label) => {
+    if (list.length <= MAX_STORED_URLS) return list;
+    debug('light', `${domain}: ${label} capped at ${MAX_STORED_URLS} of ${list.length} for storage (source: this run's summary, which carried all of them)`);
+    return list.slice(0, MAX_STORED_URLS);
+  };
+
+  const lastScrape = { at: new Date() };
+  for (const key of SUMMARY_KEYS) {
+    if (summary[key] !== undefined) lastScrape[key] = summary[key];
+  }
+  lastScrape.failedUrls = cap(shapeFailedUrls(summary.failedUrls), 'failedUrls');
+  // skippedUrls (LEO-019) and robotsDisallowed (LEO-071) are both plain URL
+  // lists, so they take the same string shaper.
+  lastScrape.skippedUrls = cap(shapeRobotsDisallowed(summary.skippedUrls), 'skippedUrls');
+  lastScrape.robotsDisallowed = cap(shapeRobotsDisallowed(summary.robotsDisallowed), 'robotsDisallowed');
+
+  const mode = lastScrape.mode || 'unknown';
+  try {
+    const updated = await Entity.findOneAndUpdate({ domain }, { lastScrape });
+    if (!updated) {
+      debug('light', `${domain}: no entity row — the ${mode} run's summary was not stored`);
+      return null;
+    }
+    debug('light', `${domain}: stored the ${mode} run's summary on entity.lastScrape — ${lastScrape.failedUrls.length} not learned, ${lastScrape.skippedUrls.length} embed-skipped, ${lastScrape.robotsDisallowed.length} robots-disallowed (source: this run's scrape_complete summary)`);
+    debug('normal', `  ${domain}: keys ${Object.keys(lastScrape).join(', ')}`);
+    for (const f of lastScrape.failedUrls) {
+      debug('verbose', `  ${domain}: not learned ${f.url} — ${f.reason}${f.status ? ` (HTTP ${f.status})` : ''}`);
+    }
+    return lastScrape;
+  } catch (err) {
+    console.warn(`Could not store the ${mode} run's summary on ${domain}: ${err.message}`);
+    return null;
+  }
 }
 
 // Tally how many chunks each page URL contributed to (LEO-028).
@@ -288,7 +367,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     );
   }
 
-  return {
+  const out = {
     snapshotId: snapshot ? snapshot._id : null,
     pagesChanged: changedUrls.length + thinGroupUrls.length,
     pagesUnchanged: unchangedUrls.length,
@@ -296,6 +375,22 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     failedUrls,
     robotsDisallowed,
   };
+
+  // Outside every branch above, unconditionally (LEO-115): a rescrape in which
+  // nothing changed takes no snapshot, and its loss lists are exactly the ones
+  // that used to be dropped. Shared with LeoRefresh, so a 3am refresh records
+  // its summary the same way a manual rescrape does.
+  await recordLastScrape(domain, {
+    mode: 'rescrape',
+    pagesChanged: out.pagesChanged,
+    chunksUpdated: out.chunksUpdated,
+    skippedUrls: [...skippedUrls],
+    failedUrls,
+    robotsDisallowed,
+    durationMs: result.durationMs,
+  });
+
+  return out;
 }
 
 module.exports = {
@@ -307,5 +402,7 @@ module.exports = {
   recordFailedUrls,
   shapeRobotsDisallowed,
   recordRobotsDisallowed,
+  recordLastScrape,
   MAX_SNAPSHOTS_PER_DOMAIN,
+  MAX_STORED_URLS,
 };
