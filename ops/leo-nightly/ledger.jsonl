@@ -527,3 +527,4 @@
 {"event":"note","text":"bridge queue.promote moved LEO-133 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-133","atUtc":"2026-11-14T22:34:53.544Z"}
 {"event":"note","text":"bridge queue.promote moved LEO-135 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-135","atUtc":"2026-11-14T22:34:55.326Z"}
 {"event":"note","text":"bridge queue.promote moved LEO-136 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-136","atUtc":"2026-11-14T22:34:57.122Z"}
+{"event":"note","text":"bridge queue.promote moved LEO-137 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-137","atUtc":"2026-11-14T22:34:58.913Z"}
