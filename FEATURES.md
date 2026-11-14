@@ -155,36 +155,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s**
-  `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
-  `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
-  (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
-  `parseFloat` yields `NaN`, so an owner who clears either box to mean "off" posts the empty string.
-  `validateEntityUpdates` checks `typeof raw !== 'number'` (`backend/src/services/entitySettings.js:170`)
-  and rejects it as `(received text)`, and the route then refuses the entire PATCH
-  (`routes/dashboard.js:316-320` — "Nothing is written when anything is out of range"). So one emptied box
-  silently discards every other edit on the page, and the only clue is the LEO-062 rejection toast naming
-  the field the owner deliberately cleared. Before LEO-062 the empty string reached mongoose, was cast to
-  `null`, and the save succeeded — so this is a regression that arrived with the validator, found by its
-  own grader (`ops/leo-nightly/reviews/LEO-062.graded.json`). `save()` (line 255) already normalises
-  `quotaWarningThresholds` for the server's ascending rule; this is the same class of fix, one field over.
-  Build: extract the payload shaping out of `save()` into a pure `settingsPayload(form)` in a new
-  `dashboard/src/lib/settingsPayload.js` — the `src/lib` + `test/*.spec.js` pattern `notLearned.js` and
-  `pageFilters.js` already use — keeping the threshold sort byte-identical and coercing a blank numeric to
-  `0`, which is the documented "disabled" value for both fields and what both already fall back to when the
-  entity is loaded (lines 50 and 66). Have `save()` call it and change nothing else.
-  Files: new `dashboard/src/lib/settingsPayload.js`, `dashboard/src/views/Settings.vue`, new
-  `dashboard/test/settingsPayload.spec.js`.
-  *Verify:* `cd dashboard && yarn test` — a form with `crawlSettings.staleDays: ''` and
-  `conversationRetentionDays: ''` yields `0` for both; a real `0` and a real `7` pass through untouched;
-  `quotaWarningThresholds: [90, 50, 75]` still comes out `[50, 75, 90]`; every other key is copied through
-  unchanged, including the nested `crawlSettings` booleans. Confirm the blank-numeric spec goes red against
-  the current inline builder. Then `yarn build`, and `cd backend && yarn verify && yarn test` to show the
-  validator itself is untouched.
-  Out of scope: the validator's bounds and its "received text" wording — `entitySettings.js` is right, the
-  empty string genuinely is not a number; LEO-076's nested-subdocument replacement; adding `v-model.number`
-  anywhere else or replacing it with a watcher; the sliders and every non-numeric control on the page; and
-  any change to `backend/src/routes/dashboard.js`.
 
 - [ ] **(LEO-115) The "Not learned" list is dropped on a first scrape and unreadable after every scrape**
   LEO-056 shipped the collection and shaping of the URLs a crawl never learned, but both persistence paths
@@ -1198,6 +1168,36 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s** (routine 2026-11-14, 0e3bd18)
+  `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
+  `type="number"` fields — `form.crawlSettings.staleDays` (line 553) and `form.conversationRetentionDays`
+  (line 580). Vue's `.number` modifier runs `looseToNumber`, which returns the input **unchanged** when
+  `parseFloat` yields `NaN`, so an owner who clears either box to mean "off" posts the empty string.
+  `validateEntityUpdates` checks `typeof raw !== 'number'` (`backend/src/services/entitySettings.js:170`)
+  and rejects it as `(received text)`, and the route then refuses the entire PATCH
+  (`routes/dashboard.js:316-320` — "Nothing is written when anything is out of range"). So one emptied box
+  silently discards every other edit on the page, and the only clue is the LEO-062 rejection toast naming
+  the field the owner deliberately cleared. Before LEO-062 the empty string reached mongoose, was cast to
+  `null`, and the save succeeded — so this is a regression that arrived with the validator, found by its
+  own grader (`ops/leo-nightly/reviews/LEO-062.graded.json`). `save()` (line 255) already normalises
+  `quotaWarningThresholds` for the server's ascending rule; this is the same class of fix, one field over.
+  Build: extract the payload shaping out of `save()` into a pure `settingsPayload(form)` in a new
+  `dashboard/src/lib/settingsPayload.js` — the `src/lib` + `test/*.spec.js` pattern `notLearned.js` and
+  `pageFilters.js` already use — keeping the threshold sort byte-identical and coercing a blank numeric to
+  `0`, which is the documented "disabled" value for both fields and what both already fall back to when the
+  entity is loaded (lines 50 and 66). Have `save()` call it and change nothing else.
+  Files: new `dashboard/src/lib/settingsPayload.js`, `dashboard/src/views/Settings.vue`, new
+  `dashboard/test/settingsPayload.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — a form with `crawlSettings.staleDays: ''` and
+  `conversationRetentionDays: ''` yields `0` for both; a real `0` and a real `7` pass through untouched;
+  `quotaWarningThresholds: [90, 50, 75]` still comes out `[50, 75, 90]`; every other key is copied through
+  unchanged, including the nested `crawlSettings` booleans. Confirm the blank-numeric spec goes red against
+  the current inline builder. Then `yarn build`, and `cd backend && yarn verify && yarn test` to show the
+  validator itself is untouched.
+  Out of scope: the validator's bounds and its "received text" wording — `entitySettings.js` is right, the
+  empty string genuinely is not a number; LEO-076's nested-subdocument replacement; adding `v-model.number`
+  anywhere else or replacing it with a watcher; the sliders and every non-numeric control on the page; and
+  any change to `backend/src/routes/dashboard.js`.
 - [x] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)** [priority] (routine 2026-11-14, 2841abb)
   Found 2026-11-14: on campcalvary.com/camps/mr/ the dates and prices live in a brochure linked as
   'Download Brochure' -> drive.google.com/file/d/<id>/view. The crawler stays on the entity's

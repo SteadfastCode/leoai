@@ -76,7 +76,7 @@
     "LEO-114": {
       "order": 5,
       "title": "Clearing a numeric settings box posts `\"\"`, and the whole Settings form 400s",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-114",
