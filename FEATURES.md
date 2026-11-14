@@ -1159,6 +1159,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: tests per date source with fixture HTML; rag-eval before/after; backend yarn verify + yarn
   test.
 
+- [ ] **(LEO-143) Scraper: keep short schedule lines (times, dates, prices) instead of dropping lines under 20 chars** [proposed]
+  Found 2026-11-14 on campcalvary.com/camps/mr/ (WordPress + Elementor). keepPara (scraper.js:87)
+  drops any non-[SB] paragraph under 20 chars. Schedules are made of short lines, each its own
+  <span> or <br>-separated line in one text-editor widget, so these were all lost: 'Fri 7:00
+  Dinner', '8:15 SESSION #1', '8:45 SESSION #2', '10:00 Break', '11:00 SESSION #3', '3:45 SESSION
+  #4', '5:00 Dinner'. Longer lines ('1:00 Free Time Activities...') survived, so the stored schedule
+  reads as all free time and no sessions. Church service times and business hours have the same
+  shape.
+  Do, in a new helper module (scraper.js has a small-diff cap): - Before keepPara, join consecutive
+  short lines from the same block or widget into one paragraph, one line each, so a schedule stays
+  one unit. - Always keep a line that contains a time (7:00, 7 pm, 10:45 A.M.), a date, a weekday or
+  a price, whatever its length. - Nav and footer chrome stays excluded as it is today.
+  Check: a fixture from this page's HTML asserting all 7 lines above appear in the chunk; a fixture
+  proving short chrome lines are still dropped; backend yarn verify + yarn test; then force-rescrape
+  campcalvary.com with the key in mcp/.env and put the before/after Men's Retreat chunk in the PR.
+
 ## Block L — Backlog upkeep
 
 
