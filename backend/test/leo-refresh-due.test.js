@@ -79,6 +79,7 @@ stubModule(require.resolve(path.join(srcDir, 'services', 'scrapePersist.js')), {
 const {
   isDueNow,
   refreshDecision,
+  effectiveSchedule,
   runHourlyTick,
   DAILY_MIN_GAP_MS,
   WEEKLY_MIN_GAP_MS,
@@ -93,15 +94,26 @@ const DAY = 24 * HOUR;
 const AT_SLOT = Date.parse('2026-08-10T03:00:00Z');
 const OFF_SLOT = Date.parse('2026-08-10T11:00:00Z');
 
+// The default fixture carries a leoRefreshSubscriptionId because 'daily' is only
+// honoured for a subscribed entity (LEO-134) — without one the cap would hold
+// every "daily" case below to the weekly windows, which is its own section.
 function entity(overrides = {}) {
   return {
     domain: 'example.com',
     leoRefreshEnabled: true,
     leoRefreshHour: 3,
     leoRefreshFrequency: 'daily',
+    leoRefreshSubscriptionId: 'sub_leorefresh_test',
     leoRefreshLastRun: null,
     ...overrides,
   };
+}
+
+// Enabled by a superadmin rather than bought: no subscription id at all.
+function comped(overrides = {}) {
+  const e = entity(overrides);
+  delete e.leoRefreshSubscriptionId;
+  return e;
 }
 
 // --- the windows are the ones the item specified -----------------------------
@@ -223,6 +235,95 @@ test('weekly: wrong hour, last run 7d ago, NOT due (inside the 8d catch-up windo
   assert.equal(refreshDecision(e, OFF_SLOT).reason, 'off-schedule');
 });
 
+// --- the weekly default and the comped cap (LEO-134) -------------------------
+//
+// Every entity in the database is a site that never agreed to be crawled, so
+// the free cadence has to be the gentle one. Two halves: an unset frequency
+// must read as weekly rather than daily, and 'daily' without a subscription
+// must be held to the weekly windows — stored value untouched.
+
+test('effectiveSchedule: an absent, null or unrecognised frequency reads as weekly', () => {
+  for (const frequency of [undefined, null, '', 'monthly', 'DAILY']) {
+    const schedule = effectiveSchedule(entity({ leoRefreshFrequency: frequency }));
+    assert.equal(schedule.frequency, 'weekly', `${String(frequency)} must read as weekly`);
+    assert.equal(schedule.capped, false, 'a weekly entity is not capped — it asked for weekly');
+  }
+  const absent = entity();
+  delete absent.leoRefreshFrequency;
+  assert.equal(effectiveSchedule(absent).frequency, 'weekly');
+});
+
+test('effectiveSchedule: daily is honoured with a subscription, capped without one', () => {
+  const subscribed = effectiveSchedule(entity({ leoRefreshFrequency: 'daily' }));
+  assert.deepEqual(subscribed, { requested: 'daily', frequency: 'daily', capped: false, comped: false });
+
+  const free = effectiveSchedule(comped({ leoRefreshFrequency: 'daily' }));
+  assert.deepEqual(free, { requested: 'daily', frequency: 'weekly', capped: true, comped: true });
+
+  // An empty-string subscription id is no subscription.
+  assert.equal(effectiveSchedule(comped({ leoRefreshSubscriptionId: '' })).comped, true);
+  // And nothing at all is not a crash.
+  assert.equal(effectiveSchedule(undefined).frequency, 'weekly');
+});
+
+test('comped + daily: held to the weekly gap at its own scheduled hour', () => {
+  const e = comped({ leoRefreshLastRun: new Date(AT_SLOT - 23 * HOUR) });
+  // The same entity WITH a subscription is due here — that is the control.
+  assert.equal(isDueNow(entity({ leoRefreshLastRun: new Date(AT_SLOT - 23 * HOUR) }), AT_SLOT), true);
+
+  assert.equal(isDueNow(e, AT_SLOT), false, 'a comped daily entity must not refresh after 23h');
+  const d = refreshDecision(e, AT_SLOT);
+  assert.equal(d.reason, 'gap-guard');
+  assert.equal(d.capped, true);
+  assert.equal(d.frequency, 'weekly');
+  assert.equal(d.requestedFrequency, 'daily');
+  assert.match(d.detail, /weekly gap guard/);
+  assert.match(d.detail, /no LeoRefresh subscription/, 'the held line must name the source of the cap');
+});
+
+test('comped + daily: still refreshes on the weekly cadence, not never', () => {
+  const e = comped({ leoRefreshLastRun: new Date(AT_SLOT - 7 * DAY) });
+  assert.equal(isDueNow(e, AT_SLOT), true);
+  assert.equal(refreshDecision(e, AT_SLOT).reason, 'hour-match');
+
+  // And off-hour catch-up uses the weekly window, not the 26h daily one.
+  assert.equal(isDueNow(comped({ leoRefreshLastRun: new Date(OFF_SLOT - 30 * HOUR) }), OFF_SLOT), false);
+  assert.equal(isDueNow(comped({ leoRefreshLastRun: new Date(OFF_SLOT - 8 * DAY) }), OFF_SLOT), true);
+});
+
+test('comped + daily: every hour inside the weekly gap guard is held', () => {
+  // The guard is 6d, deliberately under the 7d period, so the hour BEFORE it
+  // clears is the last held one — including the entity's own 03:00 slot on each
+  // of the five intervening days, which a daily schedule would have taken.
+  const e = comped({ leoRefreshLastRun: new Date(AT_SLOT) });
+  for (let h = 1; h < 6 * 24; h++) {
+    assert.equal(isDueNow(e, AT_SLOT + h * HOUR), false, `h+${h} must be held`);
+  }
+  assert.equal(isDueNow(e, AT_SLOT + 6 * DAY), true, 'and it refreshes once the weekly gap clears');
+});
+
+test('comped, no frequency stored: the weekly windows apply with no cap flag', () => {
+  const e = comped({ leoRefreshLastRun: new Date(AT_SLOT - 23 * HOUR) });
+  delete e.leoRefreshFrequency;
+  assert.equal(isDueNow(e, AT_SLOT), false);
+  const d = refreshDecision(e, AT_SLOT);
+  assert.equal(d.frequency, 'weekly');
+  assert.equal(d.capped, false, 'nothing was overridden — weekly is simply the default');
+  assert.equal(isDueNow(comped({ leoRefreshLastRun: new Date(AT_SLOT - 7 * DAY), leoRefreshFrequency: undefined }), AT_SLOT), true);
+});
+
+test('comped + weekly: no cap flag, and a disabled comped entity is still just disabled', () => {
+  const weeklyFree = comped({ leoRefreshFrequency: 'weekly', leoRefreshLastRun: new Date(AT_SLOT - 7 * DAY) });
+  assert.equal(isDueNow(weeklyFree, AT_SLOT), true);
+  assert.equal(refreshDecision(weeklyFree, AT_SLOT).capped, false);
+
+  const off = comped({ leoRefreshEnabled: false, leoRefreshLastRun: new Date(AT_SLOT - 10 * DAY) });
+  assert.equal(refreshDecision(off, AT_SLOT).reason, 'disabled');
+  // The cap is reported even on the disabled arm — the fields come from the
+  // schedule, not from the due calculation.
+  assert.equal(refreshDecision(off, AT_SLOT).frequency, 'weekly');
+});
+
 // --- junk inputs -------------------------------------------------------------
 
 test('unreadable last-run stamp reads as never refreshed, not as an unreachable window', () => {
@@ -312,6 +413,27 @@ test('the flag is released, so the next tick after a crawl finishes runs normall
   holdCrawl = false;
   assert.equal(result.ran, true);
   assert.equal(rescrapeCalls, 2);
+});
+
+test('the light tier names the cap as the source when a comped daily entity is held', async () => {
+  rescrapeCalls = 0;
+  holdCrawl = false;
+  enabledEntities = [comped({ domain: 'capped.example.com', leoRefreshLastRun: new Date(AT_SLOT - HOUR) })];
+
+  const lines = [];
+  const realLog = console.log;
+  console.log = (...args) => { lines.push(args.join(' ')); };
+  try {
+    await runHourlyTick(fakeIo(), AT_SLOT);
+  } finally {
+    console.log = realLog;
+  }
+
+  assert.equal(rescrapeCalls, 0, 'a held entity must not be crawled');
+  assert.ok(
+    lines.some((l) => l.includes('held to weekly') && l.includes('no leoRefreshSubscriptionId')),
+    `expected a cap line naming its source, got:\n${lines.join('\n')}`
+  );
 });
 
 test('a tick with nothing due neither crawls nor leaves the flag raised', async () => {

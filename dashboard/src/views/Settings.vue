@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurchConfig, requestMinistryPlan, getModelStats } from '../lib/api'
 import EmbedSnippet from '../components/EmbedSnippet.vue'
@@ -23,6 +23,10 @@ const cancellingLeoRefresh = ref(false)
 const extractingChurchConfig = ref(false)
 const requestingMinistryPlan = ref(false)
 const ministryPlanRequested = ref(props.entity?.ministryPlanRequested || false)
+// LeoRefresh switched on by a superadmin rather than bought through Stripe
+// (LEO-134). The backend holds these to the weekly windows whatever the stored
+// frequency says, and there is no subscription to cancel.
+const leoRefreshComped = computed(() => !!props.entity?.leoRefreshEnabled && !props.entity?.leoRefreshSubscriptionId)
 
 watch(() => props.entity, (e) => {
   if (e) ministryPlanRequested.value = e.ministryPlanRequested || false
@@ -50,7 +54,11 @@ watch(() => props.entity, (e) => {
       staleDays:         e.crawlSettings?.staleDays          ?? 0,
     },
     leoRefreshHour: e.leoRefreshHour ?? 3,
-    leoRefreshFrequency: e.leoRefreshFrequency ?? 'daily',
+    // Weekly is the server default too (LEO-134) — a null here must not post
+    // 'daily' back and quietly upgrade an entity to the heavier schedule.
+    leoRefreshFrequency: e.leoRefreshFrequency ?? 'weekly',
+    // Superadmin-only on the server: posted by every user, ignored for an owner.
+    leoRefreshEnabled: e.leoRefreshEnabled ?? false,
     quotaWarningThresholds: e.quotaWarningThresholds ?? [50, 75, 90],
     quotaAlertChannels: e.quotaAlertChannels ?? ['email'],
     handoffFollowUp: {
@@ -245,6 +253,7 @@ const REJECTION_LABELS = {
   conversationRetentionDays: 'Delete conversations after (days)',
   leoRefreshHour: 'LeoRefresh hour',
   leoRefreshFrequency: 'LeoRefresh frequency',
+  leoRefreshEnabled: 'LeoRefresh',
   ragThreshold: 'Context relevance threshold',
   'crawlSettings.staleDays': 'Re-embed unchanged pages after (days)',
   'handoffFollowUp.intervalHours': 'Follow-up reminder interval',
@@ -780,8 +789,23 @@ async function save() {
       <v-card rounded="lg" elevation="0" border>
         <v-card-title class="text-body-1 font-weight-semibold pa-4 pb-2 d-flex align-center gap-2">
           LeoRefresh
-          <v-chip v-if="entity?.leoRefreshEnabled" size="x-small" color="success" variant="tonal" class="ml-1">Active</v-chip>
+          <v-chip v-if="entity?.leoRefreshEnabled" size="x-small" color="success" variant="tonal" class="ml-1">
+            {{ leoRefreshComped ? 'Active — comped' : 'Active' }}
+          </v-chip>
           <v-chip v-else size="x-small" color="default" variant="tonal" class="ml-1">$10/mo add-on</v-chip>
+          <!-- Superadmin comp switch (LEO-134). The Stripe webhook is the other
+               way in; this one needs no subscription and an owner never sees it.
+               Saved with the rest of the form by Save Changes. -->
+          <v-switch
+            v-if="isSuperAdmin"
+            v-model="form.leoRefreshEnabled"
+            :label="form.leoRefreshEnabled ? 'On' : 'Off'"
+            color="primary"
+            density="compact"
+            inset
+            hide-details
+            class="ml-auto flex-grow-0"
+          />
         </v-card-title>
         <v-card-text class="pt-0">
           <div class="text-body-2 text-medium-emphasis mb-4">
@@ -832,6 +856,10 @@ async function save() {
                 style="max-width: 180px"
               />
             </div>
+            <v-alert v-if="leoRefreshComped" type="info" variant="tonal" density="compact" class="mb-4">
+              Held to <strong>weekly</strong> until there is a LeoRefresh subscription. Daily is saved as a
+              preference and takes effect once the add-on is active.
+            </v-alert>
             <div class="text-caption text-medium-emphasis mb-4">
               Times are in UTC.
               <template v-if="entity?.leoRefreshLastRun">
@@ -841,7 +869,10 @@ async function save() {
                 Not yet run.
               </template>
             </div>
+            <!-- The cancel endpoint needs a Stripe subscription; a comped entity
+                 has none, and the switch above is how it goes off again. -->
             <v-btn
+              v-if="!leoRefreshComped"
               size="small"
               variant="text"
               color="error"
@@ -850,6 +881,9 @@ async function save() {
             >
               Cancel LeoRefresh
             </v-btn>
+            <div v-else class="text-caption text-medium-emphasis">
+              Switched on by Steadfast Code — there is no subscription to cancel.
+            </div>
           </template>
         </v-card-text>
       </v-card>
