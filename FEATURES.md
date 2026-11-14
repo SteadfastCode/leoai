@@ -154,47 +154,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone**
-  `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
-  then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
-  `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
-  { upsert: true })` (lines 104-110). Nothing anywhere checks whether that domain already has an `Entity` or
-  an owner. So anyone holding a valid alpha code can sign up naming an existing entity's domain, receive
-  `roles: ['owner']` on it — the full dashboard, its conversations, its settings, its billing page — and the
-  `$set` **rewrites the live `ownerEmail`**, which is the address every handoff SMS/email and quota warning is
-  sent to (`services/notifications.js`). The comment at lines 94-97 reasons carefully about the *scrape's*
-  later upsert not clobbering this one; the reverse direction, this upsert landing on a populated document, is
-  not considered. Second defect in the same block: the single-use cap is read at line 77
-  (`code.useCount >= code.maxUses`) and written at lines 118-120, after the user, the entity and the tokens.
-  Two signups in the same tick on a `maxUses: 1` code both pass the check, and any throw in between consumes
-  no use while possibly leaving a `User` behind. That counter is the whole boundary between pre-alpha and open
-  signup.
-  Build: before anything is created, reject a claimed domain — an existing `Entity`, or any `User` holding a
-  membership for it, answers 409 pointing at the invite flow, which is how a second person is supposed to join
-  an entity. Keep the rules pure and testable in a new `backend/src/services/onboard.js`:
-  `normalizeDomain(raw)` (trim, lowercase, strip scheme, `www.`, port and path, reject anything that is not a
-  plausible hostname) and `claimCheck({ entityExists, memberExists })` → `{ ok, status, error }`. Then make
-  the code consumption atomic and **first**: one `Code.findOneAndUpdate` whose filter carries the type, the
-  `active` flag, the cap and the expiry (an `$and` of two `$or` branches, since `maxUses` and `expiresAt` are
-  both nullable) and whose update is `$inc: { useCount: 1 }` plus the `usedBy` `$push` — no match means no
-  slot, so the check and the consume cannot be split. Release the use (`$inc: -1` and `$pull`) if a later step
-  fails, so a crashed signup does not burn a slot.
-  Files: new `backend/src/services/onboard.js`, `backend/src/routes/auth.js`,
-  `backend/test/onboard-claim.test.js`.
-  *Verify:* `node --test` on the two pure helpers with no DB — `HTTPS://WWW.Example.com/path:8080` →
-  `example.com`, a bare hostname unchanged, `''`/`'  '`/`'not a domain'`/`null` rejected without throwing, a
-  claimed domain → 409, an unclaimed one → ok; then the real auth router over `mongodb-memory-server`:
-  onboarding a fresh domain still returns 201 with tokens and creates the `Entity` and membership exactly as
-  today; onboarding a domain that already has an `Entity` returns 409, creates no `User`, and leaves the
-  stored `ownerEmail` untouched; the same for a domain whose `Entity` is absent but some user holds a
-  membership for it; and two onboards awaited together on a `maxUses: 1` code yield exactly one 201, one 403
-  and `useCount === 1`. Every one of those must go red against unmodified `main`. `cd backend && yarn verify
-  && yarn test`.
-  Out of scope: proving the signer actually controls the domain (DNS or meta-tag verification is a feature of
-  its own, and the alpha code is the current answer); `CLAUDE.md`'s stale claim that the gate reads an
-  `ALPHA_CODES` env var — it reads the `Code` collection, and LEO-086 owns that wording; brute-forcing the
-  code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
-  `routes/webhooks.js` (denylisted).
 
 - [ ] **(LEO-114) Clearing a numeric settings box posts `""`, and the whole Settings form 400s**
   `dashboard/src/views/Settings.vue` binds its only two numeric controls with `v-model.number` on
@@ -1238,6 +1197,47 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-108) `POST /auth/onboard` lets a signup claim a domain that already belongs to someone** (routine 2026-11-14, 0406afe)
+  `backend/src/routes/auth.js:66-125` validates the alpha code, rejects a duplicate **email** (line 81), and
+  then writes `memberships: [{ entityDomain: domain, roles: ['owner'] }]` (lines 83-88) and
+  `Entity.findOneAndUpdate({ domain }, { $set: { ownerEmail, ownerPhone, quotaAlertChannels } },
+  { upsert: true })` (lines 104-110). Nothing anywhere checks whether that domain already has an `Entity` or
+  an owner. So anyone holding a valid alpha code can sign up naming an existing entity's domain, receive
+  `roles: ['owner']` on it — the full dashboard, its conversations, its settings, its billing page — and the
+  `$set` **rewrites the live `ownerEmail`**, which is the address every handoff SMS/email and quota warning is
+  sent to (`services/notifications.js`). The comment at lines 94-97 reasons carefully about the *scrape's*
+  later upsert not clobbering this one; the reverse direction, this upsert landing on a populated document, is
+  not considered. Second defect in the same block: the single-use cap is read at line 77
+  (`code.useCount >= code.maxUses`) and written at lines 118-120, after the user, the entity and the tokens.
+  Two signups in the same tick on a `maxUses: 1` code both pass the check, and any throw in between consumes
+  no use while possibly leaving a `User` behind. That counter is the whole boundary between pre-alpha and open
+  signup.
+  Build: before anything is created, reject a claimed domain — an existing `Entity`, or any `User` holding a
+  membership for it, answers 409 pointing at the invite flow, which is how a second person is supposed to join
+  an entity. Keep the rules pure and testable in a new `backend/src/services/onboard.js`:
+  `normalizeDomain(raw)` (trim, lowercase, strip scheme, `www.`, port and path, reject anything that is not a
+  plausible hostname) and `claimCheck({ entityExists, memberExists })` → `{ ok, status, error }`. Then make
+  the code consumption atomic and **first**: one `Code.findOneAndUpdate` whose filter carries the type, the
+  `active` flag, the cap and the expiry (an `$and` of two `$or` branches, since `maxUses` and `expiresAt` are
+  both nullable) and whose update is `$inc: { useCount: 1 }` plus the `usedBy` `$push` — no match means no
+  slot, so the check and the consume cannot be split. Release the use (`$inc: -1` and `$pull`) if a later step
+  fails, so a crashed signup does not burn a slot.
+  Files: new `backend/src/services/onboard.js`, `backend/src/routes/auth.js`,
+  `backend/test/onboard-claim.test.js`.
+  *Verify:* `node --test` on the two pure helpers with no DB — `HTTPS://WWW.Example.com/path:8080` →
+  `example.com`, a bare hostname unchanged, `''`/`'  '`/`'not a domain'`/`null` rejected without throwing, a
+  claimed domain → 409, an unclaimed one → ok; then the real auth router over `mongodb-memory-server`:
+  onboarding a fresh domain still returns 201 with tokens and creates the `Entity` and membership exactly as
+  today; onboarding a domain that already has an `Entity` returns 409, creates no `User`, and leaves the
+  stored `ownerEmail` untouched; the same for a domain whose `Entity` is absent but some user holds a
+  membership for it; and two onboards awaited together on a `maxUses: 1` code yield exactly one 201, one 403
+  and `useCount === 1`. Every one of those must go red against unmodified `main`. `cd backend && yarn verify
+  && yarn test`.
+  Out of scope: proving the signer actually controls the domain (DNS or meta-tag verification is a feature of
+  its own, and the alpha code is the current answer); `CLAUDE.md`'s stale claim that the gate reads an
+  `ALPHA_CODES` env var — it reads the `Code` collection, and LEO-086 owns that wording; brute-forcing the
+  code (LEO-052); the `/signup` stepper's own copy beyond surfacing the 409; and `routes/billing.js` and
+  `routes/webhooks.js` (denylisted).
 - [x] **(LEO-134) LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped** [priority] (routine 2026-11-14, ea6c4e5)
   Daniel, 2026-11-14: refresh every entity, but weekly. They are all test data on sites that never
   agreed to be crawled, so nothing crawls more often than weekly by default. Today only the Stripe

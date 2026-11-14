@@ -76,7 +76,7 @@
     "LEO-108": {
       "order": 5,
       "title": "`POST /auth/onboard` lets a signup claim a domain that already belongs to someone",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-108",
