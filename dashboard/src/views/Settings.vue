@@ -5,6 +5,7 @@ import { updateEntity, createLeoRefreshCheckout, cancelLeoRefresh, extractChurch
 import EmbedSnippet from '../components/EmbedSnippet.vue'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import { notify } from '../lib/notify'
+import { settingsPayload } from '../lib/settingsPayload'
 import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
@@ -264,13 +265,7 @@ const REJECTION_LABELS = {
 async function save() {
   saving.value = true
   try {
-    // The threshold checkboxes record the order the owner ticked them, not the
-    // order of their values, and the server requires ascending percentages.
-    const payload = {
-      ...form.value,
-      quotaWarningThresholds: [...(form.value.quotaWarningThresholds || [])].sort((a, b) => a - b),
-    }
-    const { data } = await updateEntity(props.domain, payload)
+    const { data } = await updateEntity(props.domain, settingsPayload(form.value))
     emit('entity-updated', data)
     snackbarMsg.value = 'Settings saved'
     snackbar.value = true
