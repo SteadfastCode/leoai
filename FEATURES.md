@@ -411,7 +411,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   to whoever builds it; LEO-080's own four corrections; anything under `ops/leo-nightly/`; and re-grading
   any review.
 
-- [ ] **(LEO-134) LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped**
+- [ ] **(LEO-134) LeoRefresh: superadmin switch without Stripe, weekly by default, weekly at most when comped** [priority]
   Daniel, 2026-11-14: refresh every entity, but weekly. They are all test data on sites that never
   agreed to be crawled, so nothing crawls more often than weekly by default. Today only the Stripe
   webhook writes leoRefreshEnabled (routes/webhooks.js:47,95), and leoRefreshFrequency defaults to
