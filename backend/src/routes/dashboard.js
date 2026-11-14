@@ -311,7 +311,7 @@ router.post('/entities/:domain/conversations/:id/reply', requireAuth(PERMISSIONS
 router.patch('/entities/:domain', requireAuth(PERMISSIONS.SETTINGS_EDIT), async (req, res) => {
   try {
     const allowed = ['name', 'timezone', 'avgWaitTime', 'ownerPhone', 'ownerEmail', 'autoAddRepliesToKb', 'offerHandoffBeforeContact', 'quotaWarningThresholds', 'quotaAlertChannels', 'dailyVolumeAlert', 'leoRefreshHour', 'leoRefreshFrequency', 'linksOpenInNewTab', 'crawlSettings', 'handoffFollowUp', 'unansweredDigest', 'weeklyDigest', 'doNotRelay', 'conversationRetentionDays'];
-    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold', 'lowConfidenceBand'];
+    const superadminOnly = ['churchModeEnabled', 'churchConfig', 'ragThreshold', 'lowConfidenceBand', 'leoRefreshEnabled'];
     // The allowlist above still decides WHICH fields are settable; the validator
     // (LEO-062) decides whether the VALUES are storable, and doNotRelay is still
     // sanitised on write (LEO-047) rather than refused — see services/entitySettings.js.

@@ -21,8 +21,16 @@
 // and a crawl the instant LeoRefresh is switched on is not what the hour
 // setting means. It waits for its scheduled hour.
 //
-// `isDueNow` / `refreshDecision` are pure (no DB, no clock of their own) so the
-// whole matrix is unit-testable directly — see backend/test/leo-refresh-due.test.js.
+// The cadence cap (LEO-134). Weekly is the default everywhere now, and an
+// entity that is enabled WITHOUT a leoRefreshSubscriptionId — a superadmin
+// comping it rather than Stripe paying for it — is held to the weekly windows
+// even when its stored frequency says daily. Every entity in the database is a
+// site that never agreed to be crawled, so the free cadence is the gentle one;
+// the stored preference is untouched and takes effect if a subscription starts.
+//
+// `isDueNow` / `refreshDecision` / `effectiveSchedule` are pure (no DB, no clock
+// of their own) so the whole matrix is unit-testable directly — see
+// backend/test/leo-refresh-due.test.js.
 //
 // Debug tiers — LEO_REFRESH_LOG_LEVEL = off | light | normal | verbose:
 //   light (default) one line per entity decision, naming the REASON it was
@@ -106,11 +114,47 @@ function lastRunMs(entity) {
 }
 
 /**
- * Why this entity is (or is not) due right now: `{ due, reason, detail }`.
+ * The cadence this entity actually runs at, and why (LEO-134).
+ *
+ * Two rules, both pointing the same way — nothing gets crawled more often than
+ * weekly unless somebody is paying for it:
+ *   * an absent, null or unrecognised `leoRefreshFrequency` reads as weekly.
+ *     It used to read as daily (`=== 'weekly'` with no else), so a document
+ *     predating the field, or one written with an explicit null, silently got
+ *     the heavier schedule — the opposite of the safe default.
+ *   * 'daily' on a COMPED entity — enabled with no leoRefreshSubscriptionId,
+ *     which is what a superadmin switch produces — is capped to weekly. The
+ *     stored value is left alone: the owner's preference is kept for the day a
+ *     subscription starts, and this only decides which windows apply now.
+ *
+ * `capped` is what the light-tier log line names, so a held daily refresh says
+ * WHY it is on the weekly gap rather than just reporting a weekly gap.
+ */
+function effectiveSchedule(entity) {
+  const e = entity || {};
+  const requested = e.leoRefreshFrequency === 'daily' ? 'daily' : 'weekly';
+  const comped = !e.leoRefreshSubscriptionId;
+  const capped = requested === 'daily' && comped;
+  return { requested, frequency: capped ? 'weekly' : requested, capped, comped };
+}
+
+/**
+ * Why this entity is (or is not) due right now:
+ * `{ due, reason, detail, frequency, requestedFrequency, capped }`.
  * Pure — `now` is injected, nothing is read from the DB. `reason` is a stable
  * slug for logs and tests; `detail` is the human half of the light-tier line.
  */
 function refreshDecision(entity, now = Date.now()) {
+  const schedule = effectiveSchedule(entity);
+  return {
+    ...dueDecision(entity, now, schedule),
+    frequency: schedule.frequency,
+    requestedFrequency: schedule.requested,
+    capped: schedule.capped,
+  };
+}
+
+function dueDecision(entity, now, schedule) {
   const e = entity || {};
   if (!e.leoRefreshEnabled) {
     return { due: false, reason: 'disabled', detail: 'LeoRefresh is off for this entity' };
@@ -119,7 +163,11 @@ function refreshDecision(entity, now = Date.now()) {
   const hour = Number.isInteger(e.leoRefreshHour) && e.leoRefreshHour >= 0 && e.leoRefreshHour <= 23
     ? e.leoRefreshHour
     : DEFAULT_HOUR_UTC;
-  const weekly = e.leoRefreshFrequency === 'weekly';
+  const weekly = schedule.frequency === 'weekly';
+  // Said once here so every window message below can explain a capped entity.
+  const because = schedule.capped
+    ? ' (daily was asked for, but this entity has no LeoRefresh subscription, so it is held to weekly)'
+    : '';
   const gapMs = weekly ? WEEKLY_MIN_GAP_MS : DAILY_MIN_GAP_MS;
   const catchUpMs = weekly ? WEEKLY_CATCHUP_MS : DAILY_CATCHUP_MS;
 
@@ -138,15 +186,15 @@ function refreshDecision(entity, now = Date.now()) {
     return { due: false, reason: 'future-stamp', detail: `last run is stamped ${formatGap(-elapsed)} in the future (clock skew) — holding off rather than risk a double crawl` };
   }
   if (elapsed < gapMs) {
-    return { due: false, reason: 'gap-guard', detail: `last run ${formatGap(elapsed)} ago, inside the ${formatGap(gapMs)} ${weekly ? 'weekly' : 'daily'} gap guard` };
+    return { due: false, reason: 'gap-guard', detail: `last run ${formatGap(elapsed)} ago, inside the ${formatGap(gapMs)} ${weekly ? 'weekly' : 'daily'} gap guard${because}` };
   }
   if (onSchedule) {
     return { due: true, reason: 'hour-match', detail: `${formatHour(nowHour)} is its scheduled hour; last run ${formatGap(elapsed)} ago` };
   }
   if (elapsed >= catchUpMs) {
-    return { due: true, reason: 'catch-up', detail: `catch-up after ${formatGap(elapsed)} — its ${formatHour(hour)} slot was missed and the ${formatGap(catchUpMs)} window has passed` };
+    return { due: true, reason: 'catch-up', detail: `catch-up after ${formatGap(elapsed)} — its ${formatHour(hour)} slot was missed and the ${formatGap(catchUpMs)} window has passed${because}` };
   }
-  return { due: false, reason: 'off-schedule', detail: `${formatHour(nowHour)} is not its ${formatHour(hour)} slot, and last run ${formatGap(elapsed)} ago is inside the ${formatGap(catchUpMs)} catch-up window` };
+  return { due: false, reason: 'off-schedule', detail: `${formatHour(nowHour)} is not its ${formatHour(hour)} slot, and last run ${formatGap(elapsed)} ago is inside the ${formatGap(catchUpMs)} catch-up window${because}` };
 }
 
 /** Boolean half of refreshDecision. `now` is injected so this stays testable. */
@@ -236,7 +284,12 @@ async function runHourlyTick(io, now = Date.now()) {
     for (const entity of entities) {
       const decision = refreshDecision(entity, now);
       debug('light', `${entity.domain}: ${decision.due ? 'due' : 'not due'} — ${decision.reason}: ${decision.detail}`);
-      debug('verbose', `${entity.domain}: frequency=${entity.leoRefreshFrequency || 'daily'} hour=${entity.leoRefreshHour ?? DEFAULT_HOUR_UTC} lastRun=${entity.leoRefreshLastRun ? new Date(entity.leoRefreshLastRun).toISOString() : 'never'}`);
+      // The cap is a change the entity did not ask for, so the light tier names
+      // its SOURCE on its own line — the hour-match arm has no room to say it.
+      if (decision.capped) {
+        debug('light', `${entity.domain}: cadence held to weekly — source: leoRefreshEnabled with no leoRefreshSubscriptionId (comped), requested ${decision.requestedFrequency}`);
+      }
+      debug('verbose', `${entity.domain}: frequency=${decision.frequency}${decision.capped ? ` (requested ${decision.requestedFrequency})` : ''} hour=${entity.leoRefreshHour ?? DEFAULT_HOUR_UTC} lastRun=${entity.leoRefreshLastRun ? new Date(entity.leoRefreshLastRun).toISOString() : 'never'}`);
       if (decision.due) due.push(entity);
     }
 
@@ -322,6 +375,7 @@ module.exports = {
   runHourlyTick,
   isDueNow,
   refreshDecision,
+  effectiveSchedule,
   DAILY_MIN_GAP_MS,
   WEEKLY_MIN_GAP_MS,
   DAILY_CATCHUP_MS,

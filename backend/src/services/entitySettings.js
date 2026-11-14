@@ -49,6 +49,8 @@ const FIELD_RULES = {
   dailyVolumeAlert:          { type: 'integer', min: 0 },             // 0 = off
   conversationRetentionDays: { type: 'integer', min: 0 },             // 0 = keep forever
   leoRefreshHour:            { type: 'integer', min: 0, max: 23 },    // UTC hour
+  // 'weekly' is the model default (LEO-134); 'daily' is stored as asked but only
+  // honoured for a subscribed entity — see services/leoRefresh.js.
   leoRefreshFrequency:       { type: 'enum', values: ['daily', 'weekly'] },
 
   // Usage alerts. The thresholds are percentages of the free-tier cap, read in
@@ -96,6 +98,14 @@ const FIELD_RULES = {
   },
 
   // Superadmin-gated
+  //
+  // leoRefreshEnabled is here, not above, because it is a BILLED add-on: the
+  // Stripe webhook turns it on when the subscription starts, and LEO-134 adds
+  // the other way in — a superadmin (or an X-API-Key caller, which resolves to
+  // the same principal) comping an entity with no subscription at all. An owner
+  // must never be able to switch it on for themselves, so it stays out of the
+  // owner list and is dropped from their patch exactly like ragThreshold.
+  leoRefreshEnabled: { type: 'boolean', superadmin: true },
   churchModeEnabled: { type: 'boolean', superadmin: true },
   churchConfig: {
     type: 'object',

@@ -237,6 +237,23 @@ test('a superadmin-only field is dropped for a non-superadmin, not rejected', ()
   assert.equal(asSuper.rejected[0].field, 'ragThreshold');
 });
 
+test('leoRefreshEnabled is superadmin-only — an owner cannot switch on a billed add-on', () => {
+  // Settings.vue posts it for every user, so an owner's copy must be dropped
+  // silently (a 400 would break their Save), never written.
+  assert.deepEqual(validateEntityUpdates({ leoRefreshEnabled: true }, AS_OWNER),
+    { updates: {}, rejected: [] });
+
+  assert.deepEqual(validateEntityUpdates({ leoRefreshEnabled: true }, AS_SUPER).updates,
+    { leoRefreshEnabled: true });
+  assert.deepEqual(validateEntityUpdates({ leoRefreshEnabled: false }, AS_SUPER).updates,
+    { leoRefreshEnabled: false });
+
+  // Still type-checked for the caller who CAN set it.
+  const bad = validateEntityUpdates({ leoRefreshEnabled: 'true' }, AS_SUPER);
+  assert.equal(bad.rejected.length, 1);
+  assert.equal(bad.rejected[0].field, 'leoRefreshEnabled');
+});
+
 test('churchConfig is superadmin-only and its prose fields are capped', () => {
   const dropped = validateEntityUpdates({ churchConfig: { statementOfFaith: 'x' } }, AS_OWNER);
   assert.deepEqual(dropped, { updates: {}, rejected: [] });
@@ -298,15 +315,24 @@ function stubModule(resolvedPath, exportsObject) {
 
 const srcDir = path.join(__dirname, '..', 'src');
 
-// Fake auth: the x-test-user header carries a JSON user object.
+// Fake auth, mirroring the real middleware's two accepted principals:
+//   x-api-key   → the synthetic superadmin principal (API_KEY_PRINCIPAL), which
+//                 is how the MCP server and a box session reach this route
+//   x-test-user → a JSON user object, standing in for a verified JWT
 stubModule(require.resolve(path.join(srcDir, 'middleware', 'auth.js')), {
   requireAuth: () => (req, res, next) => {
+    if (req.headers['x-api-key'] === 'test-admin-key') {
+      req.apiKey = { label: 'test' };
+      req.user = { isApiKey: true, memberships: [{ entityDomain: '*', roles: ['superadmin'] }] };
+      return next();
+    }
     const raw = req.headers['x-test-user'];
     if (!raw) return res.status(401).json({ error: 'Unauthorized' });
     req.user = JSON.parse(raw);
     next();
   },
-  isSuperAdmin: (user) => !!user?.superadmin,
+  isSuperAdmin: (user) => !!user?.superadmin
+    || !!user?.memberships?.some((m) => m.roles?.includes('superadmin')),
 });
 
 stubModule(require.resolve(path.join(srcDir, 'services', 'embeddings.js')), {
@@ -359,9 +385,12 @@ test.after(async () => {
   if (mongod) await mongod.stop();
 });
 
-async function patchEntity(body, user = OWNER) {
+// `who` is a JSON user string (x-test-user), or an explicit header map for the
+// API-key caller.
+async function patchEntity(body, who = OWNER) {
   const headers = { 'content-type': 'application/json' };
-  if (user) headers['x-test-user'] = user;
+  if (typeof who === 'string') headers['x-test-user'] = who;
+  else if (who) Object.assign(headers, who);
   const res = await fetch(`${baseUrl}/api/dashboard/entities/${DOMAIN}`, {
     method: 'PATCH',
     headers,
@@ -398,6 +427,7 @@ function settingsPayload() {
     },
     leoRefreshHour: 3,
     leoRefreshFrequency: 'daily',
+    leoRefreshEnabled: false,
     quotaWarningThresholds: [50, 75, 90],
     quotaAlertChannels: ['email'],
     handoffFollowUp: { enabled: true, intervalHours: 24 },
@@ -424,6 +454,7 @@ test('the payload Settings.vue sends today still saves and returns the entity', 
   // Superadmin-only fields posted by an owner are ignored, not rejected
   assert.equal(body.churchModeEnabled, false);
   assert.equal(body.ragThreshold, 0.75);
+  assert.equal(body.leoRefreshEnabled, false);
 });
 
 test('leoRefreshHour: 99 is a 400 and leaves the stored value untouched', async () => {
@@ -467,6 +498,39 @@ test('ragThreshold: 5 is refused for a superadmin and ignored for an owner', asy
   const applied = await patchEntity({ ragThreshold: 0.8 }, SUPER);
   assert.equal(applied.status, 200);
   assert.equal(applied.body.ragThreshold, 0.8);
+});
+
+test('leoRefreshEnabled: an owner is refused, a superadmin and the API key are allowed', async () => {
+  const asOwner = await patchEntity({ leoRefreshEnabled: true });
+  assert.equal(asOwner.status, 200, 'an owner posting it gets a clean save, not a 400');
+  assert.equal(asOwner.body.leoRefreshEnabled, false, 'an owner cannot comp their own entity');
+
+  const asSuper = await patchEntity({ leoRefreshEnabled: true }, SUPER);
+  assert.equal(asSuper.status, 200);
+  assert.equal(asSuper.body.leoRefreshEnabled, true);
+
+  // An owner cannot switch it back off either — the stored value survives.
+  const ownerOff = await patchEntity({ leoRefreshEnabled: false });
+  assert.equal(ownerOff.body.leoRefreshEnabled, true);
+
+  // The X-API-Key caller resolves to the same superadmin principal: this is the
+  // path a box session uses to comp an entity after deploy.
+  const byKey = await patchEntity(
+    { leoRefreshEnabled: false, leoRefreshFrequency: 'weekly' },
+    { 'x-api-key': 'test-admin-key' });
+  assert.equal(byKey.status, 200);
+  assert.equal(byKey.body.leoRefreshEnabled, false);
+  assert.equal(byKey.body.leoRefreshFrequency, 'weekly');
+
+  const stored = await Entity.findOne({ domain: DOMAIN });
+  assert.equal(stored.leoRefreshEnabled, false, 'left off — no entity is comped by this suite');
+});
+
+test('a new entity defaults to the weekly cadence', async () => {
+  const fresh = await Entity.create({ domain: 'fresh.example.com', name: 'Fresh' });
+  assert.equal(fresh.leoRefreshFrequency, 'weekly');
+  assert.equal(fresh.leoRefreshEnabled, false);
+  await Entity.deleteOne({ _id: fresh._id });
 });
 
 test('a body with no recognised field is still a no-op 200', async () => {

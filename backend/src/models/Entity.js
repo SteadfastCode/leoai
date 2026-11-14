@@ -62,10 +62,15 @@ const entitySchema = new mongoose.Schema(
     ministryPlanRequestedAt: { type: Date },
     ministryPlanRequestedBy: { type: String },
     lastScrapedAt: { type: Date },
+    // Written by the Stripe webhook for the $10/mo add-on and, since LEO-134, by
+    // a superadmin PATCH so an entity can be comped with no Stripe subscription.
     leoRefreshEnabled: { type: Boolean, default: false },
     leoRefreshSubscriptionId: { type: String },
     leoRefreshHour: { type: Number, default: 3, min: 0, max: 23 },
-    leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' },
+    // Weekly by default (LEO-134). Daily is only honoured for an entity with a
+    // leoRefreshSubscriptionId — services/leoRefresh.js caps a comped entity at
+    // the weekly gap, so a site nobody is paying to re-crawl is never hit daily.
+    leoRefreshFrequency: { type: String, enum: ['daily', 'weekly'], default: 'weekly' },
     leoRefreshLastRun: { type: Date },
     ragThreshold: { type: Number, default: 0.75, min: 0.5, max: 0.95 },
     // Low-confidence hedging band above ragThreshold (LEO-038); 0 disables
