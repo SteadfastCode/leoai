@@ -511,3 +511,4 @@
 {"event":"note","text":"bridge queue.promote moved LEO-144 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-144","atUtc":"2026-11-14T21:09:36.719Z"}
 {"event":"note","text":"bridge queue.prioritize put [priority] on LEO-144","source":"bridge","command":"queue.prioritize","item":"LEO-144","atUtc":"2026-11-14T21:09:38.846Z"}
 {"event":"claim","runId":"2026-11-14T21:21:43.563Z","item":"LEO-143","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-14T21:21:59.524Z"}
+{"event":"complete","runId":"2026-11-14T21:21:43.563Z","item":"LEO-143","mergeSha":"3114212af6aa1b2a92adb7d495c1f11fe3b9d41f","durationMin":12,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-11-14T21:34:21.528Z"}
