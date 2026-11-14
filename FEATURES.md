@@ -1126,6 +1126,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   force-rescrape harvestlanefarmmarket.com and gbclancaster.org with the admin key in mcp/.env and
   put before/after page and chunk counts in the PR body.
 
+- [ ] **(LEO-137) Scraper: one canonical URL per page everywhere, then collapse the existing variants** [proposed]
+  From the 2026-11-14 scrape audit. One page is stored under several URL spellings: http vs https,
+  www vs bare, trailing slash vs none (westpca.com has 11 slash pairs, the same chunk under up to 4
+  URLs; campcalvary.com has /camps/mr and /camps/mr/ as separate pages). Enqueue dedups by
+  hostname+pathname, but chunk.url keeps whatever string was queued, the group URL uses u.href (adds
+  '/'), LeoRefresh starts from https://domain with no slash, and scrapePersist matches the exact
+  string, so chunks under another spelling are never replaced. Chunk-hash dedup can't catch them
+  because [Source: url] is inside the hashed text.
+  Do: - One canonicalUrl() in a new helper: lowercase host, prefer the entity's canonical scheme and
+  host (follow the first redirect of the home page), strip the hash and tracking params, strip the
+  trailing slash except on the root. Use it for enqueue, chunk.url, [Source:], the group URL,
+  ScrapedPage.url, and LeoRefresh's start URL. - A one-off migration or force full rescrape per
+  entity that collapses the existing variants, keeping owner-added chunks.
+  Check: unit tests for each variant from the audit; backend yarn verify + yarn test; after deploy,
+  per entity, a page count before/after and zero slash or scheme duplicates.
+
 ## Block L — Backlog upkeep
 
 
