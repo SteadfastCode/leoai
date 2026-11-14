@@ -421,6 +421,25 @@ standing audit, which is last so it runs only when nothing else is claimable.
   Check: tests for each case; scrape the same fixture site twice and assert identical chunk hashes;
   backend yarn verify + yarn test.
 
+- [ ] **(LEO-146) Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes**
+  Found 2026-11-14: during the 21:45 UTC force rescrape of campcalvary.com on production, every
+  Puppeteer fallback failed with 'Navigation timeout of 20000 ms exceeded' (logs 21:46-21:48:
+  /camps/mr, /camps/lr, /golf, /sum, the home page, ~25 pages). That crawl only worked because Camp
+  Calvary's WordPress pages are fine as plain HTML. gbclancaster.org (Squarespace) needed Puppeteer
+  for 87% of its pages in March, and every entity's weekly LeoRefresh starts tonight at 03:00 UTC,
+  so a broken Puppeteer would quietly thin those KBs.
+  Do: - Find out whether Puppeteer works on Railway at all: launch, load https://example.com and one
+  known Squarespace page (gbclancaster.org) from production, and record timings. Use a one-off
+  script or a superadmin-only diagnostic route, never a full scrape. - Fix the cause: Chromium/args
+  on Railway (nixpacks system Chromium, --no-sandbox), waitUntil 'networkidle0' never settling on
+  pages with analytics or long-polling (prefer 'domcontentloaded' + a short settle wait), the shared
+  browser getting wedged, or sites blocking headless Chrome. - If a page can't render, log one clear
+  line per page saying the plain-HTML result was used. - Add a summary to the scrape result and the
+  Crawls view: pages that needed Puppeteer and how many failed.
+  Check: tests for the fallback path; backend yarn verify + yarn test; after deploy, force-rescrape
+  gbclancaster.org with the key in mcp/.env and confirm no Puppeteer timeouts in System Logs and the
+  chunk count is not lower than before (28).
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -1102,25 +1121,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   index on its own.
   Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
   the dashboard's System Logs.
-
-- [ ] **(LEO-146) Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes** [proposed]
-  Found 2026-11-14: during the 21:45 UTC force rescrape of campcalvary.com on production, every
-  Puppeteer fallback failed with 'Navigation timeout of 20000 ms exceeded' (logs 21:46-21:48:
-  /camps/mr, /camps/lr, /golf, /sum, the home page, ~25 pages). That crawl only worked because Camp
-  Calvary's WordPress pages are fine as plain HTML. gbclancaster.org (Squarespace) needed Puppeteer
-  for 87% of its pages in March, and every entity's weekly LeoRefresh starts tonight at 03:00 UTC,
-  so a broken Puppeteer would quietly thin those KBs.
-  Do: - Find out whether Puppeteer works on Railway at all: launch, load https://example.com and one
-  known Squarespace page (gbclancaster.org) from production, and record timings. Use a one-off
-  script or a superadmin-only diagnostic route, never a full scrape. - Fix the cause: Chromium/args
-  on Railway (nixpacks system Chromium, --no-sandbox), waitUntil 'networkidle0' never settling on
-  pages with analytics or long-polling (prefer 'domcontentloaded' + a short settle wait), the shared
-  browser getting wedged, or sites blocking headless Chrome. - If a page can't render, log one clear
-  line per page saying the plain-HTML result was used. - Add a summary to the scrape result and the
-  Crawls view: pages that needed Puppeteer and how many failed.
-  Check: tests for the fallback path; backend yarn verify + yarn test; after deploy, force-rescrape
-  gbclancaster.org with the key in mcp/.env and confirm no Puppeteer timeouts in System Logs and the
-  chunk count is not lower than before (28).
 
 - [ ] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header** [proposed]
   Found 2026-11-14 on campcalvary.com/camps/mr/: two chunks, 482 and 855 chars. They were split
