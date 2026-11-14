@@ -1187,6 +1187,23 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   per message in the PR.
   Check: rag-eval before/after; tests for the fallback path; backend yarn verify + yarn test.
 
+- [ ] **(LEO-141) Scraper: re-measure, then strip site-wide boilerplate after the crawl (needs LEO-132, LEO-136, LEO-137, LEO-138)** [proposed]
+  From the 2026-11-14 scrape audit. Site chrome survives into most chunks: Squarespace pages go
+  through Puppeteer, which keeps nav/footer; cross-page dedup only strips paragraphs of 200 chars or
+  less; thin-page cards use raw page text with no dedup; results depend on crawl order. Measured:
+  the reCAPTCHA notice in 139 harvestlanefarmmarket.com chunks, the cookie banner in 46% of
+  gbclancaster.org chunks. LEO-132 is the first slice (consent banners).
+  FIRST, re-evaluate: re-measure repeated-boilerplate counts per entity after the needed items. If
+  the leftover is small, narrow this to what is left or close it.
+  Otherwise: - After the full crawl, find blocks that appear on >= ~40% of pages (min 3) and strip
+  them from every chunk, including thin-page cards. Keep one copy as a single 'Site-wide info'
+  chunk: church footers often hold service times and addresses. - Must not regress per-person bios
+  (0a0ab27). Work out how it fits progressive saves (44ecec0), e.g. strip using the previous crawl's
+  fingerprints during the crawl and recompute at the end. - Cache the Pass-1 Haiku selectors on the
+  Entity, so a different Haiku answer stops making every page look changed. - New helper module;
+  scraper.js has a small-diff cap.
+  Check: rag-eval before/after; tests with fixture sites; backend yarn verify + yarn test.
+
 ## Block L — Backlog upkeep
 
 

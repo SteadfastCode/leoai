@@ -890,8 +890,31 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-141": {
       "order": 50,
+      "title": "Scraper: re-measure, then strip site-wide boilerplate after the crawl (needs LEO-132, LEO-136, LEO-137, LEO-138)",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [
+        "LEO-132",
+        "LEO-136",
+        "LEO-137",
+        "LEO-138"
+      ],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 51,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -909,7 +932,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 51,
+      "order": 52,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
