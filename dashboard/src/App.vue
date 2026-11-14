@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTheme } from 'vuetify'
+import { useTheme, useDisplay } from 'vuetify'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { getEntities } from './lib/api'
 import api from './lib/api'
@@ -43,10 +43,17 @@ function toggleTheme() {
 // ---------------------------------------------------------------------------
 const entities      = ref([])
 const selectedDomain = ref(localStorage.getItem('leo_dashboard_domain') || '')
-const drawer        = ref(true)
+// Below md (960px) the sidebar is a temporary drawer behind an app-bar menu button; on wider
+// screens it stays the permanent drawer with the rail toggle.
+const { smAndDown: isMobile } = useDisplay()
+const drawer        = ref(!isMobile.value)
 const rail          = ref(false)
+const showRail      = computed(() => rail.value && !isMobile.value)
 
-const adminPaths = ['/fleet', '/entities', '/crawls', '/page-explorer', '/chat-preview', '/ministry-requests', '/logs', '/api-keys', '/audit-log', '/usage-report']
+watch(isMobile, (mobile) => { drawer.value = !mobile })
+watch(() => router.currentRoute.value.fullPath, () => { if (isMobile.value) drawer.value = false })
+
+const adminPaths = ['/fleet', '/entities', '/crawls', '/page-explorer', '/chat-preview', '/ministry-requests', '/codes', '/logs', '/api-keys', '/audit-log', '/usage-report']
 const navLayer = ref(adminPaths.some(p => router.currentRoute.value.path.startsWith(p)) ? 'admin' : 'entity')
 
 const entityNavItems = [
@@ -65,6 +72,14 @@ const entityNavItems = [
 const visibleEntityNavItems = computed(() =>
   entityNavItems.filter((i) => !i.permission || can(selectedDomain.value, i.permission))
 )
+
+const onAdminPage = computed(() => adminPaths.some((p) => router.currentRoute.value.path.startsWith(p)))
+
+const pageTitle = computed(() => {
+  const path = router.currentRoute.value.path
+  const item = [...entityNavItems, ...adminNavItems].find((i) => path === i.to || path.startsWith(i.to + '/'))
+  return item?.title ?? 'LeoAI'
+})
 
 const adminNavItems = [
   { title: 'Fleet',    icon: 'mdi-view-grid-outline',   to: '/fleet' },
@@ -222,21 +237,30 @@ async function handleReAuthPasskey() {
 
     <!-- ── Authenticated layout chrome ── -->
     <template v-if="showLayout">
-      <v-navigation-drawer v-model="drawer" :rail="rail" permanent width="240">
-        <div class="pa-3 d-flex align-center sidebar-border-bottom" :class="rail ? 'justify-center' : 'gap-2'">
+      <v-app-bar v-if="isMobile" density="compact" flat border="b">
+        <v-app-bar-nav-icon aria-label="Open menu" @click="drawer = !drawer" />
+        <v-app-bar-title class="text-body-1 font-weight-bold">{{ pageTitle }}</v-app-bar-title>
+        <span v-if="!onAdminPage && selectedEntity()" class="text-caption text-medium-emphasis text-truncate mr-3" style="max-width: 45vw">
+          {{ selectedEntity().name }}
+        </span>
+      </v-app-bar>
+
+      <v-navigation-drawer v-model="drawer" :rail="showRail" :permanent="!isMobile" :temporary="isMobile" width="240">
+        <div class="pa-3 d-flex align-center sidebar-border-bottom" :class="showRail ? 'justify-center' : 'gap-2'">
           <span style="font-size: 22px; flex-shrink: 0">🦁</span>
-          <span v-if="!rail" class="text-high-emphasis" style="font-weight: 700; font-size: 16px; flex: 1">LeoAI</span>
+          <span v-if="!showRail" class="text-high-emphasis" style="font-weight: 700; font-size: 16px; flex: 1">LeoAI</span>
           <v-btn
-            :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+            v-if="!isMobile"
+            :icon="showRail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
             size="x-small"
             variant="text"
-            :title="rail ? 'Expand sidebar' : 'Collapse sidebar'"
+            :title="showRail ? 'Expand sidebar' : 'Collapse sidebar'"
             @click="rail = !rail"
           />
         </div>
 
         <!-- Layer switcher — superadmin only -->
-        <div v-if="isSuperAdmin && !rail" class="pa-3 sidebar-border-bottom">
+        <div v-if="isSuperAdmin && !showRail" class="pa-3 sidebar-border-bottom">
           <v-btn-toggle v-model="navLayer" mandatory density="compact" variant="outlined" divided style="width: 100%">
             <v-btn value="entity" style="flex: 1; font-size: 12px">Entity</v-btn>
             <v-btn value="admin" style="flex: 1; font-size: 12px">Admin</v-btn>
@@ -245,7 +269,7 @@ async function handleReAuthPasskey() {
 
         <!-- Entity layer: picker + entity nav -->
         <template v-if="navLayer === 'entity'">
-          <div v-if="!rail" class="pa-3 sidebar-border-bottom">
+          <div v-if="!showRail" class="pa-3 sidebar-border-bottom">
             <v-select
               :model-value="selectedDomain"
               :items="entities"
@@ -287,7 +311,7 @@ async function handleReAuthPasskey() {
         </template>
 
         <template #append>
-          <div class="pa-3 sidebar-border-top d-flex" :class="rail ? 'justify-center' : 'justify-end'">
+          <div class="pa-3 sidebar-border-top d-flex" :class="showRail ? 'justify-center' : 'justify-end'">
             <v-btn
               :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
               :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
@@ -297,8 +321,8 @@ async function handleReAuthPasskey() {
             />
           </div>
           <div v-if="user" class="pa-3 sidebar-border-top">
-            <div class="d-flex align-center" :class="rail ? 'justify-center' : 'justify-space-between'">
-              <template v-if="!rail">
+            <div class="d-flex align-center" :class="showRail ? 'justify-center' : 'justify-space-between'">
+              <template v-if="!showRail">
                 <div>
                   <div class="text-body-2 font-weight-medium">{{ user.name }}</div>
                   <div class="text-caption text-medium-emphasis">
@@ -309,7 +333,7 @@ async function handleReAuthPasskey() {
               <v-btn icon="mdi-logout" size="small" variant="text" title="Sign out" @click="handleLogout" />
             </div>
           </div>
-          <div v-if="!rail" class="pa-3 text-caption text-medium-emphasis sidebar-border-top">
+          <div v-if="!showRail" class="pa-3 text-caption text-medium-emphasis sidebar-border-top">
             Powered by Steadfast Code
           </div>
         </template>
@@ -443,5 +467,24 @@ async function handleReAuthPasskey() {
 }
 .sidebar-border-top {
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+</style>
+
+<style>
+/* Phones and small tablets (below Vuetify's md breakpoint). The views are laid out for a
+   desktop width; these rules keep every page inside the screen instead of widening it. */
+@media (max-width: 959.98px) {
+  .v-main .v-container.pa-6 { padding: 16px !important; }
+  /* Page headers and toolbars: title, actions and filters wrap onto new lines */
+  .v-main .d-flex.justify-space-between,
+  .v-main .d-flex.align-center { flex-wrap: wrap; row-gap: 8px; }
+  /* Segmented buttons scroll sideways rather than push the page wider */
+  .v-main .v-btn-toggle { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .v-main .v-btn-toggle > .v-btn { flex-shrink: 0; }
+  /* Tables scroll inside their own box */
+  .v-main .v-table__wrapper { overflow-x: auto; }
+  /* A text field in a wrapping toolbar takes its own full-width line */
+  .v-main .d-flex.align-center > .v-text-field { flex: 1 1 100%; min-width: 0; }
+  .v-main pre, .v-main code { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 </style>

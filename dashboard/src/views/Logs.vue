@@ -301,4 +301,10 @@ onUnmounted(() => {
   word-break: break-all;
   color: rgb(var(--v-theme-on-surface));
 }
+
+/* Phones: timestamp and level on one line, the message full width below */
+@media (max-width: 959.98px) {
+  .log-row { flex-wrap: wrap; row-gap: 2px; padding: 4px 10px; }
+  .log-msg { flex-basis: 100%; word-break: normal; overflow-wrap: anywhere; }
+}
 </style>
