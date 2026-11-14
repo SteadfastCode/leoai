@@ -775,8 +775,26 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-135": {
       "order": 44,
+      "title": "RAG: score tree siblings on the same scale as the vector search",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 45,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -794,7 +812,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 45,
+      "order": 46,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
