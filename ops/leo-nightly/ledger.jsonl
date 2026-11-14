@@ -507,3 +507,4 @@
 {"event":"note","text":"bridge queue.add filed LEO-143 under Proposed","source":"bridge","command":"queue.add","item":"LEO-143","atUtc":"2026-11-14T21:09:22.451Z"}
 {"event":"note","text":"bridge queue.add filed LEO-144 under Proposed","source":"bridge","command":"queue.add","item":"LEO-144","atUtc":"2026-11-14T21:09:25.551Z"}
 {"event":"note","text":"bridge queue.promote moved LEO-143 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-143","atUtc":"2026-11-14T21:09:31.718Z"}
+{"event":"note","text":"bridge queue.prioritize put [priority] on LEO-143","source":"bridge","command":"queue.prioritize","item":"LEO-143","atUtc":"2026-11-14T21:09:34.341Z"}

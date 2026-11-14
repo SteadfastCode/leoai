@@ -191,7 +191,7 @@
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
-      "priority": false,
+      "priority": true,
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
