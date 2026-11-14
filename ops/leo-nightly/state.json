@@ -829,8 +829,26 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-138": {
       "order": 47,
+      "title": "Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 48,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -848,7 +866,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 48,
+      "order": 49,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,

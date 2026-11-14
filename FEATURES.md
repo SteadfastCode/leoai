@@ -1142,6 +1142,22 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: unit tests for each variant from the audit; backend yarn verify + yarn test; after deploy,
   per entity, a page count before/after and zero slash or scheme duplicates.
 
+- [ ] **(LEO-138) Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order** [proposed]
+  From the 2026-11-14 scrape audit. Three consistency gaps: 1. A rescrape never removes chunks for
+  stored pages the crawl no longer reaches, so dead pages (likely the April Holy Week page on
+  gbclancaster.org) live on until a full scrape. 2. scrapePersist.replaceChunksForUrl returns early
+  when a page now yields zero chunks (~line 181), so a page that turned thin keeps its old chunks
+  AND appears in a group chunk. Confirm with a test first. 3. Pages are pushed in fetch-completion
+  order (scraper.js ~line 915), so which page owns a deduped paragraph, which page is thin, and
+  where the hours chunk lands change between runs of the same site.
+  Do: - Retire a stored page and its chunks after 2 consecutive crawls that don't reach it, or at
+  once on a 404/410. Never touch owner-added chunks or a page whose fetch failed for another reason.
+  - When a successfully fetched page yields zero chunks, delete its old ones. - Sort each batch by
+  canonical URL before dedup, so the same site gives the same chunks every time. Put the logic in
+  scrapePersist.js or a new helper; keep scraper.js under its small-diff cap.
+  Check: tests for each case; scrape the same fixture site twice and assert identical chunk hashes;
+  backend yarn verify + yarn test.
+
 ## Block L — Backlog upkeep
 
 
