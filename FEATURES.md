@@ -1204,6 +1204,20 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   scraper.js has a small-diff cap.
   Check: rag-eval before/after; tests with fixture sites; backend yarn verify + yarn test.
 
+- [ ] **(LEO-142) Scraper: re-measure, then date-aware chunks that demote past events (needs LEO-137, LEO-138)** [proposed]
+  From the 2026-11-14 scrape audit. Nothing in the pipeline knows a page's date, so an April Holy
+  Week page outranks the current Sunday schedule on gbclancaster.org, and past events never fade.
+  FIRST, re-evaluate: after the needed items (dead pages retired, URLs canonical), check whether
+  stale pages still rank in rag-eval and in a test-mode 'What are the service times?' on
+  gbclancaster.org. If not, close this with what you found.
+  Otherwise: - Extract a contentDate per page/chunk from JSON-LD Event/Article data, <time
+  datetime>, /YYYY/MM/ URLs and sitemap.xml lastmod. Add 'Page date: ...' to the chunk header when
+  known. - At retrieval, demote event chunks whose date is past, rather than dropping them. - Use
+  sitemap.xml for discovery too, alongside link crawling. - New helper module; scraper.js and rag.js
+  have small-diff caps.
+  Check: tests per date source with fixture HTML; rag-eval before/after; backend yarn verify + yarn
+  test.
+
 ## Block L — Backlog upkeep
 
 
