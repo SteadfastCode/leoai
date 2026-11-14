@@ -459,6 +459,17 @@ standing audit, which is last so it runs only when nothing else is claimable.
   eval set; tests for both rules; backend yarn verify + yarn test; then force-rescrape
   campcalvary.com with the key in mcp/.env and show the new /camps/mr/ chunk.
 
+- [ ] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)**
+  Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
+  found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
+  creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
+  second, non-unique one.
+  Do: delete the codeSchema.index({ code: 1 }) line. Keep unique: true and the { type: 1, active: 1
+  } index. No migration is needed: the unique index stays, and Mongoose never drops an existing
+  index on its own.
+  Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
+  the dashboard's System Logs.
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -1131,17 +1142,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   test.
 
 - [ ] **(LEO-145) Remove the duplicate index on Code.code (Mongoose warning at every boot)** [proposed]
-  Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
-  found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
-  creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
-  second, non-unique one.
-  Do: delete the codeSchema.index({ code: 1 }) line. Keep unique: true and the { type: 1, active: 1
-  } index. No migration is needed: the unique index stays, and Mongoose never drops an existing
-  index on its own.
-  Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
-  the dashboard's System Logs.
-
-- [ ] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)** [proposed]
   Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
   found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
   creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
