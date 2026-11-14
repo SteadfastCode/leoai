@@ -898,8 +898,26 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-147": {
       "order": 50,
+      "title": "Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 51,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -917,7 +935,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 51,
+      "order": 52,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
