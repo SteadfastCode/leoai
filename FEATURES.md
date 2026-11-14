@@ -1109,6 +1109,23 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: a unit test that a sibling with raw dot d is kept exactly when (1+d)/2 >= siblingThreshold;
   backend yarn verify + yarn test.
 
+- [ ] **(LEO-136) Scraper: skip non-content paths (cart, account, tags, tracking query strings) and drop near-empty chunks** [proposed]
+  From the 2026-11-14 scrape audit. scraper.js link collection only filters '#' and 'mailto:' links,
+  so non-content pages get crawled. Measured: harvestlanefarmmarket.com has 547 pages, 450 under
+  /product/, 344 with tracking query strings (?cp=&sa=&sbp=&q=), ~255 near-empty chunks ('95 Add to
+  cart') and 471 exact-duplicate chunks; gbclancaster.org crawled /cart, which got packed into its
+  home-page group chunk.
+  Do, in a new helper module (scraper.js has a small-diff cap; follow the hoursChunk.js /
+  fetchFailure.js pattern) called at enqueue: - Skip non-content paths: /cart, /checkout, /account,
+  /my-account, /login, /register, /search, /tag(s)/, /product-tag/, /category/, /author/, /feed,
+  /wp-json, /page/N pagination, ?format=, ?add-to-cart=, #respond, and image/media/archive
+  extensions. - Drop chunks whose content minus the [Source]/heading header is under ~40 chars. -
+  Log each skipped URL with its rule at the existing debug tier. - Leave real catalogue pages
+  crawlable; whether a shop's product pages belong in the KB is out of scope here.
+  Check: unit tests per rule with real URLs from the audit; backend yarn verify + yarn test; then
+  force-rescrape harvestlanefarmmarket.com and gbclancaster.org with the admin key in mcp/.env and
+  put before/after page and chunk counts in the PR body.
+
 ## Block L — Backlog upkeep
 
 
