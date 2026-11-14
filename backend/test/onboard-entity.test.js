@@ -131,9 +131,12 @@ test('onboard creates the Entity', async (t) => {
     assert.deepEqual(entity.quotaAlertChannels, ['sms']);
   });
 
-  await t.test('pre-existing Entity keeps its name; ownerEmail is set', async () => {
-    // e.g. superadmin pre-created the entity, or a prior scrape named it.
-    await Entity.create({ domain: 'named.example.com', name: 'Curated Name' });
+  await t.test('pre-existing Entity is not claimable by a signup (LEO-108)', async () => {
+    // Was 201 with the entity's ownerEmail rewritten to the signer's — the
+    // domain-claim hole. A second person joining an entity goes through the
+    // invite flow, so this upsert now only ever inserts; see
+    // test/onboard-claim.test.js for the full guard.
+    await Entity.create({ domain: 'named.example.com', name: 'Curated Name', ownerEmail: 'real@example.com' });
     const r = await onboard({
       name: 'Late Owner',
       email: 'late@example.com',
@@ -142,10 +145,11 @@ test('onboard creates the Entity', async (t) => {
       domain: 'named.example.com',
       businessName: 'Should Not Overwrite',
     });
-    assert.equal(r.status, 201);
+    assert.equal(r.status, 409);
     const entity = await Entity.findOne({ domain: 'named.example.com' }).lean();
-    assert.equal(entity.name, 'Curated Name'); // $setOnInsert only
-    assert.equal(entity.ownerEmail, 'late@example.com');
+    assert.equal(entity.name, 'Curated Name');
+    assert.equal(entity.ownerEmail, 'real@example.com'); // untouched
+    assert.equal(await User.countDocuments({ email: 'late@example.com' }), 0);
   });
 
   await mongoose.disconnect();

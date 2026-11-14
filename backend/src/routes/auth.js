@@ -19,6 +19,13 @@ const { ROLE_PRESETS } = require('../models/Permission');
 const { sendEmailRaw } = require('../services/notifications');
 const { hashResetToken } = require('../services/resetToken');
 const { assertAssignableRole } = require('../services/team');
+const {
+  normalizeDomain,
+  claimCheck,
+  describeCodeRefusal,
+  codeConsumeFilter,
+  debug: onboardDebug,
+} = require('../services/onboard');
 
 const RP_NAME = 'LeoAI Dashboard';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -65,43 +72,104 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /auth/onboard — alpha signup: validate code, create user + entity membership, return tokens
+// Release an alpha-code use taken by a signup that then failed, so a crashed or
+// refused attempt does not burn a slot. `usedAt` identifies the entry this
+// request pushed, leaving any earlier use of the same code by the same address
+// alone (LEO-108).
+async function releaseAlphaCode(codeId, email, usedAt) {
+  try {
+    await Code.updateOne(
+      { _id: codeId },
+      { $inc: { useCount: -1 }, $pull: { usedBy: { email, usedAt } } },
+    );
+    onboardDebug('light', `released code use ${codeId} (signup did not complete)`);
+  } catch (err) {
+    // Never mask the original failure with a bookkeeping one.
+    console.error('[Onboard] failed to release alpha code use', err.message);
+  }
+}
+
+// POST /auth/onboard — alpha signup: spend the code, claim the domain, create
+// user + entity membership, return tokens
 router.post('/onboard', async (req, res) => {
   const { name, email, password, alphaCode, domain, businessName, ownerPhone, quotaAlertChannels } = req.body;
   if (!name || !email || !password || !alphaCode || !domain) {
     return res.status(400).json({ error: 'name, email, password, alphaCode, and domain are required' });
   }
 
-  try {
-    // Validate alpha code against DB
-    const code = await Code.findOne({ code: alphaCode.trim(), type: 'alpha', active: true });
-    if (!code) return res.status(403).json({ error: 'Invalid or inactive alpha code' });
-    if (code.maxUses !== null && code.useCount >= code.maxUses) return res.status(403).json({ error: 'This alpha code has already been used' });
-    if (code.expiresAt && code.expiresAt < new Date()) return res.status(403).json({ error: 'This alpha code has expired' });
+  // The domain is the entity's identity — `entityDomain` strings are compared
+  // verbatim everywhere — so normalise before anything reads or writes it, or
+  // `www.taken.com` claims `taken.com` past the check below (LEO-108).
+  const claimDomain = normalizeDomain(domain);
+  if (!claimDomain) {
+    return res.status(400).json({ error: 'domain must be a website domain, e.g. example.com' });
+  }
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(409).json({ error: 'Email already registered' });
+  const codeValue = String(alphaCode).trim();
+  const signupEmail = email.trim();
+  const usedAt = new Date();
+  let consumed = null;
+
+  try {
+    // Spend the alpha code FIRST, in one conditional update. The cap used to be
+    // read here and written after the user, the entity and the tokens: two
+    // signups in the same tick both passed a `maxUses: 1` check, and a throw in
+    // between consumed no use at all. No match now means no slot (LEO-108).
+    consumed = await Code.findOneAndUpdate(
+      codeConsumeFilter(codeValue, usedAt),
+      { $inc: { useCount: 1 }, $push: { usedBy: { email: signupEmail, usedAt } } },
+      { new: true },
+    );
+    if (!consumed) {
+      const refusal = describeCodeRefusal(await Code.findOne({ code: codeValue, type: 'alpha' }).lean(), usedAt);
+      onboardDebug('light', `refused ${claimDomain}: alpha code (reason=${refusal.reason})`);
+      return res.status(refusal.status).json({ error: refusal.error });
+    }
+    onboardDebug('normal', `alpha code consumed for ${claimDomain} (useCount=${consumed.useCount})`);
+
+    // Nothing has been created yet: a domain somebody already holds is refused
+    // before a User, an Entity, a membership or a token exists for it. The
+    // `$set` below would otherwise rewrite the live `ownerEmail` that every
+    // handoff and quota alert is sent to, and hand `owner` to the caller.
+    const claim = claimCheck({
+      entityExists: !!(await Entity.exists({ domain: claimDomain })),
+      memberExists: !!(await User.exists({ 'memberships.entityDomain': claimDomain })),
+    });
+    if (!claim.ok) {
+      await releaseAlphaCode(consumed._id, signupEmail, usedAt);
+      onboardDebug('light', `refused ${claimDomain}: already claimed (reason=${claim.reason})`);
+      return res.status(claim.status).json({ error: claim.error });
+    }
+
+    const existing = await User.findOne({ email: signupEmail });
+    if (existing) {
+      await releaseAlphaCode(consumed._id, signupEmail, usedAt);
+      onboardDebug('light', `refused ${claimDomain}: email already registered`);
+      return res.status(409).json({ error: 'Email already registered' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await User.create({
       name,
-      email,
+      email: signupEmail,
       hashedPassword,
-      memberships: [{ entityDomain: domain, roles: ['owner'], permissions: [] }],
+      memberships: [{ entityDomain: claimDomain, roles: ['owner'], permissions: [] }],
     });
 
     // Create the Entity NOW, not after the first scrape succeeds (LEO-022):
     // handoff SMS/email and quota warnings read ownerEmail/ownerPhone off the
     // Entity, and a failed first crawl must not leave the account with no
     // Entity at all. The scrape's own upsert later only sets name/timezone/
-    // lastScrapedAt, so nothing here gets clobbered.
+    // lastScrapedAt, so nothing here gets clobbered. The reverse direction —
+    // this upsert landing on a populated document — is what the claim check
+    // above now rules out; the upsert only ever inserts.
     const phone = typeof ownerPhone === 'string' ? ownerPhone.trim() : '';
     const channels = Array.isArray(quotaAlertChannels)
       ? quotaAlertChannels.filter((c) => c === 'email' || c === 'sms')
       : null;
     const entityUpdate = {
       $set: {
-        ownerEmail: email.trim(),
+        ownerEmail: signupEmail,
         ...(phone && { ownerPhone: phone }),
         ...(channels && channels.length && { quotaAlertChannels: channels }),
       },
@@ -109,20 +177,17 @@ router.post('/onboard', async (req, res) => {
     if (typeof businessName === 'string' && businessName.trim()) {
       entityUpdate.$setOnInsert = { name: businessName.trim() };
     }
-    await Entity.findOneAndUpdate({ domain }, entityUpdate, { upsert: true });
+    await Entity.findOneAndUpdate({ domain: claimDomain }, entityUpdate, { upsert: true });
 
     const accessToken  = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
     user.refreshTokens.push({ token: refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
     await user.save();
 
-    // Record code usage
-    code.useCount += 1;
-    code.usedBy.push({ email: email.trim(), usedAt: new Date() });
-    await code.save();
-
+    onboardDebug('normal', `signup accepted: ${JSON.stringify(domain)} -> ${claimDomain}`);
     res.status(201).json({ accessToken, refreshToken, user: safeUser(user) });
   } catch (err) {
+    if (consumed) await releaseAlphaCode(consumed._id, signupEmail, usedAt);
     res.status(500).json({ error: err.message });
   }
 });
