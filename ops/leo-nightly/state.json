@@ -870,8 +870,28 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-120": {
+    "LEO-140": {
       "order": 49,
+      "title": "RAG: re-measure, then rerank vector candidates with Voyage rerank (needs LEO-139)",
+      "status": "pending",
+      "attempts": 0,
+      "cluster": null,
+      "branch": null,
+      "dependsOn": [
+        "LEO-139"
+      ],
+      "needsHuman": false,
+      "proposed": true,
+      "priority": false,
+      "distribute": null,
+      "coldReview": false,
+      "notBefore": null,
+      "claimedAtUtc": null,
+      "runId": null,
+      "lastFail": null
+    },
+    "LEO-120": {
+      "order": 50,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -889,7 +909,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 50,
+      "order": 51,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,

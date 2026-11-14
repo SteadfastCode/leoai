@@ -1172,6 +1172,21 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: rag-eval before/after in the PR body; tests for the floor and the always-top-3 rule;
   backend yarn verify + yarn test.
 
+- [ ] **(LEO-140) RAG: re-measure, then rerank vector candidates with Voyage rerank (needs LEO-139)** [proposed]
+  From the 2026-11-14 scrape audit. Vector search alone ranks a stale Holy Week page above current
+  service times, and natural phrasings score 0.63-0.74. A reranker scores each (query, chunk) pair
+  directly. This is not the query expansion that CLAUDE.md records as tried and rejected: reranking
+  re-scores candidates, it never rewrites the query.
+  FIRST, re-evaluate with rag-eval after the needed items land. If misses are rare, close this with
+  the numbers.
+  Otherwise: - Pull the top 20-30 from $vectorSearch, rerank them with Voyage's lite rerank model
+  (check current model name, pricing and limits), keep the top N by rerank score above a floor set
+  from rag-eval, and feed the band/hedging logic the reranked score. - Put the reranking in a new
+  helper module (rag.js has a small-diff cap). - Timeout and error fallback to plain vector order,
+  logged at the debug tier, so a Voyage outage never breaks chat. - Record added latency and cost
+  per message in the PR.
+  Check: rag-eval before/after; tests for the fallback path; backend yarn verify + yarn test.
+
 ## Block L — Backlog upkeep
 
 
