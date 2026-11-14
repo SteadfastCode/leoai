@@ -358,6 +358,20 @@ standing audit, which is last so it runs only when nothing else is claimable.
   field; then fill it for gbclancaster.org and confirm in test-mode /chat (admin key in mcp/.env)
   that 'What are the service times?' gets 9:30 / 10:45.
 
+- [ ] **(LEO-135) RAG: score tree siblings on the same scale as the vector search**
+  From the 2026-11-14 scrape audit. rag.js retrieveContext: Phase 1 keeps chunks whose Atlas
+  vectorSearchScore >= threshold, and for cosine/dotProduct indexes Atlas normalises that score to
+  (1+cos)/2. Phase 2 (tree siblings, rag.js ~line 117) compares a RAW dotProduct(queryEmbedding,
+  c.embedding) against siblingThreshold = threshold - 0.15. A raw 0.60 is ~0.80 normalised, so
+  siblings must beat a stricter bar than primary hits and Phase 2 almost never adds anything.
+  Do: - Confirm the vector_index similarity (cosine or dotProduct) from the index definition or by
+  logging one chunk's vectorSearchScore beside its in-memory dot product; record what you found in
+  the PR. - Score siblings on the same scale as Phase 1: (1 + dot) / 2 for cosine/dotProduct. If the
+  index is euclidean, use the matching formula instead. - Re-run the rag-eval harness (LEO-037/055)
+  before and after; put both numbers in the PR body.
+  Check: a unit test that a sibling with raw dot d is kept exactly when (1+d)/2 >= siblingThreshold;
+  backend yarn verify + yarn test.
+
 ## Proposed
 
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
@@ -968,20 +982,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   history read inside `POST /chat` (line 97, which needs recent turns for the Claude call and sits beside the
   quota block); the widget's own scroll behaviour; and the quota block and handoff test-and-set in the same
   file.
-
-- [ ] **(LEO-135) RAG: score tree siblings on the same scale as the vector search** [proposed]
-  From the 2026-11-14 scrape audit. rag.js retrieveContext: Phase 1 keeps chunks whose Atlas
-  vectorSearchScore >= threshold, and for cosine/dotProduct indexes Atlas normalises that score to
-  (1+cos)/2. Phase 2 (tree siblings, rag.js ~line 117) compares a RAW dotProduct(queryEmbedding,
-  c.embedding) against siblingThreshold = threshold - 0.15. A raw 0.60 is ~0.80 normalised, so
-  siblings must beat a stricter bar than primary hits and Phase 2 almost never adds anything.
-  Do: - Confirm the vector_index similarity (cosine or dotProduct) from the index definition or by
-  logging one chunk's vectorSearchScore beside its in-memory dot product; record what you found in
-  the PR. - Score siblings on the same scale as Phase 1: (1 + dot) / 2 for cosine/dotProduct. If the
-  index is euclidean, use the matching formula instead. - Re-run the rag-eval harness (LEO-037/055)
-  before and after; put both numbers in the PR body.
-  Check: a unit test that a sibling with raw dot d is kept exactly when (1+d)/2 >= siblingThreshold;
-  backend yarn verify + yarn test.
 
 - [ ] **(LEO-136) Scraper: skip non-content paths (cart, account, tags, tracking query strings) and drop near-empty chunks** [proposed]
   From the 2026-11-14 scrape audit. scraper.js link collection only filters '#' and 'mailto:' links,
