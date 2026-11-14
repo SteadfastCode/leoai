@@ -371,7 +371,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   any review.
 
 
-- [ ] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)** [priority]
+- [x] **(LEO-144) Scraper: follow linked documents one hop, including Google Drive and Docs (brochures with dates and prices)** [priority]
   Found 2026-11-14: on campcalvary.com/camps/mr/ the dates and prices live in a brochure linked as
   'Download Brochure' -> drive.google.com/file/d/<id>/view. The crawler stays on the entity's
   domain, so Leo never reads it. Same-domain PDFs are already parsed (pdf-parse).
