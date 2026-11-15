@@ -13,6 +13,9 @@ const Log = require('../models/Log');
 const { embedQuery } = require('../services/embeddings');
 const { requireAuth, isSuperAdmin } = require('../middleware/auth');
 const ApiKey = require('../models/ApiKey');
+const os = require('os');
+const fs = require('fs');
+const { diagnose } = require('../services/puppeteerNav');
 const User = require('../models/User');
 
 // ---------------------------------------------------------------------------
@@ -146,6 +149,77 @@ router.get('/search', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/puppeteer-check (LEO-146)
+//
+// Does Pass 2 work on Railway at all? Launches a browser in the live container,
+// loads each URL under both wait strategies and reports launch time, Chromium
+// version, the binary actually used, the flags, per-URL timings and rendered
+// text length — plus /dev/shm's size, which is the prime suspect for the
+// 2026-11-14 all-pages-timeout (a 64 MB default starves Chromium's renderers).
+//
+// This is a measurement, not a scrape: one page load per URL per strategy, text
+// LENGTH only, nothing embedded and nothing stored. Capped at 3 URLs.
+// ---------------------------------------------------------------------------
+
+const DIAG_DEFAULT_URLS = ['https://example.com', 'https://gbclancaster.org'];
+const DIAG_MAX_URLS = 3;
+
+router.get('/puppeteer-check', async (req, res) => {
+  try {
+    const raw = req.query.url
+      ? String(req.query.url).split(',').map(u => u.trim()).filter(Boolean)
+      : DIAG_DEFAULT_URLS;
+
+    const urls = [];
+    for (const u of raw.slice(0, DIAG_MAX_URLS)) {
+      let parsed;
+      try { parsed = new URL(u); } catch { return res.status(400).json({ error: `not a URL: ${u}` }); }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return res.status(400).json({ error: `only http(s) URLs: ${u}` });
+      }
+      urls.push(parsed.href);
+    }
+
+    const waitUntil = ['domcontentloaded', 'load', 'networkidle0', 'networkidle2'].includes(req.query.waitUntil)
+      ? req.query.waitUntil
+      : null;
+
+    const report = await diagnose(urls, {
+      waitUntil,
+      timeoutMs: req.query.timeoutMs ? Number(req.query.timeoutMs) : undefined,
+    });
+
+    res.json({ ...report, container: containerFacts() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// The container facts that decide whether Chromium can render: /dev/shm's size
+// (Chromium's shared renderer memory lives there unless --disable-dev-shm-usage),
+// how much memory the host reports, and how many CPUs the renderers share.
+function containerFacts() {
+  const facts = {
+    devShmBytes: null,
+    devShmNote: null,
+    totalMemBytes: os.totalmem(),
+    freeMemBytes: os.freemem(),
+    cpus: os.cpus().length,
+    platform: `${os.platform()} ${os.release()}`,
+  };
+  try {
+    const st = fs.statfsSync('/dev/shm');
+    facts.devShmBytes = st.bsize * st.blocks;
+    facts.devShmNote = facts.devShmBytes <= 64 * 1024 * 1024
+      ? 'at or below the 64 MB container default — Chromium renderers starve without --disable-dev-shm-usage'
+      : 'larger than the 64 MB container default';
+  } catch (err) {
+    facts.devShmNote = `could not stat /dev/shm: ${err.message}`;
+  }
+  return facts;
+}
 
 // ---------------------------------------------------------------------------
 // GET /api/admin/audit-log
