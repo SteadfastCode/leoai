@@ -274,7 +274,7 @@
     "LEO-146": {
       "order": 16,
       "title": "Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes",
-      "status": "claimed",
+      "status": "done",
       "attempts": 2,
       "cluster": null,
       "branch": "routine/item/LEO-146",
