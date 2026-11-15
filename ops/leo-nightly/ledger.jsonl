@@ -534,3 +534,4 @@
 {"event":"note","text":"bridge queue.promote moved LEO-148 from Proposed to Workqueue Items","source":"bridge","command":"queue.promote","item":"LEO-148","atUtc":"2026-11-14T22:35:06.288Z"}
 {"event":"note","text":"bridge queue.prioritize put [priority] on LEO-146","source":"bridge","command":"queue.prioritize","item":"LEO-146","atUtc":"2026-11-14T22:35:08.090Z"}
 {"event":"claim","runId":"2026-11-15T02:43:43.123Z","item":"LEO-146","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-15T02:44:39.967Z"}
+{"event":"blocked","runId":"2026-11-15T02:43:43.123Z","item":"LEO-146","detail":"killed: timeout (after 75 min)","final":false,"lastFail":"abandoned","atUtc":"2026-11-15T03:59:42.708Z"}

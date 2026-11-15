@@ -274,10 +274,10 @@
     "LEO-146": {
       "order": 16,
       "title": "Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes",
-      "status": "claimed",
+      "status": "pending",
       "attempts": 1,
       "cluster": null,
-      "branch": "routine/item/LEO-146",
+      "branch": null,
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -286,8 +286,8 @@
       "coldReview": false,
       "notBefore": null,
       "claimedAtUtc": "2026-11-15T02:44:39.967Z",
-      "runId": "2026-11-15T02:43:43.123Z",
-      "lastFail": null
+      "runId": null,
+      "lastFail": "abandoned"
     },
     "LEO-147": {
       "order": 17,

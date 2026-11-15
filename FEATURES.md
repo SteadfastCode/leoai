@@ -421,7 +421,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   Check: tests for each case; scrape the same fixture site twice and assert identical chunk hashes;
   backend yarn verify + yarn test.
 
-- [x] **(LEO-146) Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes** [priority]
+- [ ] **(LEO-146) Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes** [priority]
   Found 2026-11-14: during the 21:45 UTC force rescrape of campcalvary.com on production, every
   Puppeteer fallback failed with 'Navigation timeout of 20000 ms exceeded' (logs 21:46-21:48:
   /camps/mr, /camps/lr, /golf, /sum, the home page, ~25 pages). That crawl only worked because Camp
