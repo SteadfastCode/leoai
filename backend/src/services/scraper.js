@@ -1,7 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
-const puppeteer = require('puppeteer');
+const { launchBrowser, acquirePage, releasePage, navigate, noteFallback, puppeteerSummary } = require('./puppeteerNav');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { embedTexts } = require('./embeddings');
 const { analyzePageStructure } = require('./claude');
@@ -261,16 +261,14 @@ function buildDomSummary($, maxDepth = 3) {
 // knownHasVariants — true when ScrapedPage.hasVariants was set on a previous crawl,
 // meaning we skip trigger detection and always run the sweep.
 async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = false, pass1Filters = {}) {
-  const page = await browser.newPage();
+  const page = await acquirePage(browser);
   try {
     // Say who we are (LEO-071) — this used to claim to be desktop Chrome
     await page.setUserAgent(LEO_USER_AGENT);
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
-
-    // Fixed wait after networkidle2 — gives JS frameworks time to render main content
-    // without risking a 15s timeout on genuinely thin pages.
-    await new Promise(r => setTimeout(r, 1500));
+    // Navigation, settle wait and container-safe Chromium args all live in
+    // puppeteerNav (LEO-146) — it salvages a timed-out page that did render.
+    await navigate(page, url, { browser });
 
     // Apply Pass 1 structural filters (Haiku-identified boilerplate) in browser context
     if (pass1Filters.exclude?.length) {
@@ -340,7 +338,7 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
     console.log(`Puppeteer: ${url} — ${result.text.length} chars`);
     return result;
   } finally {
-    await page.close();
+    await releasePage(page, browser);
   }
 }
 
@@ -483,7 +481,7 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1F
       const puppeteerResult = await fetchPageWithPuppeteer(url, browser, cs, knownHasVariants, pass1Filters);
       return { ...puppeteerResult, usedPuppeteer: true };
     } catch (err) {
-      console.warn(`Puppeteer fallback failed for ${url}: ${err.message}`);
+      noteFallback(browser, url, err, text.length);
     }
   }
 
@@ -892,7 +890,7 @@ async function scrapeSite(baseUrl, opts = {}) {
     console.warn(`Pass 1 structural analysis skipped: ${err.message}`);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await launchBrowser();
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
@@ -988,10 +986,10 @@ async function scrapeSite(baseUrl, opts = {}) {
     const { chunks: thinGroupChunks } = await tryEmbed(
       () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
       thinPageData, skippedUrls, { chunks: [] });
-    return { chunks: [...normalChunks, ...thinGroupChunks, ...docResult.chunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
+    return { chunks: [...normalChunks, ...thinGroupChunks, ...docResult.chunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), durationMs: Date.now() - startedAt };
   }
 
-  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, durationMs: Date.now() - startedAt };
+  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed.
@@ -1034,7 +1032,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     console.warn(`Pass 1 structural analysis skipped: ${err.message}`);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await launchBrowser();
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
@@ -1156,6 +1154,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     skippedUrls,
     failedUrls,
     robotsDisallowed,
+    puppeteer: puppeteerSummary(browser, domain || baseUrl),
     changedUrls:    [...changedPages.map(p => p.url), ...docResult.pages.map(p => p.url)],
     thinGroupUrls,
     unchangedUrls,

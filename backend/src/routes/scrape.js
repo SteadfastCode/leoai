@@ -165,6 +165,9 @@ router.post('/', requireAuth(), async (req, res) => {
         skippedUrls: result.skippedUrls || [],
         failedUrls,
         robotsDisallowed,
+        // Pass 2 tally (LEO-146): pages that needed JS rendering, and how many
+        // could not be rendered and fell back to plain HTML.
+        puppeteer: result.puppeteer || null,
         durationMs: result.durationMs,
         durationFormatted: formatDuration(result.durationMs),
       };
@@ -187,7 +190,7 @@ router.post('/', requireAuth(), async (req, res) => {
       // list is only complete by the time the final bulkWrite runs.
       const scanRulesByUrl = {};
 
-      const { pageData, durationMs, skippedUrls, failedUrls, robotsDisallowed } = await scrapeSite(url, {
+      const { pageData, durationMs, skippedUrls, failedUrls, robotsDisallowed, puppeteer: pass2 } = await scrapeSite(url, {
         ...opts,
         // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
         onChunks: async (batchChunks, pageRecords = []) => {
@@ -250,6 +253,8 @@ router.post('/', requireAuth(), async (req, res) => {
         skippedUrls: skippedUrls || [],
         failedUrls: notLearned,
         robotsDisallowed: robotsExcluded,
+        // Pass 2 tally (LEO-146) — see the rescrape branch above.
+        puppeteer: pass2 || null,
         durationMs,
         durationFormatted: formatDuration(durationMs),
       };

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { pass2Line } from '../lib/pass2Summary'
 import { triggerScrape, getActiveScrapes } from '../lib/api'
 import { socket } from '../lib/socket'
 
@@ -185,6 +186,12 @@ const crawlList = computed(() => Object.entries(crawls.value).map(([domain, c]) 
               {{ crawl.result.chunksUpdated ?? crawl.result.chunksStored }} chunks
             </template>
             <template v-else>Failed: {{ crawl.result.error }}</template>
+          </div>
+          <!-- Pass 2 tally (LEO-146). Absent on a run from a backend that predates
+               it, and hidden when no page needed rendering. -->
+          <div v-if="pass2Line(crawl.result)" class="text-caption mb-2" :class="crawl.result?.puppeteer?.failed ? 'text-warning' : 'text-medium-emphasis'">
+            <v-icon size="14" class="mr-1">{{ crawl.result?.puppeteer?.failed ? 'mdi-alert-outline' : 'mdi-language-javascript' }}</v-icon>
+            {{ pass2Line(crawl.result) }}
           </div>
           <div v-if="!crawl.done && crawl.log.length" class="text-caption text-medium-emphasis mb-1">
             {{ crawl.log[0]?.pagesVisited ?? 0 }} pages visited
