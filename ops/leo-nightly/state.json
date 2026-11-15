@@ -274,10 +274,10 @@
     "LEO-146": {
       "order": 16,
       "title": "Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-146",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -285,8 +285,8 @@
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-11-15T02:44:39.967Z",
+      "runId": "2026-11-15T02:43:43.123Z",
       "lastFail": null
     },
     "LEO-147": {
@@ -916,26 +916,8 @@
       "runId": null,
       "lastFail": null
     },
-    "LEO-145": {
-      "order": 51,
-      "title": "Remove the duplicate index on Code.code (Mongoose warning at every boot)",
-      "status": "pending",
-      "attempts": 0,
-      "cluster": null,
-      "branch": null,
-      "dependsOn": [],
-      "needsHuman": false,
-      "proposed": true,
-      "priority": false,
-      "distribute": null,
-      "coldReview": false,
-      "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
-      "lastFail": null
-    },
     "LEO-120": {
-      "order": 52,
+      "order": 51,
       "title": "Backlog audit: file new candidates under Proposed",
       "status": "pending",
       "attempts": 0,
@@ -953,7 +935,7 @@
       "lastFail": null
     },
     "LEO-089": {
-      "order": 53,
+      "order": 52,
       "title": "The free-tier quota gate runs before any isTest check, so once an entity reaches 100 messages the…",
       "status": "blocked",
       "attempts": 2,
