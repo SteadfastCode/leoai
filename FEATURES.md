@@ -1141,17 +1141,6 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   Check: tests per date source with fixture HTML; rag-eval before/after; backend yarn verify + yarn
   test.
 
-- [ ] **(LEO-145) Remove the duplicate index on Code.code (Mongoose warning at every boot)** [proposed]
-  Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
-  found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
-  creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
-  second, non-unique one.
-  Do: delete the codeSchema.index({ code: 1 }) line. Keep unique: true and the { type: 1, active: 1
-  } index. No migration is needed: the unique index stays, and Mongoose never drops an existing
-  index on its own.
-  Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
-  the dashboard's System Logs.
-
 ## Block L — Backlog upkeep
 
 
