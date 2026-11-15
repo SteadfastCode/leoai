@@ -1,0 +1,70 @@
+{
+  "item": "LEO-114",
+  "repo": "leoai",
+  "mergeSha": "0e3bd18e3ea0877fb5fc694764e999e84dec062a",
+  "completedAtUtc": "2026-11-14T22:10:58.732Z",
+  "completeRunId": "2026-11-14T21:21:43.563Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:31:10.404Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 9044,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/lib/settingsPayload.js",
+        "dashboard/src/views/Settings.vue",
+        "dashboard/test/settingsPayload.spec.js"
+      ],
+      "part": null,
+      "bytes": 9044,
+      "contextBytes": 3575,
+      "promptTokens": 4487,
+      "completionTokens": 94,
+      "latencyMs": 17717,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes aim to handle empty numeric inputs correctly and are validated by unit tests.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 8843,
+    "completionTokens": 220
+  },
+  "latencyMs": 36782
+}

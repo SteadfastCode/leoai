@@ -1,0 +1,170 @@
+{
+  "item": "LEO-146",
+  "repo": "leoai",
+  "mergeSha": "f7319b96c57371dd902663f5e5c2d2a2846c09a1",
+  "completedAtUtc": "2026-11-15T04:38:34.321Z",
+  "completeRunId": "2026-11-15T04:32:43.109Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:36:10.384Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 42074,
+  "contextFiles": 9,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/admin.js",
+        "backend/src/routes/scrape.js"
+      ],
+      "part": null,
+      "bytes": 6972,
+      "contextBytes": 6707,
+      "promptTokens": 4610,
+      "completionTokens": 91,
+      "latencyMs": 18191,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/puppeteerNav.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13791,
+      "contextBytes": 0,
+      "promptTokens": 4840,
+      "completionTokens": 96,
+      "latencyMs": 19335,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/puppeteerNav.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1362,
+      "contextBytes": 3501,
+      "promptTokens": 2236,
+      "completionTokens": 123,
+      "latencyMs": 12264,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 4673,
+      "contextBytes": 8835,
+      "promptTokens": 4409,
+      "completionTokens": 237,
+      "latencyMs": 22726,
+      "findings": 0,
+      "needs": 6,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/puppeteer-nav.test.js",
+        "dashboard/src/lib/pass2Summary.js",
+        "dashboard/src/views/Crawls.vue"
+      ],
+      "part": null,
+      "bytes": 13427,
+      "contextBytes": 0,
+      "promptTokens": 4780,
+      "completionTokens": 82,
+      "latencyMs": 18350,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/pass2Summary.spec.js"
+      ],
+      "part": null,
+      "bytes": 2057,
+      "contextBytes": 0,
+      "promptTokens": 1539,
+      "completionTokens": 115,
+      "latencyMs": 9899,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/src/routes/admin.js:160"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The diff adds new functionality to check Puppeteer rendering on Railway and updates the scrape result summary. However, the implementation of the `diagnose` function is not provided in the diff. · No real defects found in the provided diff. However, additional context is needed to fully understand and verify the changes. · The diff introduces a new file `puppeteerNav.js` with functions for Puppeteer navigation and diagnostics. The context provides additional details about the existing implementation, including error handling and fallback mechanisms. No clear defects are identified in the provided diff. · The diff introduces changes to the scraper.js file, including the removal of direct Puppeteer usage and the introduction of functions from a new module 'puppeteerNav'. The changes aim to fix navigation timeouts by adjusting Chromium arguments and handling page rendering differently. However, without seeing the implementation details of the functions imported from 'puppeteerNav', it's not possible to determine if these changes will resolve the issue. · No real defects found in the provided diff. However, additional information about the `launchBrowser` function is needed to ensure that the Puppeteer navigation and fallback logic works as intended. · The diff introduces a new test file for the pass2Summary module, but it does not include the implementation of the functions being tested. Therefore, I cannot determine if the tests are correct or complete without seeing the implementation.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 44042,
+    "completionTokens": 1559
+  },
+  "latencyMs": 202281
+}

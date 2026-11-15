@@ -1,0 +1,149 @@
+{
+  "item": "LEO-108",
+  "repo": "leoai",
+  "mergeSha": "0406afe57c3c80b7ac258f573e4aa382e8b52d0d",
+  "completedAtUtc": "2026-11-14T19:05:45.707Z",
+  "completeRunId": "2026-11-14T18:32:43.149Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:25:07.943Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 30109,
+  "contextFiles": 5,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/routes/auth.js"
+      ],
+      "part": null,
+      "bytes": 8513,
+      "contextBytes": 0,
+      "promptTokens": 3770,
+      "completionTokens": 155,
+      "latencyMs": 18576,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/onboard.js"
+      ],
+      "part": null,
+      "bytes": 6592,
+      "contextBytes": 0,
+      "promptTokens": 3314,
+      "completionTokens": 102,
+      "latencyMs": 11010,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/onboard-claim.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 11565,
+      "contextBytes": 0,
+      "promptTokens": 4663,
+      "completionTokens": 73,
+      "latencyMs": 13793,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/onboard-claim.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1809,
+      "contextBytes": 4867,
+      "promptTokens": 3391,
+      "completionTokens": 145,
+      "latencyMs": 13347,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/onboard-entity.test.js"
+      ],
+      "part": null,
+      "bytes": 1832,
+      "contextBytes": 3584,
+      "promptTokens": 2887,
+      "completionTokens": 72,
+      "latencyMs": 8158,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:19"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/auth.js:104"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes seem to address the issues mentioned in the description, such as preventing duplicate email signups and ensuring atomic code consumption. · No real defects found in the provided diff. However, additional verification is needed to ensure that the `normalizeDomain` and `claimCheck` functions work as intended. · No real defects found in the provided diff. However, additional context is needed to fully understand the behavior of `sendEmailRaw`. · The diff introduces a new test file `backend/test/onboard-claim.test.js` with tests for the signup process. The tests cover scenarios where two signups in the same tick on a maxUses:1 code yield one 201 and one 403, and where an expired code is refused by the consume filter itself. No real defects are found in the provided diff. · No real defects found in the provided diff. However, additional context is needed to fully understand the implementation of the `onboard` function.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 35395,
+    "completionTokens": 1272
+  },
+  "latencyMs": 137640
+}

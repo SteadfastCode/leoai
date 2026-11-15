@@ -1,0 +1,108 @@
+{
+  "item": "LEO-143",
+  "repo": "leoai",
+  "mergeSha": "3114212af6aa1b2a92adb7d495c1f11fe3b9d41f",
+  "completedAtUtc": "2026-11-14T21:34:21.528Z",
+  "completeRunId": "2026-11-14T21:21:43.563Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:26:58.687Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 28201,
+  "contextFiles": 7,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/hoursChunk.js",
+        "backend/src/services/scheduleLines.js"
+      ],
+      "part": null,
+      "bytes": 11695,
+      "contextBytes": 2409,
+      "promptTokens": 4891,
+      "completionTokens": 81,
+      "latencyMs": 18372,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js",
+        "backend/test/fixtures/chunking/schedule-chrome.html",
+        "backend/test/fixtures/chunking/schedule-lines.html"
+      ],
+      "part": null,
+      "bytes": 7919,
+      "contextBytes": 5919,
+      "promptTokens": 4831,
+      "completionTokens": 144,
+      "latencyMs": 21712,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/schedule-lines.test.js"
+      ],
+      "part": null,
+      "bytes": 8587,
+      "contextBytes": 0,
+      "promptTokens": 3311,
+      "completionTokens": 85,
+      "latencyMs": 13716,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/test/fixtures/chunking/schedule-lines.html:69"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The change introduces a new helper module to handle short schedule lines, but it does not affect the existing logic in `keepPara`. Therefore, no further information is needed. · The diff introduces changes to handle short schedule lines in the scraper. It adds a new helper module `scheduleLines.js` and updates the `scraper.js` file to use these helpers. The changes include modifying the `keepPara`, `estimateContentLen`, `chunkText`, `buildGroupChunks`, and `embedPageData` functions to incorporate the new logic for handling short schedule lines. · No real defects found. The change introduces a new test file for schedule lines and updates the scraper logic to keep short schedule lines. However, the implementation of `keepPara` is not visible in the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 25673,
+    "completionTokens": 702
+  },
+  "latencyMs": 110615
+}

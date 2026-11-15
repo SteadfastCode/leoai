@@ -1,0 +1,109 @@
+{
+  "item": "LEO-115",
+  "repo": "leoai",
+  "mergeSha": "ab949b922e02c37d90320c90f064f8eb9e008f1b",
+  "completedAtUtc": "2026-11-14T22:32:20.457Z",
+  "completeRunId": "2026-11-14T21:21:43.563Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:32:47.945Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 27407,
+  "contextFiles": 8,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/Entity.js",
+        "backend/src/routes/scrape.js",
+        "backend/src/services/scrapePersist.js"
+      ],
+      "part": null,
+      "bytes": 12002,
+      "contextBytes": 0,
+      "promptTokens": 4565,
+      "completionTokens": 76,
+      "latencyMs": 17263,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/failed-urls.test.js",
+        "backend/test/scrape-persist.test.js"
+      ],
+      "part": null,
+      "bytes": 9751,
+      "contextBytes": 0,
+      "promptTokens": 3899,
+      "completionTokens": 123,
+      "latencyMs": 14594,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/KnowledgeBase.vue",
+        "dashboard/test/notLearned.spec.js"
+      ],
+      "part": null,
+      "bytes": 5654,
+      "contextBytes": 6335,
+      "promptTokens": 4610,
+      "completionTokens": 86,
+      "latencyMs": 14942,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to fully verify the implementation of `recordLastScrape`. · The diff adds tests to ensure that the 'Not learned' list is persisted on the entity for both full and rescrapes, even when no snapshot is created. The changes include updates to test files and potential modifications to service functions. · No real defects found. The change introduces a new feature to persist and display the most recent crawl summary, but it requires further verification of the `notLearnedFromSummary` function.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 25755,
+    "completionTokens": 663
+  },
+  "latencyMs": 97393
+}

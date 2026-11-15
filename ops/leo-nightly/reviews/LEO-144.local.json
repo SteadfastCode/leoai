@@ -1,0 +1,174 @@
+{
+  "item": "LEO-144",
+  "repo": "leoai",
+  "mergeSha": "2841abb0d8990e86b5ab85a859fd5e6ff4da91a7",
+  "completedAtUtc": "2026-11-14T22:03:05.775Z",
+  "completeRunId": "2026-11-14T21:21:43.563Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:30:33.543Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 40976,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example"
+      ],
+      "part": null,
+      "bytes": 763,
+      "contextBytes": 4695,
+      "promptTokens": 2303,
+      "completionTokens": 132,
+      "latencyMs": 12631,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/linkedDocs.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 14022,
+      "contextBytes": 0,
+      "promptTokens": 4836,
+      "completionTokens": 125,
+      "latencyMs": 18511,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/linkedDocs.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3731,
+      "contextBytes": 6115,
+      "promptTokens": 3520,
+      "completionTokens": 101,
+      "latencyMs": 15009,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 5698,
+      "contextBytes": 7867,
+      "promptTokens": 4349,
+      "completionTokens": 143,
+      "latencyMs": 19850,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/linked-docs.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13988,
+      "contextBytes": 0,
+      "promptTokens": 5027,
+      "completionTokens": 155,
+      "latencyMs": 22920,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/linked-docs.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3172,
+      "contextBytes": 5218,
+      "promptTokens": 3253,
+      "completionTokens": 181,
+      "latencyMs": 18146,
+      "findings": 0,
+      "needs": 5,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:97"
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/src/services/linkedDocs.js:21"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/.env.example:97"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff adds a new log level for linked documents but does not include the implementation of fetching and parsing linked documents. The needs list includes symbols that should be defined in scraper.js to handle Google Drive and Docs links. · No real defects found in the provided diff. However, additional context is needed to fully understand the re-fetch policy and how it interacts with `scrapeSite` and `rescrapeSite`. Please provide the implementations of these functions for a complete review. · No real defects found. However, additional context is needed to fully understand the implementation of `hashContent` and `embedTexts` functions. · The diff introduces new functionality to follow linked documents one hop, including Google Drive and Docs. The changes are mostly in the `scrapeSite` and `rescrapeSite` functions, where it notes document links and embeds them if necessary. However, without seeing the implementation of `noteDocLinks` and `embedLinkedDocs`, I cannot fully assess the correctness or completeness of these changes. · The diff introduces a new test file for linked documents, covering classification, noting links, fetching, and chunking. The tests are designed to ensure that the scraper correctly handles different types of document links, including Google Drive files, Google Docs, and direct PDFs. However, some functions like `fetchLinkedDoc` and `embedLinkedDocs` are not fully defined in the provided diff, so further review is needed. · No real defects found in the provided diff. However, additional context is needed to fully understand and verify the functionality of the code.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 45790,
+    "completionTokens": 1731
+  },
+  "latencyMs": 214754
+}

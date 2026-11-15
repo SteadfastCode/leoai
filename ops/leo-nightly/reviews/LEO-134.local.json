@@ -1,0 +1,108 @@
+{
+  "item": "LEO-134",
+  "repo": "leoai",
+  "mergeSha": "ea6c4e5b0fac2fbe27e12b25701211719fad803f",
+  "completedAtUtc": "2026-11-14T18:44:25.296Z",
+  "completeRunId": "2026-11-14T18:32:43.149Z",
+  "reviewRunId": "2026-11-15T08:00:36.637Z",
+  "reviewedAtUtc": "2026-11-15T08:22:50.200Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 30541,
+  "contextFiles": 7,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/Entity.js",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/entitySettings.js",
+        "backend/src/services/leoRefresh.js"
+      ],
+      "part": null,
+      "bytes": 11557,
+      "contextBytes": 0,
+      "promptTokens": 4003,
+      "completionTokens": 98,
+      "latencyMs": 16255,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/entity-settings.test.js",
+        "backend/test/leo-refresh-due.test.js"
+      ],
+      "part": null,
+      "bytes": 13831,
+      "contextBytes": 0,
+      "promptTokens": 4640,
+      "completionTokens": 160,
+      "latencyMs": 21757,
+      "findings": 0,
+      "needs": 5,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/Settings.vue"
+      ],
+      "part": null,
+      "bytes": 5153,
+      "contextBytes": 8334,
+      "promptTokens": 4200,
+      "completionTokens": 70,
+      "latencyMs": 15771,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/routes/dashboard.js:315"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": true,
+      "evidence": "dashboard/src/views/Settings.vue:790"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes align with the description and do not introduce any apparent bugs, security issues, or logical errors. · No real defects found in the provided diff. However, additional context is needed to fully verify the changes. · No real defects found. However, the symbol 'isSuperAdmin' is used but not defined in the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 25293,
+    "completionTokens": 748
+  },
+  "latencyMs": 110964
+}
