@@ -315,6 +315,9 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     logSweep(domain, scanRulesByUrl, embeddedChunks.length + thinGroupChunks.length);
 
     const normalByUrl = groupByUrl(embeddedChunks);
+    // Every URL the loop below owns, changed or embed-skipped. The sweep-verdict
+    // pass further down covers the pages this run looked at that it never reaches.
+    const hashUpdateUrls = new Set(pageHashUpdates.map((p) => p.url));
     for (const { url: pageUrl, hash, priority, usedPuppeteer, hasVariants, contentChanged } of pageHashUpdates) {
       // Embedding failed for this page — leave its old chunks AND its old contentHash
       // intact so the next rescrape retries. Only bump lastScrapedAt to record we looked.
@@ -353,6 +356,46 @@ async function persistRescrapeResult({ domain, result, io = null }) {
         await replaceChunksForUrl(domain, groupUrl, thinByUrl.get(groupUrl) || []);
         emitPageSaved(io, domain, groupUrl);
       }
+    }
+
+    // The sweep's verdict for every page it LOOKED at, not only the changed ones (LEO-116).
+    //
+    // sweepChunks credits a group chunk to every URL in its sourceUrls, so a thin
+    // page folded into a group is flagged — but a thin page only reaches
+    // pageHashUpdates when its OWN text changed. A group rebuilt because a
+    // SIBLING changed therefore computed a finding for every unchanged member and
+    // threw it away: those URLs take the unchangedUrls updateMany below, which
+    // writes lastScrapedAt and nothing else, so the row kept whatever it already
+    // had — nothing, for any page last crawled before LEO-060 — and no chip
+    // appeared in Page Explorer until a full or forced scrape. The full-scrape
+    // path never had the gap: its final bulkWrite writes scanRules for every page.
+    //
+    // The pages this run looked at are the keys of chunkCountByUrl:
+    // tallyChunkCounts credits chunk.url plus every sourceUrls entry, which is the
+    // same rule urlsFor() applies inside the sweep, so the two sets agree by
+    // construction. A page that contributed no chunk this run was NOT looked at —
+    // its content was never re-read, so the rules already on its row are still the
+    // truth and blanking them would drop a live finding.
+    //
+    // No upsert: a synthetic group URL need not have a ScrapedPage row at all, and
+    // recording a finding must never mint one.
+    const sweptUrls = Object.keys(chunkCountByUrl).filter((u) => !hashUpdateUrls.has(u));
+    const sweptFlagged = sweptUrls.filter((u) => (scanRulesByUrl[u] || []).length > 0);
+    const sweptCleared = sweptUrls.filter((u) => (scanRulesByUrl[u] || []).length === 0);
+
+    for (const url of sweptFlagged) {
+      await ScrapedPage.updateOne({ domain, url }, { scanRules: scanRulesByUrl[url] });
+    }
+    if (sweptCleared.length > 0) {
+      // Written as [] on purpose — a page that stops tripping clears itself.
+      await ScrapedPage.updateMany({ domain, url: { $in: sweptCleared } }, { scanRules: [] });
+    }
+
+    if (sweptFlagged.length > 0) {
+      debug('light', `${domain}: scan verdict written to ${sweptUrls.length} page row(s) outside pageHashUpdates, ${sweptFlagged.length} of them flagged — source: this run's group chunks, whose sourceUrls credit members whose own text did not change`);
+      for (const url of sweptFlagged) debug('verbose', `  ${domain}: ${url} — ${scanRulesByUrl[url].join(', ')}`);
+    } else if (sweptUrls.length > 0) {
+      debug('normal', `${domain}: cleared the scan verdict on ${sweptCleared.length} page row(s) outside pageHashUpdates — source: this run's group chunks, which tripped nothing`);
     }
   }
 

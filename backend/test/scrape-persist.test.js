@@ -354,6 +354,114 @@ test('a clean rescrape leaves scanRules empty', async () => {
   assert.deepEqual(page.scanRules, []);
 });
 
+// ── A finding on an UNCHANGED page must reach its row too (LEO-116) ────────
+//
+// sweepChunks credits a group chunk to every URL in its sourceUrls, but a thin
+// page only reaches pageHashUpdates when its OWN text changed (scraper.js
+// filters on contentChanged || staleRefresh || priority). So a group rebuilt
+// because a SIBLING changed computed a finding for every unchanged member and
+// dropped it: those URLs take the unchangedUrls updateMany, which writes
+// lastScrapedAt and nothing else. The first two tests below are red against
+// unmodified main — ANN is written there, BOB is not.
+
+const ANN = `${GROUP}ann`;
+const BOB = `${GROUP}bob`;
+
+const FLAGGED_GROUP = `[H1] Ann\nann@example.com\n[H1] Bob\n${SECRET_LINE}`;
+const CLEAN_GROUP = '[H1] Ann\nann@example.com\n[H1] Bob\nbob@example.com';
+
+// One thin page changed (ANN), one unchanged (BOB), and the group rebuilt from
+// BOTH because ANN changed — exactly the shape rescrapeSite reports.
+const groupResult = (groupContent) => ({
+  embeddedChunks: [],
+  thinGroupChunks: [chunk(GROUP, groupContent, 'scraped', { sourceUrls: [ANN, BOB] })],
+  thinGroupUrls: [GROUP],
+  changedUrls: [ANN],
+  unchangedUrls: [BOB, UNCHANGED],
+  pageHashUpdates: [
+    { url: ANN, hash: 'ann-new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+  ],
+});
+
+const seedThinPages = async (scanRules = []) => {
+  await ScrapedPage.insertMany([
+    { domain: DOMAIN, url: ANN, contentHash: 'ann-old', chunkCount: 1, scanRules },
+    { domain: DOMAIN, url: BOB, contentHash: 'bob-same', chunkCount: 1, scanRules },
+  ]);
+};
+
+test('a thin page flagged through a group its SIBLING rebuilt gets scanRules on its own row', async () => {
+  await seed();
+  await seedThinPages();
+  await persistRescrapeResult({ domain: DOMAIN, result: groupResult(FLAGGED_GROUP) });
+
+  for (const url of [ANN, BOB]) {
+    const page = await ScrapedPage.findOne({ domain: DOMAIN, url }).lean();
+    assert.deepEqual(
+      page.scanRules,
+      ['labelled_password'],
+      `${url} is credited by the sweep, so its own row must say so — it is the only row a thin page has`
+    );
+    assert.ok(!JSON.stringify(page).includes('hunter2'), 'rule names only — never the matched text');
+  }
+
+  // BOB's own text never changed: recording the finding must not touch its
+  // content state, or the next rescrape would re-embed a page that is current.
+  const bob = await ScrapedPage.findOne({ domain: DOMAIN, url: BOB }).lean();
+  assert.equal(bob.contentHash, 'bob-same', 'an unchanged page keeps its hash');
+  assert.equal(bob.chunkCount, 1);
+
+  assert.equal(
+    await ScrapedPage.countDocuments({ domain: DOMAIN, url: GROUP }),
+    0,
+    'a synthetic group URL must never mint a page row'
+  );
+});
+
+test('a stale finding on an unchanged group member clears when the group stops tripping', async () => {
+  await seed();
+  // Both rows already carry a finding — what the last full scrape left behind.
+  await seedThinPages(['labelled_password']);
+
+  await persistRescrapeResult({ domain: DOMAIN, result: groupResult(CLEAN_GROUP) });
+
+  for (const url of [ANN, BOB]) {
+    const page = await ScrapedPage.findOne({ domain: DOMAIN, url }).lean();
+    assert.deepEqual(page.scanRules, [], `${url} stopped tripping, so its row must clear itself`);
+  }
+});
+
+test('flagged one run, cleared the next, for both members of the group', async () => {
+  await seed();
+  await seedThinPages();
+
+  await persistRescrapeResult({ domain: DOMAIN, result: groupResult(FLAGGED_GROUP) });
+  for (const url of [ANN, BOB]) {
+    const page = await ScrapedPage.findOne({ domain: DOMAIN, url }).lean();
+    assert.deepEqual(page.scanRules, ['labelled_password'], `${url} must be flagged by the first run`);
+  }
+
+  await persistRescrapeResult({ domain: DOMAIN, result: groupResult(CLEAN_GROUP) });
+  for (const url of [ANN, BOB]) {
+    const page = await ScrapedPage.findOne({ domain: DOMAIN, url }).lean();
+    assert.deepEqual(page.scanRules, [], `${url} must be cleared by the second`);
+  }
+});
+
+test('a page the sweep never looked at keeps the finding already on its row', async () => {
+  await seed();
+  await seedThinPages();
+  await ScrapedPage.updateOne({ domain: DOMAIN, url: UNCHANGED }, { scanRules: ['api_key'] });
+
+  // UNCHANGED contributed no chunk this run — its content was never re-read, so
+  // its stored finding is still the truth. Blanking it would drop a live warning
+  // on every rescrape that happened not to touch the page.
+  await persistRescrapeResult({ domain: DOMAIN, result: groupResult(CLEAN_GROUP) });
+
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: UNCHANGED }).lean();
+  assert.deepEqual(page.scanRules, ['api_key'], 'a page this run never re-read keeps its finding');
+});
+
 // ── The run's own summary, on the entity, unconditionally (LEO-115) ────────
 //
 // LEO-056's copies hang off the run's ScrapeSnapshot, and createSnapshot returns

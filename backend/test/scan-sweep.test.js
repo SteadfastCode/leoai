@@ -104,6 +104,30 @@ test('the serialized findings contain none of the matched secret text', () => {
   assert.ok(!/chars\)/.test(serialized), 'no redacted preview text');
 });
 
+// A second pair of fixtures that look like credentials a real page would carry —
+// high entropy, no dictionary words — so any FRAGMENT of either in a log line
+// can only have come from the match itself. Fabricated, not real credentials.
+const REAL_PASSWORD = 'Tq8vK2mXp9ZrL4wN';
+const REAL_KEY = 'sk-Hq3Zm9Xv2Rt8Kw4Np6Bd1Jc5Yg7';
+
+// Every window of `size` characters in `secret`. scanText's own preview is the
+// FIRST EIGHT characters of a match, so checking only for the whole string would
+// miss a leak that printed just the preview.
+const windows = (secret, size = 6) =>
+  Array.from({ length: Math.max(0, secret.length - size + 1) }, (_, i) => secret.slice(i, i + size));
+
+// Assert no secret, and no run of its characters, survived into `text`. The
+// failure message names the offence by length and offset — printing the fragment
+// here would put the match in the test output, which is the very thing under test.
+function assertNoLeak(text, secrets, where) {
+  for (const secret of secrets) {
+    assert.ok(!text.includes(secret), `${where} leaked a whole ${secret.length}-char match`);
+    windows(secret).forEach((frag, i) => {
+      assert.ok(!text.includes(frag), `${where} leaked ${frag.length} chars of a match at offset ${i}`);
+    });
+  }
+}
+
 test('no log tier prints the matched text, and light logs one line per scrape', () => {
   const byUrl = mergeSweep({}, sweepChunks([
     chunk(PAGE, FLAGGED_TEXT),
@@ -112,41 +136,90 @@ test('no log tier prints the matched text, and light logs one line per scrape', 
 
   const original = console.log;
   const priorLevel = process.env.SCAN_SWEEP_LOG_LEVEL;
+  // ONE buffer for every tier, never cleared before the leak assertion at the
+  // end — per-tier line counts come from slicing at a recorded mark instead.
+  // Clearing between tiers (as this test did until LEO-116) threw away the light
+  // and verbose lines, the only ones that could ever carry a match or a preview,
+  // so by the time the leak check ran the buffer held nothing but the clean-sweep
+  // line and a regression that printed the secret at verbose tier passed.
   const lines = [];
+  const since = (mark) => lines.slice(mark);
   console.log = (...args) => lines.push(args.join(' '));
   try {
+    let mark = lines.length;
     process.env.SCAN_SWEEP_LOG_LEVEL = 'light';
     logSweep(DOMAIN, byUrl, 2);
-    assert.equal(lines.length, 1, 'light tier is one line for the whole scrape');
-    assert.match(lines[0], /2 URL\(s\) tripped/);
-    assert.match(lines[0], /api_key/);
-    assert.match(lines[0], /labelled_password/);
+    const light = since(mark);
+    assert.equal(light.length, 1, 'light tier is one line for the whole scrape');
+    assert.match(light[0], /2 URL\(s\) tripped/);
+    assert.match(light[0], /api_key/);
+    assert.match(light[0], /labelled_password/);
 
-    lines.length = 0;
+    mark = lines.length;
     process.env.SCAN_SWEEP_LOG_LEVEL = 'verbose';
     logSweep(DOMAIN, byUrl, 2);
-    assert.equal(lines.length, 3, 'verbose adds one line per flagged URL — never per chunk');
+    assert.equal(since(mark).length, 3, 'verbose adds one line per flagged URL — never per chunk');
 
-    lines.length = 0;
+    mark = lines.length;
     process.env.SCAN_SWEEP_LOG_LEVEL = 'off';
     logSweep(DOMAIN, byUrl, 2);
-    assert.equal(lines.length, 0, 'off is silent');
+    assert.equal(since(mark).length, 0, 'off is silent');
 
-    lines.length = 0;
+    mark = lines.length;
     process.env.SCAN_SWEEP_LOG_LEVEL = 'light';
     logSweep(DOMAIN, {}, 12);
-    assert.equal(lines.length, 0, 'light says nothing when nothing tripped');
+    assert.equal(since(mark).length, 0, 'light says nothing when nothing tripped');
     process.env.SCAN_SWEEP_LOG_LEVEL = 'normal';
     logSweep(DOMAIN, {}, 12);
-    assert.equal(lines.length, 1, 'normal reports the clean sweep');
+    assert.equal(since(mark).length, 1, 'normal reports the clean sweep');
   } finally {
     console.log = original;
     if (priorLevel === undefined) delete process.env.SCAN_SWEEP_LOG_LEVEL;
     else process.env.SCAN_SWEEP_LOG_LEVEL = priorLevel;
   }
 
-  const logged = lines.join('\n');
-  assert.ok(!logged.includes(SECRET) && !logged.includes('sk-abcde'), 'a log line must never carry the match');
+  assert.equal(lines.length, 5, 'the leak check below is only worth anything over every tier it logged');
+  assertNoLeak(lines.join('\n'), [SECRET, 'sk-abcdefghijklmnopqrstuv1234'], 'a log line');
+});
+
+test('no tier prints a fragment of a real-looking credential, at verbose or anywhere else', () => {
+  // The case the cleared-buffer shape could not express: the sweep runs over
+  // chunks whose matches are indistinguishable from live credentials, EVERY tier
+  // logs into one buffer, and not one run of characters from either secret may
+  // appear in any line — including the group chunk's per-URL verbose lines,
+  // which are the most lines the module ever prints about a single match.
+  const byUrl = mergeSweep({}, sweepChunks([
+    chunk(PAGE, `Member portal — password: ${REAL_PASSWORD}`),
+    chunk(`https://${DOMAIN}/dev`, `Staging key ${REAL_KEY} (rotate quarterly)`),
+    { url: GROUP, content: `[H1] Ann\nmailbox pwd=${REAL_PASSWORD}`, sourceUrls: [`${GROUP}ann`, `${GROUP}bob`] },
+  ]));
+
+  assert.deepEqual(
+    Object.keys(byUrl).sort(),
+    [PAGE, `https://${DOMAIN}/dev`, GROUP, `${GROUP}ann`, `${GROUP}bob`].sort(),
+    'all five URLs must trip — otherwise the tiers below have nothing to leak'
+  );
+
+  const original = console.log;
+  const priorLevel = process.env.SCAN_SWEEP_LOG_LEVEL;
+  const lines = [];
+  console.log = (...args) => lines.push(args.join(' '));
+  try {
+    for (const tier of ['off', 'light', 'normal', 'verbose']) {
+      process.env.SCAN_SWEEP_LOG_LEVEL = tier;
+      logSweep(DOMAIN, byUrl, 3);
+    }
+  } finally {
+    console.log = original;
+    if (priorLevel === undefined) delete process.env.SCAN_SWEEP_LOG_LEVEL;
+    else process.env.SCAN_SWEEP_LOG_LEVEL = priorLevel;
+  }
+
+  // off 0 + light 1 + normal 1 + verbose (1 summary + 5 per-URL) = 8.
+  assert.equal(lines.length, 8, 'the verbose per-URL lines must be in the buffer the leak check reads');
+  assertNoLeak(lines.join('\n'), [REAL_PASSWORD, REAL_KEY], 'a log line');
+  // And the findings themselves — what gets stored on the ScrapedPage row.
+  assertNoLeak(JSON.stringify(byUrl), [REAL_PASSWORD, REAL_KEY], 'the findings');
 });
 
 // ── Accumulating across batches ────────────────────────────────────────────
