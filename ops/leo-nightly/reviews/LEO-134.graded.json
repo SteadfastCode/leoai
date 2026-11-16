@@ -1,0 +1,93 @@
+{
+  "item": "LEO-134",
+  "repo": "leoai",
+  "mergeSha": "ea6c4e5b0fac2fbe27e12b25701211719fad803f",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T06:00:16.339Z",
+  "independent": [
+    {
+      "file": "backend/src/routes/billing.js",
+      "line": 55,
+      "severity": "medium",
+      "summary": "The item explicitly requires the billing.js fallback to become 'weekly', but GET /api/billing/:domain still returns `entity.leoRefreshFrequency ?? 'daily'`, so the billing API reports a daily cadence for any entity with no stored frequency (new entities now default to weekly) — the one named sub-task of the item that the diff never does."
+    },
+    {
+      "file": "backend/src/routes/billing.js",
+      "line": 116,
+      "severity": "medium",
+      "summary": "The LeoRefresh checkout duplicate guard keys off `leoRefreshEnabled` alone, which was safe only while the webhook was the single writer; now a superadmin can flip the switch off on an entity that still has a live `leoRefreshSubscriptionId`, after which the owner sees the Enable button and can buy a second $10/mo add-on subscription (and conversely a comped entity gets 409 'already active' and can never actually subscribe, while cancel 400s for lack of a subscription id)."
+    },
+    {
+      "file": "backend/src/routes/webhooks.js",
+      "line": 95,
+      "severity": "low",
+      "summary": "The item requires the webhook to never touch an entity with no `leoRefreshSubscriptionId`, but the `customer.subscription.deleted` addon branch still sets `leoRefreshEnabled = false` purely on `sub.metadata.domain` without comparing `sub.id` to the stored subscription id, so a Stripe redelivery or a stale/older add-on sub deletion silently revokes a superadmin comp."
+    },
+    {
+      "file": "backend/test/leo-refresh-due.test.js",
+      "line": 263,
+      "severity": "low",
+      "summary": "The assertion commented 'An empty-string subscription id is no subscription' does not test that: `comped()` calls `entity(overrides)` and then deletes `leoRefreshSubscriptionId`, so the empty-string value is removed before `effectiveSchedule` sees it and the test only re-checks the absent-key case."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change adds leoRefreshEnabled to the superadminOnly list in dashboard.js and a `superadmin: true` rule in entitySettings.js, so authorization is genuinely touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or env handling appear in the diff (the test's 'test-admin-key' is a stub header value, not a secret)."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "LeoRefresh is the $10/mo Stripe add-on and the diff changes who can enable it and hides the Stripe cancel path for comped entities, so the billing surface is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Nothing is deleted or overwritten in bulk; only a boolean field and scheduling logic change."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "The core of the change is a politeness cap on the outbound rescrape cadence in leoRefresh.js — it directly changes how often the crawler hits third-party sites — so external interaction is touched."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy config, migration script or release tooling is in the diff; the after-deploy PATCH is an ops step outside the change."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review reported nothing at all, missing even the sub-task the item spelled out by filename (the billing.js 'daily' fallback) plus the double-subscription and comp-revocation consequences of making leoRefreshEnabled superadmin-writable; its triage was mostly right except for treating the crawl-cadence cap as unrelated to external calls.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.3862755,
+  "numTurns": 15,
+  "durationMs": 172439,
+  "sessionId": "4cd5e6c5-aed9-4312-a28b-dfca8efbe496"
+}

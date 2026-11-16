@@ -1,0 +1,100 @@
+{
+  "item": "LEO-108",
+  "repo": "leoai",
+  "mergeSha": "0406afe57c3c80b7ac258f573e4aa382e8b52d0d",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:57:23.861Z",
+  "independent": [
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 109,
+      "severity": "high",
+      "summary": "`const signupEmail = email.trim()` sits OUTSIDE the try/catch, so a non-string `email` (e.g. `{\"email\": 42}` or `[\"a@b.c\"]` — the required-field check only tests truthiness) throws TypeError inside an async Express 4 handler; there is no global `unhandledRejection` handler in backend/index.js, so an unauthenticated POST /auth/onboard kills the whole backend process. On main the same `email.trim()` lived inside the try and merely returned 500, and this diff defensively wrote `String(alphaCode).trim()` while leaving email unguarded — a regression in handling of untrusted input."
+    },
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 134,
+      "severity": "medium",
+      "summary": "The domain claim is still check-then-act: `claimCheck` reads `Entity.exists`/`User.exists`, then ~250ms of bcrypt(12) and `User.create` run before the Entity upsert. Two concurrent signups naming the same unclaimed domain both pass the check; the loser's upsert hits the unique index on `Entity.domain` (E11000) → 500, but its `User` with `roles: ['owner']` for that domain was already created and is never deleted, leaving a second, loginable owner on the winner's entity (conversations, settings, billing). The new comment \"Nothing has been created yet… the upsert only ever inserts\" is false under concurrency, while the alpha-code consume in the same block was made atomic precisely for this class of race."
+    },
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 190,
+      "severity": "low",
+      "summary": "The catch-all `releaseAlphaCode` refunds the code use for failures that happen AFTER the User and Entity were created (e.g. a throw in `user.save()` or the token push): the `$inc: -1`/`$pull` returns the slot while a loginable owner account and its Entity persist, so a `maxUses: 1` alpha code can be spent a second time even though the first signup did claim a domain. No compensating cleanup of the created User/Entity exists."
+    },
+    {
+      "file": "backend/src/routes/auth.js",
+      "line": 40,
+      "severity": "high",
+      "summary": "The item's promise that a stranger cannot claim a domain someone else owns is not achieved: `POST /auth/register`, public and unauthenticated in the same file and mounted at backend/index.js:40, takes `entityDomain` and `role` straight from the body and writes `memberships: [{ entityDomain, roles: [role || 'owner'] }]` with no alpha code, no claim check and no role whitelist — so the LEO-108 guard on /onboard is bypassable (and `role: 'superadmin'` is self-assignable). Pre-existing rather than introduced here, but it leaves the fixed boundary wide open."
+    },
+    {
+      "file": "backend/src/services/onboard.js",
+      "line": 54,
+      "severity": "low",
+      "summary": "The claim check compares only the newly normalized form, so any Entity or membership stored un-normalized by another path (`/auth/register`, a scrape upsert, superadmin creation — none of which call `normalizeDomain`, e.g. `www.example.com` or mixed case) is invisible to `Entity.exists({ domain: claimDomain })`; a signup for that site passes the guard and gets a second entity for the same domain, which the widget's `window.location.hostname` fallback can then route visitor traffic to. No normalization of existing records or of the other write paths accompanies the new rule."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change rewrites the signup/auth route POST /auth/onboard, its credential (alpha-code) consumption and its authorization-granting membership write."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, keys or tokens are introduced or handled differently; only an optional log-level env var is documented."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Billing/Stripe code is untouched (billing is only mentioned in prose about what an owner can see)."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Right call even with weak line evidence: the new `releaseAlphaCode` does `$inc: { useCount: -1 }` plus a `$pull` that deletes a `usedBy` entry, and the Entity `$set`/upsert write path is altered."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No outbound HTTP/SDK calls are added or changed; the notifications service only appears as a stub inside the new test."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, deploy, nixpacks/railway or migration files change; the one `.env.example` addition is an optional var with a safe in-code default."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "summary": "The local review reported nothing at all and so missed a crash-level unvalidated-input regression plus the residual claim race and the public /auth/register bypass that undercuts the fix; its triage calls, however, were all defensible.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 5,
+    "independent": 5,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.4070765,
+  "numTurns": 14,
+  "durationMs": 210589,
+  "sessionId": "dda588f6-9a94-4531-8773-9b908cf5e29e"
+}

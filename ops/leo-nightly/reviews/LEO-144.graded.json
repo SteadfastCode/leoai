@@ -1,0 +1,86 @@
+{
+  "item": "LEO-144",
+  "repo": "leoai",
+  "mergeSha": "2841abb0d8990e86b5ab85a859fd5e6ff4da91a7",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:48:49.358Z",
+  "independent": [
+    {
+      "file": "backend/src/services/linkedDocs.js",
+      "line": 273,
+      "severity": "medium",
+      "summary": "The document gate (`.pdf` pathname or a Google host) is applied only to the link URL, but httpGet follows up to 5 redirects with no re-validation of the final target: a crawled page's off-domain link to `https://host/x.pdf` that 302s anywhere makes the backend GET an arbitrary URL — including loopback, link-local (169.254.169.254) or private-network hosts — and any `text/*`/json body it returns is chunked, embedded into the entity's KB and readable by anyone chatting with the widget. This is the first code path that fetches hosts outside the entity's own domain, and nothing in the module or in robots.js checks the resolved address."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 1061,
+      "severity": "low",
+      "summary": "Re-fetch is keyed on the linking page's text hash, so a document edited in place (same Drive file / same PDF URL, new dates and prices) is never re-read by a weekly LeoRefresh — `docKnown = storedHashMap` suppresses it and the \"unless the document's hash changed\" case in the item is unreachable without a fetch; only a manual full/force scrape refreshes it, leaving stale brochure dates and prices in the KB indefinitely for exactly the churches use case the item cites."
+    },
+    {
+      "file": "backend/src/services/linkedDocs.js",
+      "line": 126,
+      "severity": "low",
+      "summary": "The same-site rejection strips `www.` from both sides, but the crawl's own link filter (scraper.js:934) compares raw hostnames, so when the entity is crawled from a `www.` base URL a link to an apex-host PDF (`https://campcalvary.com/brochure.pdf` from base `www.campcalvary.com`) is rejected here as \"the crawl's own job\" while the crawler never queues it either — the brochure is read by nobody."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff adds a scraper service, env doc and tests; no authentication or authorization code is involved."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The only .env.example addition is a LINKED_DOCS_LOG_LEVEL debug tier (the cited line 97 isn't even that block) — no credential, token or secret handling is added or changed."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "linkedDocs.js:21 is a comment about size/count caps; the change touches no pricing, billing, quota or payment code."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff itself adds no delete/drop/wipe operation — the chunk replacement it feeds is scoped per-URL to the newly introduced document URLs, so no existing data path is widened."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right conclusion — the module issues axios GETs to drive.usercontent.google.com, the Docs text exporter and arbitrary off-domain hosts, plus Voyage embeddings — even though the cited evidence line is unrelated."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bump, deploy, nixpacks or release configuration is touched (the new env var is documentation only)."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3
+  ],
+  "summary": "The local review found nothing at all on a change that adds the codebase's first off-domain server-side fetch (an unvalidated redirect chain) and a refresh policy that can never re-read an edited document, and two of its six triage calls — secrets and money — are wrong, both resting on cited lines that are plain comments.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 3,
+    "independent": 3,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 2.5466179999999996,
+  "numTurns": 20,
+  "durationMs": 349757,
+  "sessionId": "27c37cdf-0d2f-4e0f-b7ff-bb4ba9b32d46"
+}

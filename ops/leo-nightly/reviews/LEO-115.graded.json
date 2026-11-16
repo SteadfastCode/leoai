@@ -1,0 +1,79 @@
+{
+  "item": "LEO-115",
+  "repo": "leoai",
+  "mergeSha": "ab949b922e02c37d90320c90f064f8eb9e008f1b",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:41:14.899Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 167,
+      "severity": "low",
+      "summary": "The stored loss lists are silently truncated at MAX_STORED_URLS=200 while a crawl can lose up to MAX_PAGES=500, so the dashboard panel rebuilt from entity.lastScrape renders \"Not learned — 200 pages\" for a run that actually lost more; the truncation is only visible in a backend log line, never in the UI the owner reads."
+    },
+    {
+      "file": "dashboard/src/views/KnowledgeBase.vue",
+      "line": 45,
+      "severity": "low",
+      "summary": "seedFromEntity only guards against an in-flight scrape it knows about (scraping.value), but onScrapeProgress flips scraping to true without clearing scrapeResult — so a scrape started elsewhere (another tab, or a 3am LeoRefresh with the page open) shows the live \"Scraping in progress\" header above the previous run's seeded \"Not learned\" list, which now reads as the current run's losses."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth, permission, or allowlist code is modified; the new field is server-written and deliberately kept out of the PATCH allowlist."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The only .env.example addition is a log-verbosity knob with a code default, not a credential."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches Stripe, quotas, plans, or pricing."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No delete/drop/wipe is introduced in production code — the one overwrite is of the single latest-run subdocument it owns."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No outbound HTTP, Anthropic, Voyage, Twilio, or Resend call is added or changed."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "The new Entity field is optional with no required/unique and the env var defaults in code, so no migration or deploy-config step is required."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model reported nothing and the change is in fact sound — both backend write paths (manual full/force and persistRescrapeResult, shared with LeoRefresh) are covered, the field is correctly excluded from the PATCH allowlist and included in the full entity payload — so its empty report is defensible, but it also surfaced none of the two low-severity truncation/staleness issues and its triage, while all correct, carries no evidence.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.7827375,
+  "numTurns": 22,
+  "durationMs": 205162,
+  "sessionId": "6f2975b4-9682-4892-a288-30905d9837d9"
+}

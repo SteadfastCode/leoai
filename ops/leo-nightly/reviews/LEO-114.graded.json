@@ -1,0 +1,63 @@
+{
+  "item": "LEO-114",
+  "repo": "leoai",
+  "mergeSha": "0e3bd18e3ea0877fb5fc694764e999e84dec062a",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:42:59.565Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only reshapes the Settings PATCH body in the dashboard; no auth, JWT, RBAC, or superadmin gating is involved."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, env vars, or key handling appear anywhere in the new module, the view edit, or the spec."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in Stripe, pricing, plans, or quota enforcement is changed — the payload merely passes existing keys through, and the two coerced fields are retention and crawl staleness."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Defensible: `conversationRetentionDays` drives a deletion sweep, but a blank box can only ever be coerced to 0 (\"keep forever\", confirmed in the template caption and the server rule `min: 0`), so no deletion window is ever created or widened."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The only call is the existing `updateEntity` to LeoAI's own backend; no third-party service (Stripe, Twilio, Resend, Anthropic, Voyage) is touched."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, nixpacks, version, or migration change — one new src/lib module, one new spec, and a six-line edit inside `save()`."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read — the extraction is faithful (threshold sort byte-identical), 0 is the documented and server-accepted \"off\" value for both coerced fields (`min: 0` in entitySettings.js, captions say so), the nested `crawlSettings` is copied before rewrite so the live form is never mutated, and the spec covers blank/whitespace/null, real 0 and 7, out-of-range passthrough, key-set equality, and non-mutation; all six triage answers are right.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 0.9571409999999998,
+  "numTurns": 14,
+  "durationMs": 104638,
+  "sessionId": "cf5446f0-6524-43bf-b1d7-fde6a20163fb"
+}

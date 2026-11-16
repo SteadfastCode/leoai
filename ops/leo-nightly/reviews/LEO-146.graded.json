@@ -1,0 +1,107 @@
+{
+  "item": "LEO-146",
+  "repo": "leoai",
+  "mergeSha": "f7319b96c57371dd902663f5e5c2d2a2846c09a1",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:37:49.700Z",
+  "independent": [
+    {
+      "file": "backend/src/services/puppeteerNav.js",
+      "line": 277,
+      "severity": "high",
+      "summary": "Salvage of a timed-out navigation is gated on a fixed 200-char floor instead of the plain-HTML text it replaces, so a page that times out after painting only a shell (nav + cookie banner, e.g. 250 chars) is returned as the page's content and silently overwrites a much richer cheerio extraction — fetchPage returns the Puppeteer result unconditionally (scraper.js:481) and never compares lengths, even though noteFallback already has plainTextLength to hand. The module's own comment states the intent ('a salvaged timeout has to be worth more than the plain-HTML result it would replace'), but the code does not implement it, and the page is counted as 'rendered'/'salvaged', so the KB thins while the summary looks healthy — directly against the item's check that chunk count must not drop."
+    },
+    {
+      "file": "backend/src/services/leoRefresh.js",
+      "line": 234,
+      "severity": "medium",
+      "summary": "LeoRefresh builds its own scrape_complete summary and omits `puppeteer`, and `SUMMARY_KEYS` in scrapePersist.js:160 / the lastScrape sub-schema don't carry it either, so the Pass 2 tally exists only in the live socket payload of a manually triggered scrape. The 03:00 UTC weekly/nightly refreshes — the exact runs the item says would 'quietly thin those KBs' — still show no Pass 2 line in the Crawls view and persist no record of it."
+    },
+    {
+      "file": "backend/src/services/puppeteerNav.js",
+      "line": 254,
+      "severity": "medium",
+      "summary": "`attempted` is incremented inside navigate(), but failures are recorded by the caller's noteFallback, so any Pass 2 failure that happens before navigate — acquirePage/browser.newPage() rejecting or setUserAgent throwing on a wedged Chromium, the most likely shape of a container-level Chromium fault — bumps `failed` with `attempted` still 0; both the per-crawl log line (line 140, `if (label && s.attempted)`) and the dashboard (pass2Summary.js:19, `attempted <= 0 → null`) suppress the report in that case, reproducing exactly the silent-success the item set out to eliminate."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 481,
+      "severity": "low",
+      "summary": "A throw after a successful navigate — page.evaluate extraction, the pass1Filters evaluate, or sweepVariantPrices — leaves the page counted as `rendered` and then also as `failed` via noteFallback, so rendered + failed can exceed attempted and the Crawls line can read self-contradictory counts like '8 pages needed JS rendering — 8 rendered, 2 could not be rendered'."
+    },
+    {
+      "file": "backend/src/services/puppeteerNav.js",
+      "line": 195,
+      "severity": "low",
+      "summary": "releaseSlot decrements `active` and then wakes a waiter that increments it again in a later microtask, so a fresh acquirePage call arriving in between sees a free slot and takes it; the cap can be exceeded by the number of in-flight handoffs, which defeats the stated guarantee that a constrained container is never asked for more than PUPPETEER_MAX_CONCURRENCY renderers (the test only starts all acquirers up front, so it cannot catch this)."
+    },
+    {
+      "file": "backend/src/routes/admin.js",
+      "line": 169,
+      "severity": "low",
+      "summary": "The diagnostic loads any caller-supplied http(s) URL in a real browser from inside the production container with no host/IP restriction, so it doubles as an internal-network and cloud-metadata probe (169.254.169.254, localhost services) with a text-length/error oracle, and each request launches an unbounded Chromium for up to 3 URLs × 2 strategies × 60 s; it is superadmin/API-key gated, which limits the blast radius, but unlike other privileged admin actions it records no recordAudit entry."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication or authorization logic is modified — the new /puppeteer-check route simply inherits the pre-existing router-level requireAdminAuth gate at admin.js:35."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The .env.example additions are tuning knobs (log level, timeouts, concurrency, Chromium path), not credentials, and no secret handling changed."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in billing, Stripe, quota or pricing is touched; the .env.example edit only appends below the existing STRIPE_PRICE_* block."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No delete/overwrite operation is added or altered — the Chunk/ScrapedPage deleteMany calls in scrape.js are untouched context."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right call: the change drives outbound navigation to third-party sites (crawl Pass 2 and the diagnostic's default example.com / gbclancaster.org), even though the cited line 160 is only near the new route rather than on it."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, nixpacks, railway.toml or deploy config changed; the new env vars all have built-in clamped defaults, so .env.example is documentation only."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "summary": "The local review reported nothing on a change that silently replaces richer plain-HTML text with salvaged shells and leaves the item's headline reporting gap (nightly LeoRefresh, wedged-browser failures) unfixed, so its triage was accurate but its defect detection found none of six real issues.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 6,
+    "independent": 6,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.9896610000000001,
+  "numTurns": 21,
+  "durationMs": 289166,
+  "sessionId": "ad8c5480-5966-42a3-9e45-e7cc864afced"
+}

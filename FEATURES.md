@@ -454,6 +454,96 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-149) Salvage of a timed-out navigation is gated on a fixed 200-char floor instead of the plain-HTML te…**
+  Found by the grader of LEO-146 (high, backend/src/services/puppeteerNav.js:277). Salvage of a
+  timed-out navigation is gated on a fixed 200-char floor instead of the plain-HTML text it
+  replaces, so a page that times out after painting only a shell (nav + cookie banner, e.g. 250
+  chars) is returned as the page's content and silently overwrites a much richer cheerio
+  extraction — fetchPage returns the Puppeteer result unconditionally (scraper.js:481) and never
+  compares lengths, even though noteFallback already has plainTextLength to hand. The module's own
+  comment states the intent ('a salvaged timeout has to be worth more than the plain-HTML result
+  it would replace'), but the code does not implement it, and the page is counted as
+  'rendered'/'salvaged', so the KB thins while the summary looks healthy — directly against the
+  item's check that chunk count must not drop.
+- [ ] **(LEO-150) LeoRefresh builds its own scrape_complete summary and omits puppeteer, and SUMMARY_KEYS in scrape…**
+  Found by the grader of LEO-146 (medium, backend/src/services/leoRefresh.js:234). LeoRefresh
+  builds its own scrape_complete summary and omits `puppeteer`, and `SUMMARY_KEYS` in
+  scrapePersist.js:160 / the lastScrape sub-schema don't carry it either, so the Pass 2 tally
+  exists only in the live socket payload of a manually triggered scrape. The 03:00 UTC
+  weekly/nightly refreshes — the exact runs the item says would 'quietly thin those KBs' — still
+  show no Pass 2 line in the Crawls view and persist no record of it.
+- [ ] **(LEO-151) attempted is incremented inside navigate(), but failures are recorded by the caller's noteFallbac…**
+  Found by the grader of LEO-146 (medium, backend/src/services/puppeteerNav.js:254). `attempted`
+  is incremented inside navigate(), but failures are recorded by the caller's noteFallback, so any
+  Pass 2 failure that happens before navigate — acquirePage/browser.newPage() rejecting or
+  setUserAgent throwing on a wedged Chromium, the most likely shape of a container-level Chromium
+  fault — bumps `failed` with `attempted` still 0; both the per-crawl log line (line 140, `if
+  (label && s.attempted)`) and the dashboard (pass2Summary.js:19, `attempted <= 0 → null`)
+  suppress the report in that case, reproducing exactly the silent-success the item set out to
+  eliminate.
+- [ ] **(LEO-152) The document gate (.pdf pathname or a Google host) is applied only to the link URL, but httpGet f…**
+  Found by the grader of LEO-144 (medium, backend/src/services/linkedDocs.js:273). The document
+  gate (`.pdf` pathname or a Google host) is applied only to the link URL, but httpGet follows up
+  to 5 redirects with no re-validation of the final target: a crawled page's off-domain link to
+  `https://host/x.pdf` that 302s anywhere makes the backend GET an arbitrary URL — including
+  loopback, link-local (169.254.169.254) or private-network hosts — and any `text/*`/json body it
+  returns is chunked, embedded into the entity's KB and readable by anyone chatting with the
+  widget. This is the first code path that fetches hosts outside the entity's own domain, and
+  nothing in the module or in robots.js checks the resolved address.
+- [ ] **(LEO-153) The run-join gate only requires ONE line in a short-line run to carry a schedule signal, and WEEK…**
+  Found by the grader of LEO-143 (medium, backend/src/services/scheduleLines.js:167). The run-join
+  gate only requires ONE line in a short-line run to carry a schedule signal, and
+  WEEKDAY_RE/MONTH_RE match ordinary nav wording ('Sunday Services', 'May'). In the Puppeteer path
+  nav/header/footer are deliberately NOT removed (scraper.js:283-287) and innerText separates
+  sibling blocks with a single '\n' (scraper.js:310-314), so a menu run such as Home/About/Sunday
+  Services/Give/Events/Contact becomes one ~46-char paragraph that clears keepPara's 20-char floor
+  and enters chunks — chrome that was dropped before. This is exactly the failure the module
+  header claims the gate prevents ('Nav menus are runs of short lines too; none of them says 7:00
+  pm') and it breaks the item's 'nav and footer chrome stays excluded as it is today' requirement
+  for JS-rendered sites; no fixture exercises the single-newline innerText shape, only the cheerio
+  path where nav/footer are stripped.
+- [ ] **(LEO-154) const signupEmail = email.trim() sits OUTSIDE the try/catch, so a non-string email (e.g.**
+  Found by the grader of LEO-108 (high, backend/src/routes/auth.js:109). `const signupEmail =
+  email.trim()` sits OUTSIDE the try/catch, so a non-string `email` (e.g. `{"email": 42}` or
+  `["a@b.c"]` — the required-field check only tests truthiness) throws TypeError inside an async
+  Express 4 handler; there is no global `unhandledRejection` handler in backend/index.js, so an
+  unauthenticated POST /auth/onboard kills the whole backend process. On main the same
+  `email.trim()` lived inside the try and merely returned 500, and this diff defensively wrote
+  `String(alphaCode).trim()` while leaving email unguarded — a regression in handling of untrusted
+  input.
+- [ ] **(LEO-155) The domain claim is still check-then-act: claimCheck reads Entity.exists/User.exists, then ~250ms…**
+  Found by the grader of LEO-108 (medium, backend/src/routes/auth.js:134). The domain claim is
+  still check-then-act: `claimCheck` reads `Entity.exists`/`User.exists`, then ~250ms of
+  bcrypt(12) and `User.create` run before the Entity upsert. Two concurrent signups naming the
+  same unclaimed domain both pass the check; the loser's upsert hits the unique index on
+  `Entity.domain` (E11000) → 500, but its `User` with `roles: ['owner']` for that domain was
+  already created and is never deleted, leaving a second, loginable owner on the winner's entity
+  (conversations, settings, billing). The new comment "Nothing has been created yet… the upsert
+  only ever inserts" is false under concurrency, while the alpha-code consume in the same block
+  was made atomic precisely for this class of race.
+- [ ] **(LEO-156) The item's promise that a stranger cannot claim a domain someone else owns is not achieved: POST…**
+  Found by the grader of LEO-108 (high, backend/src/routes/auth.js:40). The item's promise that a
+  stranger cannot claim a domain someone else owns is not achieved: `POST /auth/register`, public
+  and unauthenticated in the same file and mounted at backend/index.js:40, takes `entityDomain`
+  and `role` straight from the body and writes `memberships: [{ entityDomain, roles: [role ||
+  'owner'] }]` with no alpha code, no claim check and no role whitelist — so the LEO-108 guard on
+  /onboard is bypassable (and `role: 'superadmin'` is self-assignable). Pre-existing rather than
+  introduced here, but it leaves the fixed boundary wide open.
+- [ ] **(LEO-157) The item explicitly requires the billing.js fallback to become 'weekly', but GET /api/billing/:do…** [needs-human]
+  Found by the grader of LEO-134 (medium, backend/src/routes/billing.js:55). The item explicitly
+  requires the billing.js fallback to become 'weekly', but GET /api/billing/:domain still returns
+  `entity.leoRefreshFrequency ?? 'daily'`, so the billing API reports a daily cadence for any
+  entity with no stored frequency (new entities now default to weekly) — the one named sub-task of
+  the item that the diff never does. Its fix is in a path routine runs may not change, so it waits
+  for an interactive session.
+- [ ] **(LEO-158) The LeoRefresh checkout duplicate guard keys off leoRefreshEnabled alone, which was safe only whi…** [needs-human]
+  Found by the grader of LEO-134 (medium, backend/src/routes/billing.js:116). The LeoRefresh
+  checkout duplicate guard keys off `leoRefreshEnabled` alone, which was safe only while the
+  webhook was the single writer; now a superadmin can flip the switch off on an entity that still
+  has a live `leoRefreshSubscriptionId`, after which the owner sees the Enable button and can buy
+  a second $10/mo add-on subscription (and conversely a comped entity gets 409 'already active'
+  and can never actually subscribe, while cancel 400s for lack of a subscription id). Its fix is
+  in a path routine runs may not change, so it waits for an interactive session.
 - [ ] **(LEO-127) The same escalation remains open through a third, unauthenticated door: POST /auth/register (publ…**
   Found by the grader of LEO-106 (high, backend/src/routes/auth.js:33). The same escalation
   remains open through a third, unauthenticated door: `POST /auth/register` (public, mounted at

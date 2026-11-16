@@ -1,0 +1,79 @@
+{
+  "item": "LEO-143",
+  "repo": "leoai",
+  "mergeSha": "3114212af6aa1b2a92adb7d495c1f11fe3b9d41f",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-16T05:15:50.941Z",
+  "gradedAtUtc": "2026-11-16T05:53:53.237Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scheduleLines.js",
+      "line": 167,
+      "severity": "medium",
+      "summary": "The run-join gate only requires ONE line in a short-line run to carry a schedule signal, and WEEKDAY_RE/MONTH_RE match ordinary nav wording ('Sunday Services', 'May'). In the Puppeteer path nav/header/footer are deliberately NOT removed (scraper.js:283-287) and innerText separates sibling blocks with a single '\\n' (scraper.js:310-314), so a menu run such as Home/About/Sunday Services/Give/Events/Contact becomes one ~46-char paragraph that clears keepPara's 20-char floor and enters chunks — chrome that was dropped before. This is exactly the failure the module header claims the gate prevents ('Nav menus are runs of short lines too; none of them says 7:00 pm') and it breaks the item's 'nav and footer chrome stays excluded as it is today' requirement for JS-rendered sites; no fixture exercises the single-newline innerText shape, only the cheerio path where nav/footer are stripped."
+    },
+    {
+      "file": "backend/test/schedule-lines.test.js",
+      "line": 150,
+      "severity": "low",
+      "summary": "The test named \"the page's own chrome is still excluded\" asserts only 'Privacy', 'Terms', 'Share' and 'Top', all of which sit inside the fixture's <footer>, which textFromFixture removes before extraction — so it passes regardless of this change, and the mobile-menu claim in its own comment (short header <div> lines still falling to the 20-char floor, i.e. 'About'/'Contact') is never asserted."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, session or permission code is touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The only .env.example addition is a log-verbosity knob, not a credential."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "Nothing billing/pricing-related is touched — the change only adds a PRICE_RE text filter, and the cited evidence line is the fixture's closing markup, not money logic."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletion, truncation or overwrite paths are modified."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external call sites (axios, Puppeteer, Voyage, Claude) are added or changed."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, CI or version config changes; the new env var has a safe default so nothing must be set to release."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review reported nothing, missed the Puppeteer-path chrome-joining regression and the vacuous footer-only chrome assertion, and got one triage category (money) wrong with evidence pointing at closing HTML tags.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 2.0743005,
+  "numTurns": 20,
+  "durationMs": 303845,
+  "sessionId": "9bf0dce2-4e85-4022-bd23-d7534bb1e8c4"
+}
