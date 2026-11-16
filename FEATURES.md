@@ -157,7 +157,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules**
+- [x] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules**
   Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
   (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
   inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
