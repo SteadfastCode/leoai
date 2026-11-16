@@ -76,7 +76,7 @@
     "LEO-116": {
       "order": 5,
       "title": "The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-116",

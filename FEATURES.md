@@ -157,40 +157,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules**
-  Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
-  (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
-  inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
-  `assert.ok(!logged.includes(SECRET) …)` runs at line 149 the buffer holds only the "clean sweep" line.
-  The light and verbose lines, the only ones that could ever carry a match or a `scanText` preview, were
-  discarded before the assertion. A regression that printed the matched secret at verbose tier passes this
-  suite, and that assertion is the only gate on the module's central promise — "Never includes the matched
-  text" (`services/scanSweep.js:62-63`).
-  (2) On the rescrape path a finding computed for an unchanged thin page is thrown away. `sweepChunks`
-  credits every URL in a chunk's `sourceUrls` (`scanSweep.js:54-56`), so a thin page folded into a group
-  chunk is flagged — but `scanRules` is written only inside the `pageHashUpdates` loop
-  (`services/scrapePersist.js:239-262`), which carries changed pages only. An unchanged group member goes
-  through the `unchangedUrls` `updateMany` (line 284), which sets `lastScrapedAt` and nothing else. A thin
-  page that carries a secret and sits in a group rebuilt because a *sibling* changed is provably flagged
-  this run yet keeps whatever its `ScrapedPage` row already had — nothing, for any page last crawled
-  before LEO-060 — so no chip appears in Page Explorer until a full or forced scrape. The full-scrape path
-  is unaffected: its final `bulkWrite` (`routes/scrape.js:220-226`) writes `scanRules` for every page.
-  Build: (1) accumulate every tier's output into one buffer that is never reset before the leak assertion
-  (keep the per-tier line counts by slicing, not clearing), and add the case the current shape cannot
-  express — verbose tier over a chunk whose match looks like a real secret, asserting that secret's own
-  characters appear in no line. (2) write `scanRules` for every URL the sweep credited rather than only
-  the changed ones, and clear it on an unchanged URL the sweep did *not* credit this run, so the "a page
-  that stops tripping clears itself" promise (line 260) holds on both paths.
-  Files: `backend/test/scan-sweep.test.js`, `backend/src/services/scrapePersist.js`,
-  `backend/test/scrape-persist.test.js`.
-  *Verify:* `node --test` — the rewritten leak assertion goes red when `logSweep`'s verbose line is made
-  to interpolate the match (do it in a scratch copy, confirm red, restore); over `mongodb-memory-server`,
-  a rescrape in which one thin page is unchanged and its group chunk is rebuilt because a sibling changed
-  leaves `scanRules` set on **both** pages, and a later rescrape where nothing trips clears both. The
-  second must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: the rule set and regexes in `services/leoScan.js`; acting on a finding — the sweep is
-  report-only by design and must stay so; the Page Explorer chip's rendering; `services/scraper.js`
-  (restricted, and it needs no change here); and the full-scrape path, which is already correct.
 
 - [ ] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row**
   Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
@@ -1251,6 +1217,40 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules** (routine 2026-11-16, 6d8b3a2)
+  Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
+  (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
+  inside the `try`, and the last call is `logSweep(DOMAIN, {}, 12)` at `normal` tier — so when
+  `assert.ok(!logged.includes(SECRET) …)` runs at line 149 the buffer holds only the "clean sweep" line.
+  The light and verbose lines, the only ones that could ever carry a match or a `scanText` preview, were
+  discarded before the assertion. A regression that printed the matched secret at verbose tier passes this
+  suite, and that assertion is the only gate on the module's central promise — "Never includes the matched
+  text" (`services/scanSweep.js:62-63`).
+  (2) On the rescrape path a finding computed for an unchanged thin page is thrown away. `sweepChunks`
+  credits every URL in a chunk's `sourceUrls` (`scanSweep.js:54-56`), so a thin page folded into a group
+  chunk is flagged — but `scanRules` is written only inside the `pageHashUpdates` loop
+  (`services/scrapePersist.js:239-262`), which carries changed pages only. An unchanged group member goes
+  through the `unchangedUrls` `updateMany` (line 284), which sets `lastScrapedAt` and nothing else. A thin
+  page that carries a secret and sits in a group rebuilt because a *sibling* changed is provably flagged
+  this run yet keeps whatever its `ScrapedPage` row already had — nothing, for any page last crawled
+  before LEO-060 — so no chip appears in Page Explorer until a full or forced scrape. The full-scrape path
+  is unaffected: its final `bulkWrite` (`routes/scrape.js:220-226`) writes `scanRules` for every page.
+  Build: (1) accumulate every tier's output into one buffer that is never reset before the leak assertion
+  (keep the per-tier line counts by slicing, not clearing), and add the case the current shape cannot
+  express — verbose tier over a chunk whose match looks like a real secret, asserting that secret's own
+  characters appear in no line. (2) write `scanRules` for every URL the sweep credited rather than only
+  the changed ones, and clear it on an unchanged URL the sweep did *not* credit this run, so the "a page
+  that stops tripping clears itself" promise (line 260) holds on both paths.
+  Files: `backend/test/scan-sweep.test.js`, `backend/src/services/scrapePersist.js`,
+  `backend/test/scrape-persist.test.js`.
+  *Verify:* `node --test` — the rewritten leak assertion goes red when `logSweep`'s verbose line is made
+  to interpolate the match (do it in a scratch copy, confirm red, restore); over `mongodb-memory-server`,
+  a rescrape in which one thin page is unchanged and its group chunk is rebuilt because a sibling changed
+  leaves `scanRules` set on **both** pages, and a later rescrape where nothing trips clears both. The
+  second must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: the rule set and regexes in `services/leoScan.js`; acting on a finding — the sweep is
+  report-only by design and must stay so; the Page Explorer chip's rendering; `services/scraper.js`
+  (restricted, and it needs no change here); and the full-scrape path, which is already correct.
 - [x] **(LEO-146) Puppeteer: find and fix the navigation timeouts on Railway before tonight's weekly refreshes** [priority] (routine 2026-11-14, f7319b9)
   Found 2026-11-14: during the 21:45 UTC force rescrape of campcalvary.com on production, every
   Puppeteer fallback failed with 'Navigation timeout of 20000 ms exceeded' (logs 21:46-21:48:
