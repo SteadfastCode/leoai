@@ -12,8 +12,13 @@ const assert = require('node:assert/strict');
 
 const {
   sweepThresholds,
+  evalRow,
   thresholdRange,
   DEFAULT_THRESHOLDS,
+  ENTITY_DEFAULT_THRESHOLD,
+  NO_PAGE,
+  OWNER_REPLY_PAGE,
+  UNRETRIEVED_PAGE,
 } = require('../src/services/ragEval');
 
 const at = (sweep, threshold) => sweep.levels.find((l) => l.threshold === threshold);
@@ -142,4 +147,132 @@ test('thresholdRange: custom bounds, degenerate and inverted inputs', () => {
   assert.deepEqual(thresholdRange(0.8, 0.6, 0.01), [], 'inverted range yields nothing');
   assert.deepEqual(thresholdRange(0.6, 0.8, 0), [], 'zero step yields nothing, never an infinite loop');
   assert.deepEqual(thresholdRange(0.6, 0.8, NaN), []);
+});
+
+// ── LEO-117 ───────────────────────────────────────────────────────────────────
+// Three defects the LEO-055 grader recorded: a step that does not divide the
+// range emitted a candidate past max; an entity threshold outside 0.60–0.80 got
+// a sweep table with no '← entity' row; and the hit flag and the page cell were
+// computed from different comparisons, so the table printed hits with no page
+// and pages beside misses.
+
+test('thresholdRange: a step that does not divide the range stops inside max', () => {
+  assert.deepEqual(thresholdRange(0.6, 0.8, 0.03), [0.6, 0.63, 0.66, 0.69, 0.72, 0.75, 0.78],
+    'round() emitted a 7th step at 0.81, past max');
+  assert.deepEqual(thresholdRange(0.6, 0.8, 0.07), [0.6, 0.67, 0.74], 'round() ended at 0.81');
+  assert.deepEqual(thresholdRange(0.6, 0.8, 0.3), [0.6], 'a step wider than the range yields min alone');
+});
+
+test('thresholdRange: no candidate exceeds max, for any step from 0.01 to 0.11', () => {
+  for (let i = 1; i <= 11; i++) {
+    const step = i / 100;
+    const range = thresholdRange(0.6, 0.8, step);
+    assert.ok(range.length >= 1, `step ${step} yielded nothing`);
+    assert.equal(range[0], 0.6, `step ${step} must start at min`);
+    for (const t of range) assert.ok(t <= 0.8, `step ${step} emitted ${t}, past max`);
+    // Ascending, evenly spaced, and the last candidate is the last one that fits.
+    for (let j = 1; j < range.length; j++) {
+      assert.ok(Math.abs(range[j] - range[j - 1] - step) < 1e-9, `step ${step} is uneven at index ${j}`);
+    }
+    assert.ok(range.at(-1) + step > 0.8 + 1e-9, `step ${step} stopped early at ${range.at(-1)}`);
+  }
+});
+
+test('thresholdRange: a step that divides evenly still reaches max despite float drift', () => {
+  // (0.3 - 0.1) / 0.05 is 3.9999999999999996, not 4 — the epsilon in the step
+  // count is what keeps 0.30 in the list.
+  assert.deepEqual(thresholdRange(0.1, 0.3, 0.05), [0.1, 0.15, 0.2, 0.25, 0.3]);
+  assert.deepEqual(thresholdRange(0.6, 0.8, 0.05), [0.6, 0.65, 0.7, 0.75, 0.8]);
+  assert.deepEqual(thresholdRange(0.6, 0.8, 0.1), [0.6, 0.7, 0.8]);
+});
+
+test("the entity's own threshold is always a swept level, below the floor or above the ceiling", () => {
+  const rows = [
+    { id: 'hours-1', topScore: 0.58 },
+    { id: 'hours-2', topScore: 0.7 },
+    { id: 'hours-3', topScore: 0.93 },
+  ];
+
+  for (const entityThreshold of [0.5, 0.55, 0.9, 0.95]) {
+    const sweep = sweepThresholds(rows, DEFAULT_THRESHOLDS, entityThreshold);
+    const own = sweep.levels.filter((l) => l.isEntityThreshold);
+    assert.equal(own.length, 1, `exactly one '← entity' row at ${entityThreshold}`);
+    assert.equal(own[0].threshold, entityThreshold, `a level equal to ${entityThreshold}`);
+    assert.deepEqual(sweep.levels.map((l) => l.threshold).slice().sort((a, b) => a - b),
+      sweep.levels.map((l) => l.threshold), 'levels stay ascending once the entity level is spliced in');
+    assert.equal(sweep.levels.length, DEFAULT_THRESHOLDS.length + 1);
+  }
+
+  // Scored like any other level, not a cosmetic row.
+  const low = at(sweepThresholds(rows, DEFAULT_THRESHOLDS, 0.55), 0.55);
+  assert.deepEqual(low.hits, ['hours-1', 'hours-2', 'hours-3']);
+  const high = at(sweepThresholds(rows, DEFAULT_THRESHOLDS, 0.9), 0.9);
+  assert.deepEqual(high.hits, ['hours-3']);
+  assert.deepEqual(high.misses, ['hours-1', 'hours-2']);
+});
+
+test('an entity threshold already among the candidates is flagged, never duplicated', () => {
+  const sweep = sweepThresholds([{ id: 'a', topScore: 0.8 }], DEFAULT_THRESHOLDS, 0.75);
+  assert.equal(sweep.levels.length, DEFAULT_THRESHOLDS.length, 'no extra row');
+  assert.deepEqual(sweep.levels.filter((l) => l.isEntityThreshold).map((l) => l.threshold), [0.75]);
+  // No entity threshold passed: nothing claims to be the entity's level.
+  assert.ok(sweepThresholds([{ id: 'a', topScore: 0.8 }]).levels.every((l) => !l.isEntityThreshold));
+  assert.ok(sweepThresholds([{ id: 'a', topScore: 0.8 }], DEFAULT_THRESHOLDS, NaN).levels
+    .every((l) => !l.isEntityThreshold), 'a non-finite threshold is ignored, not inserted');
+});
+
+test('evalRow: a hit always carries a page, a miss never does', () => {
+  const sources = [{ url: 'https://dosiedough.com/hours', name: 'Hours' }];
+  // Either side of the sweep floor, the sweep ceiling, and the entity's own
+  // threshold — the three boundaries the two columns used to disagree across.
+  const scores = [0, 0.4, 0.5, 0.5499, 0.55, 0.5501, 0.5999, 0.6, 0.6001, 0.7,
+    0.7999, 0.8, 0.8001, 0.8999, 0.9, 0.9001, 0.95, 1];
+
+  for (const threshold of [0.5, 0.55, 0.6, 0.75, 0.8, 0.9, 0.95]) {
+    for (const topScore of scores) {
+      const row = evalRow({ topScore, hadContext: true, sources, threshold });
+      assert.equal(row.hit, topScore >= threshold, `hit at ${topScore} vs ${threshold}`);
+      assert.equal(row.topScore, topScore);
+      assert.equal(row.threshold, threshold);
+      if (row.hit) {
+        assert.notEqual(row.page, NO_PAGE, `hit at ${topScore} vs ${threshold} printed no page`);
+        assert.equal(row.page, 'https://dosiedough.com/hours');
+      } else {
+        assert.equal(row.page, NO_PAGE, `miss at ${topScore} vs ${threshold} printed a page`);
+      }
+    }
+  }
+});
+
+test('evalRow: the two reported cases from the LEO-055 review', () => {
+  const sources = [{ url: 'https://dosiedough.com/hours' }];
+  // Entity below the sweep floor: 0.58 clears its 0.55, so it is a hit AND it
+  // names the page. It used to print ✅ with '—'.
+  const below = evalRow({ topScore: 0.58, hadContext: true, sources, threshold: 0.55 });
+  assert.deepEqual([below.hit, below.page], [true, 'https://dosiedough.com/hours']);
+  // Entity above the sweep ceiling: 0.70 misses its 0.90, so no page is named.
+  // It used to print ❌ beside a page the entity will never cite.
+  const above = evalRow({ topScore: 0.7, hadContext: true, sources, threshold: 0.9 });
+  assert.deepEqual([above.hit, above.page], [false, NO_PAGE]);
+});
+
+test('evalRow: owner-reply-only and unretrieved hits say which they are', () => {
+  assert.equal(evalRow({ topScore: 0.8, hadContext: true, sources: [], threshold: 0.75 }).page,
+    OWNER_REPLY_PAGE, 'context but no page sources is an owner reply');
+  const unretrieved = evalRow({ topScore: 0.8, hadContext: false, sources: [], threshold: 0.75 });
+  assert.equal(unretrieved.page, UNRETRIEVED_PAGE, 'a hit the caller never retrieved says so');
+  assert.notEqual(unretrieved.page, NO_PAGE, 'and still never reads as a miss');
+  // A plain string source is tolerated, as the script once passed.
+  assert.equal(evalRow({ topScore: 0.8, sources: ['/hours'], threshold: 0.75 }).page, '/hours');
+  assert.equal(evalRow({ topScore: 0.8, hadContext: true, sources: [{ name: 'Hours' }], threshold: 0.75 }).page,
+    'Hours', 'a source with no url falls back to its name');
+});
+
+test('evalRow: no arguments, no score and no threshold are tolerated', () => {
+  assert.deepEqual(evalRow(), { topScore: 0, threshold: ENTITY_DEFAULT_THRESHOLD, hit: false, page: NO_PAGE });
+  assert.equal(ENTITY_DEFAULT_THRESHOLD, 0.75, "matches ragThreshold's default in models/Entity.js");
+  const missing = evalRow({ topScore: undefined, hadContext: false, sources: undefined, threshold: 0.5 });
+  assert.deepEqual([missing.topScore, missing.hit, missing.page], [0, false, NO_PAGE]);
+  // Threshold 0 is finite, so it is honoured rather than replaced by the default.
+  assert.equal(evalRow({ topScore: 0, hadContext: true, sources: ['/x'], threshold: 0 }).hit, true);
 });
