@@ -563,3 +563,5 @@
 {"event":"local-review","item":"LEO-117","model":"qwen2.5-coder:14b","findings":0,"contextFiles":4,"promptVersion":"v6","mergeSha":"106821de8eaeb7b9db91f27bce51cb3df226c443","runId":"2026-11-17T08:01:47.892Z","promptTokens":23035,"completionTokens":689,"latencyMs":87968,"chunkErrors":0,"triageTouched":["secrets"],"atUtc":"2026-11-17T08:14:49.091Z"}
 {"event":"ack","items":["LEO-134"],"by":"routine","source":"auto","atUtc":"2026-11-17T17:51:26.315Z"}
 {"event":"ack","items":["LEO-143"],"by":"routine","source":"auto","atUtc":"2026-11-17T20:35:34.418Z"}
+{"event":"ack","items":["LEO-144"],"by":"routine","source":"auto","atUtc":"2026-11-17T21:02:13.619Z"}
+{"event":"ack","items":["LEO-114"],"by":"routine","source":"auto","atUtc":"2026-11-17T21:02:13.619Z"}
