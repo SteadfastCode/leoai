@@ -76,10 +76,10 @@
     "LEO-117": {
       "order": 5,
       "title": "`rag-eval` prints a hit with no page, a page for a miss, and a sweep with no \"← entity\" row",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-117",
       "dependsOn": [],
       "needsHuman": false,
       "proposed": false,
@@ -87,8 +87,8 @@
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-11-17T03:12:30.884Z",
+      "runId": "2026-11-17T03:11:43.642Z",
       "lastFail": null
     },
     "LEO-118": {

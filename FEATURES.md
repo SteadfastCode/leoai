@@ -158,7 +158,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row**
+- [x] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row**
   Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
   (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
   `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
