@@ -76,7 +76,7 @@
     "LEO-117": {
       "order": 5,
       "title": "`rag-eval` prints a hit with no page, a page for a miss, and a sweep with no \"← entity\" row",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-117",

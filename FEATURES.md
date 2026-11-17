@@ -158,40 +158,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row**
-  Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
-  (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
-  `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
-  while filling the "top page" column from whether retrieval *at the floor* returned context (lines
-  77-84). `ragThreshold` is valid from 0.50 to 0.95 (`models/Entity.js:65`) but the sweep spans 0.60-0.80
-  (`services/ragEval.js:15-17`). So for an entity below 0.60 a question scoring 0.58 prints hit ✅ with
-  `—` for the page it supposedly hit, and for an entity above 0.80 a question scoring 0.70 prints miss ❌
-  beside a page it will never cite. `printSweep`'s `← entity` marker (line 108) compares the entity's
-  threshold only against the swept levels, so an entity outside 0.60-0.80 gets a sweep table with no row
-  marking where it actually stands — the one thing the table exists to show.
-  (2) `thresholdRange` derives its step count with `Math.round((max - min) / step)`
-  (`services/ragEval.js:29`), so a step that does not divide the range evenly emits a candidate past
-  `max`: `thresholdRange(0.6, 0.8, 0.03)` and `(0.6, 0.8, 0.07)` both end at 0.81.
-  `backend/test/rag-eval-sweep.test.js:139-144` covers only divisible and degenerate steps.
-  Build: (1) retrieve at `Math.min(SWEEP_FLOOR, entityThreshold)` so the page column is computed at or
-  below what the entity actually uses; move the row shaping into a pure
-  `evalRow({ topScore, hadContext, sources, threshold })` in `services/ragEval.js` and derive hit and page
-  from one comparison so the two columns can never disagree; and include the entity's own threshold among
-  the swept levels when it falls outside the default range, so the `← entity` row always exists.
-  (2) switch the step count to `Math.floor((max - min) / step + 1e-9)` so no candidate exceeds `max`,
-  keeping `round()`'s drift fix as it is.
-  Files: `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
-  `backend/test/rag-eval-sweep.test.js`.
-  *Verify:* `node --test`, no DB and no network — `thresholdRange(0.6, 0.8, 0.03)` ends at 0.78 and
-  `(0.6, 0.8, 0.07)` at 0.74, no returned candidate exceeds `max` for any step from 0.01 to 0.11, and
-  every existing case in that file is unchanged; `sweepThresholds` over fixture rows with an entity
-  threshold of 0.55 and of 0.90 contains a level equal to it; `evalRow` never returns a hit with `—` for
-  its page, nor a page for a miss, across scores either side of 0.60, 0.80 and the entity's threshold.
-  Each must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: running the script against a live entity — it needs `MONGODB_URI` and a Voyage key, so
-  not routine work; changing any default (0.60 / 0.80 / 0.01) or the committed question set;
-  `services/rag.js` (restricted) and the `$vectorSearch` stage (denylisted); and LEO-018's "what are your
-  hours?" diagnosis, which this script exists to serve but does not itself answer.
 
 - [ ] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error**
   Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
@@ -1217,6 +1183,40 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row** (routine 2026-11-16, 106821d)
+  Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
+  (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
+  `backend/src/scripts/rag-eval.js:38` and `:72`) and then reports each row's hit as `score >= threshold`
+  while filling the "top page" column from whether retrieval *at the floor* returned context (lines
+  77-84). `ragThreshold` is valid from 0.50 to 0.95 (`models/Entity.js:65`) but the sweep spans 0.60-0.80
+  (`services/ragEval.js:15-17`). So for an entity below 0.60 a question scoring 0.58 prints hit ✅ with
+  `—` for the page it supposedly hit, and for an entity above 0.80 a question scoring 0.70 prints miss ❌
+  beside a page it will never cite. `printSweep`'s `← entity` marker (line 108) compares the entity's
+  threshold only against the swept levels, so an entity outside 0.60-0.80 gets a sweep table with no row
+  marking where it actually stands — the one thing the table exists to show.
+  (2) `thresholdRange` derives its step count with `Math.round((max - min) / step)`
+  (`services/ragEval.js:29`), so a step that does not divide the range evenly emits a candidate past
+  `max`: `thresholdRange(0.6, 0.8, 0.03)` and `(0.6, 0.8, 0.07)` both end at 0.81.
+  `backend/test/rag-eval-sweep.test.js:139-144` covers only divisible and degenerate steps.
+  Build: (1) retrieve at `Math.min(SWEEP_FLOOR, entityThreshold)` so the page column is computed at or
+  below what the entity actually uses; move the row shaping into a pure
+  `evalRow({ topScore, hadContext, sources, threshold })` in `services/ragEval.js` and derive hit and page
+  from one comparison so the two columns can never disagree; and include the entity's own threshold among
+  the swept levels when it falls outside the default range, so the `← entity` row always exists.
+  (2) switch the step count to `Math.floor((max - min) / step + 1e-9)` so no candidate exceeds `max`,
+  keeping `round()`'s drift fix as it is.
+  Files: `backend/src/services/ragEval.js`, `backend/src/scripts/rag-eval.js`,
+  `backend/test/rag-eval-sweep.test.js`.
+  *Verify:* `node --test`, no DB and no network — `thresholdRange(0.6, 0.8, 0.03)` ends at 0.78 and
+  `(0.6, 0.8, 0.07)` at 0.74, no returned candidate exceeds `max` for any step from 0.01 to 0.11, and
+  every existing case in that file is unchanged; `sweepThresholds` over fixture rows with an entity
+  threshold of 0.55 and of 0.90 contains a level equal to it; `evalRow` never returns a hit with `—` for
+  its page, nor a page for a miss, across scores either side of 0.60, 0.80 and the entity's threshold.
+  Each must go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
+  Out of scope: running the script against a live entity — it needs `MONGODB_URI` and a Voyage key, so
+  not routine work; changing any default (0.60 / 0.80 / 0.01) or the committed question set;
+  `services/rag.js` (restricted) and the `$vectorSearch` stage (denylisted); and LEO-018's "what are your
+  hours?" diagnosis, which this script exists to serve but does not itself answer.
 - [x] **(LEO-116) The LeoScan leak test asserts against a cleared buffer, and an unchanged thin page keeps stale rules** (routine 2026-11-16, 6d8b3a2)
   Both recorded by the grader of LEO-060 (`ops/leo-nightly/reviews/LEO-060.graded.json`) and never filed.
   (1) The leak check in `backend/test/scan-sweep.test.js` is vacuous. `lines.length = 0` runs three times
