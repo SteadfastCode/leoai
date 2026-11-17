@@ -1,0 +1,105 @@
+{
+  "item": "LEO-117",
+  "repo": "leoai",
+  "mergeSha": "106821de8eaeb7b9db91f27bce51cb3df226c443",
+  "completedAtUtc": "2026-11-17T04:10:55.877Z",
+  "completeRunId": "2026-11-17T03:11:43.642Z",
+  "reviewRunId": "2026-11-17T08:01:47.892Z",
+  "reviewedAtUtc": "2026-11-17T08:14:48.891Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 24877,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/scripts/rag-eval.js"
+      ],
+      "part": null,
+      "bytes": 8767,
+      "contextBytes": 0,
+      "promptTokens": 3880,
+      "completionTokens": 68,
+      "latencyMs": 14808,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/ragEval.js"
+      ],
+      "part": null,
+      "bytes": 7667,
+      "contextBytes": 0,
+      "promptTokens": 3599,
+      "completionTokens": 101,
+      "latencyMs": 11987,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/rag-eval-sweep.test.js"
+      ],
+      "part": null,
+      "bytes": 8443,
+      "contextBytes": 0,
+      "promptTokens": 4235,
+      "completionTokens": 133,
+      "latencyMs": 15510,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:108"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, the symbol `ENTITY_DEFAULT_THRESHOLD` is used but not defined in the provided diff. · No real defects found. The changes aim to fix inconsistencies in the retrieval threshold sweep and ensure that the entity's own threshold is always included among the swept levels. However, further verification with `retrieveContext` from `services/rag.js` is needed to confirm the correctness of these changes. · The diff introduces new tests to verify the behavior of `thresholdRange` and `evalRow`, but it does not include the actual changes to `evalDomain` and `printSweep` as described in the change description. Therefore, there are no real defects identified based on the provided diff.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 23035,
+    "completionTokens": 689
+  },
+  "latencyMs": 87968
+}

@@ -1,0 +1,87 @@
+{
+  "item": "LEO-116",
+  "repo": "leoai",
+  "mergeSha": "6d8b3a24217560e10a4eab00f72689d7c34af315",
+  "completedAtUtc": "2026-11-16T16:00:23.932Z",
+  "completeRunId": "2026-11-16T15:47:43.154Z",
+  "reviewRunId": "2026-11-17T08:01:47.892Z",
+  "reviewedAtUtc": "2026-11-17T08:13:20.849Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 16182,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/services/scrapePersist.js",
+        "backend/test/scan-sweep.test.js"
+      ],
+      "part": null,
+      "bytes": 10841,
+      "contextBytes": 0,
+      "promptTokens": 4265,
+      "completionTokens": 133,
+      "latencyMs": 18940,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/scrape-persist.test.js"
+      ],
+      "part": null,
+      "bytes": 5341,
+      "contextBytes": 6778,
+      "promptTokens": 4524,
+      "completionTokens": 66,
+      "latencyMs": 13777,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/test/scan-sweep.test.js:106"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes address the issues described in the change description, but additional verification is needed to ensure that the code behaves as expected. · No real defects found. However, additional context is needed to fully verify the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 17316,
+    "completionTokens": 477
+  },
+  "latencyMs": 69139
+}
