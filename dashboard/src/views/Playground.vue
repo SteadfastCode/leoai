@@ -15,9 +15,18 @@
 // public: an expired Bearer token does not fail there, it quietly turns the test message into
 // real visitor traffic — quota, unanswered log, sockets, a real handoff SMS. Warning about it
 // afterwards is too late, so `send` proves the session first and refuses to send if it can't.
+//
+// "Proves" is the outcome's `proved` flag, not a truthy token (LEO-118): a token whose `exp`
+// cannot be read is sent unchanged by the interceptor — right there, where the server answers
+// 401 — but it is not proved, and here that is the whole question. The outcome's `reason` also
+// separates a session that is genuinely gone from a refresh we simply could not reach, because
+// "sign out and back in" is useless advice for the second one.
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import api, { ensureFreshAccessToken } from '../lib/api'
 import { renderMarkdown } from '../lib/renderMarkdown'
+import { makeDebug } from '../lib/debug'
+
+const debug = makeDebug('Playground')
 
 const props = defineProps({
   domain: { type: String, default: '' },
@@ -60,6 +69,15 @@ const countedAsReal = ref(false)
 // the next send that goes through, because unlike `countedAsReal` nothing was charged — this
 // one is a transient state, and the message is still sitting in the input box.
 const sessionStale = ref(false)
+// Which way it could not be proved (LEO-118) — the banner's two texts turn on it.
+const sessionStaleReason = ref('')
+
+// A session that is genuinely gone needs a new sign-in. A refresh that could not be REACHED
+// needs nothing but a retry, and signing out would throw away a session that is probably
+// still fine, so it must not be advised on a transient blip.
+const sessionStaleText = computed(() => sessionStaleReason.value === 'refresh-unavailable'
+  ? "We couldn't reach the server to check your sign-in, so that message was not sent — nothing was counted. Try pressing Send again in a moment."
+  : 'Your sign-in has expired, so that message was not sent — sending it would have counted as real visitor traffic and could have notified you. Sign out and back in, then press Send again.')
 
 function scrollToBottom() {
   nextTick(() => {
@@ -110,15 +128,19 @@ async function send(text) {
   sending.value = true
   try {
     // Prove the session BEFORE the input is cleared and the turn is shown. api.js refreshes a
-    // spent token on its own, but it swallows a refresh that fails and sends the stale token
-    // anyway — correct for endpoints that answer 401, wrong for this one. A null here means
-    // the message would land as real visitor traffic, so it does not get sent at all and the
-    // owner keeps what they typed.
-    if (!(await ensureFreshAccessToken('playground send'))) {
+    // spent token on its own, but it attaches whatever token exists even when the refresh
+    // failed or the token could not be read — correct for endpoints that answer 401, wrong for
+    // this one. Anything short of `proved` means the message would land as real visitor
+    // traffic, so it does not get sent at all and the owner keeps what they typed.
+    const session = await ensureFreshAccessToken('playground send')
+    if (!session.proved) {
       sessionStale.value = true
+      sessionStaleReason.value = session.reason
+      debug('light', `send REFUSED — source: dashboard session not proved for ${props.domain}, reason: ${session.reason}; message kept in the input box`)
       return
     }
     sessionStale.value = false
+    sessionStaleReason.value = ''
     inputText.value = ''
     messages.value.push({ role: 'user', content: msg })
     scrollToBottom()
@@ -157,6 +179,7 @@ function resetConversation() {
   messages.value = []
   countedAsReal.value = false
   sessionStale.value = false
+  sessionStaleReason.value = ''
 }
 
 // ── Debug strip ────────────────────────────────────────────────────────────
@@ -206,7 +229,7 @@ function debugChips(msg) {
       variant="tonal"
       density="compact"
       class="mb-4"
-      text="Your sign-in has expired, so that message was not sent — sending it would have counted as real visitor traffic and could have notified you. Sign out and back in, then press Send again."
+      :text="sessionStaleText"
     />
 
     <v-alert

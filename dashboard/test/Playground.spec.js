@@ -34,12 +34,21 @@ function mountPlayground() {
 const chipTexts = (wrapper) =>
   wrapper.findAll('.playground-debug-chip').map((el) => el.text())
 
+// What api.js hands back (LEO-118): an outcome, not a bare token. `proved` is the only thing
+// this gate may turn on — a token can be perfectly truthy and still prove nothing.
+const PROVED = { token: 'fresh-token', proved: true, reason: 'refreshed' }
+const notProved = (reason) => ({
+  token: reason === 'no-token' ? null : 'stale-or-unreadable-token',
+  proved: false,
+  reason,
+})
+
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   get.mockResolvedValue({ data: { messages: [] } })
   // The session is provable unless a spec says otherwise.
-  ensureFreshAccessToken.mockResolvedValue('fresh-token')
+  ensureFreshAccessToken.mockResolvedValue(PROVED)
 })
 
 describe('sending a message', () => {
@@ -88,9 +97,9 @@ describe('sending a message', () => {
   })
 })
 
-describe('a session that cannot be proved (LEO-090)', () => {
+describe('a session that cannot be proved (LEO-090, LEO-118)', () => {
   it('refuses to send, because the message would be charged as real visitor traffic', async () => {
-    ensureFreshAccessToken.mockResolvedValue(null)
+    ensureFreshAccessToken.mockResolvedValue(notProved('refresh-rejected'))
     const wrapper = mountPlayground()
     await nextTick()
 
@@ -107,7 +116,7 @@ describe('a session that cannot be proved (LEO-090)', () => {
   })
 
   it('tells the owner what happened and what to do about it', async () => {
-    ensureFreshAccessToken.mockResolvedValue(null)
+    ensureFreshAccessToken.mockResolvedValue(notProved('refresh-rejected'))
     const wrapper = mountPlayground()
     await nextTick()
 
@@ -120,9 +129,91 @@ describe('a session that cannot be proved (LEO-090)', () => {
     expect(alert.attributes('text')).toMatch(/Sign out and back in/)
   })
 
+  it('refuses on a token whose expiry could not be read (LEO-118)', async () => {
+    // Red before LEO-118: `unreadable` came back as the token itself, truthy, so the gate
+    // let it through and /chat charged the message to the entity. The interceptor still
+    // sends such a token — that part is deliberate — but the gate must not accept it.
+    ensureFreshAccessToken.mockResolvedValue(notProved('unreadable'))
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    wrapper.vm.inputText = 'What are your hours?'
+    await wrapper.vm.send()
+    await nextTick()
+
+    expect(post).not.toHaveBeenCalled()
+    expect(wrapper.vm.sessionStale).toBe(true)
+    expect(wrapper.vm.messages).toEqual([])
+    expect(wrapper.vm.inputText).toBe('What are your hours?')
+    // A malformed token is a session worth replacing, so the sign-in advice is right here.
+    expect(wrapper.find('v-alert-stub').attributes('text')).toMatch(/Sign out and back in/)
+  })
+
+  it('refuses when there is no token at all', async () => {
+    ensureFreshAccessToken.mockResolvedValue(notProved('no-token'))
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+    await nextTick()
+
+    expect(post).not.toHaveBeenCalled()
+    expect(wrapper.vm.sessionStale).toBe(true)
+  })
+
+  it('does not blame the sign-in for a server it could not reach (LEO-118)', async () => {
+    // Nothing is known to be wrong with the session, so "sign out and back in" would be a
+    // wrong diagnosis AND a remedy that cannot work — it would destroy a live session.
+    ensureFreshAccessToken.mockResolvedValue(notProved('refresh-unavailable'))
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+    await nextTick()
+
+    expect(post).not.toHaveBeenCalled()
+    expect(wrapper.vm.sessionStale).toBe(true)
+    const text = wrapper.find('v-alert-stub').attributes('text')
+    expect(text).toMatch(/couldn't reach the server/)
+    expect(text).toMatch(/not sent/)
+    expect(text).toMatch(/again/)
+    expect(text).not.toMatch(/Sign out/)
+    expect(text).not.toMatch(/expired/)
+  })
+
+  it('a healthy session still sends', async () => {
+    ensureFreshAccessToken.mockResolvedValue({ token: 'live-token', proved: true, reason: 'fresh' })
+    post.mockResolvedValue({ data: { reply: 'Hi!', isTest: true } })
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+    await nextTick()
+
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(wrapper.vm.sessionStale).toBe(false)
+    expect(wrapper.find('v-alert-stub').exists()).toBe(false)
+  })
+
+  it('names the reason at the light tier when it refuses', async () => {
+    localStorage.setItem('leo_log_level', 'light')
+    ensureFreshAccessToken.mockResolvedValue(notProved('refresh-unavailable'))
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const wrapper = mountPlayground()
+    await nextTick()
+
+    await wrapper.vm.send('hello')
+
+    const line = log.mock.calls.map((c) => c[0]).find((l) => String(l).includes('REFUSED'))
+    expect(line).toContain('[Playground]')
+    expect(line).toContain('reason: refresh-unavailable')
+    expect(line).toContain(DOMAIN)
+    log.mockRestore()
+  })
+
   it('proves the session before the message leaves, never after', async () => {
     const order = []
-    ensureFreshAccessToken.mockImplementation(async () => { order.push('check'); return 'fresh-token' })
+    ensureFreshAccessToken.mockImplementation(async () => { order.push('check'); return PROVED })
     post.mockImplementation(async () => { order.push('post'); return { data: { reply: 'Hi!', isTest: true } } })
     const wrapper = mountPlayground()
     await nextTick()
@@ -133,18 +224,19 @@ describe('a session that cannot be proved (LEO-090)', () => {
   })
 
   it('clears the notice once a send goes through — nothing was charged', async () => {
-    ensureFreshAccessToken.mockResolvedValue(null)
+    ensureFreshAccessToken.mockResolvedValue(notProved('refresh-rejected'))
     const wrapper = mountPlayground()
     await nextTick()
     await wrapper.vm.send('hello')
     expect(wrapper.vm.sessionStale).toBe(true)
 
-    ensureFreshAccessToken.mockResolvedValue('fresh-token')
+    ensureFreshAccessToken.mockResolvedValue(PROVED)
     post.mockResolvedValue({ data: { reply: 'Hi!', isTest: true } })
     await wrapper.vm.send('hello')
     await nextTick()
 
     expect(wrapper.vm.sessionStale).toBe(false)
+    expect(wrapper.vm.sessionStaleReason).toBe('')
     expect(post).toHaveBeenCalledTimes(1)
   })
 })

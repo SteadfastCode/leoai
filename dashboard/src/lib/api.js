@@ -68,35 +68,70 @@ function refreshNow(source) {
  * Makes sure the stored access token will still be accepted, refreshing it when
  * it is spent or within REFRESH_SKEW_SECONDS of being so.
  *
- * Returns the token to use, or null when no usable token could be proved — not
- * signed in, or the refresh call itself failed. A caller whose endpoint answers
- * 200 to an unauthenticated request (POST /chat) must treat null as "do not
- * send": there, a silently-accepted stale token is worse than an error.
+ * Returns an outcome, never a bare token (LEO-118):
+ *
+ *   { token, proved, reason }
+ *
+ * `token` is whatever should travel on the request — the stored token, or the
+ * refreshed one — and is null only when there is none. `proved` is the question
+ * a caller on a PUBLIC endpoint has to ask: did we establish that this token
+ * will be honoured? `reason` says which of the ways it went:
+ *
+ *   fresh                still well inside its life — nothing to do
+ *   refreshed            was spent or nearly; /auth/refresh issued a new one
+ *   no-token             not signed in
+ *   unreadable           stored token is not a readable JWT, so nothing about
+ *                        it can be proved (it is still sent, see below)
+ *   refresh-rejected     /auth/refresh said no, or there was no refresh token
+ *                        to send — the session really is gone, only signing in
+ *                        again fixes it
+ *   refresh-unavailable  the refresh could not be ASKED — 5xx, timeout, dropped
+ *                        connection. This says nothing about the session.
+ *
+ * The axios interceptor below attaches `token` whenever there is one and lets
+ * the server have the last word, which is right for the dashboard's own API: a
+ * token it will not honour comes back 401 and the retry path handles it.
+ *
+ * A caller whose endpoint answers 200 to an unauthenticated request (POST /chat)
+ * must refuse unless `proved`. There, a silently-unhonoured token is not an
+ * error — it is a test message quietly turned into billable visitor traffic.
  */
 export async function ensureFreshAccessToken(source) {
   const token = localStorage.getItem('leo_access_token')
   if (!token) {
-    debug('verbose', `no access token to keep fresh — source: ${source}`)
-    return null
+    debug('verbose', `no access token to keep fresh — source: ${source}, reason: no-token`)
+    return { token: null, proved: false, reason: 'no-token' }
   }
   const exp = accessTokenExpiry(token)
   if (exp === null) {
-    // Not a shape we can read. Not ours to judge either — send it unchanged and
-    // let the server, and the 401 path below, have the last word.
-    debug('normal', `access token expiry unreadable — source: ${source}, sending it unchanged`)
-    return token
+    // Not a shape we can read. Not ours to judge either — it goes out unchanged, because
+    // a decode quirk must never log anyone out of the dashboard. But unchanged is not the
+    // same as proved: a malformed or truncated token is exactly what the /chat gate needs
+    // to refuse on, so the outcome says so instead of reading as a healthy token.
+    debug('normal', `access token expiry unreadable — source: ${source}, reason: unreadable, sending it unchanged`)
+    return { token, proved: false, reason: 'unreadable' }
   }
   const secondsLeft = Math.round(exp - Date.now() / 1000)
   if (secondsLeft > REFRESH_SKEW_SECONDS) {
-    debug('verbose', `access token still good for ${secondsLeft}s — source: ${source}`)
-    return token
+    debug('verbose', `access token still good for ${secondsLeft}s — source: ${source}, reason: fresh`)
+    return { token, proved: true, reason: 'fresh' }
   }
   const age = secondsLeft <= 0 ? `expired ${-secondsLeft}s ago` : `expires in ${secondsLeft}s`
   try {
-    return await refreshNow(`${source}, access token ${age}`)
-  } catch {
-    debug('light', `access token NOT refreshed — source: ${source}, refresh call failed; token is still ${age}`)
-    return null
+    return { token: await refreshNow(`${source}, access token ${age}`), proved: true, reason: 'refreshed' }
+  } catch (err) {
+    // WHY the refresh failed changes what a caller should tell the user. A 401/403 from
+    // /auth/refresh is the server saying the refresh token itself is finished, and a
+    // missing refresh token (which that endpoint answers 400) means there was nothing to
+    // ask with: the session is gone either way, and only signing in again fixes it. A 5xx
+    // or a dropped connection says nothing about the session — telling that user to sign
+    // out and back in is both the wrong diagnosis and a remedy that cannot work while the
+    // server is unreachable, and it destroys a session that was probably still fine.
+    const status = err?.response?.status
+    const sessionGone = status === 401 || status === 403 || !localStorage.getItem('leo_refresh_token')
+    const reason = sessionGone ? 'refresh-rejected' : 'refresh-unavailable'
+    debug('light', `access token NOT refreshed — source: ${source}, reason: ${reason}${status ? ` (HTTP ${status})` : ' (no response)'}; token is still ${age}`)
+    return { token, proved: false, reason }
   }
 }
 
@@ -108,7 +143,11 @@ api.interceptors.request.use(async (config) => {
   if (!SKIP_FRESHNESS.test(config.url || '')) {
     await ensureFreshAccessToken(`pre-request ${String(config.method || 'get').toUpperCase()} ${config.url}`)
   }
-  // Re-read after the await: the check above may have replaced what is stored.
+  // Re-read after the await rather than using the outcome's `token`: identical for every
+  // outcome above (each returns what is stored, and a refresh stores before it returns),
+  // and it is also the only way to get a token on the SKIP_FRESHNESS paths, which never
+  // call the check at all. Deliberately unconditional — `proved` is the chat callers'
+  // question, not this one's; here the server has the last word.
   const token = localStorage.getItem('leo_access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   if (impersonation.value?.userId) config.headers['X-Impersonate-User'] = impersonation.value.userId
