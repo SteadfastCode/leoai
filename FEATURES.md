@@ -159,7 +159,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error**
+- [x] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error**
   Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
   LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
   whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
