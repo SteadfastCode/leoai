@@ -76,7 +76,7 @@
     "LEO-118": {
       "order": 5,
       "title": "The playground's \"refuses to send without a proved session\" has a hole, and blames the owner for a network error",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-118",

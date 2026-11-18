@@ -159,43 +159,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error**
-  Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
-  LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
-  whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
-  charged against the owner's quota and able to fire a handoff notification (`ChatWindow.vue:11-14`,
-  `Playground.vue:15-17`).
-  (1) The gate is `if (!(await ensureFreshAccessToken(...)))` (`Playground.vue:117`,
-  `ChatWindow.vue:132`), but `ensureFreshAccessToken` returns the token **unchanged and truthy** when
-  `accessTokenExpiry` cannot read an `exp` claim (`dashboard/src/lib/api.js:83-88`). That is the right
-  default for the axios interceptor, where the server has the last word — but these two call sites are
-  exactly where it does not, so a malformed or truncated `leo_access_token` sails through the gate and the
-  message is charged as real traffic. The function's own docblock promises "null when no usable token
-  could be proved".
-  (2) It also returns `null` for *any* refresh failure (line 97), a 5xx or a dropped connection included,
-  and both call sites render that as "Your sign-in has expired … Sign out and back in, then press Send
-  again." (`Playground.vue:209`, `ChatWindow.vue:283`). The owner is told to re-authenticate over a
-  transient blip, and doing so will not help.
-  Build: give `ensureFreshAccessToken` an explicit outcome instead of token-or-null —
-  `{ token, proved, reason }`, where `reason` separates `no-token`, `unreadable`, `refresh-rejected` (a
-  401/403 from `/auth/refresh`: the session really is gone) and `refresh-unavailable` (anything else).
-  Keep the request interceptor byte-identical by having it attach `token` whenever one exists, and make
-  only the two chat call sites refuse unless `proved`. Give the banner two texts: today's for a session
-  that is genuinely gone, and "couldn't reach the server to check your sign-in — nothing was sent, try
-  again" for `refresh-unavailable`. Keep every light-tier line naming the reason.
-  Files: `dashboard/src/lib/api.js`, `dashboard/src/views/Playground.vue`,
-  `dashboard/src/components/ChatWindow.vue`, `dashboard/test/accessTokenFreshness.spec.js`,
-  `dashboard/test/Playground.spec.js`, `dashboard/test/ChatWindow.spec.js`.
-  *Verify:* `cd dashboard && yarn test` — an unreadable token yields `proved: false` with reason
-  `unreadable` and both call sites refuse to send (red today: both send); a refresh rejected 401 yields
-  `refresh-rejected` and today's banner; a refresh failing with a network error yields
-  `refresh-unavailable` and the new banner; a healthy token still sends; and the interceptor still
-  attaches a token in every one of those cases. Then `yarn build`, and `cd backend && yarn verify &&
-  yarn test` to show the backend is untouched.
-  Out of scope: making `POST /chat` reject an unproved Bearer token — it must keep answering real
-  visitors, and `routes/chat.js` is restricted; the 15-minute / 7-day token lifetimes and the silent
-  refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
-  `backend/`.
 
 - [ ] **(LEO-119) Four more filed specs carry factual errors an implementer would encode as a test**
   Four independent grader findings, from LEO-072, LEO-087 and LEO-103, recorded and never filed
@@ -1196,6 +1159,43 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-118) The playground's "refuses to send without a proved session" has a hole, and blames the owner for a network error** (routine 2026-11-18, e65d438)
+  Two findings from the grader of LEO-090 (`ops/leo-nightly/reviews/LEO-090.graded.json`), never filed.
+  LEO-090's gate exists because `POST /chat` answers 200 to an unauthenticated request: a dashboard chat
+  whose Bearer token is not honoured is not refused, it is silently downgraded to **real visitor traffic**,
+  charged against the owner's quota and able to fire a handoff notification (`ChatWindow.vue:11-14`,
+  `Playground.vue:15-17`).
+  (1) The gate is `if (!(await ensureFreshAccessToken(...)))` (`Playground.vue:117`,
+  `ChatWindow.vue:132`), but `ensureFreshAccessToken` returns the token **unchanged and truthy** when
+  `accessTokenExpiry` cannot read an `exp` claim (`dashboard/src/lib/api.js:83-88`). That is the right
+  default for the axios interceptor, where the server has the last word — but these two call sites are
+  exactly where it does not, so a malformed or truncated `leo_access_token` sails through the gate and the
+  message is charged as real traffic. The function's own docblock promises "null when no usable token
+  could be proved".
+  (2) It also returns `null` for *any* refresh failure (line 97), a 5xx or a dropped connection included,
+  and both call sites render that as "Your sign-in has expired … Sign out and back in, then press Send
+  again." (`Playground.vue:209`, `ChatWindow.vue:283`). The owner is told to re-authenticate over a
+  transient blip, and doing so will not help.
+  Build: give `ensureFreshAccessToken` an explicit outcome instead of token-or-null —
+  `{ token, proved, reason }`, where `reason` separates `no-token`, `unreadable`, `refresh-rejected` (a
+  401/403 from `/auth/refresh`: the session really is gone) and `refresh-unavailable` (anything else).
+  Keep the request interceptor byte-identical by having it attach `token` whenever one exists, and make
+  only the two chat call sites refuse unless `proved`. Give the banner two texts: today's for a session
+  that is genuinely gone, and "couldn't reach the server to check your sign-in — nothing was sent, try
+  again" for `refresh-unavailable`. Keep every light-tier line naming the reason.
+  Files: `dashboard/src/lib/api.js`, `dashboard/src/views/Playground.vue`,
+  `dashboard/src/components/ChatWindow.vue`, `dashboard/test/accessTokenFreshness.spec.js`,
+  `dashboard/test/Playground.spec.js`, `dashboard/test/ChatWindow.spec.js`.
+  *Verify:* `cd dashboard && yarn test` — an unreadable token yields `proved: false` with reason
+  `unreadable` and both call sites refuse to send (red today: both send); a refresh rejected 401 yields
+  `refresh-rejected` and today's banner; a refresh failing with a network error yields
+  `refresh-unavailable` and the new banner; a healthy token still sends; and the interceptor still
+  attaches a token in every one of those cases. Then `yarn build`, and `cd backend && yarn verify &&
+  yarn test` to show the backend is untouched.
+  Out of scope: making `POST /chat` reject an unproved Bearer token — it must keep answering real
+  visitors, and `routes/chat.js` is restricted; the 15-minute / 7-day token lifetimes and the silent
+  refresh loop itself; the session-expired dialog on the rest of the dashboard; and anything under
+  `backend/`.
 - [x] **(LEO-117) `rag-eval` prints a hit with no page, a page for a miss, and a sweep with no "← entity" row** (routine 2026-11-16, 106821d)
   Both recorded by the grader of LEO-055 (`ops/leo-nightly/reviews/LEO-055.graded.json`) and never filed.
   (1) `evalDomain` retrieves once at the sweep floor (`SWEEP_FLOOR = DEFAULT_THRESHOLDS[0]` = 0.60,
