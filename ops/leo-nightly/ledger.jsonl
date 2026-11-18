@@ -566,3 +566,5 @@
 {"event":"ack","items":["LEO-144"],"by":"routine","source":"auto","atUtc":"2026-11-17T21:02:13.619Z"}
 {"event":"ack","items":["LEO-114"],"by":"routine","source":"auto","atUtc":"2026-11-17T21:02:13.619Z"}
 {"event":"ack","items":["LEO-115"],"by":"routine","source":"auto","atUtc":"2026-11-17T21:29:57.641Z"}
+{"event":"review-grade","item":"LEO-117","grader":"claude-opus-5","grades":{"findings":0,"confirmed":0,"falsePositive":0,"duplicate":0,"unverifiable":0,"missed":1,"independent":1,"triageChecked":6,"triageCorrect":5},"localPromptVersion":"v6","localModel":"qwen2.5-coder:14b","mergeSha":"106821de8eaeb7b9db91f27bce51cb3df226c443","runId":"2026-11-18T15:33:53.103Z","costUsd":1.1995685,"atUtc":"2026-11-18T16:12:28.213Z"}
+{"event":"review-grade","item":"LEO-116","grader":"claude-opus-5","grades":{"findings":0,"confirmed":0,"falsePositive":0,"duplicate":0,"unverifiable":0,"missed":1,"independent":1,"triageChecked":6,"triageCorrect":5},"localPromptVersion":"v6","localModel":"qwen2.5-coder:14b","mergeSha":"6d8b3a24217560e10a4eab00f72689d7c34af315","runId":"2026-11-18T15:33:53.103Z","costUsd":1.9940444999999996,"atUtc":"2026-11-18T16:12:28.213Z"}

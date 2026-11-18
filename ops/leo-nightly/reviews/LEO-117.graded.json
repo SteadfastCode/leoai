@@ -1,0 +1,72 @@
+{
+  "item": "LEO-117",
+  "repo": "leoai",
+  "mergeSha": "106821de8eaeb7b9db91f27bce51cb3df226c443",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-18T15:33:53.103Z",
+  "gradedAtUtc": "2026-11-18T16:08:45.701Z",
+  "independent": [
+    {
+      "file": "backend/src/scripts/rag-eval.js",
+      "line": 111,
+      "severity": "low",
+      "summary": "The \"top page\" cell can still name a page the entity would never cite when the top-1 chunk is an owner-reply chunk: `retrieveContext` sets `topScore` from `relevant[0]` (which may be `source === 'owner_reply'`) but `packContext` only receives page chunks, so `sources[0]` is the best *page* chunk, scored anywhere down to the retrieval floor (0.60). With an entity threshold of 0.90, an owner-reply top score of 0.92 and a best page chunk at 0.65, the row prints hit ✅ beside that 0.65 page — the residual form of the defect LEO-117 set out to remove (evalRow cannot detect this, since it only sees one score)."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, authorization, or role-gating code is touched — the diff is a read-only CLI script, a pure helper, its tests, and an env-example comment."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The .env.example hunk only documents `RAG_EVAL_LOG_LEVEL`, a stderr verbosity knob; no credential, key, or token is added, read, stored, or logged anywhere in the change."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in the diff touches billing, Stripe, quota, or pricing — only retrieval-eval reporting."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The script performs no writes (vector search and reads only) and the diff adds no delete/update paths."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The diff changes only the threshold argument passed to the existing `retrieveContext` call; no external API call, client, or request shape is added or altered."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, build, or release config (railway.toml, nixpacks, CI) is touched; the new env var is optional with a built-in default."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model reported no findings and got five of six triage calls right but wrongly flagged secrets over a documentation-only .env.example comment, and its own summary admits it could not even confirm the diff contained the script changes it plainly does — a weak, low-confidence review.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.1995685,
+  "numTurns": 10,
+  "durationMs": 127768,
+  "sessionId": "05665b32-7af2-4fc8-9187-a0bf265564eb"
+}

@@ -446,6 +446,19 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-159) The new sweep-verdict pass treats the synthetic group URL as a swept page, so it writes/blanks sc…**
+  Found by the grader of LEO-116 (medium, backend/src/services/scrapePersist.js:391). The new
+  sweep-verdict pass treats the synthetic group URL as a swept page, so it writes/blanks scanRules
+  on a real ScrapedPage row that happens to sit at that URL. getGroupUrl() maps `/staff/ann` →
+  `https://d/staff/` and any root-level thin page → `https://d/` (the homepage), and
+  tallyChunkCounts credits chunk.url, so the group URL always lands in chunkCountByUrl. When a
+  group is rebuilt because one member changed and the group chunks trip nothing, the real
+  `/staff/` (or home) page — unchanged, therefore absent from pageHashUpdates and never rescanned
+  this run — falls into sweptCleared and its stored finding is overwritten with [], silently
+  dropping a live warning chip for content that was not re-read; symmetrically a secret in a
+  member card gets attributed to the index page. The code's own justification ("a page that
+  contributed no chunk this run was NOT looked at") does not hold for the group key, and the pass
+  guards only against minting a row, not against hitting an existing one.
 - [ ] **(LEO-149) Salvage of a timed-out navigation is gated on a fixed 200-char floor instead of the plain-HTML te…**
   Found by the grader of LEO-146 (high, backend/src/services/puppeteerNav.js:277). Salvage of a
   timed-out navigation is gated on a fixed 200-char floor instead of the plain-HTML text it

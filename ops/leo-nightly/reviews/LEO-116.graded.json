@@ -1,0 +1,72 @@
+{
+  "item": "LEO-116",
+  "repo": "leoai",
+  "mergeSha": "6d8b3a24217560e10a4eab00f72689d7c34af315",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-18T15:33:53.103Z",
+  "gradedAtUtc": "2026-11-18T16:12:27.979Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 391,
+      "severity": "medium",
+      "summary": "The new sweep-verdict pass treats the synthetic group URL as a swept page, so it writes/blanks scanRules on a real ScrapedPage row that happens to sit at that URL. getGroupUrl() maps `/staff/ann` → `https://d/staff/` and any root-level thin page → `https://d/` (the homepage), and tallyChunkCounts credits chunk.url, so the group URL always lands in chunkCountByUrl. When a group is rebuilt because one member changed and the group chunks trip nothing, the real `/staff/` (or home) page — unchanged, therefore absent from pageHashUpdates and never rescanned this run — falls into sweptCleared and its stored finding is overwritten with [], silently dropping a live warning chip for content that was not re-read; symmetrically a secret in a member card gets attributed to the index page. The code's own justification (\"a page that contributed no chunk this run was NOT looked at\") does not hold for the group key, and the pass guards only against minting a row, not against hitting an existing one."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, authorization, session or role logic appears anywhere in the diff."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The change is entirely about LeoScan secret findings and adds fabricated credential fixtures, so the category is genuinely touched."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota or Stripe code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": false,
+      "reason": "The diff adds a multi-document `ScrapedPage.updateMany(..., { scanRules: [] })` that erases stored findings — a bulk data-blanking write, and the source of the data-loss defect in my independent finding."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No new outbound calls — the only I/O added is local Mongo writes and console logging."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bumps, deploy config, env vars or migrations in the diff."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local review reported nothing at all and missed the one real defect the diff introduces (the group-URL collision that blanks scanRules on a page this run never rescanned); its triage was right except for calling the new bulk scanRules-blanking write non-destructive.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.9940444999999996,
+  "numTurns": 20,
+  "durationMs": 222243,
+  "sessionId": "e716086d-43a7-4110-994a-cf520050de9d"
+}
