@@ -13,6 +13,12 @@
 // real handoff SMS to that owner. Nothing retries, because nothing failed. So `send` proves
 // the session first, and `isTest` is displayed rather than assumed in case the gate declines
 // for some other reason.
+//
+// "Proves" is the outcome's `proved` flag, not a truthy token (LEO-118): a token whose `exp`
+// cannot be read is still attached by the interceptor, but nothing about it has been proved,
+// and here that is the whole question. The outcome's `reason` also separates a session that is
+// genuinely gone from a refresh we could not reach — the banner must not tell someone to sign
+// out and back in over a network blip, since that cannot help and throws away a live session.
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import api, { ensureFreshAccessToken } from '../lib/api'
 import { renderMarkdown } from '../lib/renderMarkdown'
@@ -56,6 +62,9 @@ const messagesEl    = ref(null)
 // passing state, and it must not scroll away unnoticed.
 const sessionStale  = ref(false)
 const countedAsReal = ref(false)
+// Which way the session could not be proved (LEO-118) — the error banner's two texts turn on
+// it. Transient like `sessionStale` itself.
+const sessionStaleReason = ref('')
 
 // ── Resize constraints ─────────────────────────────────────────────────────
 const MIN_H = 200
@@ -126,15 +135,19 @@ async function send() {
   sending.value = true
   try {
     // Prove the session BEFORE the input is cleared and the turn is shown. api.js refreshes a
-    // spent token on its own, but it swallows a refresh that fails and attaches the stale one
-    // anyway — right for endpoints that answer 401, wrong for this one. A null here means the
-    // message would land as real traffic against this entity, so it is not sent at all.
-    if (!(await ensureFreshAccessToken(`admin tray send for ${props.domain}`))) {
+    // spent token on its own, but it attaches whatever token exists even when the refresh
+    // failed or the token could not be read — right for endpoints that answer 401, wrong for
+    // this one. Anything short of `proved` means the message would land as real traffic
+    // against this entity, so it is not sent at all.
+    const session = await ensureFreshAccessToken(`admin tray send for ${props.domain}`)
+    if (!session.proved) {
       sessionStale.value = true
-      debug('light', `send REFUSED — source: dashboard session could not be proved for ${props.domain}; message kept in the input box`)
+      sessionStaleReason.value = session.reason
+      debug('light', `send REFUSED — source: dashboard session could not be proved for ${props.domain}, reason: ${session.reason}; message kept in the input box`)
       return
     }
     sessionStale.value = false
+    sessionStaleReason.value = ''
     inputText.value = ''
     messages.value.push({ role: 'user', content: msg })
     scrollToBottom()
@@ -171,6 +184,7 @@ function clearChat() {
   messages.value = []
   confirmClear.value = false
   sessionStale.value = false
+  sessionStaleReason.value = ''
   countedAsReal.value = false
 }
 
@@ -280,9 +294,16 @@ const renderContent = renderMarkdown
          never scrolls out of view. Named per entity: the tray holds several windows at once
          and "it counted" is only actionable if you know whose bill it landed on. -->
     <div v-if="sessionStale && !minimized" class="chat-banner chat-banner--error">
-      Your sign-in expired, so that message was <strong>not sent</strong> — it would have
-      counted as real visitor traffic for {{ entityName || domain }}. Sign out and back in,
-      then press send again.
+      <template v-if="sessionStaleReason === 'refresh-unavailable'">
+        We couldn't reach the server to check your sign-in, so that message was
+        <strong>not sent</strong> — nothing was counted for {{ entityName || domain }}.
+        Press send again in a moment.
+      </template>
+      <template v-else>
+        Your sign-in expired, so that message was <strong>not sent</strong> — it would have
+        counted as real visitor traffic for {{ entityName || domain }}. Sign out and back in,
+        then press send again.
+      </template>
     </div>
     <div v-if="countedAsReal && !minimized" class="chat-banner chat-banner--warn">
       At least one message here was handled as <strong>real visitor traffic</strong> for
