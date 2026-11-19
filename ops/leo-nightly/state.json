@@ -76,7 +76,7 @@
     "LEO-131": {
       "order": 5,
       "title": "System log: a copy button on each row",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-131",
