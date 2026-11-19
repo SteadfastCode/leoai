@@ -1050,8 +1050,10 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   still returns its page, and an auth test over `mongodb-memory-server` (the `backend/test/onboard-entity.test.js`
   harness shape) where a seeded live reset token is **not** consumed by `{"token":{"$gt":""}}` and is still
   consumed by the real token. Confirm both go red against unmodified `main`. `cd backend && yarn verify && yarn test`.
-  Out of scope: length caps and the Leo-voiced 400 on `POST /chat`'s body — LEO-070 owns those, the two touch
-  different lines of `chat.js`, and whichever lands second keeps the other's checks; a global sanitising
+  Out of scope: length caps and the Leo-voiced 400 on `POST /chat`'s body — LEO-070 owns those. The split is
+  not clean, though: LEO-070 also says "Apply the same string checks to `GET /chat/history`'s query params",
+  which is this item's own guard at its own site, so that one check is owned twice and whichever lands second
+  keeps the other's version of it rather than adding a second; a global sanitising
   middleware or `mongoose.set('sanitizeFilter', true)` (a repo-wide behaviour change, and `backend/index.js`
   is denylisted); the authenticated dashboard and admin routes; rate-limiting any of these endpoints
   (LEO-052 and LEO-101); and `routes/billing.js`/`routes/webhooks.js` (denylisted).
@@ -1100,8 +1102,11 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   argument for measuring now and capping later.
   Build: extract today's paging into a pure `pageMessages(messages, { before, pageSize })` →
   `{ page, hasMore }` in a new `backend/src/services/conversationPage.js`, producing output byte-identical to
-  the current inline block, and have the route read only what it needs — a projected `messages: { $slice:
-  -PAGE_SIZE }` fetch plus a count — instead of the whole array. The unseen-owner-reply marking in the same
+  the current inline block, and have the route read only what it needs instead of the whole array. A first
+  open is a projected `messages: { $slice: -PAGE_SIZE }` fetch plus a count; that projection cannot serve a
+  `before` page, which filters `timestamp < before` (lines 336-339, driven by `widget/chatbot.js:405-411`)
+  and needs messages before an arbitrary instant, so the narrowed read has to cover the cursor case too —
+  how is for whoever builds this to decide. The unseen-owner-reply marking in the same
   handler (lines 321-328) currently rides on the full document and `conversation.save()`, so it has to become
   a targeted `updateOne` with an array filter. Light-tier log once per conversation that crosses a
   message-count threshold, naming the domain and the count, so the ceiling becomes visible before it is hit.
@@ -1591,7 +1596,10 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `matchesDoNotRelay` from `services/doNotRelay.js` (reuse it, do not reimplement the matching); drop the
   headline line when both of its counts are zero; and on a send failure roll the stamp back with a
   compare-and-set matched on the value *this* tick wrote, so a concurrent tick's stamp is never clobbered and
-  the next hourly tick can retry inside the same week. The atomic claim stays before the send — it is what
+  the entity is not left stamped for a week it never received. That rollback buys no same-week retry:
+  `weeklyDigestDue` requires an exact UTC hour **and** weekday match (`services/weeklyDigest.js:66-67`), and
+  the catch-up arm that would let an off-hour tick through is LEO-084's, out of scope below — so the earliest
+  a rolled-back entity can send is its next weekly slot. The atomic claim stays before the send — it is what
   stops a double-send — and the PR body states the trade: a send that succeeded but reported an error will be
   retried once.
   Files: `backend/src/services/weeklyDigest.js`, `backend/test/weekly-digest.test.js`.
@@ -1797,8 +1805,11 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
   `isDueNow` (`backend/src/services/leoRefresh.js:20-27`) returns false unless
   `entity.leoRefreshHour === nowUtcHour` exactly, and the only caller is one `cron.schedule('0 * * * *')`
   (line 134). Miss that single fire — a container restart spanning the hour, and Railway redeploys on
-  every merge, several a night — and a `daily` entity waits another 24 hours, a `weekly` one another 7
-  days, with nothing logged, nothing emitted and nothing on the dashboard to say a refresh was dropped.
+  every merge, several a night — and a `daily` entity waits another 24 hours, with nothing logged,
+  nothing emitted and nothing on the dashboard to say a refresh was dropped. A `weekly` entity does not
+  lose its whole period: `isDueNow` has no weekday check, only the hour match plus the `SIX_DAYS_MS` gap,
+  so a weekly miss is due again at the same hour the **next day** — silent all the same, but a day late
+  rather than a week.
   `leoRefreshLastRun` is already written on every run (line 48) but is only consulted for `weekly`. The
   sibling scheduler solved exactly this: `digestDue` in `services/unansweredDigest.js:30-41` carries a
   `DAILY_MIN_GAP_MS` elapsed-time guard "so a tick landing a little early still sends, while a
