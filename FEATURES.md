@@ -161,7 +161,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-131) System log: a copy button on each row**
+- [x] **(LEO-131) System log: a copy button on each row**
   On the dashboard's System log page (dashboard/src/views/Logs.vue), each .log-row shows a
   timestamp, a level chip and the message, but there is no quick way to copy one entry (Daniel asked
   2026-11-14 while pasting a Railway warning).
