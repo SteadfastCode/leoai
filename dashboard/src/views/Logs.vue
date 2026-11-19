@@ -104,6 +104,20 @@
             class="font-weight-bold log-level"
           >{{ entry.level }}</v-chip>
           <span class="log-msg">{{ entry.message }}</span>
+          <!-- @mousedown.prevent: a mouse press that neither takes focus nor
+               collapses a selection, so copying one row never disturbs text the
+               user has already highlighted in the stream. Keyboard activation
+               still fires click. -->
+          <v-btn
+            class="log-copy"
+            icon="mdi-content-copy"
+            size="x-small"
+            variant="text"
+            aria-label="Copy log entry"
+            title="Copy log entry"
+            @mousedown.prevent
+            @click="copyEntry(entry)"
+          />
         </div>
       </div>
     </v-card>
@@ -118,6 +132,10 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { getLogs } from '../lib/api'
 import { socket, socketConnected } from '../lib/socket'
+import { notify } from '../lib/notify'
+import { makeDebug } from '../lib/debug'
+
+const debug = makeDebug('logs')
 
 const allLogs     = ref([])
 const loading     = ref(false)
@@ -239,6 +257,37 @@ function formatTs(iso) {
   })
 }
 
+const pad = (n) => String(n).padStart(2, '0')
+
+// The line one row copies. Local time like the on-screen stamp, but with the
+// year spelled out — a row pasted into a ticket or a chat has lost the column
+// header that made "11/14" readable. Level upper-cased, then the message
+// verbatim: a stack trace keeps its newlines.
+function copyLine(entry) {
+  const d = new Date(entry.ts)
+  const stamp = Number.isNaN(d.getTime())
+    ? String(entry.ts ?? '')
+    : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+      `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${stamp} ${String(entry.level ?? '').toUpperCase()} ${entry.message ?? ''}`
+}
+
+async function copyEntry(entry) {
+  // Clicking inside the stream must not change where the stream is parked —
+  // neither resuming a paused tail nor pausing a live one.
+  const wasAutoScroll = autoScroll.value
+  const text = copyLine(entry)
+  try {
+    await navigator.clipboard.writeText(text)
+    notify('Copied', 'success')
+    debug('verbose', `copied ${text.length} chars — source: copy button on entry ${entry.id}`)
+  } catch (err) {
+    notify('Could not copy — select the line and copy it instead')
+    debug('light', `copy FAILED — source: navigator.clipboard.writeText rejected (${err?.name || 'unknown'}) for entry ${entry.id}; nothing was written`)
+  }
+  autoScroll.value = wasAutoScroll
+}
+
 onMounted(() => {
   socket.on('log_entry', onLogEntry)
   load()
@@ -301,10 +350,33 @@ onUnmounted(() => {
   word-break: break-all;
   color: rgb(var(--v-theme-on-surface));
 }
+/* 24px square inside a 19px row: the negative margins spend the row's own
+   padding rather than growing every line of a 500-row stream. 0.7 alpha on
+   either theme's surface clears 1.4.11 non-text contrast with room to spare. */
+.log-copy {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  margin: -2px 0 -2px 4px;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.log-row:hover .log-copy,
+.log-copy:focus,
+.log-copy:focus-visible { opacity: 1; }
+/* Touch has no hover to reveal it, so it always shows */
+@media (hover: none) {
+  .log-copy { opacity: 1; }
+}
 
 /* Phones: timestamp and level on one line, the message full width below */
 @media (max-width: 959.98px) {
   .log-row { flex-wrap: wrap; row-gap: 2px; padding: 4px 10px; }
-  .log-msg { flex-basis: 100%; word-break: normal; overflow-wrap: anywhere; }
+  /* The message takes a line of its own, so the button rides the stamp line's
+     right edge instead of being stranded on a third line. */
+  .log-msg { flex-basis: 100%; word-break: normal; overflow-wrap: anywhere; order: 3; }
+  .log-copy { order: 2; margin-left: auto; }
 }
 </style>
