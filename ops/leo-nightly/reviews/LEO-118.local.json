@@ -1,0 +1,150 @@
+{
+  "item": "LEO-118",
+  "repo": "leoai",
+  "mergeSha": "e65d438243ccd60759b85338129058a7bb8244b4",
+  "completedAtUtc": "2026-11-18T23:59:52.368Z",
+  "completeRunId": "2026-11-18T23:49:46.621Z",
+  "reviewRunId": "2026-11-19T08:01:44.088Z",
+  "reviewedAtUtc": "2026-11-19T08:10:43.113Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 42451,
+  "contextFiles": 6,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/components/ChatWindow.vue",
+        "dashboard/src/lib/api.js"
+      ],
+      "part": null,
+      "bytes": 10981,
+      "contextBytes": 0,
+      "promptTokens": 4095,
+      "completionTokens": 117,
+      "latencyMs": 17425,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/Playground.vue",
+        "dashboard/test/ChatWindow.spec.js"
+      ],
+      "part": null,
+      "bytes": 12056,
+      "contextBytes": 0,
+      "promptTokens": 4390,
+      "completionTokens": 79,
+      "latencyMs": 14034,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/Playground.spec.js"
+      ],
+      "part": null,
+      "bytes": 6762,
+      "contextBytes": 0,
+      "promptTokens": 3049,
+      "completionTokens": 115,
+      "latencyMs": 11507,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/accessTokenFreshness.spec.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 9537,
+      "contextBytes": 0,
+      "promptTokens": 3714,
+      "completionTokens": 131,
+      "latencyMs": 13948,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/test/accessTokenFreshness.spec.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 3347,
+      "contextBytes": 6064,
+      "promptTokens": 3591,
+      "completionTokens": 72,
+      "latencyMs": 10920,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "dashboard/src/lib/api.js:83"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "dashboard/src/lib/api.js:132"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The change introduces a new return structure for `ensureFreshAccessToken` to provide more detailed information about the token's status. The updated function now returns an object with `token`, `proved`, and `reason` fields. This change is intended to address issues where malformed or truncated tokens were not being properly handled, and to differentiate between different types of refresh failures. · The diff introduces a new return type for `ensureFreshAccessToken` and updates the call sites to handle this new type. The tests are updated to verify the new behavior. · The diff updates the test cases for `Playground.vue` to handle the new outcome structure from `ensureFreshAccessToken`. It introduces constants for different outcomes and modifies the tests to check various scenarios, including unreadable tokens, no token, refresh rejection, and server unavailability. The changes ensure that the component behaves correctly based on the new return values. · The diff introduces a new return structure for `ensureFreshAccessToken` and updates the tests accordingly. The function now returns an object with `token`, `proved`, and `reason` fields. The tests cover various scenarios, including handling unreadable tokens, refresh failures, and network errors. However, to fully verify the changes, the implementation of `ensureFreshAccessToken` in `dashboard/src/lib/api.js` needs to be reviewed. · No real defects found in the provided diff. However, additional information about `ensureFreshAccessToken` is needed to fully verify the changes.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 37023,
+    "completionTokens": 1229
+  },
+  "latencyMs": 144896
+}
