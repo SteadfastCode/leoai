@@ -1,0 +1,63 @@
+{
+  "item": "LEO-118",
+  "repo": "leoai",
+  "mergeSha": "e65d438243ccd60759b85338129058a7bb8244b4",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-20T18:53:06.283Z",
+  "gradedAtUtc": "2026-11-20T19:26:49.411Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change rewrites `ensureFreshAccessToken`'s session-proof contract and both Bearer-token gates, so auth is squarely touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No secret material, env var, or credential store is added or changed; the new debug lines deliberately log only the reason, never the token."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "Wrong — the entire point of the diff is that an unproved token previously turned a test message into billable visitor traffic against the entity's quota, and both new banners are written in terms of what was or wasn't counted, so money is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Nothing deletes or overwrites stored data; the stale token is explicitly left in localStorage and the only new mutations are two transient refs."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right call — the diff changes how a failed `/auth/refresh` call is classified (that is the cited line) and whether the outbound POST /chat is issued at all."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "Only two components, one lib file, and three specs change; no build, deploy, version, or config file is touched."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model reported no defects, which matches my own cold read — the outcome object is consistent across all five reasons, every call site was migrated, the interceptor's behaviour is genuinely unchanged because each outcome returns exactly what is in localStorage, and the new specs' mocks and banner assertions (including apostrophe characters and the stubbed v-alert `text` attribute) line up with the real code — but its triage wrongly calls `money` untouched for a change whose whole purpose is keeping test messages off the owner's quota.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.9692569999999998,
+  "numTurns": 18,
+  "durationMs": 162117,
+  "sessionId": "cc78fd2d-3211-4c06-abff-6ed584a32d20"
+}

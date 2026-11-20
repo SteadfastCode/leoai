@@ -1,0 +1,72 @@
+{
+  "item": "LEO-119",
+  "repo": "leoai",
+  "mergeSha": "11bcf1fa98d719bac846ca1e1f45a8b24e5cd996",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-20T18:53:06.283Z",
+  "gradedAtUtc": "2026-11-20T19:24:07.256Z",
+  "independent": [
+    {
+      "file": "FEATURES.md",
+      "line": 1600,
+      "severity": "low",
+      "summary": "The LEO-100 correction inserts a claim that is stale against the tree it was merged into: it says `weeklyDigestDue` \"requires an exact UTC hour **and** weekday match (`services/weeklyDigest.js:66-67`)\" and that the catch-up arm \"is LEO-084's, out of scope\", so \"the earliest a rolled-back entity can send is its next weekly slot\". Both were true only of the pre-LEO-084 file (cf22026:66-67 held the two `return false` guards); LEO-084 merged 2026-11-05 — two days before LEO-100 itself shipped (c4b744d, 11-07) — so in the shipped and current code the hour+weekday match lives at weeklyDigest.js:145, lines 66-67 are the MIN_GAP_MS comment, and `weeklyDigestDue` is `slot-match` OR `catch-up` once elapsed >= CATCHUP_MS (8d). A rollback restoring a ~7-day-old stamp therefore retries via the catch-up arm roughly a day after the missed slot, not a week later — i.e. the correction replaces one wrong statement in a spec body with another, which is the exact class of error this item exists to remove. No code impact (docs only), and the sentence is internally consistent with LEO-100's own as-filed out-of-scope line (1612), which is why this is low rather than higher."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "Diff is FEATURES.md prose only; no auth/authorization code or spec-gating change."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, env vars or key handling appear in the changed lines."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing billing, Stripe, quota or pricing related is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations or data-mutating code — a markdown body edit only."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No API call, SDK or outbound integration is added or altered."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, CI, nixpacks or version/release configuration is in the diff."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The local model reported nothing and triaged all six categories correctly for a docs-only change, but missed the one substantive defect — the LEO-100 correction's citation and conclusion are stale against the code state it describes.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.7484015000000002,
+  "numTurns": 33,
+  "durationMs": 248606,
+  "sessionId": "742facc6-96a8-49bc-a439-3a22b822b3f4"
+}
