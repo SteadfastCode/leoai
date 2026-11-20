@@ -12,6 +12,7 @@ const { classifyFetchFailure, noteEmptyAfterRender } = require('./fetchFailure')
 const { toParagraphs, isScheduleLine } = require('./scheduleLines');
 const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
+const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('./consentStrip');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -87,6 +88,7 @@ function stripMarkerAnchor(p) {
 // use a 4-char floor — short but real content like "Closed Sundays" or table cell values passes.
 // All other paragraphs (inline element text, generic divs) keep the 20-char floor.
 function keepPara(p, cs = {}) {
+  if (isConsentParagraph(p)) return false; // LEO-132 — cookie-banner boilerplate
   const isSB = p.startsWith('[SB]');
   const bare = isSB ? p.replace(/^(?:\[SB\])+/, '') : p;
   const minLen = isSB ? 4 : 20;
@@ -270,14 +272,9 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
     // puppeteerNav (LEO-146) — it salvages a timed-out page that did render.
     await navigate(page, url, { browser });
 
-    // Apply Pass 1 structural filters (Haiku-identified boilerplate) in browser context
-    if (pass1Filters.exclude?.length) {
-      await page.evaluate((selectors) => {
-        for (const sel of selectors) {
-          try { document.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
-        }
-      }, pass1Filters.exclude);
-    }
+    // Deterministic consent banners (LEO-132) plus the Pass 1 structural filters
+    // (Haiku-identified boilerplate) — one removal pass, in browser context.
+    await stripConsentInPage(page, pass1Filters.exclude, url);
 
     const result = await page.evaluate(() => {
       // Only remove script/style/noscript — JS frameworks (Square, Webflow, etc.)
@@ -455,6 +452,10 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1F
   for (const sel of (pass1Filters.exclude || [])) {
     try { $(sel).remove(); } catch { /* invalid selector — skip */ }
   }
+
+  // Server-rendered cookie-consent banners (LEO-132) — deterministic, so a
+  // banner Pass 1 missed still never reaches the embeddings.
+  stripConsentNodes($, url);
 
   const text = extractStructuredText($, $('body')[0])
     .replace(/[ \t]+/g, ' ')       // collapse horizontal whitespace only
