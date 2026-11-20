@@ -162,7 +162,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org**
+- [x] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org**
   Found 2026-11-14 while debugging Grace Baptist (gbclancaster.org, a Squarespace site): nearly
   every chunk carries the Squarespace cookie banner ('Select “Accept all” to agree to our use of
   cookies and similar technologies to enhance your browsing experience, security, analytics and
