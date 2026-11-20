@@ -162,25 +162,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org**
-  Found 2026-11-14 while debugging Grace Baptist (gbclancaster.org, a Squarespace site): nearly
-  every chunk carries the Squarespace cookie banner ('Select “Accept all” to agree to our use of
-  cookies and similar technologies to enhance your browsing experience, security, analytics and
-  customization...'). The Pass-1 Haiku structural filter in services/scraper.js did not remove it.
-  The noise dilutes embeddings: the home-page chunk with the service times (9:30 / 10:45) scored
-  0.709 for 'What are the service times?', under the 0.75 ragThreshold, so Leo answered with no
-  context and said it didn't know.
-  Do: - A deterministic consent-banner strip that does not depend on the Haiku pass: remove known
-  consent containers by selector (Squarespace .sqs-cookie-banner*, OneTrust #onetrust-*, Cookiebot
-  #CybotCookiebot*, Termly, Osano, CookieYes, iubenda, a generic [aria-label*=cookie
-  i]/[id*=cookie-banner]) in both the cheerio and Puppeteer paths, plus a paragraph-level fallback
-  that drops a paragraph matching consent boilerplate ('accept all', 'use of cookies', 'cookie
-  preferences' and similar) when it is short and boilerplate-dense. - Unit tests with real fixture
-  HTML from a Squarespace page and one other CMS, proving the banner is gone and real content is
-  untouched. - After deploy, re-scrape gbclancaster.org and record before/after: count of chunks
-  containing 'Accept all', and the top score for 'What are the service times?' via /api/admin/search
-  (was 0.709). Use the admin API key in mcp/.env; test-mode /chat to confirm Leo now answers it.
-  Check: backend yarn verify && yarn test, and the before/after numbers in the PR body.
 
 - [ ] **(LEO-133) Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract**
   Service times are the most common question a church gets, and right now Leo only knows them if RAG
@@ -1113,6 +1094,25 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org** (routine 2026-11-19, 5ffb9e5)
+  Found 2026-11-14 while debugging Grace Baptist (gbclancaster.org, a Squarespace site): nearly
+  every chunk carries the Squarespace cookie banner ('Select “Accept all” to agree to our use of
+  cookies and similar technologies to enhance your browsing experience, security, analytics and
+  customization...'). The Pass-1 Haiku structural filter in services/scraper.js did not remove it.
+  The noise dilutes embeddings: the home-page chunk with the service times (9:30 / 10:45) scored
+  0.709 for 'What are the service times?', under the 0.75 ragThreshold, so Leo answered with no
+  context and said it didn't know.
+  Do: - A deterministic consent-banner strip that does not depend on the Haiku pass: remove known
+  consent containers by selector (Squarespace .sqs-cookie-banner*, OneTrust #onetrust-*, Cookiebot
+  #CybotCookiebot*, Termly, Osano, CookieYes, iubenda, a generic [aria-label*=cookie
+  i]/[id*=cookie-banner]) in both the cheerio and Puppeteer paths, plus a paragraph-level fallback
+  that drops a paragraph matching consent boilerplate ('accept all', 'use of cookies', 'cookie
+  preferences' and similar) when it is short and boilerplate-dense. - Unit tests with real fixture
+  HTML from a Squarespace page and one other CMS, proving the banner is gone and real content is
+  untouched. - After deploy, re-scrape gbclancaster.org and record before/after: count of chunks
+  containing 'Accept all', and the top score for 'What are the service times?' via /api/admin/search
+  (was 0.709). Use the admin API key in mcp/.env; test-mode /chat to confirm Leo now answers it.
+  Check: backend yarn verify && yarn test, and the before/after numbers in the PR body.
 - [x] **(LEO-131) System log: a copy button on each row** (routine 2026-11-19, e23c544)
   On the dashboard's System log page (dashboard/src/views/Logs.vue), each .log-row shows a
   timestamp, a level chip and the message, but there is no quick way to copy one entry (Daniel asked

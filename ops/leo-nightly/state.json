@@ -76,7 +76,7 @@
     "LEO-132": {
       "order": 5,
       "title": "Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-132",
