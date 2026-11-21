@@ -76,7 +76,7 @@
     "LEO-136": {
       "order": 5,
       "title": "Scraper: skip non-content paths (cart, account, tags, tracking query strings) and drop near-empty chunks",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-136",
