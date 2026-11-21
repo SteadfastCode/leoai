@@ -6,6 +6,7 @@ import EmbedSnippet from '../components/EmbedSnippet.vue'
 import { user, isSuperAdmin, refreshUser } from '../lib/auth'
 import { notify } from '../lib/notify'
 import { settingsPayload } from '../lib/settingsPayload'
+import { churchConfigForm, mergeExtractedChurchConfig } from '../lib/churchConfig'
 import api from '../lib/api'
 
 const props = defineProps(['domain', 'entity'])
@@ -40,13 +41,7 @@ watch(() => props.entity, (e) => {
     autoAddRepliesToKb: e.autoAddRepliesToKb,
     offerHandoffBeforeContact: e.offerHandoffBeforeContact ?? true,
     churchModeEnabled: e.churchModeEnabled,
-    churchConfig: {
-      missionStatement: e.churchConfig?.missionStatement || '',
-      statementOfFaith: e.churchConfig?.statementOfFaith || '',
-      denominationalDistinctives: e.churchConfig?.denominationalDistinctives || '',
-      churchValues: e.churchConfig?.churchValues || '',
-      pastoralToneNotes: e.churchConfig?.pastoralToneNotes || '',
-    },
+    churchConfig: churchConfigForm(e),
     linksOpenInNewTab: e.linksOpenInNewTab ?? true,
     crawlSettings: {
       keepSocialHandles: e.crawlSettings?.keepSocialHandles  ?? false,
@@ -200,11 +195,7 @@ async function populateChurchConfigFromKb() {
   extractingChurchConfig.value = true
   try {
     const { data } = await extractChurchConfig(props.domain)
-    if (data.missionStatement)           form.value.churchConfig.missionStatement           = data.missionStatement
-    if (data.statementOfFaith)           form.value.churchConfig.statementOfFaith           = data.statementOfFaith
-    if (data.denominationalDistinctives) form.value.churchConfig.denominationalDistinctives = data.denominationalDistinctives
-    if (data.churchValues)               form.value.churchConfig.churchValues               = data.churchValues
-    if (data.pastoralToneNotes)          form.value.churchConfig.pastoralToneNotes          = data.pastoralToneNotes
+    form.value.churchConfig = mergeExtractedChurchConfig(form.value.churchConfig, data)
     snackbarMsg.value = 'Fields populated from knowledge base — review and save'
     snackbar.value = true
   } catch (err) {
@@ -769,6 +760,22 @@ async function save() {
                 >
                   Populate from Knowledge Base
                 </v-btn>
+                <!-- Service times first: it is the most asked question a church
+                     gets, and the only field here Leo answers from directly
+                     whatever retrieval scored (LEO-133). -->
+                <v-textarea
+                  v-model="form.churchConfig.serviceTimes"
+                  label="Service Times"
+                  variant="outlined"
+                  density="comfortable"
+                  rows="2"
+                  auto-grow
+                  counter="1000"
+                  class="mb-3"
+                  placeholder="Sunday School 9:30 AM; Worship 10:45 AM (livestreamed, Children's Church ages 2 to 4th grade)"
+                  persistent-hint
+                  hint="One line per service, as you'd say it out loud. Leo answers service-time questions from this directly, so it never depends on finding them on your site. Leave it empty and Leo will keep saying it doesn't know rather than guess."
+                />
                 <v-textarea v-model="form.churchConfig.missionStatement" label="Mission Statement" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />
                 <v-textarea v-model="form.churchConfig.statementOfFaith" label="Statement of Faith" variant="outlined" density="comfortable" rows="4" class="mb-3" hide-details />
                 <v-textarea v-model="form.churchConfig.denominationalDistinctives" label="Denominational Distinctives" variant="outlined" density="comfortable" rows="3" class="mb-3" hide-details />

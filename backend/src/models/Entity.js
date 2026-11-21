@@ -57,6 +57,13 @@ const entitySchema = new mongoose.Schema(
       denominationalDistinctives: String,
       churchValues: String,
       pastoralToneNotes: String,
+      // The service schedule, entered by the church rather than scraped
+      // (LEO-133). Unlike the prose fields above it is read on EVERY chat for
+      // the entity — services/serviceTimes.js puts it in the system prompt so
+      // "What are the service times?" is answered whatever the retrieval score.
+      // Optional, with no `required` and no default: an entity that has never
+      // set one simply has none, and Leo behaves exactly as it did before.
+      serviceTimes: String,
     },
     ownerPhone: { type: String, default: '' },
     ownerEmail: { type: String, default: '' },

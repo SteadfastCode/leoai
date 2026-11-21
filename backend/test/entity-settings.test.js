@@ -417,6 +417,7 @@ function settingsPayload() {
       denominationalDistinctives: '',
       churchValues: '',
       pastoralToneNotes: '',
+      serviceTimes: '',
     },
     linksOpenInNewTab: true,
     crawlSettings: {
