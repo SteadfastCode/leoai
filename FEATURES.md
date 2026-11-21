@@ -163,7 +163,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-133) Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract**
+- [x] **(LEO-133) Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract**
   Service times are the most common question a church gets, and right now Leo only knows them if RAG
   retrieval finds them. On gbclancaster.org (2026-11-14) the times were in the KB but the plain
   question 'What are the service times?' scored 0.709, under the 0.75 threshold, so Leo said it
