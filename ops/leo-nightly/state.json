@@ -76,7 +76,7 @@
     "LEO-133": {
       "order": 5,
       "title": "Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-133",

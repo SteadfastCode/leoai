@@ -163,25 +163,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-133) Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract**
-  Service times are the most common question a church gets, and right now Leo only knows them if RAG
-  retrieval finds them. On gbclancaster.org (2026-11-14) the times were in the KB but the plain
-  question 'What are the service times?' scored 0.709, under the 0.75 threshold, so Leo said it
-  didn't know. hoursChunk.js (LEO-018) solved the same problem for business hours, but it requires a
-  time RANGE ('7 am - 2 pm'); church schedules are single times ('Worship Service - 10:45 AM'), so
-  it never fires for them.
-  Do: - Add churchConfig.serviceTimes to the Entity model (backend/src/models/Entity.js): a short
-  free-text schedule an owner can edit (e.g. 'Sunday School 9:30 AM; Worship 10:45 AM (livestreamed,
-  Children's Church ages 2 to 4th grade)'). Owner-editable through services/entitySettings.js like
-  the other churchConfig fields, and shown in the dashboard's church settings with a hint. - When
-  set, include it in the entity context in Leo's system prompt (services/claude.js, where the other
-  churchConfig fields go) as authoritative, so it is answered whatever the retrieval score. - The
-  church-config extract (POST /entities/:domain/church-config/extract) proposes serviceTimes from
-  the scraped pages along with the other fields; the owner still reviews before it saves, same as
-  today. - Leo should not invent times when the field is empty: behaviour then is unchanged.
-  Check: backend tests for the settings allowlist and prompt inclusion; a dashboard test for the
-  field; then fill it for gbclancaster.org and confirm in test-mode /chat (admin key in mcp/.env)
-  that 'What are the service times?' gets 9:30 / 10:45.
 
 - [ ] **(LEO-135) RAG: score tree siblings on the same scale as the vector search**
   From the 2026-11-14 scrape audit. rag.js retrieveContext: Phase 1 keeps chunks whose Atlas
@@ -1094,6 +1075,25 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-133) Church settings: a service-times field, always in Leo's prompt, filled by the church-config extract** (routine 2026-11-20, 4c7f54e)
+  Service times are the most common question a church gets, and right now Leo only knows them if RAG
+  retrieval finds them. On gbclancaster.org (2026-11-14) the times were in the KB but the plain
+  question 'What are the service times?' scored 0.709, under the 0.75 threshold, so Leo said it
+  didn't know. hoursChunk.js (LEO-018) solved the same problem for business hours, but it requires a
+  time RANGE ('7 am - 2 pm'); church schedules are single times ('Worship Service - 10:45 AM'), so
+  it never fires for them.
+  Do: - Add churchConfig.serviceTimes to the Entity model (backend/src/models/Entity.js): a short
+  free-text schedule an owner can edit (e.g. 'Sunday School 9:30 AM; Worship 10:45 AM (livestreamed,
+  Children's Church ages 2 to 4th grade)'). Owner-editable through services/entitySettings.js like
+  the other churchConfig fields, and shown in the dashboard's church settings with a hint. - When
+  set, include it in the entity context in Leo's system prompt (services/claude.js, where the other
+  churchConfig fields go) as authoritative, so it is answered whatever the retrieval score. - The
+  church-config extract (POST /entities/:domain/church-config/extract) proposes serviceTimes from
+  the scraped pages along with the other fields; the owner still reviews before it saves, same as
+  today. - Leo should not invent times when the field is empty: behaviour then is unchanged.
+  Check: backend tests for the settings allowlist and prompt inclusion; a dashboard test for the
+  field; then fill it for gbclancaster.org and confirm in test-mode /chat (admin key in mcp/.env)
+  that 'What are the service times?' gets 9:30 / 10:45.
 - [x] **(LEO-132) Scraper: strip cookie-consent banner text before chunking, then re-scrape gbclancaster.org** (routine 2026-11-19, 5ffb9e5)
   Found 2026-11-14 while debugging Grace Baptist (gbclancaster.org, a Squarespace site): nearly
   every chunk carries the Squarespace cookie banner ('Select “Accept all” to agree to our use of
