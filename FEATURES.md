@@ -169,24 +169,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header**
-  Found 2026-11-14 on campcalvary.com/camps/mr/: two chunks, 482 and 855 chars. They were split
-  because each H2 starts a section and sections only merge while the buffer stays under CHUNK_TARGET
-  (1200); 482+855 > 1200, though the whole page fits under CHUNK_MAX (1800). Worse, the page has no
-  H1 (its top heading is an H2 'Men's Retreat'), so the schedule chunk's header is just '[H2] Will
-  Galkin' and nothing in it says Men's Retreat. A question about the retreat schedule has almost
-  nothing to match.
-  FIRST measure with rag-eval (LEO-037/055) on all entities, so both changes are judged by numbers.
-  LEO-018 showed that mixing unrelated text into a chunk lowers its score, so the merge rule is
-  page-scoped only, and the hours chunk stays separate.
-  Do (new helper module; scraper.js has a small-diff cap): - When a page's chunkable text fits under
-  CHUNK_MAX, emit it as one chunk instead of splitting at H2s. - When a page has no H1, use the page
-  <title> (minus the ' – Site Name' suffix) or else its first heading as pageH1, so every chunk
-  header carries the page's subject. - Keep the [Source]/[H1]/[H2] header format so the existing
-  tests and dashboard still read it.
-  Check: rag-eval before/after in the PR body, with a Men's Retreat schedule question added to the
-  eval set; tests for both rules; backend yarn verify + yarn test; then force-rescrape
-  campcalvary.com with the key in mcp/.env and show the new /camps/mr/ chunk.
 
 - [ ] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)**
   Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
@@ -1016,6 +998,24 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header** (routine 2026-11-21, 52e61f8)
+  Found 2026-11-14 on campcalvary.com/camps/mr/: two chunks, 482 and 855 chars. They were split
+  because each H2 starts a section and sections only merge while the buffer stays under CHUNK_TARGET
+  (1200); 482+855 > 1200, though the whole page fits under CHUNK_MAX (1800). Worse, the page has no
+  H1 (its top heading is an H2 'Men's Retreat'), so the schedule chunk's header is just '[H2] Will
+  Galkin' and nothing in it says Men's Retreat. A question about the retreat schedule has almost
+  nothing to match.
+  FIRST measure with rag-eval (LEO-037/055) on all entities, so both changes are judged by numbers.
+  LEO-018 showed that mixing unrelated text into a chunk lowers its score, so the merge rule is
+  page-scoped only, and the hours chunk stays separate.
+  Do (new helper module; scraper.js has a small-diff cap): - When a page's chunkable text fits under
+  CHUNK_MAX, emit it as one chunk instead of splitting at H2s. - When a page has no H1, use the page
+  <title> (minus the ' – Site Name' suffix) or else its first heading as pageH1, so every chunk
+  header carries the page's subject. - Keep the [Source]/[H1]/[H2] header format so the existing
+  tests and dashboard still read it.
+  Check: rag-eval before/after in the PR body, with a Men's Retreat schedule question added to the
+  eval set; tests for both rules; backend yarn verify + yarn test; then force-rescrape
+  campcalvary.com with the key in mcp/.env and show the new /camps/mr/ chunk.
 - [x] **(LEO-138) Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order** (routine 2026-11-21, d75c119)
   From the 2026-11-14 scrape audit. Three consistency gaps: 1. A rescrape never removes chunks for
   stored pages the crawl no longer reaches, so dead pages (likely the April Holy Week page on

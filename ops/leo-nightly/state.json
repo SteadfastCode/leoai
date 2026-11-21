@@ -76,7 +76,7 @@
     "LEO-147": {
       "order": 5,
       "title": "Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-147",
