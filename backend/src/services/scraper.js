@@ -13,6 +13,7 @@ const { toParagraphs, isScheduleLine } = require('./scheduleLines');
 const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
 const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('./consentStrip');
+const { crawlableUrl, dropNearEmptyChunks } = require('./crawlFilter');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -768,7 +769,7 @@ async function embedThinPageGroups(thinPages, seenChunkHashes = new Set(), cs = 
 
   const rawChunks = [];
   for (const [groupUrl, pages] of groups) {
-    rawChunks.push(...buildGroupChunks(groupUrl, pages, cs));
+    rawChunks.push(...dropNearEmptyChunks(buildGroupChunks(groupUrl, pages, cs)));
   }
 
   // Chunk-level dedup
@@ -832,7 +833,7 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
     toChunk.push({ url: page.url, filteredText: filtered.join('\n\n') });
   }
 
-  const rawChunks = toChunk.flatMap(({ url, filteredText }) => chunkText(filteredText, url, cs));
+  const rawChunks = dropNearEmptyChunks(toChunk.flatMap(({ url, filteredText }) => chunkText(filteredText, url, cs)));
 
   // Secondary: chunk-level dedup as a safety net for any remaining exact duplicates
   const allChunks = rawChunks.filter(chunk => {
@@ -930,7 +931,8 @@ async function scrapeSite(baseUrl, opts = {}) {
           noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
-              const resolved = new URL(link, url).href;
+              const resolved = crawlableUrl(new URL(link, url).href);
+              if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
               if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
                 if (h !== baseDomain) queue.unshift(resolved);
@@ -1090,7 +1092,8 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
-              const resolved = new URL(link, url).href;
+              const resolved = crawlableUrl(new URL(link, url).href);
+              if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
               if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
                 if (h !== baseDomain) queue.unshift(resolved);
