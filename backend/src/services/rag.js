@@ -1,14 +1,12 @@
 const Chunk = require('../models/Chunk');
 const { embedQuery } = require('./embeddings');
+// Siblings are scored in memory; ragScore puts that score on the SAME scale as
+// the Phase 1 vectorSearchScore, and owns the sibling bar (LEO-135).
+const { siblingThresholdFor, keepSibling } = require('./ragScore');
 
 const MAX_CHUNKS = 10;
 const MAX_CONTEXT_CHARS = 6000;
 const DEFAULT_THRESHOLD = 0.75;
-
-// Siblings of a primary-hit page are included at a lower threshold.
-// Once semantic chunking lands (chunkIndex ±N narrowing), this offset can tighten.
-const SIBLING_THRESHOLD_OFFSET = 0.15;
-const MIN_SIBLING_THRESHOLD = 0.50;
 
 // Human-readable name for a source page, so Leo can link it as prose rather than
 // pasting a bare URL (LEO-031). pageH1 is the scraped page title; manual/uploaded
@@ -65,16 +63,9 @@ function packContext(chunks, maxChars) {
   return { context, sources };
 }
 
-// Voyage AI embeddings are unit-normalized — dot product equals cosine similarity.
-function dotProduct(a, b) {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
-  return sum;
-}
-
 async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
   const queryEmbedding = await embedQuery(query);
-  const siblingThreshold = Math.max(MIN_SIBLING_THRESHOLD, threshold - SIBLING_THRESHOLD_OFFSET);
+  const siblingThreshold = siblingThresholdFor(threshold);
 
   // ── Phase 1: semantic vector search ──────────────────────────────────────
   const chunks = await Chunk.aggregate([
@@ -98,7 +89,8 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
 
   // ── Phase 2: tree siblings ────────────────────────────────────────────────
   // Pull remaining chunks from every page that produced a primary hit.
-  // Score each against the query embedding; include those above the sibling threshold.
+  // Score each against the query embedding on the Atlas normalised scale (ragScore);
+  // include those above the sibling bar.
   // TODO (semantic chunking): narrow candidates to chunkIndex within ±2 of a primary hit
   //   instead of the full page — meaningful once chunk boundaries are concept boundaries.
   const primaryIds = new Set(relevant.map(c => c._id.toString()));
@@ -114,8 +106,8 @@ async function retrieveContext(domain, query, threshold = DEFAULT_THRESHOLD) {
 
     for (const c of candidates) {
       if (primaryIds.has(c._id.toString())) continue;
-      const score = dotProduct(queryEmbedding, c.embedding);
-      if (score >= siblingThreshold) {
+      const { keep, score } = keepSibling(queryEmbedding, c.embedding, siblingThreshold, c.url);
+      if (keep) {
         siblings.push({ content: c.content, url: c.url, source: c.source, chunkIndex: c.chunkIndex, pageH1: c.pageH1, label: c.label, sectionAnchor: c.sectionAnchor, extraAnchors: c.extraAnchors, score });
       }
     }
