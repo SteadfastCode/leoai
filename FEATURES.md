@@ -166,7 +166,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-137) Scraper: one canonical URL per page everywhere, then collapse the existing variants**
+- [x] **(LEO-137) Scraper: one canonical URL per page everywhere, then collapse the existing variants**
   From the 2026-11-14 scrape audit. One page is stored under several URL spellings: http vs https,
   www vs bare, trailing slash vs none (westpca.com has 11 slash pairs, the same chunk under up to 4
   URLs; campcalvary.com has /camps/mr and /camps/mr/ as separate pages). Enqueue dedups by
