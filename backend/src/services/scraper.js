@@ -15,8 +15,9 @@ const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
 const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('./consentStrip');
 const { crawlableUrl, dropNearEmptyChunks } = require('./crawlFilter');
 const { canonicalUrl, resolveCanonicalOrigin, inSite } = require('./canonicalUrl');
+const { orderPages, makeLinkQueue } = require('./scrapeOrder'); // LEO-138 — deterministic order
 
-const MAX_PAGES = 500;
+const { MAX_PAGES } = require('./crawlLimits');
 const CONCURRENCY = 5; // pages fetched in parallel per batch
 const CHUNK_TARGET  = 1200; // flush chunk when buffer reaches this size
 const CHUNK_MAX     = 1800; // hard cap — a single unit may never exceed this
@@ -896,6 +897,7 @@ async function scrapeSite(baseUrl, opts = {}) {
   }
 
   const browser = await launchBrowser();
+  const linkQueue = makeLinkQueue(queue); // LEO-138 — links enqueued in page order, not completion order
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
@@ -920,7 +922,6 @@ async function scrapeSite(baseUrl, opts = {}) {
           if (!text.trim()) failedUrls.push(noteEmptyAfterRender(url));
           const pageEntry = { url, text, hash: hashContent(text), priority: isPriorityUrl(url) ? 'high' : 'normal', usedPuppeteer, hasVariants: !!hasVariants };
           batchPageData.push(pageEntry);
-          allPageData.push(pageEntry);
 
           if (io && domain) {
             io.to(`domain:${domain}`).emit('scrape_progress', {
@@ -938,8 +939,7 @@ async function scrapeSite(baseUrl, opts = {}) {
               if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
               if (inSite(h, baseDomain) && !visited.has(urlKey(resolved))) { // LEO-137
-                if (h !== baseDomain) queue.unshift(resolved);
-                else queue.push(resolved);
+                linkQueue.note(resolved, url, h !== baseDomain);
               }
             } catch { /* invalid URL, skip */ }
           }
@@ -948,6 +948,13 @@ async function scrapeSite(baseUrl, opts = {}) {
           failedUrls.push(classifyFetchFailure(url, err));
         }
       }));
+
+      // LEO-138 — one order for the batch, the canonical URL's, before anything
+      // reads it: dedup attribution, thin-page grouping and the crawl queue must
+      // not depend on which of the five fetches finished first.
+      orderPages(batchPageData);
+      allPageData.push(...batchPageData);
+      linkQueue.flush();
 
       // Embed normal chunks immediately — thin pages are buffered for end-of-crawl grouping
       if (batchPageData.length > 0) {
@@ -1041,6 +1048,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   }
 
   const browser = await launchBrowser();
+  const linkQueue = makeLinkQueue(queue); // LEO-138 — links enqueued in page order, not completion order
 
   try {
     while (queue.length > 0 && visited.size < MAX_PAGES) {
@@ -1101,8 +1109,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
               if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
               if (inSite(h, baseDomain) && !visited.has(urlKey(resolved))) { // LEO-137
-                if (h !== baseDomain) queue.unshift(resolved);
-                else queue.push(resolved);
+                linkQueue.note(resolved, url, h !== baseDomain);
               }
             } catch { /* invalid URL, skip */ }
           }
@@ -1111,10 +1118,17 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           failedUrls.push(classifyFetchFailure(url, err));
         }
       }));
+      linkQueue.flush(); // LEO-138
     }
   } finally {
     await browser.close();
   }
+
+  // LEO-138 — both lists are only consumed from here down, so one sort each puts
+  // the WHOLE crawl in canonical URL order: dedup attribution and the card order
+  // inside a group chunk stop depending on which fetch finished first.
+  orderPages(allPageData);
+  orderPages(changedPages);
 
   // Embed normal changed pages
   const seenChunkHashes = new Set();
