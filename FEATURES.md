@@ -165,7 +165,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-136) Scraper: skip non-content paths (cart, account, tags, tracking query strings) and drop near-empty chunks**
+- [x] **(LEO-136) Scraper: skip non-content paths (cart, account, tags, tracking query strings) and drop near-empty chunks**
   From the 2026-11-14 scrape audit. scraper.js link collection only filters '#' and 'mailto:' links,
   so non-content pages get crawled. Measured: harvestlanefarmmarket.com has 547 pages, 450 under
   /product/, 344 with tracking query strings (?cp=&sa=&sbp=&q=), ~255 near-empty chunks ('95 Add to
