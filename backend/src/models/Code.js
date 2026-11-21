@@ -14,7 +14,6 @@ const codeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-codeSchema.index({ code: 1 });
 codeSchema.index({ type: 1, active: 1 });
 
 module.exports = mongoose.model('Code', codeSchema);
