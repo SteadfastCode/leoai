@@ -76,7 +76,7 @@
     "LEO-148": {
       "order": 5,
       "title": "Remove the duplicate index on Code.code (Mongoose warning at every boot)",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-148",

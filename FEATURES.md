@@ -170,16 +170,6 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [x] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)**
-  Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
-  found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
-  creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
-  second, non-unique one.
-  Do: delete the codeSchema.index({ code: 1 }) line. Keep unique: true and the { type: 1, active: 1
-  } index. No migration is needed: the unique index stays, and Mongoose never drops an existing
-  index on its own.
-  Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
-  the dashboard's System Logs.
 
 - [ ] **(LEO-140) RAG: re-measure, then rerank vector candidates with Voyage rerank (needs LEO-139)**
   From the 2026-11-14 scrape audit. Vector search alone ranks a stale Holy Week page above current
@@ -998,6 +988,16 @@ promotes it by deleting the `[needs-human]` tag and moving the block into a work
 
 ## Completed Items
 
+- [x] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)** (routine 2026-11-21, ef69827)
+  Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
+  found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
+  creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
+  second, non-unique one.
+  Do: delete the codeSchema.index({ code: 1 }) line. Keep unique: true and the { type: 1, active: 1
+  } index. No migration is needed: the unique index stays, and Mongoose never drops an existing
+  index on its own.
+  Check: backend yarn verify + yarn test; after deploy, the warning is gone from the boot lines in
+  the dashboard's System Logs.
 - [x] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header** (routine 2026-11-21, 52e61f8)
   Found 2026-11-14 on campcalvary.com/camps/mr/: two chunks, 482 and 855 chars. They were split
   because each H2 starts a section and sections only merge while the buffer stays under CHUNK_TARGET
