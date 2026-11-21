@@ -128,24 +128,30 @@ test('C — the final flushMergeBuf merges a short trailing section, keeping its
 const VISIT_URL = 'https://example.com/visit';
 const header = (...lines) => ['[Source: ' + VISIT_URL + ']', ...lines].join('\n');
 
-test('D — a merged trailing section records its anchor without moving any boundary', () => {
+// LEO-147 re-shaped cases D and E, deliberately. Both pages fit under CHUNK_MAX
+// whole, so the merge loop no longer flushes at an H2 and the trailing-merge path
+// is never reached for them: the same one chunk comes out with the same body text,
+// but the second section's [H2] line is now a HEADER entry rather than a marker
+// stranded mid-body, and its anchor rides in extraAnchors from the merge instead
+// of from the absorption. Cases A, B and C still exercise the absorption path on
+// pages that really are oversized, so nothing below is untested behaviour.
+
+test('D — two small sections merge into one chunk, both headings in the header', () => {
   const text = ['[H1] Visiting Us', `[H2#welcome] ${H2_A}`, SEC_A, `[H2#office] ${H2_B}`, SEC_B].join('\n\n');
   const chunks = chunkText(text, VISIT_URL);
 
-  // Byte-identical to main: one chunk, section A's header, A's body, then the absorbed
-  // section's [H2] line and body appended.
   assert.equal(chunks.length, 1);
   assert.equal(
     chunks[0].content,
-    `${header('[H1] Visiting Us', `[H2] ${H2_A}`)}\n\n${SEC_A}\n\n[H2] ${H2_B}\n\n${SEC_B}`,
+    `${header('[H1] Visiting Us', `[H2] ${H2_A} / ${H2_B}`)}\n\n${SEC_A}\n\n${SEC_B}`,
   );
 
-  // The chunk still belongs to section A — that is what its header says and what the bulk
-  // of its text is — so its own metadata is untouched.
+  // The chunk still leads with section A — that is what the bulk of its text is —
+  // so A's heading and anchor stay primary.
   assert.equal(chunks[0].sectionH2, H2_A);
   assert.equal(chunks[0].sectionAnchor, 'welcome');
-  assert.equal(chunks[0].label, H2_A);
-  // ...and the absorbed heading's anchor is no longer lost.
+  assert.equal(chunks[0].label, `${H2_A} / ${H2_B}`);
+  // ...and the merged heading's anchor is still not lost.
   assert.deepEqual(chunks[0].extraAnchors, ['office']);
   assertContiguous(chunks);
 });
@@ -170,17 +176,20 @@ const INTRO = SEC_A.replace(
 );
 const introText = ['[H1] Visiting Us', INTRO, `[H2#office] ${H2_B}`, SEC_B].join('\n\n');
 
-test('E — an anchorless receiving chunk records the absorbed anchor', () => {
+test('E — an intro section merged with the one heading on the page takes that heading', () => {
   const chunks = chunkText(introText, VISIT_URL);
 
   assert.equal(chunks.length, 1);
   assert.equal(
     chunks[0].content,
-    `${header('[H1] Visiting Us')}\n\n${INTRO}\n\n[H2] ${H2_B}\n\n${SEC_B}`,
+    `${header('[H1] Visiting Us', `[H2] ${H2_B}`)}\n\n${INTRO}\n\n${SEC_B}`,
   );
-  assert.equal(chunks[0].sectionH2, null);
-  assert.equal(chunks[0].sectionAnchor, null);
-  assert.deepEqual(chunks[0].extraAnchors, ['office']);
+  // The only heading in the chunk is the one its trailing text sits under, so it is
+  // the chunk's own heading now — and the anchor the citation builder cites (case F)
+  // is the same 'office' either way.
+  assert.equal(chunks[0].sectionH2, H2_B);
+  assert.equal(chunks[0].sectionAnchor, 'office');
+  assert.deepEqual(chunks[0].extraAnchors, []);
 });
 
 test('F — the citation builder prefers the heading this chunk actually sits under', () => {

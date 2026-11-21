@@ -16,6 +16,7 @@ const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('.
 const { crawlableUrl, dropNearEmptyChunks } = require('./crawlFilter');
 const { canonicalUrl, resolveCanonicalOrigin, inSite } = require('./canonicalUrl');
 const { orderPages, makeLinkQueue } = require('./scrapeOrder'); // LEO-138 — deterministic order
+const { withTitleHeading, mergeTargetFor, sectionLen } = require('./chunkShape'); // LEO-147
 
 const { MAX_PAGES } = require('./crawlLimits');
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -315,7 +316,7 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
       const links = [...document.querySelectorAll('a[href]')]
         .map((a) => a.getAttribute('href'))
         .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:'));
-      return { text, links };
+      return { text, links, title: document.title };
     });
 
     // Variant price sweep — runs when:
@@ -335,6 +336,7 @@ async function fetchPageWithPuppeteer(url, browser, cs = {}, knownHasVariants = 
       }
     }
 
+    result.text = withTitleHeading(result.text, result.title, url); // LEO-147
     console.log(`Puppeteer: ${url} — ${result.text.length} chars`);
     return result;
   } finally {
@@ -489,7 +491,7 @@ async function fetchPage(url, browser, cs = {}, knownHasVariants = false, pass1F
     }
   }
 
-  return { text, links, usedPuppeteer: false, hasVariants: false };
+  return { text: withTitleHeading(text, $('title').first().text(), url), links, usedPuppeteer: false, hasVariants: false };
 }
 
 // Returns the trailing overlap to carry into the next chunk.
@@ -648,7 +650,9 @@ function chunkText(text, url, cs = {}) {
     else pushChunk(h2s, [trimmed], primaryH2, primaryAnchor);
   }
 
-  // Main pass: merge short sections, split oversized ones
+  // Main pass: merge short sections, split oversized ones. A page that fits
+  // inside CHUNK_MAX whole never flushes early (LEO-147) — it stays one chunk.
+  const mergeTarget = mergeTargetFor(sections, { target: CHUNK_TARGET, max: CHUNK_MAX, url });
   let mergeBuf = [];
   let mergeBufLen = 0;
 
@@ -665,24 +669,28 @@ function chunkText(text, url, cs = {}) {
       return;
     }
     // Anchor of the first section that contributed an H2 — mirrors how primaryH2 is chosen.
-    const anchorSrc = mergeBuf.find(s => s.h2);
+    const [anchorSrc, ...alsoHere] = mergeBuf.filter(s => s.h2);
+    const at = chunks.length;
     pushChunk(h2s, paras, h2s[0] || null, anchorSrc ? anchorSrc.anchor : null);
+    // LEO-147 merges more sections into one chunk; the headings past the first are
+    // in its header, so keep their anchors addressable too (LEO-102).
+    if (chunks.length > at) chunks[at].extraAnchors = alsoHere.map(s => s.anchor).filter(Boolean);
     mergeBuf    = [];
     mergeBufLen = 0;
   }
 
   for (const section of sections) {
-    const sectionLen = section.paras.join('\n\n').length + (section.h2 ? section.h2.length + 10 : 0);
-    if (sectionLen > CHUNK_MAX) {
+    const len = sectionLen(section);
+    if (len > CHUNK_MAX) {
       flushMergeBuf();
       splitOversizedSection(section);
     } else {
       // Don't flush a tiny buffer just because the next section is large —
       // absorb the small leading section into the next chunk even if it overruns CHUNK_TARGET slightly.
-      if (mergeBufLen > TINY_BUF_THRESHOLD && mergeBufLen + sectionLen > CHUNK_TARGET) flushMergeBuf();
+      if (mergeBufLen > TINY_BUF_THRESHOLD && mergeBufLen + len > mergeTarget) flushMergeBuf();
       mergeBuf.push(section);
-      mergeBufLen += sectionLen;
-      if (mergeBufLen >= CHUNK_TARGET) flushMergeBuf();
+      mergeBufLen += len;
+      if (mergeBufLen >= mergeTarget) flushMergeBuf();
     }
   }
   flushMergeBuf(true);
