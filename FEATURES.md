@@ -170,7 +170,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)**
+- [x] **(LEO-148) Remove the duplicate index on Code.code (Mongoose warning at every boot)**
   Every backend boot logs: '(node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1}
   found.' backend/src/models/Code.js declares the field with unique: true (line 5), which already
   creates a unique index on code, and then codeSchema.index({ code: 1 }) (line 17) declares a
