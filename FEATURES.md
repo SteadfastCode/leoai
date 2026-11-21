@@ -169,7 +169,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header**
+- [x] **(LEO-147) Chunking: keep a page whole when it fits under CHUNK_MAX, and give H1-less pages a title in every chunk header**
   Found 2026-11-14 on campcalvary.com/camps/mr/: two chunks, 482 and 855 chars. They were split
   because each H2 starts a section and sections only merge while the buffer stays under CHUNK_TARGET
   (1200); 482+855 > 1200, though the whole page fits under CHUNK_MAX (1800). Worse, the page has no
