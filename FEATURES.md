@@ -167,7 +167,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-138) Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order**
+- [x] **(LEO-138) Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order**
   From the 2026-11-14 scrape audit. Three consistency gaps: 1. A rescrape never removes chunks for
   stored pages the crawl no longer reaches, so dead pages (likely the April Holy Week page on
   gbclancaster.org) live on until a full scrape. 2. scrapePersist.replaceChunksForUrl returns early
