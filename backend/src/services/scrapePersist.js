@@ -16,6 +16,7 @@ const ArchivedChunk = require('../models/ArchivedChunk');
 const { REASONS } = require('./fetchFailure');
 const { summariseRobots } = require('./robots');
 const { sweepChunks, mergeSweep, logSweep } = require('./scanSweep');
+const { planRetirement, applyRetirement } = require('./pageRetire');
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
@@ -269,6 +270,31 @@ async function replaceChunksForUrl(domain, pageUrl, chunks) {
   return inserted.length;
 }
 
+// Delete a URL's scraped chunks without writing any back (LEO-138).
+//
+// A deliberately separate, opt-in function rather than dropping the
+// `chunks.length === 0` early return above. replaceChunksForUrl is called for
+// synthetic group URLs too, and a group that produced nothing this run may still
+// have members whose own fetch merely came back empty — so "no chunks" is only
+// SAFE to read as "delete what is there" where the caller has established that
+// the page itself was fetched successfully. That judgement belongs at the call
+// site, not inside the shared helper.
+//
+// Preserved sources (manual, upload, owner_reply, unanswered_qa) are never
+// deleted, exactly as in replaceChunksForUrl.
+async function clearChunksForUrl(domain, pageUrl) {
+  const res = await Chunk.deleteMany({
+    domain,
+    url: pageUrl,
+    source: { $nin: PRESERVED_SOURCES },
+  });
+  const deleted = res?.deletedCount || 0;
+  if (deleted > 0) {
+    debug('light', `${domain}: cleared ${deleted} chunk(s) at ${pageUrl} — source: the page was fetched successfully this run and produced none`);
+  }
+  return deleted;
+}
+
 // Persist a rescrapeSite() result. Snapshot first (so a restore is always
 // possible), then per-URL insert-before-delete for normal chunks and thin
 // group chunks, then touch lastScrapedAt on the unchanged pages.
@@ -294,15 +320,33 @@ async function persistRescrapeResult({ domain, result, io = null }) {
   // the whole point of shipping the evidence before the enforcement.
   const robotsDisallowed = shapeRobotsDisallowed(result.robotsDisallowed);
 
+  // URLs whose page fetch produced nothing this run (LEO-056/LEO-138). A page in
+  // here keeps whatever it already had: "the fetch failed" and "the page is now
+  // empty" must never be persisted the same way.
+  const failedUrlSet = new Set(failedUrls.map((f) => f.url));
+
   const hasNormalChanges = embeddedChunks.length > 0;
   const hasThinChanges   = thinGroupChunks.length > 0;
   let snapshot = null;
 
-  if (hasNormalChanges || hasThinChanges) {
-    // Snapshot first — before any mutations so a restore is always possible
-    snapshot = await createSnapshot(domain, 'rescrape', [...changedUrls, ...thinGroupUrls]);
-    await recordFailedUrls(snapshot?._id, failedUrls);
+  // Dead-page retirement (LEO-138), decided BEFORE anything is written: the rows
+  // are read while they still carry the previous run's miss counters, and the
+  // URLs it wants to retire go into the snapshot below so the chunks it deletes
+  // are archived with the rest of the run's losses.
+  const storedPages = await ScrapedPage.find({ domain }, 'url missedCrawls').lean();
+  const retirement = planRetirement({ storedPages, result, domain });
+  const retiredUrls = retirement.retire.map((r) => r.url);
 
+  // Hoisted out of the change block below: a rescrape in which nothing changed
+  // can still retire a page the site has deleted, and that deletion needs a
+  // restore path exactly as much as a content change does.
+  if (hasNormalChanges || hasThinChanges || retiredUrls.length > 0) {
+    // Snapshot first — before any mutations so a restore is always possible
+    snapshot = await createSnapshot(domain, 'rescrape', [...changedUrls, ...thinGroupUrls, ...retiredUrls]);
+    await recordFailedUrls(snapshot?._id, failedUrls);
+  }
+
+  if (hasNormalChanges || hasThinChanges) {
     // Counted across BOTH chunk sets so a thin page folded into a group chunk is
     // credited on its own ScrapedPage row rather than written back as zero.
     const chunkCountByUrl = tallyChunkCounts([...embeddedChunks, ...thinGroupChunks]);
@@ -337,8 +381,19 @@ async function persistRescrapeResult({ domain, result, io = null }) {
         continue;
       }
 
+      // A page that fetched fine and produced NOTHING this run (LEO-138): it went
+      // thin, so its content now lives in a group chunk filed under the group
+      // URL, or its paragraphs all deduped away against another changed page.
+      // Either way its old chunks are no longer what the page says, and
+      // replaceChunksForUrl returns early on an empty list — so they used to
+      // survive, and a thin page's text was in the corpus twice. Excluded: a
+      // page in failedUrls, whose fetch is why it produced nothing.
       const chunks = chunksForUrl(pageUrl);
-      await replaceChunksForUrl(domain, pageUrl, chunks);
+      if (chunks.length === 0 && !failedUrlSet.has(pageUrl)) {
+        await clearChunksForUrl(domain, pageUrl);
+      } else {
+        await replaceChunksForUrl(domain, pageUrl, chunks);
+      }
 
       const update = {
         contentHash: hash,
@@ -427,6 +482,9 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     );
   }
 
+  // Last, and after the snapshot above archived what it deletes (LEO-138).
+  const retired = await applyRetirement(domain, retirement);
+
   const out = {
     snapshotId: snapshot ? snapshot._id : null,
     pagesChanged: changedUrls.length + thinGroupUrls.length,
@@ -434,6 +492,10 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     chunksUpdated: embeddedChunks.length + thinGroupChunks.length,
     failedUrls,
     robotsDisallowed,
+    // Added, never replacing a field: the dashboard's existing reads are untouched.
+    pagesRetired: retired.pages,
+    chunksRetired: retired.chunks,
+    retireSkipped: retired.skipped,
   };
 
   // Outside every branch above, unconditionally (LEO-115): a rescrape in which
@@ -457,6 +519,7 @@ module.exports = {
   createSnapshot,
   persistRescrapeResult,
   replaceChunksForUrl,
+  clearChunksForUrl,
   tallyChunkCounts,
   shapeFailedUrls,
   recordFailedUrls,

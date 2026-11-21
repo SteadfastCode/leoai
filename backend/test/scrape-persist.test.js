@@ -632,3 +632,180 @@ test('an unknown domain is a no-op, not a thrown scrape', async () => {
   const { recordLastScrape } = require('../src/services/scrapePersist');
   assert.equal(await recordLastScrape('no-such-entity.leo-nightly.test', { mode: 'full' }), null);
 });
+
+// ── A page that went empty, and a page that went away (LEO-138) ────────────
+//
+// Two consistency gaps from the 2026-11-14 scrape audit, both of which left the
+// corpus holding text the site no longer says:
+//
+//   * replaceChunksForUrl returns early on an empty chunk list, so a page that
+//     turned thin kept its OWN chunks and also appeared inside the group chunk
+//     its content moved into — the same text, twice, under two URLs;
+//   * a rescrape never removed a stored page the crawl no longer reaches, so a
+//     deleted page answered questions until somebody ran a full scrape.
+//
+// The decision logic for the second one is asserted in page-retire.test.js. What
+// is asserted here is what actually reaches the database, and the two things the
+// rules exist to protect: owner-authored chunks, and a page that is merely down.
+
+const DEAD = `https://${DOMAIN}/holy-week`;
+
+const deadResult = (extra = {}) => ({
+  embeddedChunks: [], thinGroupChunks: [], thinGroupUrls: [],
+  changedUrls: [], unchangedUrls: [PAGE, UNCHANGED], pageHashUpdates: [],
+  ...extra,
+});
+
+// A page the crawl no longer reaches, with chunks of every source on it.
+async function seedDead(missedCrawls = 0) {
+  await seed();
+  await Chunk.insertMany([
+    chunk(DEAD, 'Holy Week service times for April'),
+    ...Chunk.PRESERVED_SOURCES.map((s) => chunk(DEAD, `preserved ${s}`, s)),
+  ]);
+  await ScrapedPage.create({ domain: DOMAIN, url: DEAD, contentHash: 'old', chunkCount: 1, missedCrawls });
+}
+
+test('a page the crawl missed once keeps everything, and only takes a miss', async () => {
+  await seedDead();
+  const out = await persistRescrapeResult({ domain: DOMAIN, result: deadResult() });
+
+  assert.equal(out.pagesRetired, 0);
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: DEAD, source: 'scraped' }), 1);
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: DEAD }).lean();
+  assert.equal(page.missedCrawls, 1, 'one missed crawl is recorded, not acted on');
+});
+
+test('a page the crawl has now missed twice is retired, chunks and row', async () => {
+  await seedDead(1);
+  const out = await persistRescrapeResult({ domain: DOMAIN, result: deadResult() });
+
+  assert.equal(out.pagesRetired, 1);
+  assert.equal(out.chunksRetired, 1);
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: DEAD, source: 'scraped' }), 0, 'the dead page\'s scraped chunks are gone');
+  assert.equal(await ScrapedPage.countDocuments({ domain: DOMAIN, url: DEAD }), 0, 'and so is its row');
+  // The pages the crawl DID reach are untouched by any of it.
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: UNCHANGED }), 1);
+});
+
+test('owner-authored chunks on a retired page survive it', async () => {
+  await seedDead(1);
+  await persistRescrapeResult({ domain: DOMAIN, result: deadResult() });
+
+  const survivors = await Chunk.find({ domain: DOMAIN, url: DEAD }).lean();
+  assert.deepEqual(
+    survivors.map((c) => c.source).sort(),
+    [...Chunk.PRESERVED_SOURCES].sort(),
+    'every preserved source must still be present on a retired URL'
+  );
+});
+
+test('a 404 retires the page on the first run', async () => {
+  await seedDead();
+  const out = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: deadResult({ failedUrls: [{ url: DEAD, reason: 'http_error', status: 404 }] }),
+  });
+
+  assert.equal(out.pagesRetired, 1, 'the site said it is gone — there is nothing to wait for');
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: DEAD, source: 'scraped' }), 0);
+});
+
+test('a retirement is archived in the run\'s snapshot, so it can be restored', async () => {
+  await seedDead();
+  const { snapshotId } = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: deadResult({ failedUrls: [{ url: DEAD, reason: 'http_error', status: 404 }] }),
+  });
+
+  assert.ok(snapshotId, 'a rescrape that retires a page must take a snapshot even if nothing else changed');
+  const archived = await ArchivedChunk.find({ snapshotId }).lean();
+  assert.ok(
+    archived.some((c) => c.url === DEAD && c.content === 'Holy Week service times for April'),
+    'the retired page\'s chunk must be archived before it is deleted'
+  );
+  const snapshot = await ScrapeSnapshot.findById(snapshotId).lean();
+  assert.ok(snapshot.affectedUrls.includes(DEAD));
+});
+
+test('a page that is merely down is never retired, however often', async () => {
+  await seedDead(1);
+  const out = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: deadResult({ failedUrls: [{ url: DEAD, reason: 'fetch_error', status: null }] }),
+  });
+
+  assert.equal(out.pagesRetired, 0);
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: DEAD, source: 'scraped' }), 1);
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: DEAD }).lean();
+  assert.equal(page.missedCrawls, 0, 'a failed fetch is evidence the crawl tried, so the counter clears');
+});
+
+test('a crawl that reached almost nothing retires nothing and spends no grace', async () => {
+  await seedDead(1);
+  const out = await persistRescrapeResult({
+    domain: DOMAIN,
+    result: deadResult({ unchangedUrls: [] }),
+  });
+
+  assert.equal(out.pagesRetired, 0);
+  assert.match(out.retireSkipped, /floor/);
+  assert.equal(await Chunk.countDocuments({ domain: DOMAIN, url: DEAD, source: 'scraped' }), 1);
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: DEAD }).lean();
+  assert.equal(page.missedCrawls, 1, 'the counter must not move on a run whose verdict was thrown away');
+});
+
+test('a page that fetched fine and produced no chunks loses its old ones', async () => {
+  await seed();
+  // PAGE went thin: its text now lives in the group chunk under GROUP, and it
+  // produces no chunk of its own. rescrapeSite still reports it as changed.
+  const result = {
+    embeddedChunks: [],
+    thinGroupChunks: [chunk(GROUP, 'new group card A + B + about', 'scraped', { sourceUrls: [`${GROUP}ann`, PAGE] })],
+    thinGroupUrls: [GROUP],
+    changedUrls: [PAGE],
+    unchangedUrls: [UNCHANGED],
+    pageHashUpdates: [
+      { url: PAGE, hash: 'new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+    ],
+  };
+  await persistRescrapeResult({ domain: DOMAIN, result });
+
+  assert.equal(
+    await Chunk.countDocuments({ domain: DOMAIN, url: PAGE, source: 'scraped' }),
+    0,
+    'a page whose content moved into a group chunk must not keep a second copy under its own URL'
+  );
+  const survivors = await Chunk.find({ domain: DOMAIN, url: PAGE, source: { $ne: 'scraped' } }).lean();
+  assert.deepEqual(
+    survivors.map((c) => c.source).sort(),
+    [...Chunk.PRESERVED_SOURCES].sort(),
+    'clearing a page must still never touch owner-authored chunks'
+  );
+  const page = await ScrapedPage.findOne({ domain: DOMAIN, url: PAGE }).lean();
+  assert.equal(page.contentHash, 'new', 'the page itself was read successfully, so its hash advances');
+  assert.equal(page.chunkCount, 1, 'and it is credited for the group chunk it contributed to');
+});
+
+test('a page that produced no chunks because its FETCH came back empty keeps them', async () => {
+  await seed();
+  const result = {
+    embeddedChunks: [],
+    thinGroupChunks: [chunk(GROUP, 'new group card A + B', 'scraped', { sourceUrls: [`${GROUP}ann`, `${GROUP}bob`] })],
+    thinGroupUrls: [GROUP],
+    changedUrls: [PAGE],
+    unchangedUrls: [UNCHANGED],
+    failedUrls: [{ url: PAGE, reason: 'empty_after_render', status: null }],
+    pageHashUpdates: [
+      { url: PAGE, hash: 'new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+    ],
+  };
+  await persistRescrapeResult({ domain: DOMAIN, result });
+
+  const scraped = await Chunk.find({ domain: DOMAIN, url: PAGE, source: 'scraped' }).lean();
+  assert.deepEqual(
+    scraped.map((c) => c.content).sort(),
+    ['old scraped body', 'second old scraped body'],
+    'an empty render is a failed read, not an emptied page — the old chunks stand'
+  );
+});
