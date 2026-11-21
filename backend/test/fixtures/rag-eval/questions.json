@@ -10,5 +10,6 @@
   { "category": "hiring", "question": "Are you hiring?" },
   { "category": "offerings", "question": "What do you sell?" },
   { "category": "offerings", "question": "What services do you offer?" },
-  { "category": "offerings", "question": "Do you take custom orders?" }
+  { "category": "offerings", "question": "Do you take custom orders?" },
+  { "category": "events", "question": "What is the schedule for the men's retreat?" }
 ]
