@@ -76,7 +76,7 @@
     "LEO-138": {
       "order": 5,
       "title": "Scrape persistence: retire dead pages, clear pages that went empty, and crawl in a fixed order",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-138",
