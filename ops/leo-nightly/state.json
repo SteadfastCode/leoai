@@ -76,7 +76,7 @@
     "LEO-135": {
       "order": 5,
       "title": "RAG: score tree siblings on the same scale as the vector search",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-135",
