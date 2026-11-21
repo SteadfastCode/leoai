@@ -315,6 +315,16 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     logSweep(domain, scanRulesByUrl, embeddedChunks.length + thinGroupChunks.length);
 
     const normalByUrl = groupByUrl(embeddedChunks);
+    // A group chunk is keyed by its GROUP url, and since LEO-137 made every stored
+    // URL canonical that url can be IDENTICAL to a normal page's: the group for
+    // thin top-level pages is the site root, and the site root is the home page.
+    // Both sets must therefore reach replaceChunksForUrl in ONE call — it deletes
+    // everything at that url except the ids it just inserted, so two calls meant
+    // the second silently deleted what the first had written. Pre-LEO-137 this
+    // could already happen whenever a listing page was queued with its trailing
+    // slash ('/staff/' as both a page and a group); it was just rarer.
+    const thinByUrl = groupByUrl(thinGroupChunks);
+    const chunksForUrl = (u) => [...(normalByUrl.get(u) || []), ...(thinByUrl.get(u) || [])];
     // Every URL the loop below owns, changed or embed-skipped. The sweep-verdict
     // pass further down covers the pages this run looked at that it never reaches.
     const hashUpdateUrls = new Set(pageHashUpdates.map((p) => p.url));
@@ -327,7 +337,7 @@ async function persistRescrapeResult({ domain, result, io = null }) {
         continue;
       }
 
-      const chunks = normalByUrl.get(pageUrl) || [];
+      const chunks = chunksForUrl(pageUrl);
       await replaceChunksForUrl(domain, pageUrl, chunks);
 
       const update = {
@@ -351,8 +361,15 @@ async function persistRescrapeResult({ domain, result, io = null }) {
 
     // Thin group chunks: same insert-before-delete pattern, keyed by group URL
     if (hasThinChanges) {
-      const thinByUrl = groupByUrl(thinGroupChunks);
       for (const groupUrl of thinGroupUrls) {
+        // Written above already, in the same call as that URL's own chunks. A URL
+        // in skippedUrls took the `continue` up there and wrote nothing at all —
+        // skipping it here too leaves its old chunks AND its old hash intact, so
+        // the next rescrape retries the whole URL rather than half of it.
+        if (hashUpdateUrls.has(groupUrl)) {
+          debug('normal', `${domain}: ${groupUrl} group chunks written with the page's own — source: canonical group URL equals a page URL`);
+          continue;
+        }
         await replaceChunksForUrl(domain, groupUrl, thinByUrl.get(groupUrl) || []);
         emitPageSaved(io, domain, groupUrl);
       }

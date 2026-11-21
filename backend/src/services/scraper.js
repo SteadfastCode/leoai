@@ -14,6 +14,7 @@ const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
 const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('./consentStrip');
 const { crawlableUrl, dropNearEmptyChunks } = require('./crawlFilter');
+const { canonicalUrl, resolveCanonicalOrigin, inSite } = require('./canonicalUrl');
 
 const MAX_PAGES = 500;
 const CONCURRENCY = 5; // pages fetched in parallel per batch
@@ -126,7 +127,7 @@ function getGroupUrl(urlStr) {
     u.pathname = lastSlash <= 0 ? '/' : path.slice(0, lastSlash) + '/';
     u.search = '';
     u.hash = '';
-    return u.href;
+    return canonicalUrl(u.href); // LEO-137 — u.href re-adds the slash getGroupUrl just stripped
   } catch {
     return urlStr;
   }
@@ -860,6 +861,8 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
 async function scrapeSite(baseUrl, opts = {}) {
   const { io, domain, onChunks, crawlSettings: cs = {} } = opts;
   const startedAt = Date.now();
+  const canonOrigin = await resolveCanonicalOrigin(baseUrl); // LEO-137 — one spelling per page
+  baseUrl = canonicalUrl(baseUrl, canonOrigin); // reassigned so queue AND baseDomain follow
   const visited = new Set();
   const queue = [baseUrl];
   const allPageData = []; // kept for page record building in the route
@@ -931,10 +934,10 @@ async function scrapeSite(baseUrl, opts = {}) {
           noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
-              const resolved = crawlableUrl(new URL(link, url).href);
+              const resolved = canonicalUrl(crawlableUrl(new URL(link, url).href), canonOrigin);
               if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
-              if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
+              if (inSite(h, baseDomain) && !visited.has(urlKey(resolved))) { // LEO-137
                 if (h !== baseDomain) queue.unshift(resolved);
                 else queue.push(resolved);
               }
@@ -1001,6 +1004,8 @@ async function scrapeSite(baseUrl, opts = {}) {
 async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   const { io, domain, crawlSettings: cs = {} } = opts;
   const startedAt = Date.now();
+  const canonOrigin = await resolveCanonicalOrigin(baseUrl); // LEO-137 — one spelling per page
+  baseUrl = canonicalUrl(baseUrl, canonOrigin); // reassigned so queue AND baseDomain follow
   // Key stored hashes by urlKey (hostname+pathname) to match normalization
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
   // Pages tagged from a previous crawl as having variants — skip trigger detection, always sweep
@@ -1092,10 +1097,10 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
           noteDocLinks(links, url, baseDomain, docLinks, docKnown);
           for (const link of links) {
             try {
-              const resolved = crawlableUrl(new URL(link, url).href);
+              const resolved = canonicalUrl(crawlableUrl(new URL(link, url).href), canonOrigin);
               if (!resolved) continue; // LEO-136 — non-content path, asset or mechanism URL
               const h = new URL(resolved).hostname;
-              if ((h === baseDomain || h.endsWith('.' + baseDomain)) && !visited.has(urlKey(resolved))) {
+              if (inSite(h, baseDomain) && !visited.has(urlKey(resolved))) { // LEO-137
                 if (h !== baseDomain) queue.unshift(resolved);
                 else queue.push(resolved);
               }
@@ -1171,4 +1176,4 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   };
 }
 
-module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText, extractStructuredText };
+module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText, extractStructuredText, getGroupUrl };
