@@ -274,6 +274,7 @@ module.exports = {
   TRACKING_PARAMS,
   classifyCrawlUrl,
   crawlableUrl,
+  isTrackingParam,
   stripTrackingParams,
   chunkBody,
   isNearEmptyChunk,

@@ -130,6 +130,59 @@ test('group chunks are replaced keyed by the group URL', async () => {
   assert.deepEqual(group[0].sourceUrls, [`${GROUP}ann`, `${GROUP}bob`]);
 });
 
+// LEO-137 made every stored URL canonical, which means a GROUP url can now be
+// byte-identical to a normal page's url: the group for thin top-level pages is
+// the site root, and the site root is the home page. replaceChunksForUrl deletes
+// everything at a url except the ids IT just inserted, so two calls for one url
+// meant the second wiped the first. Both sets have to go in one call.
+const ROOT = `https://${DOMAIN}/`;
+const COLLIDING = {
+  embeddedChunks: [
+    chunk(ROOT, 'home page body', 'scraped', { chunkIndex: 0 }),
+    chunk(ROOT, 'home page body 2', 'scraped', { chunkIndex: 1 }),
+  ],
+  thinGroupChunks: [
+    chunk(ROOT, 'thin cards packed under the root', 'scraped', { sourceUrls: [`https://${DOMAIN}/cart`, `https://${DOMAIN}/thanks`] }),
+  ],
+  thinGroupUrls: [ROOT],
+  changedUrls: [ROOT],
+  unchangedUrls: [],
+  pageHashUpdates: [
+    { url: ROOT, hash: 'new', priority: 'normal', usedPuppeteer: false, contentChanged: true },
+  ],
+};
+
+test('a group URL equal to a page URL keeps BOTH sets of chunks', async () => {
+  await Chunk.insertMany([chunk(ROOT, 'stale home body'), chunk(ROOT, 'stale group body')]);
+  await ScrapedPage.create({ domain: DOMAIN, url: ROOT, contentHash: 'old', chunkCount: 2 });
+
+  await persistRescrapeResult({ domain: DOMAIN, result: COLLIDING });
+
+  const stored = await Chunk.find({ domain: DOMAIN, url: ROOT }).lean();
+  assert.deepEqual(
+    stored.map((c) => c.content).sort(),
+    ['home page body', 'home page body 2', 'thin cards packed under the root'],
+    'the group write must not delete the page chunks written moments earlier'
+  );
+});
+
+test('a colliding group URL still credits its member pages on their own rows', async () => {
+  await ScrapedPage.insertMany([
+    { domain: DOMAIN, url: ROOT, contentHash: 'old', chunkCount: 2 },
+    { domain: DOMAIN, url: `https://${DOMAIN}/cart`, contentHash: 'c', chunkCount: 0 },
+  ]);
+
+  await persistRescrapeResult({ domain: DOMAIN, result: COLLIDING });
+
+  const root = await ScrapedPage.findOne({ domain: DOMAIN, url: ROOT }).lean();
+  // Two page chunks plus the group chunk filed at the same URL.
+  assert.equal(root.chunkCount, 3);
+  // The member row is reached by the sweep pass, which writes scanRules and
+  // leaves chunkCount alone — the group's own row carries the count.
+  const member = await ScrapedPage.findOne({ domain: DOMAIN, url: `https://${DOMAIN}/cart` }).lean();
+  assert.deepEqual(member.scanRules, [], 'the sweep still reaches a colliding group\'s members');
+});
+
 test('a ScrapeSnapshot is written before the mutation, archiving the old chunks', async () => {
   await seed();
   const { snapshotId } = await persistRescrapeResult({ domain: DOMAIN, result: RESULT });
