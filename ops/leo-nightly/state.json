@@ -76,7 +76,7 @@
     "LEO-137": {
       "order": 5,
       "title": "Scraper: one canonical URL per page everywhere, then collapse the existing variants",
-      "status": "claimed",
+      "status": "done",
       "attempts": 1,
       "cluster": null,
       "branch": "routine/item/LEO-137",
