@@ -27,6 +27,14 @@ const { sanitizeList: sanitizeDoNotRelay } = require('./doNotRelay');
 const MAX_SHORT_TEXT = 200;
 const MAX_LONG_TEXT = 20000;
 
+// churchConfig.serviceTimes (LEO-133). Above MAX_SHORT_TEXT because a real
+// schedule carries a note per service ("Worship 10:45 AM (livestreamed,
+// Children's Church ages 2 to 4th grade)") and a church may list Sunday,
+// Wednesday and a second campus; far below MAX_LONG_TEXT because this is the
+// one churchConfig field that goes into EVERY system prompt for the entity
+// rather than only rendering inside the Church Mode section.
+const MAX_SERVICE_TIMES = 1000;
+
 // ---------------------------------------------------------------------------
 // The table. Every field on the route's PATCH allowlist appears exactly once;
 // `superadmin: true` marks the ones behind the superadmin split. Bounds must
@@ -116,6 +124,7 @@ const FIELD_RULES = {
       denominationalDistinctives: { type: 'string', max: MAX_LONG_TEXT },
       churchValues:               { type: 'string', max: MAX_LONG_TEXT },
       pastoralToneNotes:          { type: 'string', max: MAX_LONG_TEXT },
+      serviceTimes:               { type: 'string', max: MAX_SERVICE_TIMES },
     },
   },
   ragThreshold:      { type: 'number', min: 0.5, max: 0.95, superadmin: true },

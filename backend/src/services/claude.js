@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { confidenceBand } = require('./confidence');
 const { sanitizeList: sanitizeDoNotRelay } = require('./doNotRelay');
+const { serviceTimesSection, serviceTimesContextNote } = require('./serviceTimes');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -71,6 +72,15 @@ function buildSystemPrompt(entity, conversation) {
     .replace(/\[CHURCH_VALUES\]/g, c.churchValues || '')
     .replace(/\[STATEMENT_OF_FAITH\]/g, c.statementOfFaith || '')
     .replace(/\[PASTORAL_TONE\]/g, c.pastoralToneNotes || 'warm and conversational');
+
+  // The one churchConfig field that is not a prompt variable (LEO-133): the
+  // church's own service schedule, stated rather than retrieved, so the most
+  // common question a church gets is answered whatever the retrieval score.
+  // Appended as its own section rather than templated — the prompt file is
+  // verify-prompt.js's subject and stays untouched by a settings item, exactly
+  // as the do-not-relay list does above. '' when the entity has no schedule or
+  // Church Mode is off, which leaves the prompt byte-identical to before.
+  prompt += serviceTimesSection(entity);
 
   // Inject temporal context so Leo knows current time and when user last visited
   prompt += `\n\n---\n\n## CURRENT CONTEXT\n\nCurrent date and time (${entity.timezone || 'America/New_York'}): ${now}`;
@@ -157,6 +167,13 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
     ? `\n\n---\n\nThe following are Q&A pairs answered directly by the ${entity.name} team. These are authoritative — treat them as reliable supplemental answers, not general website content:\n\n${ownerReplyContext}`
     : '';
 
+  // The stated schedule is in the system prompt (LEO-133), but this context
+  // message is the last thing Leo reads before the question and, with nothing
+  // retrieved, it says in so many words to tell the visitor the church's
+  // schedule is not available — which would talk straight over it. One sentence
+  // here, last in the block, settles the conflict. '' when there is no schedule.
+  const serviceTimesNote = serviceTimesContextNote(entity);
+
   if (entity.churchModeEnabled) {
     // Church mode: entity-specific content is available for church questions, but
     // Leo must also be free to draw on built-in biblical/theological knowledge.
@@ -165,7 +182,7 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
         `Here is content from ${entity.name}'s website that may be relevant to the visitor's question:\n\n${ragContext}${sourceNote}\n\n` +
         `Use this website content for questions specific to ${entity.name} — their schedule, programs, staff, events, location, contact info, and ministry details.\n` +
         `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge — do not limit yourself to the website content for those topics.` +
-        ownerReplyBlock;
+        ownerReplyBlock + serviceTimesNote;
       contextAck =
         `Understood. I'll use the website content for ${entity.name}-specific questions, and my own biblical and theological knowledge for Scripture, history, and apologetics questions.`;
     } else {
@@ -173,9 +190,12 @@ async function chat({ entity, conversation, ragContext, ownerReplyContext, sourc
         `No content from ${entity.name}'s website matched this query. ` +
         `For questions about the church specifically (hours, events, staff, programs), let the visitor know you don't have that detail and offer to connect them with the team. ` +
         `For questions about Scripture, theology, church history, apologetics, or the historical evidence for the Christian faith, draw directly on your biblical and theological knowledge and answer fully.` +
-        ownerReplyBlock;
+        ownerReplyBlock + serviceTimesNote;
       contextAck =
-        `Understood. No church-specific content found — I'll answer biblical and theological questions from my own knowledge, and offer a handoff for church-specific details I don't have.`;
+        `Understood. No church-specific content found — I'll answer biblical and theological questions from my own knowledge, and offer a handoff for church-specific details I don't have.`
+        // Without this the pre-filled acknowledgement promises a handoff for
+        // every church detail, including the one Leo was just handed (LEO-133).
+        + (serviceTimesNote ? ` The one thing I do have is the service schedule the team entered, so I'll answer service-time questions straight from it.` : '');
     }
   } else {
     // Standard mode: KB is the only source of truth.

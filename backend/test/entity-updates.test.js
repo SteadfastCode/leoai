@@ -330,6 +330,7 @@ test('the full payload Settings.vue sends today returns the entity unchanged', a
       denominationalDistinctives: before.churchConfig?.denominationalDistinctives || '',
       churchValues: before.churchConfig?.churchValues || '',
       pastoralToneNotes: before.churchConfig?.pastoralToneNotes || '',
+      serviceTimes: before.churchConfig?.serviceTimes || '',
     },
     linksOpenInNewTab: before.linksOpenInNewTab ?? true,
     crawlSettings: {

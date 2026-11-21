@@ -439,7 +439,10 @@ router.post('/entities/:domain/church-config/extract', async (req, res) => {
   try {
     const { context } = await retrieveContext(
       req.params.domain,
-      'mission statement beliefs statement of faith denominational distinctives pastoral tone core values'
+      // 'service times worship schedule' widens the retrieval for serviceTimes
+      // (LEO-133). The owner still reviews every proposed field before saving,
+      // so a mis-retrieved schedule is a suggestion, never a stored fact.
+      'mission statement beliefs statement of faith denominational distinctives pastoral tone core values service times worship schedule Sunday'
     );
 
     if (!context) return res.status(404).json({ error: 'No knowledge base content found for this entity.' });
@@ -456,6 +459,7 @@ router.post('/entities/:domain/church-config/extract', async (req, res) => {
 - denominationalDistinctives: denomination, theological tradition, or distinctive beliefs
 - churchValues: explicitly stated core values (e.g. "Community, Integrity, Service")
 - pastoralToneNotes: tone/style of communication (e.g. warm and conversational, liturgical, charismatic)
+- serviceTimes: the weekly service schedule as one short line per service, semicolon-separated, each with its day, name and time exactly as the site states them (e.g. "Sunday School 9:30 AM; Worship 10:45 AM (livestreamed); Wednesday Prayer Meeting 6:30 PM"). Only times the content states for regular services — never a one-off event, and never a time you inferred. Empty string if the content does not give them.
 
 Website content:
 ${context}
