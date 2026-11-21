@@ -164,7 +164,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 
 
-- [ ] **(LEO-135) RAG: score tree siblings on the same scale as the vector search**
+- [x] **(LEO-135) RAG: score tree siblings on the same scale as the vector search**
   From the 2026-11-14 scrape audit. rag.js retrieveContext: Phase 1 keeps chunks whose Atlas
   vectorSearchScore >= threshold, and for cosine/dotProduct indexes Atlas normalises that score to
   (1+cos)/2. Phase 2 (tree siblings, rag.js ~line 117) compares a RAW dotProduct(queryEmbedding,
