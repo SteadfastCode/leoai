@@ -152,6 +152,25 @@ const entitySchema = new mongoose.Schema(
       // 0 = disabled (the default) — existing entities are unaffected.
       staleDays:          { type: Number,  default: 0, min: 0 },
     },
+    // Site-wide boilerplate cache (LEO-141). Server-written only — never in the
+    // dashboard PATCH allowlist. All optional with list defaults, so an entity
+    // that has never been crawled since this shipped behaves exactly as before.
+    //
+    // `fingerprints` is the PREVIOUS crawl's verdict, which is what the next
+    // crawl strips: chunks are saved progressively, so the current crawl's own
+    // tally does not exist yet when its first pages are written.
+    // `pass1Exclude`/`pass1Include` cache the Pass-1 Haiku selectors, so a
+    // differently-worded Haiku answer stops changing every page's content hash
+    // and making a smart rescrape re-embed the whole site.
+    siteChrome: {
+      fingerprints:  { type: [String], default: [] },
+      blocks:        { type: [String], default: [] },
+      pageCount:     { type: Number },
+      at:            { type: Date },
+      pass1Exclude:  { type: [String], default: [] },
+      pass1Include:  { type: [String], default: [] },
+      pass1At:       { type: Date },
+    },
     unansweredDigest: {
       enabled:   { type: Boolean, default: false },
       frequency: { type: String, enum: ['weekly', 'daily'], default: 'weekly' },

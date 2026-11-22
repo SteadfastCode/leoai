@@ -14,6 +14,7 @@ const { LEO_USER_AGENT, shouldSkipUrl } = require('./robots');
 const { noteDocLinks, embedLinkedDocs } = require('./linkedDocs');
 const { stripConsentNodes, stripConsentInPage, isConsentParagraph } = require('./consentStrip');
 const { crawlableUrl, dropNearEmptyChunks } = require('./crawlFilter');
+const { createChromeTracker, isBoilerplate, cachedStructure } = require('./boilerplate'); // LEO-141
 const { canonicalUrl, resolveCanonicalOrigin, inSite } = require('./canonicalUrl');
 const { orderPages, makeLinkQueue } = require('./scrapeOrder'); // LEO-138 — deterministic order
 const { withTitleHeading, mergeTargetFor, sectionLen } = require('./chunkShape'); // LEO-147
@@ -93,6 +94,7 @@ function stripMarkerAnchor(p) {
 // All other paragraphs (inline element text, generic divs) keep the 20-char floor.
 function keepPara(p, cs = {}) {
   if (isConsentParagraph(p)) return false; // LEO-132 — cookie-banner boilerplate
+  if (isBoilerplate(p, cs)) return false;  // LEO-141 — site-wide block, kept once in the 'Site-wide info' chunk
   const isSB = p.startsWith('[SB]');
   const bare = isSB ? p.replace(/^(?:\[SB\])+/, '') : p;
   const minLen = isSB ? 4 : 20;
@@ -868,10 +870,12 @@ async function embedPageData(pageData, seenChunkHashes = new Set(), seenParaHash
 // Thin pages are buffered and grouped into multi-URL chunks after the full crawl.
 // opts.onChunks(chunks) is called for both normal batches and the final thin groups.
 async function scrapeSite(baseUrl, opts = {}) {
-  const { io, domain, onChunks, crawlSettings: cs = {} } = opts;
+  const { io, domain, onChunks, crawlSettings: cs0 = {}, siteChrome = null } = opts;
   const startedAt = Date.now();
   const canonOrigin = await resolveCanonicalOrigin(baseUrl); // LEO-137 — one spelling per page
   baseUrl = canonicalUrl(baseUrl, canonOrigin); // reassigned so queue AND baseDomain follow
+  const chrome = createChromeTracker({ known: siteChrome?.fingerprints, baseUrl, domain }); // LEO-141
+  const cs = { ...cs0, boilerplate: chrome.known };
   const visited = new Set();
   const queue = [baseUrl];
   const allPageData = []; // kept for page record building in the route
@@ -895,7 +899,7 @@ async function scrapeSite(baseUrl, opts = {}) {
     const homeHtml = homeResp.data.toString('utf8');
     if (!homeHtml.includes('\x00')) {
       const $home = cheerio.load(homeHtml);
-      pass1Filters = await analyzePageStructure(buildDomSummary($home));
+      pass1Filters = await cachedStructure(siteChrome, () => analyzePageStructure(buildDomSummary($home))); // LEO-141
       if (pass1Filters.exclude.length || pass1Filters.include.length) {
         console.log(`Pass 1 filters — exclude: [${pass1Filters.exclude.join(', ')}]`);
       }
@@ -961,6 +965,7 @@ async function scrapeSite(baseUrl, opts = {}) {
       // reads it: dedup attribution, thin-page grouping and the crawl queue must
       // not depend on which of the five fetches finished first.
       orderPages(batchPageData);
+      chrome.note(batchPageData); // LEO-141 — raw text, before any filtering
       allPageData.push(...batchPageData);
       linkQueue.flush();
 
@@ -992,6 +997,9 @@ async function scrapeSite(baseUrl, opts = {}) {
       if (thinGroupChunks.length > 0 && onChunks) await onChunks(thinGroupChunks, []);
     }
 
+    const siteWide = await tryEmbed(() => chrome.siteWideChunk(embedTexts), [], skippedUrls, null); // LEO-141 — one copy of the repeated blocks
+    if (siteWide && onChunks) await onChunks([siteWide], []);
+
     // One hop to the documents those pages linked (LEO-144) — brochures, menus
     docResult = await embedLinkedDocs(docLinks, { chunkText, cs, known: docKnown });
     if (docResult.chunks.length > 0 && onChunks) await onChunks(docResult.chunks, docResult.pages);
@@ -1007,20 +1015,22 @@ async function scrapeSite(baseUrl, opts = {}) {
     const { chunks: thinGroupChunks } = await tryEmbed(
       () => embedThinPageGroups(thinPageData, seenChunkHashes, cs),
       thinPageData, skippedUrls, { chunks: [] });
-    return { chunks: [...normalChunks, ...thinGroupChunks, ...docResult.chunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), durationMs: Date.now() - startedAt };
+    return { chunks: [...normalChunks, ...thinGroupChunks, ...docResult.chunks], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), siteChrome: chrome.report(), pass1Filters, durationMs: Date.now() - startedAt };
   }
 
-  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), durationMs: Date.now() - startedAt };
+  return { chunks: [], pageData: allPageData, skippedUrls, failedUrls, robotsDisallowed, puppeteer: puppeteerSummary(browser, domain || baseUrl), siteChrome: chrome.report(), pass1Filters, durationMs: Date.now() - startedAt };
 }
 
 // Smart rescrape — only re-embeds pages whose content has changed.
 // Thin pages are always re-grouped since we have their text from the hash-check crawl.
 // Only thin groups with at least one changed page are re-embedded.
 async function rescrapeSite(baseUrl, storedPages, opts = {}) {
-  const { io, domain, crawlSettings: cs = {} } = opts;
+  const { io, domain, crawlSettings: cs0 = {}, siteChrome = null } = opts;
   const startedAt = Date.now();
   const canonOrigin = await resolveCanonicalOrigin(baseUrl); // LEO-137 — one spelling per page
   baseUrl = canonicalUrl(baseUrl, canonOrigin); // reassigned so queue AND baseDomain follow
+  const chrome = createChromeTracker({ known: siteChrome?.fingerprints, baseUrl, domain }); // LEO-141
+  const cs = { ...cs0, boilerplate: chrome.known };
   // Key stored hashes by urlKey (hostname+pathname) to match normalization
   const storedHashMap = new Map(storedPages.map((p) => [urlKey(p.url), p.contentHash]));
   // Pages tagged from a previous crawl as having variants — skip trigger detection, always sweep
@@ -1046,7 +1056,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
     const homeHtml = homeResp.data.toString('utf8');
     if (!homeHtml.includes('\x00')) {
       const $home = cheerio.load(homeHtml);
-      pass1Filters = await analyzePageStructure(buildDomSummary($home));
+      pass1Filters = await cachedStructure(siteChrome, () => analyzePageStructure(buildDomSummary($home))); // LEO-141
       if (pass1Filters.exclude.length || pass1Filters.include.length) {
         console.log(`Pass 1 filters — exclude: [${pass1Filters.exclude.join(', ')}]`);
       }
@@ -1137,6 +1147,7 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   // inside a group chunk stop depending on which fetch finished first.
   orderPages(allPageData);
   orderPages(changedPages);
+  chrome.note(allPageData); // LEO-141 — raw text of every page this crawl saw
 
   // Embed normal changed pages
   const seenChunkHashes = new Set();
@@ -1178,10 +1189,13 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   // documents were never noted unless their linking page changed; of those, one
   // whose text still hashes to the stored hash is not re-embedded.
   const docResult = await embedLinkedDocs(docLinks, { chunkText, cs, known: storedHashMap });
+  const siteWideChunk = await tryEmbed(() => chrome.siteWideChunk(embedTexts), [], skippedUrls, null); // LEO-141
 
   return {
     embeddedChunks: [...embeddedChunks, ...docResult.chunks],
     thinGroupChunks,
+    siteWideChunk,
+    siteChrome: chrome.report(), pass1Filters,
     skippedUrls,
     failedUrls,
     robotsDisallowed,
@@ -1198,4 +1212,4 @@ async function rescrapeSite(baseUrl, storedPages, opts = {}) {
   };
 }
 
-module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText, extractStructuredText, getGroupUrl };
+module.exports = { scrapeSite, rescrapeSite, hashContent, isPriorityUrl, chunkText, buildGroupChunks, extractStructuredText, getGroupUrl };
