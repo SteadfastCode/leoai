@@ -1,0 +1,150 @@
+{
+  "item": "LEO-132",
+  "repo": "leoai",
+  "mergeSha": "5ffb9e502e289083c3ebc01cdb7ace7a7178417b",
+  "completedAtUtc": "2026-11-20T00:17:14.107Z",
+  "completeRunId": "2026-11-20T00:02:43.151Z",
+  "reviewRunId": "2026-11-22T08:01:58.233Z",
+  "reviewedAtUtc": "2026-11-22T08:44:29.670Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 35307,
+  "contextFiles": 6,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/consentStrip.js"
+      ],
+      "part": null,
+      "bytes": 13504,
+      "contextBytes": 0,
+      "promptTokens": 4760,
+      "completionTokens": 77,
+      "latencyMs": 18072,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 2652,
+      "contextBytes": 11009,
+      "promptTokens": 4537,
+      "completionTokens": 130,
+      "latencyMs": 19932,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/consent-strip.test.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13677,
+      "contextBytes": 0,
+      "promptTokens": 4634,
+      "completionTokens": 75,
+      "latencyMs": 17426,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/consent-strip.test.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 681,
+      "contextBytes": 3435,
+      "promptTokens": 2062,
+      "completionTokens": 189,
+      "latencyMs": 14756,
+      "findings": 0,
+      "needs": 5,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/fixtures/consent/hubspot-cms.html",
+        "backend/test/fixtures/consent/squarespace-gbclancaster.html"
+      ],
+      "part": null,
+      "bytes": 4995,
+      "contextBytes": 0,
+      "promptTokens": 2327,
+      "completionTokens": 96,
+      "latencyMs": 8920,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:120"
+    },
+    "money": {
+      "touched": true,
+      "evidence": "backend/test/fixtures/consent/squarespace-gbclancaster.html:19"
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to verify the behavior of `removeSelectorsInDocument` function. · No real defects found. The diff adds functions to strip consent banners and updates the scraper logic accordingly. However, the actual implementation of these functions is not provided in the given diff. · No real defects found in the provided diff. However, additional information about the `fetchPage` function is needed to ensure complete understanding of the code. · The diff adds a new test file for consent stripping, but it does not include the implementation of the `stripConsentNodes` function or other related functions. The needs list includes symbols that are used in the test but not defined in the provided context. · The diff adds test fixtures for consent banners from HubSpot and Squarespace, but does not include the implementation of the `stripConsentBanner` function. The description mentions adding a deterministic consent-banner strip, so this function needs to be reviewed.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 35985,
+    "completionTokens": 1225
+  },
+  "latencyMs": 160809
+}

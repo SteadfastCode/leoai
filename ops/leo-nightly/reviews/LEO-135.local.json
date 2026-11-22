@@ -1,0 +1,88 @@
+{
+  "item": "LEO-135",
+  "repo": "leoai",
+  "mergeSha": "fb6356244c4544812b31cfc32116b926efc53cd3",
+  "completedAtUtc": "2026-11-21T05:08:36.255Z",
+  "completeRunId": "2026-11-21T04:32:13.845Z",
+  "reviewRunId": "2026-11-22T08:01:58.233Z",
+  "reviewedAtUtc": "2026-11-22T08:47:53.858Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 18356,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/rag.js",
+        "backend/src/services/ragScore.js"
+      ],
+      "part": null,
+      "bytes": 11762,
+      "contextBytes": 0,
+      "promptTokens": 4025,
+      "completionTokens": 126,
+      "latencyMs": 17879,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/rag-sibling-scale.test.js"
+      ],
+      "part": null,
+      "bytes": 6594,
+      "contextBytes": 0,
+      "promptTokens": 2851,
+      "completionTokens": 152,
+      "latencyMs": 15428,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:137"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The change introduces a new module `ragScore.js` to handle the scoring of siblings on the same scale as the vector search. The diff includes updates to `rag.js` to use functions from `ragScore.js`. No real defects are identified in the provided diff. · No real defects found. The diff introduces a new test file for sibling scoring logic, but it does not include the implementation details of the functions being tested.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 13490,
+    "completionTokens": 539
+  },
+  "latencyMs": 64771
+}

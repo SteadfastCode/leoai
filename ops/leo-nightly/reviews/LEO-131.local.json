@@ -1,0 +1,70 @@
+{
+  "item": "LEO-131",
+  "repo": "leoai",
+  "mergeSha": "e23c54459bf08fc263978c016baf6386c41ae840",
+  "completedAtUtc": "2026-11-19T14:09:05.525Z",
+  "completeRunId": "2026-11-19T13:59:43.427Z",
+  "reviewRunId": "2026-11-22T08:01:58.233Z",
+  "reviewedAtUtc": "2026-11-22T08:41:48.733Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 9939,
+  "contextFiles": 3,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "dashboard/src/views/Logs.vue",
+        "dashboard/test/Logs.spec.js",
+        "dashboard/test/setup.js"
+      ],
+      "part": null,
+      "bytes": 9939,
+      "contextBytes": 4457,
+      "promptTokens": 4934,
+      "completionTokens": 118,
+      "latencyMs": 20390,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. The changes add a copy button to each log row, which copies the formatted timestamp, level, and message. The tests cover various scenarios including copying single-line and multi-line messages, handling clipboard failures, and ensuring auto-scroll behavior is preserved.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 9737,
+    "completionTokens": 244
+  },
+  "latencyMs": 41046
+}

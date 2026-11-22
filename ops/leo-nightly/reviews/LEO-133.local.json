@@ -1,0 +1,130 @@
+{
+  "item": "LEO-133",
+  "repo": "leoai",
+  "mergeSha": "4c7f54e0ff99cdee12ab2ce99b8a8343a44415f9",
+  "completedAtUtc": "2026-11-21T04:44:47.214Z",
+  "completeRunId": "2026-11-21T04:32:13.845Z",
+  "reviewRunId": "2026-11-22T08:01:58.233Z",
+  "reviewedAtUtc": "2026-11-22T08:46:48.997Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 39399,
+  "contextFiles": 12,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/Entity.js",
+        "backend/src/routes/dashboard.js",
+        "backend/src/services/claude.js",
+        "backend/src/services/entitySettings.js"
+      ],
+      "part": null,
+      "bytes": 10183,
+      "contextBytes": 0,
+      "promptTokens": 3461,
+      "completionTokens": 119,
+      "latencyMs": 15466,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/serviceTimes.js",
+        "backend/test/entity-settings.test.js",
+        "backend/test/entity-updates.test.js"
+      ],
+      "part": null,
+      "bytes": 7847,
+      "contextBytes": 5809,
+      "promptTokens": 4389,
+      "completionTokens": 93,
+      "latencyMs": 15392,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/service-times.test.js",
+        "dashboard/src/lib/churchConfig.js"
+      ],
+      "part": null,
+      "bytes": 12966,
+      "contextBytes": 0,
+      "promptTokens": 4046,
+      "completionTokens": 147,
+      "latencyMs": 19091,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "dashboard/src/views/Settings.vue",
+        "dashboard/test/churchConfig.spec.js"
+      ],
+      "part": null,
+      "bytes": 8403,
+      "contextBytes": 5151,
+      "promptTokens": 4323,
+      "completionTokens": 125,
+      "latencyMs": 18885,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff adds a new field `serviceTimes` to the Entity model and includes it in the system prompt. However, the implementation details of `serviceTimesSection` and `serviceTimesContextNote` are not provided in the diff. · No real defects found in the provided diff. However, additional information is needed to ensure that all changes are correctly implemented and tested. · No real defects found. The change adds tests and functionality for church service times, but requires additional code to be reviewed. · The diff adds a new field 'serviceTimes' to the church configuration form and updates related logic. The changes are primarily in the dashboard's Settings.vue file, with tests added in dashboard/test/churchConfig.spec.js. No backend changes are included.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 31914,
+    "completionTokens": 988
+  },
+  "latencyMs": 139157
+}
