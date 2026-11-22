@@ -17,6 +17,7 @@ const { REASONS } = require('./fetchFailure');
 const { summariseRobots } = require('./robots');
 const { sweepChunks, mergeSweep, logSweep } = require('./scanSweep');
 const { planRetirement, applyRetirement } = require('./pageRetire');
+const { chromeUpdate } = require('./boilerplate'); // LEO-141
 
 const MAX_SNAPSHOTS_PER_DOMAIN = 10;
 
@@ -469,6 +470,31 @@ async function persistRescrapeResult({ domain, result, io = null }) {
     } else if (sweptUrls.length > 0) {
       debug('normal', `${domain}: cleared the scan verdict on ${sweptCleared.length} page row(s) outside pageHashUpdates — source: this run's group chunks, which tripped nothing`);
     }
+  }
+
+  // LEO-141 — the site's repeated blocks, kept as ONE 'Site-wide info' chunk at a
+  // synthetic url (origin + '/#site-wide') no page crawl ever owns, so the
+  // insert-before-delete below can never collide with the home page's chunks.
+  // Replaced only when its text actually changed: a rescrape rebuilds it every
+  // run, and rewriting an identical chunk would churn the corpus for nothing.
+  if (result.siteWideChunk) {
+    const sw = result.siteWideChunk;
+    const existing = await Chunk.findOne({ domain, url: sw.url }, 'content').lean();
+    if (!existing || existing.content !== sw.content) {
+      await replaceChunksForUrl(domain, sw.url, [sw]);
+      debug('light', `${domain}: 'Site-wide info' chunk ${existing ? 'updated' : 'created'} — source: ${sw.content.length} chars of blocks repeated across the crawl`);
+    } else {
+      debug('normal', `${domain}: 'Site-wide info' chunk unchanged — source: identical content already stored at ${sw.url}`);
+    }
+  }
+
+  // LEO-141 — the fingerprints the NEXT crawl strips, and the Pass-1 selector
+  // cache. Written on every rescrape, including one where nothing changed: the
+  // tally is over every page the crawl read, not only the changed ones.
+  const chromeSet = chromeUpdate(result);
+  if (Object.keys(chromeSet).length > 0) {
+    await Entity.updateOne({ domain }, { $set: chromeSet });
+    debug('light', `${domain}: site-chrome cache written — source: ${(result.siteChrome?.fingerprints || []).length} fingerprint(s) over ${result.siteChrome?.pageCount || 0} page(s) this crawl`);
   }
 
   // Outside the block above on purpose: a rescrape where nothing changed takes no

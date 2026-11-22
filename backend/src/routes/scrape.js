@@ -6,6 +6,7 @@ const ScrapedPage = require('../models/ScrapedPage');
 const ScrapeSnapshot = require('../models/ScrapeSnapshot');
 const ArchivedChunk = require('../models/ArchivedChunk');
 const { scrapeSite, rescrapeSite } = require('../services/scraper');
+const { chromeUpdate } = require('../services/boilerplate'); // LEO-141
 const { createSnapshot, persistRescrapeResult, tallyChunkCounts, recordFailedUrls, recordRobotsDisallowed, recordLastScrape } = require('../services/scrapePersist');
 const { sweepChunks, mergeSweep, logSweep } = require('../services/scanSweep');
 const scrapeRegistry = require('../services/scrapeRegistry');
@@ -121,7 +122,8 @@ router.post('/', requireAuth(), async (req, res) => {
   const io = req.app.get('io');
   const broadcastedIo = makeBroadcastIo(io, domain);
   const entity = await Entity.findOne({ domain }).lean();
-  const opts = { io: broadcastedIo, domain, crawlSettings: entity?.crawlSettings || {} };
+  // LEO-141 — the previous crawl's site-wide fingerprints and cached Pass-1 selectors
+  const opts = { io: broadcastedIo, domain, crawlSettings: entity?.crawlSettings || {}, siteChrome: entity?.siteChrome || null };
 
   try {
     let result;
@@ -190,7 +192,7 @@ router.post('/', requireAuth(), async (req, res) => {
       // list is only complete by the time the final bulkWrite runs.
       const scanRulesByUrl = {};
 
-      const { pageData, durationMs, skippedUrls, failedUrls, robotsDisallowed, puppeteer: pass2 } = await scrapeSite(url, {
+      const { pageData, durationMs, skippedUrls, failedUrls, robotsDisallowed, puppeteer: pass2, siteChrome, pass1Filters } = await scrapeSite(url, {
         ...opts,
         // onChunks receives (chunks, pageRecords) — pageRecords present for non-thin pages only
         onChunks: async (batchChunks, pageRecords = []) => {
@@ -232,7 +234,9 @@ router.post('/', requireAuth(), async (req, res) => {
 
       await Entity.findOneAndUpdate(
         { domain },
-        { name, timezone: timezone || 'America/New_York', lastScrapedAt: new Date() },
+        // LEO-141 — chromeUpdate() uses dotted keys, so writing the fingerprints
+        // never wipes the Pass-1 selector cache and vice versa.
+        { name, timezone: timezone || 'America/New_York', lastScrapedAt: new Date(), ...chromeUpdate({ siteChrome, pass1Filters }) },
         { upsert: true, new: true }
       );
 

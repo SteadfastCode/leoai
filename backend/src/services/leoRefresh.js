@@ -217,7 +217,8 @@ async function runRefreshForEntity(entity, io) {
   try {
     const storedPages = await ScrapedPage.find({ domain });
     const broadcastedIo = makeBroadcastIo(io, domain);
-    const opts = { io: broadcastedIo, domain, crawlSettings: entity.crawlSettings || {} };
+    // LEO-141 — previous crawl's site-wide fingerprints + cached Pass-1 selectors
+    const opts = { io: broadcastedIo, domain, crawlSettings: entity.crawlSettings || {}, siteChrome: entity.siteChrome || null };
     const result = await rescrapeSite(url, storedPages, opts);
 
     // Single shared persistence path with routes/scrape.js (LEO-027). Before the
