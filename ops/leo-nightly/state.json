@@ -96,10 +96,10 @@
     "LEO-141": {
       "order": 6,
       "title": "Scraper: re-measure, then strip site-wide boilerplate after the crawl (needs LEO-132, LEO-136, LEO-137, LEO-138)",
-      "status": "pending",
-      "attempts": 0,
+      "status": "claimed",
+      "attempts": 1,
       "cluster": null,
-      "branch": null,
+      "branch": "routine/item/LEO-141",
       "dependsOn": [
         "LEO-132",
         "LEO-136",
@@ -112,8 +112,8 @@
       "distribute": null,
       "coldReview": false,
       "notBefore": null,
-      "claimedAtUtc": null,
-      "runId": null,
+      "claimedAtUtc": "2026-11-22T00:45:35.689Z",
+      "runId": "2026-11-22T00:44:43.706Z",
       "lastFail": null
     },
     "LEO-142": {

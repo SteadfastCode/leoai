@@ -186,7 +186,7 @@ standing audit, which is last so it runs only when nothing else is claimable.
   per message in the PR.
   Check: rag-eval before/after; tests for the fallback path; backend yarn verify + yarn test.
 
-- [ ] **(LEO-141) Scraper: re-measure, then strip site-wide boilerplate after the crawl (needs LEO-132, LEO-136, LEO-137, LEO-138)**
+- [x] **(LEO-141) Scraper: re-measure, then strip site-wide boilerplate after the crawl (needs LEO-132, LEO-136, LEO-137, LEO-138)**
   From the 2026-11-14 scrape audit. Site chrome survives into most chunks: Squarespace pages go
   through Puppeteer, which keeps nav/footer; cross-page dedup only strips paragraphs of 200 chars or
   less; thin-page cards use raw page text with no dedup; results depend on crawl order. Measured:
