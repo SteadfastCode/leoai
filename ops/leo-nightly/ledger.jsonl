@@ -599,3 +599,4 @@
 {"event":"ack","items":["LEO-118"],"by":"routine","source":"auto","atUtc":"2026-11-21T22:56:07.286Z"}
 {"event":"ack","items":["LEO-119"],"by":"routine","source":"auto","atUtc":"2026-11-21T23:23:26.425Z"}
 {"event":"claim","runId":"2026-11-22T00:44:43.706Z","item":"LEO-141","model":"claude-opus-5","effort":"xhigh","attempt":1,"atUtc":"2026-11-22T00:45:35.689Z"}
+{"event":"complete","runId":"2026-11-22T00:44:43.706Z","item":"LEO-141","mergeSha":"7ce9ce21ffe3349f0b3472d46bfcee877fb94ceb","durationMin":15,"costUsd":null,"model":"claude-opus-5","effort":"xhigh","atUtc":"2026-11-22T01:00:51.140Z"}
