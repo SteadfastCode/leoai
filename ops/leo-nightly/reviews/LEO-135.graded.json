@@ -1,0 +1,79 @@
+{
+  "item": "LEO-135",
+  "repo": "leoai",
+  "mergeSha": "fb6356244c4544812b31cfc32116b926efc53cd3",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-23T05:00:54.817Z",
+  "gradedAtUtc": "2026-11-23T05:26:13.914Z",
+  "independent": [
+    {
+      "file": "backend/src/services/ragScore.js",
+      "line": 62,
+      "severity": "low",
+      "summary": "The 0.15 offset is now applied on the normalised scale, which halves it in cosine terms: the effective sibling gate falls from raw dot 0.60 to raw dot 0.20 at the default 0.75 threshold. The audit's answer-bearing chunk was raw 0.418, so essentially every chunk on a hit page can now pass and fill the 6000-char context. The module header argues at length that the old bar was too strict but never checks the new one is not too loose, and the item's 'rerun the rag-eval harness before and after' step is unverifiable here (no numbers in the commit message, and ragEval.js only scores Phase 1 topScore, so the harness cannot detect a Phase 2 change either way)."
+    },
+    {
+      "file": "backend/src/services/ragScore.js",
+      "line": 125,
+      "severity": "low",
+      "summary": "A candidate with a missing or wrong-length embedding is skipped silently: the explanatory line is emitted at the 'normal' tier, but the default RAG_SCORE_LOG_LEVEL is 'light', so a chunk whose embedding failed to persist drops out of Phase 2 with no signal at all (previously it crashed loudly). A console.warn would keep the fix without losing the visibility."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth, session, role or permission code is touched — the diff is pure scoring plus a new .env.example line."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The only .env.example addition is RAG_SCORE_LOG_LEVEL, a log-level knob; no credential, key or token is added, read, or logged, so the secrets surface is not touched."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "ragScore.js is pure and rag.js only reads (aggregate/find); no writes or deletes."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "The diff adds no external call and does not alter the existing embedQuery/Atlas calls, only the in-memory comparison applied to their results."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy or dependency config changed; the new env var is documentation-only with a safe 'light' default."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local model found nothing on a small, essentially correct change — defensible as a zero-finding review — but its only triage judgement with evidence (secrets, pointing at a log-level env var) was wrong, and it missed the two low-severity observations about the loosened effective gate and the silent embedding skip.}",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.6141290000000001,
+  "numTurns": 22,
+  "durationMs": 186745,
+  "sessionId": "b089e210-6166-42d8-859b-8e1084fa61de"
+}

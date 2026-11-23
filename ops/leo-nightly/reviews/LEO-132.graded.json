@@ -1,0 +1,72 @@
+{
+  "item": "LEO-132",
+  "repo": "leoai",
+  "mergeSha": "5ffb9e502e289083c3ebc01cdb7ace7a7178417b",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-23T05:00:54.817Z",
+  "gradedAtUtc": "2026-11-23T05:32:27.197Z",
+  "independent": [
+    {
+      "file": "backend/test/consent-strip.test.js",
+      "line": 169,
+      "severity": "low",
+      "summary": "Test named '…survives a bad selector' never exercises an invalid selector — it only checks removal count, idempotency and a banner-free page, so the `try { $(sel) } catch { continue }` guard in stripConsentNodes is asserted by its title but untested (the separate selector-validity test proves the opposite case: that all shipped selectors parse)."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth, session, role or permission code is touched — the diff is scraper text extraction plus a new service and tests."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": "The only .env.example addition is CONSENT_STRIP_LOG_LEVEL, a log-verbosity knob with a safe default; no credential, key or token is added, read or handled."
+    },
+    {
+      "key": "money",
+      "correct": false,
+      "reason": "No billing, Stripe, quota or pricing code is touched; the cited line is fixture HTML of a church home page, and the '$18.00' in the other fixture is sample page content, not money logic."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff adds no delete/drop/overwrite operation — it only removes DOM nodes in memory before extraction; chunk insert/delete logic is untouched."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API call is added or changed; the Haiku Pass-1 call site is unchanged and the in-browser removal is local Puppeteer evaluation."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bump, migration, build or deploy config changes; the new env var is optional and defaults to 'light'."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "The change is substantively clean, so reporting no defects was defensible, but the review added no value and its triage wrongly marked secrets and money as touched on the basis of an unrelated log-level env var and fixture HTML.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 4
+  },
+  "costUsd": 1.6079415,
+  "numTurns": 14,
+  "durationMs": 229648,
+  "sessionId": "63c68e34-0b09-49a2-bf24-33348548a1f9"
+}

@@ -1,0 +1,72 @@
+{
+  "item": "LEO-133",
+  "repo": "leoai",
+  "mergeSha": "4c7f54e0ff99cdee12ab2ce99b8a8343a44415f9",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-23T05:00:54.817Z",
+  "gradedAtUtc": "2026-11-23T05:28:37.515Z",
+  "independent": [
+    {
+      "file": "backend/src/routes/dashboard.js",
+      "line": 445,
+      "severity": "low",
+      "summary": "The church-config extract still uses ONE embedding query for all six fields, and the diff appends 'service times worship schedule Sunday' to it. retrieveContext hard-filters at 0.75, so diluting the shared query vector can push mission/statement-of-faith chunks below the threshold and shrink the context the extract sees — a possible regression in the five pre-existing proposals. A second, schedule-specific retrieval merged into the context would avoid the tradeoff."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth/permission logic changes — serviceTimes is added inside the already superadmin-gated churchConfig rule and the extract route's isSuperAdmin check is untouched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credential or secret handling; the only key reference is a dummy ANTHROPIC_API_KEY placeholder in a unit test."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in billing, Stripe, quota or pricing paths is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The Entity schema addition is optional and additive, and no deletes, migrations or overwrites of existing data occur."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "The change does alter external API calls — it rewrites the Anthropic Haiku extract prompt, changes the Voyage embedding query in retrieveContext, and adds text to the system prompt and context message sent to the Claude messages API."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No migration or deploy gating; the new SERVICE_TIMES_LOG_LEVEL env var is documented with a working default, so a release needs no action."
+    }
+  ],
+  "missed": [
+    1
+  ],
+  "summary": "A no-findings verdict is largely defensible here — the change is small, gated, and unusually well covered by both backend and dashboard unit tests — but the local model produced no evidence of having examined anything and mis-triaged externalApi despite the diff plainly rewriting Anthropic prompt payloads and the embedding query.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 1,
+    "independent": 1,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.6464,
+  "numTurns": 22,
+  "durationMs": 143561,
+  "sessionId": "de9ecd20-238f-40cc-a53d-10f5728f4133"
+}
