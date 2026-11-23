@@ -1,0 +1,162 @@
+{
+  "item": "LEO-138",
+  "repo": "leoai",
+  "mergeSha": "d75c119f7143a604097a7dc9ec176958351235db",
+  "completedAtUtc": "2026-11-21T14:51:41.289Z",
+  "completeRunId": "2026-11-21T14:16:43.391Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:10:59.464Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 61908,
+  "contextFiles": 10,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/ScrapedPage.js",
+        "backend/src/services/crawlLimits.js"
+      ],
+      "part": null,
+      "bytes": 3561,
+      "contextBytes": 8456,
+      "promptTokens": 4059,
+      "completionTokens": 74,
+      "latencyMs": 15547,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/pageRetire.js"
+      ],
+      "part": null,
+      "bytes": 12495,
+      "contextBytes": 0,
+      "promptTokens": 4329,
+      "completionTokens": 92,
+      "latencyMs": 17265,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scrapeOrder.js",
+        "backend/src/services/scrapePersist.js"
+      ],
+      "part": null,
+      "bytes": 12821,
+      "contextBytes": 0,
+      "promptTokens": 4194,
+      "completionTokens": 123,
+      "latencyMs": 18384,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js",
+        "backend/test/page-retire.test.js"
+      ],
+      "part": null,
+      "bytes": 13354,
+      "contextBytes": 0,
+      "promptTokens": 4573,
+      "completionTokens": 201,
+      "latencyMs": 23616,
+      "findings": 0,
+      "needs": 6,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/scrape-order.test.js"
+      ],
+      "part": null,
+      "bytes": 11126,
+      "contextBytes": 0,
+      "promptTokens": 3983,
+      "completionTokens": 129,
+      "latencyMs": 18106,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/scrape-persist.test.js"
+      ],
+      "part": null,
+      "bytes": 8551,
+      "contextBytes": 0,
+      "promptTokens": 3163,
+      "completionTokens": 246,
+      "latencyMs": 20860,
+      "findings": 0,
+      "needs": 7,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/models/ScrapedPage.js:14"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, the symbol MAX_MISSES is used in the diff but not defined in what is shown. · No real defects found. However, the code relies on a function `urlKey` from `scraper.js`, which is not included in the diff. Please review that function to ensure it matches the implementation used in `pageRetire.js`. · The diff introduces new functionality for retiring dead pages and clearing empty pages, but it relies on two helper functions (`planRetirement` and `applyRetirement`) that are not defined in the provided diff. These functions need to be reviewed to ensure they correctly implement the intended logic. · No real defects found in the provided diff. However, additional context is needed to fully understand and verify the implementation of the retirement logic. · The diff introduces a new test file for deterministic crawl order, but does not include the changes to `scrapePersist.replaceChunksForUrl` and `scrapeSite` as described in the change description. These changes are necessary to address the consistency gaps identified. · No real defects found. The diff includes tests for handling dead pages, empty chunks, and various scenarios related to page retirement and chunk management. However, some symbols used in the tests are not defined within the provided diff, so additional context is needed.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 47816,
+    "completionTokens": 1683
+  },
+  "latencyMs": 222861
+}

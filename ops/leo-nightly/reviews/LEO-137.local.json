@@ -1,0 +1,144 @@
+{
+  "item": "LEO-137",
+  "repo": "leoai",
+  "mergeSha": "9db2e426c1ff23ddc9a4c5419ac3177e45e7a77c",
+  "completedAtUtc": "2026-11-21T14:31:28.532Z",
+  "completeRunId": "2026-11-21T14:16:43.391Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:07:16.436Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 53994,
+  "contextFiles": 9,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/scripts/collapse-url-variants.js"
+      ],
+      "part": null,
+      "bytes": 13279,
+      "contextBytes": 0,
+      "promptTokens": 4439,
+      "completionTokens": 74,
+      "latencyMs": 16500,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/canonicalUrl.js",
+        "backend/src/services/crawlFilter.js",
+        "backend/src/services/scrapePersist.js"
+      ],
+      "part": null,
+      "bytes": 12878,
+      "contextBytes": 0,
+      "promptTokens": 4266,
+      "completionTokens": 74,
+      "latencyMs": 15999,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 4262,
+      "contextBytes": 9279,
+      "promptTokens": 4218,
+      "completionTokens": 152,
+      "latencyMs": 19724,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/canonical-url.test.js"
+      ],
+      "part": null,
+      "bytes": 10332,
+      "contextBytes": 0,
+      "promptTokens": 3851,
+      "completionTokens": 201,
+      "latencyMs": 21081,
+      "findings": 0,
+      "needs": 6,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/collapse-url-variants.test.js",
+        "backend/test/scrape-persist.test.js"
+      ],
+      "part": null,
+      "bytes": 13243,
+      "contextBytes": 0,
+      "promptTokens": 4693,
+      "completionTokens": 132,
+      "latencyMs": 20407,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": true,
+      "evidence": "backend/.env.example:156"
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/scripts/collapse-url-variants.js:203"
+    },
+    "externalApi": {
+      "touched": true,
+      "evidence": "backend/src/services/canonicalUrl.js:104"
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, the implementation of `resolveCanonicalOrigin` is needed to fully understand and verify the behavior of the script. · No real defects found. However, the code relies on `replaceChunksForUrl` which is not defined in the provided diff. · The diff introduces a new helper function `canonicalUrl` and updates several functions to use it. The changes aim to ensure that URLs are normalized consistently across the scraper's operations. However, without seeing the implementation of `canonicalUrl`, `resolveCanonicalOrigin`, and `inSite`, it is not possible to determine if these changes will work as intended. · No real defects found. The diff introduces unit tests for the canonical URL functionality, but the actual implementation details are not provided in this diff. · The diff introduces a new test file for collapsing URL variants and updates an existing test file to handle cases where a group URL is equal to a page URL. The changes aim to ensure that all URL variants are collapsed into a canonical form, preserving the most recent data and owner-added chunks. However, the implementation of the `canonicalUrl` function is not included in the diff, which is necessary for understanding how URLs are normalized.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 42279,
+    "completionTokens": 1337
+  },
+  "latencyMs": 189319
+}

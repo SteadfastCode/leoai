@@ -1,0 +1,124 @@
+{
+  "item": "LEO-147",
+  "repo": "leoai",
+  "mergeSha": "52e61f8e828ce31e5394cfa5022781e92a84b854",
+  "completedAtUtc": "2026-11-21T15:17:54.678Z",
+  "completeRunId": "2026-11-21T14:16:43.391Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:13:34.018Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 31770,
+  "contextFiles": 6,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/chunkShape.js"
+      ],
+      "part": null,
+      "bytes": 10254,
+      "contextBytes": 3593,
+      "promptTokens": 4775,
+      "completionTokens": 76,
+      "latencyMs": 17844,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 4015,
+      "contextBytes": 9621,
+      "promptTokens": 4515,
+      "completionTokens": 103,
+      "latencyMs": 18459,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/chunk-shape.test.js"
+      ],
+      "part": null,
+      "bytes": 13119,
+      "contextBytes": 0,
+      "promptTokens": 4735,
+      "completionTokens": 76,
+      "latencyMs": 17806,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/chunk-trailing-merge.test.js",
+        "backend/test/fixtures/rag-eval/questions.json"
+      ],
+      "part": null,
+      "bytes": 4382,
+      "contextBytes": 9467,
+      "promptTokens": 4801,
+      "completionTokens": 129,
+      "latencyMs": 20795,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. The change introduces new functionality for handling page chunking and logging, but does not introduce any apparent bugs or security issues. · No real defects found in the provided diff. The changes seem to align with the description and context. · No real defects found. The diff introduces new tests for chunking rules and helper functions, but does not include the implementation of these changes in the provided diff. · No real defects found. The changes appear to be related to chunking text and handling headers, with tests updated accordingly.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 37128,
+    "completionTokens": 888
+  },
+  "latencyMs": 154435
+}

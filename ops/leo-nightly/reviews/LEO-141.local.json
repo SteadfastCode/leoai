@@ -1,0 +1,152 @@
+{
+  "item": "LEO-141",
+  "repo": "leoai",
+  "mergeSha": "7ce9ce21ffe3349f0b3472d46bfcee877fb94ceb",
+  "completedAtUtc": "2026-11-22T01:00:51.140Z",
+  "completeRunId": "2026-11-22T00:44:43.706Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:17:08.277Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 45219,
+  "contextFiles": 8,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/models/Entity.js",
+        "backend/src/routes/scrape.js"
+      ],
+      "part": null,
+      "bytes": 5165,
+      "contextBytes": 8466,
+      "promptTokens": 4435,
+      "completionTokens": 70,
+      "latencyMs": 16113,
+      "findings": 0,
+      "needs": 1,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/boilerplate.js"
+      ],
+      "part": {
+        "index": 1,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 13967,
+      "contextBytes": 0,
+      "promptTokens": 4821,
+      "completionTokens": 91,
+      "latencyMs": 18960,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/boilerplate.js"
+      ],
+      "part": {
+        "index": 2,
+        "total": 2,
+        "oversized": false
+      },
+      "bytes": 1231,
+      "contextBytes": 3610,
+      "promptTokens": 2165,
+      "completionTokens": 241,
+      "latencyMs": 17429,
+      "findings": 0,
+      "needs": 6,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/leoRefresh.js",
+        "backend/src/services/scrapePersist.js",
+        "backend/src/services/scraper.js"
+      ],
+      "part": null,
+      "bytes": 11592,
+      "contextBytes": 0,
+      "promptTokens": 3954,
+      "completionTokens": 203,
+      "latencyMs": 19357,
+      "findings": 0,
+      "needs": 4,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/test/boilerplate.test.js"
+      ],
+      "part": null,
+      "bytes": 13469,
+      "contextBytes": 0,
+      "promptTokens": 4586,
+      "completionTokens": 335,
+      "latencyMs": 30565,
+      "findings": 0,
+      "needs": 10,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": true,
+      "evidence": "backend/src/routes/scrape.js:230"
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found. However, the implementation of `chromeUpdate` is needed to fully understand and verify the changes. · No real defects found in the provided diff. However, additional context is needed to fully understand and verify the functionality of the code. · The diff introduces a new function `chromeUpdate` and exports it along with other functions. The context shows that `chromeUpdate` is already defined in the same file, so there are no real defects. However, to ensure completeness, additional symbols used in the module need to be reviewed. · The diff introduces changes to handle site-wide boilerplate detection and stripping during the scraping process. It includes updates to `leoRefresh.js`, `scrapePersist.js`, and `scraper.js` to incorporate new functionality related to site chrome tracking, fingerprinting, and caching. The changes aim to improve the accuracy of boilerplate removal and ensure that repeated blocks are handled correctly. · No real defects found. The diff introduces a new test file for boilerplate detection and stripping, which includes various tests to ensure the functionality works as expected. However, some symbols used in the tests are not defined within the provided diff, so further verification is needed.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 39267,
+    "completionTokens": 1606
+  },
+  "latencyMs": 189899
+}

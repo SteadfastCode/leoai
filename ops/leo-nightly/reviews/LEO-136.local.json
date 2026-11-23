@@ -1,0 +1,88 @@
+{
+  "item": "LEO-136",
+  "repo": "leoai",
+  "mergeSha": "e20f90ba2fb9fad8d2dd021b8714d6f9ccaa5ca8",
+  "completedAtUtc": "2026-11-21T05:31:59.017Z",
+  "completeRunId": "2026-11-21T04:32:13.845Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:04:06.978Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 26415,
+  "contextFiles": 4,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/.env.example",
+        "backend/src/services/crawlFilter.js"
+      ],
+      "part": null,
+      "bytes": 13040,
+      "contextBytes": 965,
+      "promptTokens": 4802,
+      "completionTokens": 148,
+      "latencyMs": 20176,
+      "findings": 0,
+      "needs": 3,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    },
+    {
+      "files": [
+        "backend/src/services/scraper.js",
+        "backend/test/crawl-filter.test.js"
+      ],
+      "part": null,
+      "bytes": 13375,
+      "contextBytes": 0,
+      "promptTokens": 4737,
+      "completionTokens": 108,
+      "latencyMs": 18965,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": true,
+      "evidence": "backend/src/services/crawlFilter.js:104"
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "No real defects found in the provided diff. However, additional context is needed to ensure that the helper functions `classifyCrawlUrl`, `crawlableUrl`, and `dropNearEmptyChunks` are correctly integrated and functioning as intended. · No real defects found in the provided diff. However, additional information is needed to fully verify the implementation of `classifyCrawlUrl` and `MIN_CHUNK_BODY`.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 18816,
+    "completionTokens": 533
+  },
+  "latencyMs": 79261
+}

@@ -1,0 +1,69 @@
+{
+  "item": "LEO-148",
+  "repo": "leoai",
+  "mergeSha": "ef698275217cf2bce7bbbf710103f19dab2dcf25",
+  "completedAtUtc": "2026-11-21T15:53:06.318Z",
+  "completeRunId": "2026-11-21T14:16:43.391Z",
+  "reviewRunId": "2026-11-23T08:01:10.861Z",
+  "reviewedAtUtc": "2026-11-23T08:13:58.225Z",
+  "model": "qwen2.5-coder:14b",
+  "promptVersion": "v6",
+  "diffBytes": 4687,
+  "contextFiles": 2,
+  "excluded": [],
+  "chunks": [
+    {
+      "files": [
+        "backend/src/models/Code.js",
+        "backend/test/model-indexes.test.js"
+      ],
+      "part": null,
+      "bytes": 4687,
+      "contextBytes": 838,
+      "promptTokens": 2176,
+      "completionTokens": 141,
+      "latencyMs": 12835,
+      "findings": 0,
+      "needs": 2,
+      "critiqued": 0,
+      "dropped": 0,
+      "triaged": true,
+      "retry": false,
+      "error": null
+    }
+  ],
+  "findings": [],
+  "triage": {
+    "auth": {
+      "touched": false,
+      "evidence": null
+    },
+    "secrets": {
+      "touched": false,
+      "evidence": null
+    },
+    "money": {
+      "touched": false,
+      "evidence": null
+    },
+    "destructive": {
+      "touched": false,
+      "evidence": null
+    },
+    "externalApi": {
+      "touched": false,
+      "evidence": null
+    },
+    "release": {
+      "touched": false,
+      "evidence": null
+    }
+  },
+  "summary": "The diff removes a duplicate index on the 'code' field in the Code model, which resolves the Mongoose warning at every boot. A new test file is added to ensure no model declares the same index twice and that the Code model maintains its unique index on 'code' and the { type: 1, active: 1 } index.",
+  "errors": [],
+  "usage": {
+    "promptTokens": 4221,
+    "completionTokens": 267
+  },
+  "latencyMs": 24150
+}
