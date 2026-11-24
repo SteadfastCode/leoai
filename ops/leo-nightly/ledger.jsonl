@@ -617,3 +617,4 @@
 {"event":"local-review","item":"LEO-148","model":"qwen2.5-coder:14b","findings":0,"contextFiles":2,"promptVersion":"v6","mergeSha":"ef698275217cf2bce7bbbf710103f19dab2dcf25","runId":"2026-11-23T08:01:10.861Z","promptTokens":4221,"completionTokens":267,"latencyMs":24150,"chunkErrors":0,"triageTouched":[],"atUtc":"2026-11-23T08:17:08.491Z"}
 {"event":"local-review","item":"LEO-141","model":"qwen2.5-coder:14b","findings":0,"contextFiles":8,"promptVersion":"v6","mergeSha":"7ce9ce21ffe3349f0b3472d46bfcee877fb94ceb","runId":"2026-11-23T08:01:10.861Z","promptTokens":39267,"completionTokens":1606,"latencyMs":189899,"chunkErrors":0,"triageTouched":["destructive"],"atUtc":"2026-11-23T08:17:08.491Z"}
 {"event":"ack","items":["LEO-133"],"by":"routine","source":"auto","atUtc":"2026-11-24T03:45:07.344Z"}
+{"event":"ack","items":["LEO-135"],"by":"routine","source":"auto","atUtc":"2026-11-24T04:12:10.888Z"}
