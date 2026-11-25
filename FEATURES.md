@@ -217,6 +217,50 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-167) The site-wide strip runs inside keepPara, so it removes footer hours blocks before buildHoursChun…**
+  Found by the grader of LEO-141 (high, backend/src/services/scraper.js:703). The site-wide strip
+  runs inside keepPara, so it removes footer hours blocks before buildHoursChunk (LEO-018) ever
+  sees them: chunkText builds allParas with keepPara(p, cs) and passes that list to
+  buildHoursChunk, so a 'Monday - Saturday / 7 am - 2 pm' footer repeated on >=40% of pages is
+  gone from every page's paragraph list and no dedicated '[H2] Hours' chunk is produced on any
+  crawl after the first (including force scrapes, which also pass the cached fingerprints). The
+  text survives only inside the mixed 1700-char 'Site-wide info' chunk — exactly the low-scoring
+  mixed-chunk situation LEO-018 measured at 0.68 vs 0.79 — so the repo's top known issue ('RAG
+  misses what are your hours?') is re-opened, and no test covers the interaction (the fixture
+  FOOTER is a single >80-char line, which buildHoursChunk skips).
+- [ ] **(LEO-168) In rescrapeSite thin-page detection uses estimateContentLen(text), which calls keepPara WITHOUT c…**
+  Found by the grader of LEO-141 (high, backend/src/services/scraper.js:1092). In rescrapeSite
+  thin-page detection uses estimateContentLen(text), which calls keepPara WITHOUT cs and therefore
+  does not strip site-wide chrome, while embedPageData filters with keepPara(p, cs). A page whose
+  own content is under 300 chars once chrome is stripped (a staff card with name/title/email — the
+  0a0ab27 case the item forbids regressing) is classified non-thin, goes into changedPages, is
+  pushed onto embedPageData's thinPageData (which rescrapeSite discards — only normalChunks is
+  destructured), and is excluded from allThinPages (same cs-blind measure), so it lands in no
+  group chunk. persistRescrapeResult then sees chunks.length === 0 for a URL in pageHashUpdates
+  and calls clearChunksForUrl, deleting its stored chunks while writing the new contentHash — so
+  the page is silently removed from the corpus and, being 'unchanged' from then on, is never
+  rebuilt. The full-scrape path is consistent (both measures are cs-aware) and does not have the
+  bug.
+- [ ] **(LEO-169) Stripping only happens when a page is re-chunked, but a smart rescrape re-embeds only changed, pr…**
+  Found by the grader of LEO-141 (medium, backend/src/services/boilerplate.js:36). Stripping only
+  happens when a page is re-chunked, but a smart rescrape re-embeds only changed, priority or
+  stale pages (staleDays defaults to 0 = disabled), so the boilerplate stays in the stored chunks
+  of every unchanged page forever. The measured case the item is about — the reCAPTCHA notice in
+  139 harvestlanefarmmarket.com chunks — is not cleaned by any number of LeoRefresh runs; only a
+  superadmin force scrape clears it (and that path then loses the hours chunk, see the first
+  finding). The header's claim that a crawl 'converges on the next refresh' and the item's 'strip
+  them from every chunk' are both unmet for existing corpora, and nothing backfills.
+- [ ] **(LEO-170) Every detected fingerprint is stripped from every page, but the preserved copy is capped: buildSi…**
+  Found by the grader of LEO-141 (medium, backend/src/services/boilerplate.js:164). Every detected
+  fingerprint is stripped from every page, but the preserved copy is capped: buildSiteWideContent
+  ranks by infoScore and keeps only MAX_BLOCKS=25 blocks under MAX_CHUNK_LEN=1700, so any block
+  beyond the cap is removed from all chunks and stored nowhere — contradicting the header's 'a
+  stripped block is never destroyed'. This bites hardest on exactly the text the old rule
+  protected: eligible() has no upper length bound, so repeated prose over BOILERPLATE_MAX (a
+  mission statement or long footer blurb that previously always passed dedup) is now stripped
+  site-wide and, having an infoScore of 0, is the first thing the length budget drops. The same
+  loop also admits a single oversized first block unconditionally (the `&& kept.length > 0`
+  guard), so the 'stays a chunk, not a page dump' cap is not actually enforced for one block.
 - [ ] **(LEO-160) The new comment claims "Cases A, B and C still exercise the absorption path", but C is false: C's…**
   Found by the grader of LEO-147 (medium, backend/test/chunk-trailing-merge.test.js:136). The new
   comment claims "Cases A, B and C still exercise the absorption path", but C is false: C's

@@ -1,0 +1,107 @@
+{
+  "item": "LEO-141",
+  "repo": "leoai",
+  "mergeSha": "7ce9ce21ffe3349f0b3472d46bfcee877fb94ceb",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T05:43:21.400Z",
+  "gradedAtUtc": "2026-11-25T05:53:05.759Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 703,
+      "severity": "high",
+      "summary": "The site-wide strip runs inside keepPara, so it removes footer hours blocks before buildHoursChunk (LEO-018) ever sees them: chunkText builds allParas with keepPara(p, cs) and passes that list to buildHoursChunk, so a 'Monday - Saturday / 7 am - 2 pm' footer repeated on >=40% of pages is gone from every page's paragraph list and no dedicated '[H2] Hours' chunk is produced on any crawl after the first (including force scrapes, which also pass the cached fingerprints). The text survives only inside the mixed 1700-char 'Site-wide info' chunk — exactly the low-scoring mixed-chunk situation LEO-018 measured at 0.68 vs 0.79 — so the repo's top known issue ('RAG misses what are your hours?') is re-opened, and no test covers the interaction (the fixture FOOTER is a single >80-char line, which buildHoursChunk skips)."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 1092,
+      "severity": "high",
+      "summary": "In rescrapeSite thin-page detection uses estimateContentLen(text), which calls keepPara WITHOUT cs and therefore does not strip site-wide chrome, while embedPageData filters with keepPara(p, cs). A page whose own content is under 300 chars once chrome is stripped (a staff card with name/title/email — the 0a0ab27 case the item forbids regressing) is classified non-thin, goes into changedPages, is pushed onto embedPageData's thinPageData (which rescrapeSite discards — only normalChunks is destructured), and is excluded from allThinPages (same cs-blind measure), so it lands in no group chunk. persistRescrapeResult then sees chunks.length === 0 for a URL in pageHashUpdates and calls clearChunksForUrl, deleting its stored chunks while writing the new contentHash — so the page is silently removed from the corpus and, being 'unchanged' from then on, is never rebuilt. The full-scrape path is consistent (both measures are cs-aware) and does not have the bug."
+    },
+    {
+      "file": "backend/src/services/boilerplate.js",
+      "line": 36,
+      "severity": "medium",
+      "summary": "Stripping only happens when a page is re-chunked, but a smart rescrape re-embeds only changed, priority or stale pages (staleDays defaults to 0 = disabled), so the boilerplate stays in the stored chunks of every unchanged page forever. The measured case the item is about — the reCAPTCHA notice in 139 harvestlanefarmmarket.com chunks — is not cleaned by any number of LeoRefresh runs; only a superadmin force scrape clears it (and that path then loses the hours chunk, see the first finding). The header's claim that a crawl 'converges on the next refresh' and the item's 'strip them from every chunk' are both unmet for existing corpora, and nothing backfills."
+    },
+    {
+      "file": "backend/src/services/boilerplate.js",
+      "line": 164,
+      "severity": "medium",
+      "summary": "Every detected fingerprint is stripped from every page, but the preserved copy is capped: buildSiteWideContent ranks by infoScore and keeps only MAX_BLOCKS=25 blocks under MAX_CHUNK_LEN=1700, so any block beyond the cap is removed from all chunks and stored nowhere — contradicting the header's 'a stripped block is never destroyed'. This bites hardest on exactly the text the old rule protected: eligible() has no upper length bound, so repeated prose over BOILERPLATE_MAX (a mission statement or long footer blurb that previously always passed dedup) is now stripped site-wide and, having an infoScore of 0, is the first thing the length budget drops. The same loop also admits a single oversized first block unconditionally (the `&& kept.length > 0` guard), so the 'stays a chunk, not a page dump' cap is not actually enforced for one block."
+    },
+    {
+      "file": "backend/src/services/boilerplate.js",
+      "line": 310,
+      "severity": "low",
+      "summary": "chromeUpdate overwrites siteChrome.fingerprints whenever report() returns an array, and report() returns [] whenever pageCount < MIN_SITE_PAGES or nothing clears the floor. A degraded crawl (most fetches failing, robots blocking, a partially reachable site) therefore wipes a good cached fingerprint set, so the next crawl strips nothing and re-admits chrome into every page it re-embeds; the blocks list and pageCount are clobbered with it. Nothing distinguishes 'measured no chrome' from 'did not measure enough pages to tell'."
+    },
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 480,
+      "severity": "low",
+      "summary": "The 'Site-wide info' write sits outside the snapshot: createSnapshot is called with [...changedUrls, ...thinGroupUrls, ...retiredUrls], which never contains the synthetic /#site-wide URL, so replaceChunksForUrl deletes the previous site-wide chunk without archiving it, and the block runs even on a no-change rescrape where snapshot is null. Every other destructive chunk write in this file is preceded by an archive that makes a restore possible; this one has no restore path."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No auth, role or middleware code is touched; the new route lines sit inside the existing requireAuth()-protected handler."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The only new config is BOILERPLATE_LOG_LEVEL, a log-verbosity string with a default — no credentials or key handling."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, quota, Stripe or pricing code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Correct that the change touches destructive paths — it adds replaceChunksForUrl for the new synthetic URL and changes which paragraphs survive into (and which stored chunks get cleared by) the persist loop — even though the cited line 230 is an unchanged ScrapedPage bulkWrite."
+    },
+    {
+      "key": "externalApi",
+      "correct": false,
+      "reason": "Wrong: cachedStructure gates the Pass-1 Haiku (Anthropic) call so it may be skipped entirely, and siteWideChunk adds a new Voyage embedTexts call per crawl."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No deploy, version, migration or build config changes; the new Entity subdocument is additive with defaults and the new env var is optional."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "summary": "The local review found nothing and missed everything, including two serious defects — the destruction of the dedicated hours chunk and a rescrape path that deletes a thin page's chunks without regrouping it — and its only non-trivial triage call (externalApi) is wrong.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 6,
+    "independent": 6,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 2.772428,
+  "numTurns": 25,
+  "durationMs": 341948,
+  "sessionId": "932d65d3-a465-4bcc-8c91-13bee6dcb507"
+}
