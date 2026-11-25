@@ -1,0 +1,79 @@
+{
+  "item": "LEO-136",
+  "repo": "leoai",
+  "mergeSha": "e20f90ba2fb9fad8d2dd021b8714d6f9ccaa5ca8",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T00:42:51.170Z",
+  "gradedAtUtc": "2026-11-25T01:20:05.451Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 848,
+      "severity": "high",
+      "summary": "dropNearEmptyChunks is applied to chunkText() output, which includes the synthetic LEO-018 hours chunk appended at scraper.js:703-704. A typical terse footer hours chunk — content '[Source: …]\\n[H2] Hours\\n\\nMonday - Saturday: 7 am - 2 pm' — has a chunkBody() of exactly 30 chars (the [Source] and [H2] Hours lines are discounted as the leading header block), under MIN_CHUNK_BODY=40, so it is dropped before embedding. That silently reverts the fix for the documented top Known Issue ('RAG misses what are your hours?') on exactly the dosiedough.com-shaped single-line hours table the module was written for; only sites with two or more paired hours lines keep the chunk. No test covers the hours chunk against the new filter."
+    },
+    {
+      "file": "backend/src/services/crawlFilter.js",
+      "line": 261,
+      "severity": "medium",
+      "summary": "The near-empty rule partially re-breaks LEO-083 for small thin-page groups. In a group chunk the leading header block is just '[Source: groupUrl]' and every other [Source:] line is discounted, so a group containing one card is measured as only its [H1] plus body: '[H1] Bob Lee' + 'bob@gbc.org' = 24 chars < 40, and the chunk is dropped — the staff member disappears from the KB. The test only exercises a two-card group (42+ chars), so the single-card/short-name boundary is untested even though multi-URL grouping exists precisely to stop thin staff pages from being lost. Compounded on rescrape: embedThinPageGroups still returns the groupUrl, so the previously stored group chunks for that URL are deleted and not replaced."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": false,
+      "reason": "crawlFilter.js:104 is the SKIP_SEGMENTS entry mapping /login and /register to a log rule name 'auth' — a string label, not authentication or authorization logic; the change touches no auth path."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens or key handling anywhere in the diff; the only env addition is a log-level string."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code is touched."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "The diff adds no delete/overwrite operation — it only declines to enqueue URLs and declines to create chunks; the existing insert-before-delete path is unchanged."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API client or integration is modified; the crawl's HTTP/embedding calls are only indirectly reduced in number."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "Only .env.example documentation is added and CRAWL_FILTER_LOG_LEVEL defaults to 'light', so no deploy, migration or version step is required."
+    }
+  ],
+  "missed": [
+    1,
+    2
+  ],
+  "summary": "The local review found nothing and missed both real defects — including a high-severity silent drop of the LEO-018 hours chunk — and its single piece of triage evidence misreads a log-rule label as auth code.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 2,
+    "independent": 2,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 1.2217630000000002,
+  "numTurns": 12,
+  "durationMs": 171328,
+  "sessionId": "f3933838-067c-4082-b0c3-b45964036dc4"
+}

@@ -1,0 +1,93 @@
+{
+  "item": "LEO-137",
+  "repo": "leoai",
+  "mergeSha": "9db2e426c1ff23ddc9a4c5419ac3177e45e7a77c",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T00:42:51.170Z",
+  "gradedAtUtc": "2026-11-25T01:17:14.089Z",
+  "independent": [
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 425,
+      "severity": "high",
+      "summary": "The new group/page URL collision guard only skips group URLs that appear in pageHashUpdates, i.e. pages that changed (or were embed-skipped) this run. A thin group URL now equals the canonical URL of a real page (the root group equals the home page; '/staff' group equals the '/staff' listing page), and when that page is UNCHANGED it is absent from pageHashUpdates, so the thin loop still calls replaceChunksForUrl(domain, groupUrl, groupChunks), which deletes every non-preserved chunk at that URL except the group chunk it just inserted. The page's own chunks are destroyed, and because its contentHash was never bumped the next rescrape reports it unchanged and never re-embeds it. '/' is not in HIGH_PRIORITY_PATTERNS, so an unchanged home page is the normal case. The added test only covers the changed-page variant."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 1035,
+      "severity": "high",
+      "summary": "rescrapeSite now canonicalises its start URL and every enqueued link, but storedHashMap (and variantUrlKeys/staleUrlKeys) is still keyed by urlKey() = hostname+pathname, which normalises neither www/bare nor the trailing slash. For every entity whose stored spelling differs from the new canonical origin, every stored hash lookup misses, so the whole site reads as changed and is re-embedded under the new URL while scrapePersist deletes only `url: <canonical>` — the old rows and chunks are left behind. The first automatic LeoRefresh after deploy therefore doubles the page rows and the chunk corpus (duplicate RAG context, inflated counts) and pays a full re-embed for every site; the only cleanup is the manual collapse-url-variants script, which nothing runs automatically."
+    },
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 425,
+      "severity": "medium",
+      "summary": "The same guard also fires when the colliding URL is in skippedUrls (its page's embedding failed): the page loop `continue`s before writing anything, then the thin loop skips the URL too, so the successfully embedded group chunk is silently discarded. The comment claims the next rescrape retries the whole URL, but only the colliding page's hash is held back — the group's member thin pages are separate pageHashUpdates entries that are not in skippedUrls, so their hashes are bumped and cleared this run. Next rescrape sees them unchanged, never rebuilds the group, and the thin pages' content is absent from the corpus until a forced rescrape."
+    },
+    {
+      "file": "backend/src/scripts/collapse-url-variants.js",
+      "line": 184,
+      "severity": "low",
+      "summary": "collapseChunks deletes duplicate chunks and rewrites chunk.url/sourceUrls but never recomputes ScrapedPage.chunkCount, and collapsePages keeps the survivor row's stored count. After the migration every collapsed page's chunkCount is inflated by the duplicates that were removed (Page Explorer / KB show counts that no longer match the chunks that exist). It also leaves duplicate entries in sourceUrls when two member spellings collapse to one canonical URL."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, authorization or middleware code is touched; the migration script is CLI-only."
+    },
+    {
+      "key": "secrets",
+      "correct": false,
+      "reason": ".env.example only gains two non-secret log-level knobs (CANONICAL_URL_LOG_LEVEL, COLLAPSE_LOG_LEVEL); no credential or secret handling is added or changed."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "Nothing in billing, Stripe, pricing or quota paths is modified."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Right: collapse-url-variants.js deletes ScrapedPage rows and Chunk documents, and the scrapePersist change alters which chunks get deleted."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "Right: resolveCanonicalOrigin adds a new outbound axios GET of each entity's home page to read its redirect."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version, changelog, CI or deploy config is touched; the new migration script is a manual operational step rather than release infrastructure, so 'not touched' is a fair read."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review found nothing at all, missing a high-severity data-loss hole in the very collision guard this change added plus the corpus-doubling interaction with urlKey-based hash lookup, and its only non-trivial triage call (secrets) was wrong.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 5
+  },
+  "costUsd": 2.610827,
+  "numTurns": 26,
+  "durationMs": 303826,
+  "sessionId": "cd14a819-a1cb-4f29-bb06-1b8b63d7c1c6"
+}

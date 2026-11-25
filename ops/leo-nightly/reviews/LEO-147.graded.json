@@ -1,0 +1,93 @@
+{
+  "item": "LEO-147",
+  "repo": "leoai",
+  "mergeSha": "52e61f8e828ce31e5394cfa5022781e92a84b854",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T00:42:51.170Z",
+  "gradedAtUtc": "2026-11-25T01:07:11.810Z",
+  "independent": [
+    {
+      "file": "backend/test/chunk-trailing-merge.test.js",
+      "line": 136,
+      "severity": "medium",
+      "summary": "The new comment claims \"Cases A, B and C still exercise the absorption path\", but C is false: C's fixture (SEC_A+H2_A ≈ 1190 + SEC_B section 206 ≈ 1400 chars) now fits under CHUNK_MAX, so mergeTargetFor returns Infinity and C produces a single chunk via the normal push — exactly what the rewritten D asserts for the same text. C therefore no longer reaches flushMergeBuf(true)'s absorption branch (it passes for a new reason, so its title no longer describes what it tests), and with E/F also reshaped, nothing in the suite now covers appendToLast carrying an absorbed section's anchor into extraAnchors — the LEO-102 regression guard the file exists for. A/B only cover the splitOversizedSection absorption, which passes no anchors."
+    },
+    {
+      "file": "backend/src/services/scraper.js",
+      "line": 494,
+      "severity": "low",
+      "summary": "The synthesised \"[H1] Subject\" paragraph is prepended to page text before thin-page detection, and that detection measures filtered paragraph length (embedPageData: filtered.join('\\n\\n').length < THIN_PAGE_THRESHOLD, 300) with headings exempt from keepPara's length floor. An H1-less thin page with ~260–299 chars of real content plus a 20–40 char title now measures over 300, so it is chunked and embedded individually instead of being grouped under its parent URL — the exact regression the multi-URL thin-page grouping was built to prevent. estimateContentLen (used at scraper.js:1092 and :1162) has the same inflation."
+    },
+    {
+      "file": "backend/src/services/chunkShape.js",
+      "line": 59,
+      "severity": "low",
+      "summary": "TITLE_SEP_RE treats breadcrumb separators '>' and '»' as page/site separators and then takes the leftmost non-brand part, so a breadcrumb <title> like \"Home > Camps > Men's Retreat\" yields pageH1 \"Home\" — the subject is on the right of a breadcrumb, the same reasoning the module applies to deliberately exclude ':'. The result is a wrong subject line injected into the header of every chunk on every H1-less page of such a site, which is worse for retrieval than the no-H1 state the rule is meant to fix."
+    },
+    {
+      "file": "backend/test/fixtures/rag-eval/questions.json",
+      "line": 14,
+      "severity": "low",
+      "summary": "questions.json is the committed set of \"universal small-business questions\" that rag-eval runs against every domain, scoring a per-domain hit-rate with no notion of an expected miss. Adding an entity-specific church question permanently books one guaranteed miss against dosiedough.com, burkdigital.com, tomatopiecafe.com etc., lowering the shared baseline every future RAG change is measured against and making new scorecards non-comparable with prior runs. The harness already accepts --questions <path> for an ad-hoc set."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "No authentication, authorization or session code is touched — the diff is scraper chunking, a new pure helper module, tests and fixtures."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "The only .env.example addition is CHUNK_SHAPE_LOG_LEVEL, a log verbosity knob, not a credential, and no secret handling changes."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, Stripe, quota or pricing code is in the diff."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "No deletes, migrations or data-destroying operations are added or modified; the chunk insert-before-delete path is untouched."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API call sites change — the Puppeteer evaluate block only additionally returns document.title, and embeddings/Claude call sites are untouched."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No version bump, deploy config, package.json or build file changes; the new env var ships with a safe in-code default."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review found nothing and its triage is entirely correct but trivially so; it missed the real issue — that rewriting cases C/E/F silently deleted the suite's only coverage of the absorbed-anchor path while a new comment asserts the opposite — plus three smaller defects.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 2.2122065,
+  "numTurns": 24,
+  "durationMs": 337251,
+  "sessionId": "88f0aa69-af68-42b0-bf54-b0cdab5dda1d"
+}

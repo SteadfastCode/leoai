@@ -1,0 +1,63 @@
+{
+  "item": "LEO-148",
+  "repo": "leoai",
+  "mergeSha": "ef698275217cf2bce7bbbf710103f19dab2dcf25",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T00:42:51.170Z",
+  "gradedAtUtc": "2026-11-25T01:01:34.525Z",
+  "independent": [],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The diff only removes a redundant index declaration and adds a DB-free index test; no auth/session/permission logic is touched."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials, tokens, env vars, or key handling appear anywhere in the diff."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota, or Stripe code is touched — Code.js only loses a duplicate index line."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Correct: the unique index on code remains and Mongoose never drops existing indexes, so nothing is deleted and no migration runs."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No HTTP/SDK calls added or changed; the new test compiles schemas only, with no DB or network."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No build, deploy, nixpacks, railway, or package.json changes in the diff (the test script already existed)."
+    }
+  ],
+  "missed": [],
+  "summary": "The local model correctly found no defects — matching my cold read that the index removal is safe (unique: true still builds the code_1 index, no other model declares a duplicate, and the new test genuinely detects duplicates because Mongoose keeps both entries in schema.indexes()) — and all six triage answers are right, though the review offers no evidence it verified anything.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 0,
+    "independent": 0,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 1.0995759999999999,
+  "numTurns": 18,
+  "durationMs": 111157,
+  "sessionId": "135b309f-431a-4500-94cd-bf5ea551de0e"
+}

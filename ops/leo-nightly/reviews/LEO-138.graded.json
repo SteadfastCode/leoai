@@ -1,0 +1,93 @@
+{
+  "item": "LEO-138",
+  "repo": "leoai",
+  "mergeSha": "d75c119f7143a604097a7dc9ec176958351235db",
+  "localPromptVersion": "v6",
+  "localModel": "qwen2.5-coder:14b",
+  "grader": "claude-opus-5",
+  "effort": "high",
+  "gradePromptVersion": "g1",
+  "gradeRunId": "2026-11-25T00:42:51.170Z",
+  "gradedAtUtc": "2026-11-25T01:12:10.228Z",
+  "independent": [
+    {
+      "file": "backend/src/services/pageRetire.js",
+      "line": 113,
+      "severity": "high",
+      "summary": "Linked documents (LEO-144) are retired as dead pages. A stored document URL appears in NO result list when it is deliberately not re-fetched (`docKnown = storedHashMap` when the linking page's hash is unchanged) or when it is fetched and its text still hashes to the stored hash (embedLinkedDocs `continue`s without pushing to `pages` or `chunks`). Since the rescrape queue is seeded only with `baseUrl`, an off-domain Drive/PDF URL can never be crawled either, so `reachedKeys()` has no evidence for it, `missedCrawls` reaches MAX_MISSES after two rescrapes, and `applyRetirement` deletes the document's ScrapedPage row and all its `scraped` chunks — the brochure's dates/prices leave the corpus until the next run re-fetches them (the row is gone, so `known.has()` is false), producing a permanent delete/re-embed churn cycle."
+    },
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 350,
+      "severity": "medium",
+      "summary": "The 'page went empty → clear its chunks' fix is only reachable inside `if (hasNormalChanges || hasThinChanges)`. A rescrape whose only change is a page that now yields zero chunks (no other page produced a normal chunk and no thin group was rebuilt) skips the whole loop, so the page keeps its stale chunks AND its `contentHash` is never advanced — the same state recurs on every subsequent run, so gap 2 is never fixed for that case."
+    },
+    {
+      "file": "backend/src/services/pageRetire.js",
+      "line": 178,
+      "severity": "low",
+      "summary": "The MAX_PAGES guard compares `reached.size` — distinct page keys derived from the result, which includes synthetic thin-group URLs, document URLs, robots-disallowed URLs and every `sourceUrls` entry — against the crawl's 500-page fetch cap, not against the crawl's `visited.size`. A crawl that finished comfortably under the cap can therefore exceed 500 derived keys, trip the guard, retire nothing permanently, and log the false reason 'the crawl reached the 500-page cap'."
+    },
+    {
+      "file": "backend/src/services/scrapePersist.js",
+      "line": 394,
+      "severity": "low",
+      "summary": "New deletion path at a group URL that coincides with a page URL. The code just above documents that a canonical group URL can equal a real page's URL ('/staff/'). If that page is in `pageHashUpdates`, is not in `failedUrls`, yields zero chunks this run, and its thin group was NOT rebuilt (no member changed), `clearChunksForUrl` now deletes every `scraped` chunk at that URL — including the still-current group chunk holding the thin members' cards. The previous early return in `replaceChunksForUrl` preserved it."
+    }
+  ],
+  "grades": [],
+  "triageGrades": [
+    {
+      "key": "auth",
+      "correct": true,
+      "reason": "The change touches no authentication, authorization or session code."
+    },
+    {
+      "key": "secrets",
+      "correct": true,
+      "reason": "No credentials or secret handling; the only env vars added are log-level knobs."
+    },
+    {
+      "key": "money",
+      "correct": true,
+      "reason": "No billing, pricing, quota or Stripe code is involved."
+    },
+    {
+      "key": "destructive",
+      "correct": true,
+      "reason": "Right call — the change adds Chunk and ScrapedPage deleteMany calls (pageRetire.applyRetirement, clearChunksForUrl); the cited line is only the new schema field, but the category judgement is correct."
+    },
+    {
+      "key": "externalApi",
+      "correct": true,
+      "reason": "No external API integration is added or modified; crawl ordering only changes the sequence of fetches the crawler already made."
+    },
+    {
+      "key": "release",
+      "correct": true,
+      "reason": "No CI, deploy, packaging or version config; the new `missedCrawls` field and the two log-level env vars both default safely with no migration step."
+    }
+  ],
+  "missed": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "summary": "The local review reported nothing at all and so missed every defect, including a high-severity data-loss path where linked-document chunks are deleted as 'dead pages' after two rescrapes; its triage answers were all correct but carried only one weak piece of evidence.",
+  "counts": {
+    "findings": 0,
+    "confirmed": 0,
+    "falsePositive": 0,
+    "duplicate": 0,
+    "unverifiable": 0,
+    "missed": 4,
+    "independent": 4,
+    "triageChecked": 6,
+    "triageCorrect": 6
+  },
+  "costUsd": 2.533191,
+  "numTurns": 20,
+  "durationMs": 298381,
+  "sessionId": "d47c9e5b-b136-42e1-a2b9-07d70ba7f80e"
+}

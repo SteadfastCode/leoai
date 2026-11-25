@@ -217,6 +217,76 @@ standing audit, which is last so it runs only when nothing else is claimable.
 
 ## Proposed
 
+- [ ] **(LEO-160) The new comment claims "Cases A, B and C still exercise the absorption path", but C is false: C's…**
+  Found by the grader of LEO-147 (medium, backend/test/chunk-trailing-merge.test.js:136). The new
+  comment claims "Cases A, B and C still exercise the absorption path", but C is false: C's
+  fixture (SEC_A+H2_A ≈ 1190 + SEC_B section 206 ≈ 1400 chars) now fits under CHUNK_MAX, so
+  mergeTargetFor returns Infinity and C produces a single chunk via the normal push — exactly what
+  the rewritten D asserts for the same text. C therefore no longer reaches flushMergeBuf(true)'s
+  absorption branch (it passes for a new reason, so its title no longer describes what it tests),
+  and with E/F also reshaped, nothing in the suite now covers appendToLast carrying an absorbed
+  section's anchor into extraAnchors — the LEO-102 regression guard the file exists for. A/B only
+  cover the splitOversizedSection absorption, which passes no anchors.
+- [ ] **(LEO-161) Linked documents (LEO-144) are retired as dead pages.**
+  Found by the grader of LEO-138 (high, backend/src/services/pageRetire.js:113). Linked documents
+  (LEO-144) are retired as dead pages. A stored document URL appears in NO result list when it is
+  deliberately not re-fetched (`docKnown = storedHashMap` when the linking page's hash is
+  unchanged) or when it is fetched and its text still hashes to the stored hash (embedLinkedDocs
+  `continue`s without pushing to `pages` or `chunks`). Since the rescrape queue is seeded only
+  with `baseUrl`, an off-domain Drive/PDF URL can never be crawled either, so `reachedKeys()` has
+  no evidence for it, `missedCrawls` reaches MAX_MISSES after two rescrapes, and `applyRetirement`
+  deletes the document's ScrapedPage row and all its `scraped` chunks — the brochure's
+  dates/prices leave the corpus until the next run re-fetches them (the row is gone, so
+  `known.has()` is false), producing a permanent delete/re-embed churn cycle.
+- [ ] **(LEO-162) The 'page went empty → clear its chunks' fix is only reachable inside if (hasNormalChanges || has…**
+  Found by the grader of LEO-138 (medium, backend/src/services/scrapePersist.js:350). The 'page
+  went empty → clear its chunks' fix is only reachable inside `if (hasNormalChanges ||
+  hasThinChanges)`. A rescrape whose only change is a page that now yields zero chunks (no other
+  page produced a normal chunk and no thin group was rebuilt) skips the whole loop, so the page
+  keeps its stale chunks AND its `contentHash` is never advanced — the same state recurs on every
+  subsequent run, so gap 2 is never fixed for that case.
+- [ ] **(LEO-163) The new group/page URL collision guard only skips group URLs that appear in pageHashUpdates, i.e.**
+  Found by the grader of LEO-137 (high, backend/src/services/scrapePersist.js:425). The new
+  group/page URL collision guard only skips group URLs that appear in pageHashUpdates, i.e. pages
+  that changed (or were embed-skipped) this run. A thin group URL now equals the canonical URL of
+  a real page (the root group equals the home page; '/staff' group equals the '/staff' listing
+  page), and when that page is UNCHANGED it is absent from pageHashUpdates, so the thin loop still
+  calls replaceChunksForUrl(domain, groupUrl, groupChunks), which deletes every non-preserved
+  chunk at that URL except the group chunk it just inserted. The page's own chunks are destroyed,
+  and because its contentHash was never bumped the next rescrape reports it unchanged and never
+  re-embeds it. '/' is not in HIGH_PRIORITY_PATTERNS, so an unchanged home page is the normal
+  case. The added test only covers the changed-page variant.
+- [ ] **(LEO-164) rescrapeSite now canonicalises its start URL and every enqueued link, but storedHashMap (and vari…**
+  Found by the grader of LEO-137 (high, backend/src/services/scraper.js:1035). rescrapeSite now
+  canonicalises its start URL and every enqueued link, but storedHashMap (and
+  variantUrlKeys/staleUrlKeys) is still keyed by urlKey() = hostname+pathname, which normalises
+  neither www/bare nor the trailing slash. For every entity whose stored spelling differs from the
+  new canonical origin, every stored hash lookup misses, so the whole site reads as changed and is
+  re-embedded under the new URL while scrapePersist deletes only `url: <canonical>` — the old rows
+  and chunks are left behind. The first automatic LeoRefresh after deploy therefore doubles the
+  page rows and the chunk corpus (duplicate RAG context, inflated counts) and pays a full re-embed
+  for every site; the only cleanup is the manual collapse-url-variants script, which nothing runs
+  automatically.
+- [ ] **(LEO-165) dropNearEmptyChunks is applied to chunkText() output, which includes the synthetic LEO-018 hours…**
+  Found by the grader of LEO-136 (high, backend/src/services/scraper.js:848). dropNearEmptyChunks
+  is applied to chunkText() output, which includes the synthetic LEO-018 hours chunk appended at
+  scraper.js:703-704. A typical terse footer hours chunk — content '[Source: …]\n[H2]
+  Hours\n\nMonday - Saturday: 7 am - 2 pm' — has a chunkBody() of exactly 30 chars (the [Source]
+  and [H2] Hours lines are discounted as the leading header block), under MIN_CHUNK_BODY=40, so it
+  is dropped before embedding. That silently reverts the fix for the documented top Known Issue
+  ('RAG misses what are your hours?') on exactly the dosiedough.com-shaped single-line hours table
+  the module was written for; only sites with two or more paired hours lines keep the chunk. No
+  test covers the hours chunk against the new filter.
+- [ ] **(LEO-166) The near-empty rule partially re-breaks LEO-083 for small thin-page groups.**
+  Found by the grader of LEO-136 (medium, backend/src/services/crawlFilter.js:261). The near-empty
+  rule partially re-breaks LEO-083 for small thin-page groups. In a group chunk the leading header
+  block is just '[Source: groupUrl]' and every other [Source:] line is discounted, so a group
+  containing one card is measured as only its [H1] plus body: '[H1] Bob Lee' + 'bob@gbc.org' = 24
+  chars < 40, and the chunk is dropped — the staff member disappears from the KB. The test only
+  exercises a two-card group (42+ chars), so the single-card/short-name boundary is untested even
+  though multi-URL grouping exists precisely to stop thin staff pages from being lost. Compounded
+  on rescrape: embedThinPageGroups still returns the groupUrl, so the previously stored group
+  chunks for that URL are deleted and not replaced.
 - [ ] **(LEO-159) The new sweep-verdict pass treats the synthetic group URL as a swept page, so it writes/blanks sc…**
   Found by the grader of LEO-116 (medium, backend/src/services/scrapePersist.js:391). The new
   sweep-verdict pass treats the synthetic group URL as a swept page, so it writes/blanks scanRules
